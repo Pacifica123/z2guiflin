@@ -17,6 +17,8 @@ class ProjectLayout:
     gui_dir: Path
     docs_dir: Path
     tools_dir: Path
+    profiles_dir: Path
+    strategies_dir: Path
 
     def required_paths(self) -> tuple[Path, ...]:
         return (
@@ -26,6 +28,8 @@ class ProjectLayout:
             self.docs_dir / "DEVELOPMENT_STRATEGY.md",
             self.docs_dir / "VERSIONING.md",
             self.tools_dir / "check_project_tree.py",
+            self.profiles_dir / "default.json",
+            self.strategies_dir / "catalog.json",
         )
 
 
@@ -37,4 +41,6 @@ def discover_layout(root: Path | None = None) -> ProjectLayout:
         gui_dir=resolved_root / "gui",
         docs_dir=resolved_root / "docs",
         tools_dir=resolved_root / "tools",
+        profiles_dir=resolved_root / "profiles",
+        strategies_dir=resolved_root / "strategies",
     )

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "lab-readonly",
+  "title": "Лабораторный read-only профиль",
+  "description": "Пример профиля для проверки GUI/CLI без локального применения и без привилегий.",
+  "strategyId": "read-only-diagnostics",
+  "buildTarget": "all",
+  "hostlists": [],
+  "safety": {
+    "readOnlyInChecks": true,
+    "requiresOwnerConfirmationBeforeApply": true,
+    "mayUseSudo": false,
+    "mayMutateServicesOrFirewall": false
+  },
+  "notes": [
+    "Пример находится в profiles/examples и не выбирается как default.",
+    "Он нужен для тестов формы данных и будущего экрана Стратегии."
+  ]
+}

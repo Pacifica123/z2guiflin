@@ -24,6 +24,14 @@ REQUIRED_PATHS = [
     "core/zapret2/nfq2/Makefile",
     "core/zapret2/ip2net/Makefile",
     "core/zapret2/mdig/Makefile",
+    "profiles/README.md",
+    "profiles/default.json",
+    "profiles/hostlists/default.hosts",
+    "profiles/examples/lab-readonly.json",
+    "strategies/README.md",
+    "strategies/catalog.json",
+    "strategies/manual-local.json",
+    "strategies/read-only-diagnostics.json",
     "core/zapret2/nfq2/nfqws.c",
     "core/zapret2/lua/zapret-lib.lua",
     "gui/README.md",
@@ -34,7 +42,10 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/qt_app.py",
     "gui/zap2_gui/adapters/gui_state.py",
     "gui/zap2_gui/adapters/local_build.py",
+    "gui/zap2_gui/adapters/workspace_profiles.py",
     "gui/zap2_gui/models/navigation.py",
+    "gui/zap2_gui/models/strategy.py",
+    "gui/zap2_gui/models/workspace_profile.py",
     "gui/zap2_gui/windows/main_window.py",
     "gui/zap2_gui/widgets/placeholders.py",
     "docs/DEVELOPMENT_STRATEGY.md",
@@ -44,6 +55,8 @@ REQUIRED_PATHS = [
     "docs/CORE_INVENTORY.md",
     "docs/CORE_BUILD_MAP.md",
     "docs/LOCAL_BUILD_ADAPTER.md",
+    "docs/WORKSPACE_PROFILES.md",
+    "docs/STRATEGIES.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/VERSIONING.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
@@ -53,8 +66,10 @@ REQUIRED_PATHS = [
     "tools/check_project_tree.py",
     "tools/inventory_core.py",
     "tools/check_local_build_adapter.py",
+    "tools/check_workspace_profiles.py",
     "tests/test_core_inventory_and_build_map.py",
     "tests/test_local_build_adapter.py",
+    "tests/test_workspace_profiles_and_strategies.py",
 ]
 
 PROJECT_DOCUMENTATION_PATHS = [
@@ -62,6 +77,8 @@ PROJECT_DOCUMENTATION_PATHS = [
     "core/README.md",
     "core/zapret2/UPSTREAM_IMPORT.md",
     "gui/README.md",
+    "profiles/README.md",
+    "strategies/README.md",
     "docs/DEVELOPMENT_STRATEGY.md",
     "docs/DOCUMENTATION_LANGUAGE.md",
     "docs/GUI_FRAMEWORK.md",
@@ -69,6 +86,8 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/CORE_INVENTORY.md",
     "docs/CORE_BUILD_MAP.md",
     "docs/LOCAL_BUILD_ADAPTER.md",
+    "docs/WORKSPACE_PROFILES.md",
+    "docs/STRATEGIES.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",
@@ -154,6 +173,25 @@ def main() -> int:
         print("Local build adapter должен оставаться plan-only и без sudo")
         return 1
 
+    workspace_doc = (ROOT / "docs/WORKSPACE_PROFILES.md").read_text(encoding="utf-8")
+    strategies_doc = (ROOT / "docs/STRATEGIES.md").read_text(encoding="utf-8")
+    workspace_adapter = (ROOT / "gui/zap2_gui/adapters/workspace_profiles.py").read_text(encoding="utf-8")
+    if "workspace-проф" not in workspace_doc or "plan-only" not in strategies_doc:
+        print("Документация workspace-профилей/стратегий не зафиксирована")
+        return 1
+    if "validate_workspace_catalog" not in workspace_adapter or "automatic_checks_may_execute_strategies" not in workspace_adapter:
+        print("Workspace profiles adapter должен валидировать стратегии и read-only boundary")
+        return 1
+
+    profiles_data = json.loads((ROOT / "profiles/default.json").read_text(encoding="utf-8"))
+    strategies_catalog = json.loads((ROOT / "strategies/catalog.json").read_text(encoding="utf-8"))
+    if profiles_data.get("strategyId") != "manual-local" or profiles_data.get("buildTarget") != "nfqws2":
+        print("Default profile должен ссылаться на manual-local и nfqws2")
+        return 1
+    if strategies_catalog["safety"].get("automaticChecksMayExecuteStrategies") is not False:
+        print("Strategy catalog должен запрещать исполнение стратегий в проверках")
+        return 1
+
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
     if "русском" not in language_doc or "проектная документация" not in language_doc:
         print("Правило русского языка документации не зафиксировано")
@@ -185,7 +223,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map и local build adapter зафиксированы")
+    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter и workspace strategies зафиксированы")
     return 0
 
 

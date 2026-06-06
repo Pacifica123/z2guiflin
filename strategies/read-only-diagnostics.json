@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "read-only-diagnostics",
+  "title": "Read-only диагностика",
+  "summary": "Стратегия-заглушка для будущих диагностических экранов: только чтение состояния проекта и подготовка отчётов.",
+  "philosophy": "inspect-first",
+  "intendedFor": [
+    "проверка структуры проекта",
+    "демонстрация strategy catalog",
+    "будущая безопасная диагностика"
+  ],
+  "workflow": [
+    "inspect",
+    "report"
+  ],
+  "capabilities": {
+    "readsProfiles": true,
+    "readsHostlists": false,
+    "usesLocalBuildPlan": false,
+    "executesAutomatically": false,
+    "requiresSudoAtStage7": false,
+    "mutatesServicesOrFirewallAtStage7": false
+  },
+  "notes": [
+    "Эта стратегия не применяет конфигурацию и не запускает сетевые проверки.",
+    "Она нужна как безопасная форма для будущей вкладки Диагностика."
+  ]
+}

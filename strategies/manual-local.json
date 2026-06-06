@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "manual-local",
+  "title": "Ручная локальная стратегия",
+  "summary": "Основная стратегия Stage 7: GUI показывает локальные данные, build plan и будущие шаги, но не применяет их к системе без отдельного подтверждения.",
+  "philosophy": "toolbox/apothecary",
+  "intendedFor": [
+    "single-user разработка до v1-stable",
+    "ручной контроль owner-maintained hostlists",
+    "локальная сборка vendored-ядра"
+  ],
+  "workflow": [
+    "inspect",
+    "plan",
+    "present",
+    "owner-confirms-later",
+    "execute-later"
+  ],
+  "capabilities": {
+    "readsProfiles": true,
+    "readsHostlists": true,
+    "usesLocalBuildPlan": true,
+    "executesAutomatically": false,
+    "requiresSudoAtStage7": false,
+    "mutatesServicesOrFirewallAtStage7": false
+  },
+  "notes": [
+    "Стратегия не содержит низкоуровневых команд запуска.",
+    "Runtime lifecycle будет вынесен в будущий stage с отдельными confirmations."
+  ]
+}

@@ -10,6 +10,8 @@
 core/      исходники vendored-ядра и метаданные импорта
 gui/       наш Python-пакет будущего GUI на PyQt
 docs/      стратегия продукта, справочные заметки и правила разработки
+profiles/  workspace-профили владельца и локальные hostlists
+strategies/ каталог plan-only стратегий
 tools/     проверки репозитория без сети, sudo и управления сервисами
 tests/     небольшие структурные тесты для новой базы
 ```
@@ -18,7 +20,7 @@ tests/     небольшие структурные тесты для ново�
 
 ## Текущий статус
 
-Это ранняя `v0.3-alpha` база, а не готовое приложение для конечного пользователя. Она импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк, русифицирует проектную документацию, добавляет read-only инвентаризацию ядра с build map, вводит первый скелет PyQt GUI shell и добавляет local build adapter для явных планов локальной сборки.
+Это ранняя `v0.3-alpha` база, а не готовое приложение для конечного пользователя. Она импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк, русифицирует проектную документацию, добавляет read-only инвентаризацию ядра с build map, вводит первый скелет PyQt GUI shell, добавляет local build adapter для явных планов локальной сборки и вводит workspace-профили/стратегии как read-only project data.
 
 ```bash
 python tools/check_project_tree.py
@@ -26,9 +28,11 @@ python tools/inventory_core.py --check
 python -m compileall -q gui tools tests
 python -m zap2_gui.app
 python -m zap2_gui.app --build-plan
+python -m zap2_gui.app --list-profiles
+python -m zap2_gui.app --list-strategies
 ```
 
-Эти проверки намеренно read-only. Они сверяют структуру, документацию, snapshot-инвентаризацию, build map, local build plan и импортируемость GUI shell, но не собирают C-ядро, не устанавливают пакеты, не запускают окно, не трогают firewall/service state и не требуют повышенных привилегий. Настоящий запуск окна выполняется отдельно через `python -m zap2_gui.app --gui` на машине владельца с установленным PyQt6. Просмотр плана локальной сборки доступен через `python -m zap2_gui.app --build-plan`: команда показывает `make`-план, но не выполняет его.
+Эти проверки намеренно read-only. Они сверяют структуру, документацию, snapshot-инвентаризацию, build map, local build plan и импортируемость GUI shell, но не собирают C-ядро, не устанавливают пакеты, не запускают окно, не трогают firewall/service state и не требуют повышенных привилегий. Настоящий запуск окна выполняется отдельно через `python -m zap2_gui.app --gui` на машине владельца с установленным PyQt6. Просмотр плана локальной сборки доступен через `python -m zap2_gui.app --build-plan`: команда показывает `make`-план, но не выполняет его. Просмотр workspace-профилей и стратегий доступен через `--list-profiles`, `--show-profile`, `--list-strategies` и `--show-strategy`; эти команды только читают JSON-данные.
 
 ## Правило разработки
 

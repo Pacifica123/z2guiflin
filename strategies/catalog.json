@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "defaultStrategyId": "manual-local",
+  "strategyFiles": [
+    "strategies/manual-local.json",
+    "strategies/read-only-diagnostics.json"
+  ],
+  "safety": {
+    "stage": "v0.3-alpha_stage_7",
+    "automaticChecksMayExecuteStrategies": false,
+    "strategiesArePlansOnly": true
+  }
+}

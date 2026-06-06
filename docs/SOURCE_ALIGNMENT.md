@@ -65,3 +65,9 @@ Stage 6 не меняет импортированные upstream-исходни
 - `python -m zap2_gui.app --build-plan` показывает план в headless-режиме без выполнения `make`.
 
 Сборка ядра, установка зависимостей и privileged runtime integration по-прежнему не выполняются автоматическими проверками.
+
+## Stage 7: alignment профилей и стратегий
+
+Workspace-профили и стратегии относятся к нашему приложению, а не к upstream-ядру. Они намеренно вынесены в `profiles/` и `strategies/`, чтобы не смешивать пользовательский workflow с vendored-исходниками `core/zapret2/`.
+
+Из Windows GUI мы берём продуктовую философию “toolbox/apothecary”: владелец видит набор инструментов, рецептов и профилей. При этом мы не копируем Windows-specific service assumptions и не переносим их в Linux слой как скрытую автоматику. На Stage 7 всё остаётся read-only data model.

@@ -84,6 +84,8 @@ PATCH_SUMMARY.md
 ```text
 core/zapret2/       upstream-исходники ядра, импортируемые и ревьюируемые как source
 gui/zap2_gui/      Python GUI shell на PyQt и orchestration приложения
+profiles/          workspace-профили владельца и локальные hostlists
+strategies/        каталог plan-only стратегий приложения
 docs/              стратегия, reference notes и decision records
 tools/             read-only проверки репозитория и будущие developer helpers
 tests/             structural/unit tests для нашего слоя
@@ -123,7 +125,7 @@ inspect -> plan -> present -> owner confirms -> execute locally -> record result
 
 ### v0.3-alpha_stage_7 — workspace профилей/стратегий
 
-Представить strategies и hostlists как редактируемые project/user data. Взять из Windows GUI философию “toolbox/apothecary”, но не копировать Windows-specific service assumptions.
+Представить `profiles/` и `strategies/` как read-only project/user data. Взять из Windows GUI философию “toolbox/apothecary”, но не копировать Windows-specific service assumptions. Результат Stage 7: JSON-профили, strategy catalog, CLI `--list-profiles`/`--list-strategies`, вкладка `Стратегии` со статусом `profiles-backed` и проверки, которые валидируют связи, но ничего не применяют к системе.
 
 ### v0.3-alpha_stage_8+ — контролируемый runtime lifecycle
 
@@ -144,3 +146,16 @@ inspect -> plan -> present -> owner confirms -> execute locally -> record result
 - явные флаги, что автоматические проверки не должны выполнять этот план.
 
 Это первый шаг к нормальному экрану `Ядро`: GUI сможет показывать пользователю понятную локальную сборку, а будущий runner будет добавлен отдельно и только после подтверждений.
+
+
+## Решение Stage 7: workspace-профили и стратегии
+
+Начиная со Stage 7, пользовательский workflow описывается отдельными данными проекта:
+
+- `profiles/` хранит workspace-профили владельца, локальные hostlists и примеры профилей;
+- `strategies/` хранит каталог plan-only стратегий;
+- `gui/zap2_gui/adapters/workspace_profiles.py` читает эти данные и валидирует связи между профилем, стратегией и build target.
+
+Это важный архитектурный шаг: GUI больше не должен думать о “стратегии” как о наборе случайных shell-команд. Сначала есть структурированные данные, затем экран просмотра, затем редактор, затем dry-run/apply plan и только потом owner-confirmed execution. Stage 7 не запускает `sudo`, не мутирует firewall, не управляет `systemd` и не выполняет стратегии автоматически.
+
+Стратегия `manual-local` считается основной для одиночной разработки до `v1-stable`. Она следует философии `toolbox/apothecary`: приложение должно давать владельцу понятные инструменты, рецепты и планы, а не скрывать происходящее внутри install wizard.

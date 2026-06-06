@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "default",
+  "title": "Локальный профиль по умолчанию",
+  "description": "Базовый workspace-профиль Stage 7: связывает локальную стратегию, build target и owner-maintained hostlist без применения настроек к системе.",
+  "strategyId": "manual-local",
+  "buildTarget": "nfqws2",
+  "hostlists": [
+    {
+      "id": "owner-maintained",
+      "path": "profiles/hostlists/default.hosts",
+      "purpose": "Пустой локальный список, который владелец сможет наполнять вручную."
+    }
+  ],
+  "safety": {
+    "readOnlyInChecks": true,
+    "requiresOwnerConfirmationBeforeApply": true,
+    "mayUseSudo": false,
+    "mayMutateServicesOrFirewall": false
+  },
+  "notes": [
+    "Stage 7 только описывает рабочее пространство и стратегию.",
+    "Никакие системные действия из этого профиля не выполняются автоматически."
+  ]
+}

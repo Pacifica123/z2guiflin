@@ -22,12 +22,29 @@ gui/
     adapters/
       gui_state.py
       local_build.py
+      workspace_profiles.py
     models/
       navigation.py
+      strategy.py
+      workspace_profile.py
     windows/
       main_window.py
     widgets/
       placeholders.py
+
+profiles/
+  README.md
+  default.json
+  hostlists/
+    default.hosts
+  examples/
+    lab-readonly.json
+
+strategies/
+  README.md
+  catalog.json
+  manual-local.json
+  read-only-diagnostics.json
 
 docs/
   DEVELOPMENT_STRATEGY.md
@@ -39,6 +56,9 @@ docs/
   DOCUMENTATION_LANGUAGE.md
   CORE_INVENTORY.md
   CORE_BUILD_MAP.md
+  LOCAL_BUILD_ADAPTER.md
+  WORKSPACE_PROFILES.md
+  STRATEGIES.md
   reference/
     windows_gui_feature_digest.md
     legacy_project_digest.md
@@ -47,6 +67,7 @@ tools/
   check_project_tree.py
   inventory_core.py
   check_local_build_adapter.py
+  check_workspace_profiles.py
 
 tests/
   test_bootstrap_structure.py
@@ -55,6 +76,7 @@ tests/
   test_documentation_language.py
   test_core_inventory_and_build_map.py
   test_local_build_adapter.py
+  test_workspace_profiles_and_strategies.py
 ```
 
 ## Правило разделения
@@ -100,3 +122,15 @@ Stage 4 добавляет два snapshot-файла рядом с vendored-я�
 Stage 6 добавляет `gui/zap2_gui/adapters/local_build.py`. Это наш первый adapter между build map и будущим GUI workflow сборки. Он создаёт структурированный план локальной команды `make`, но не выполняет её в автоматических проверках.
 
 Слой считается частью `gui/`, потому что он обслуживает application workflow, а не меняет upstream-ядро. Его проверки находятся в `tools/check_local_build_adapter.py` и `tests/test_local_build_adapter.py`.
+
+
+## Workspace-профили и стратегии
+
+Stage 7 добавляет два новых top-level слоя данных:
+
+- `profiles/` — workspace-профили владельца, локальные hostlists и примеры профилей;
+- `strategies/` — каталог plan-only стратегий, которые будущий GUI сможет показывать и связывать с профилями.
+
+Эти директории намеренно находятся рядом с `core/` и `gui/`, а не внутри vendored-ядра. Они относятся к нашему приложению и описывают пользовательский workflow, но не являются upstream-исходниками и не должны автоматически применять системные изменения.
+
+`gui/zap2_gui/adapters/workspace_profiles.py` читает эти JSON-файлы, валидирует связи `profile -> strategy -> build target` и отдаёт данные CLI/GUI. Вкладка `Стратегии` теперь считается `profiles-backed`, но остаётся read-only: редактирование и применение появятся только отдельными патчами.

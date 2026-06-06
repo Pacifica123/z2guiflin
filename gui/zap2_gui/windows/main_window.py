@@ -1,4 +1,4 @@
-"""Main PyQt window factory for the Stage 5 GUI shell."""
+"""Main PyQt window factory for the Stage 5+ GUI shell."""
 
 from __future__ import annotations
 
@@ -6,10 +6,11 @@ from typing import Any
 
 from .. import PRODUCT_LABEL
 from ..adapters.local_build import create_local_build_plan
+from ..adapters.workspace_profiles import load_workspace_catalog
 from ..core_inventory import load_core_build_map, load_core_inventory_snapshot
 from ..models.navigation import default_navigation_sections
 from ..qt_compat import require_pyqt
-from ..widgets.placeholders import make_core_page, make_placeholder_page
+from ..widgets.placeholders import make_core_page, make_placeholder_page, make_strategies_page
 
 
 def create_main_window(root: object | None = None) -> Any:
@@ -19,6 +20,7 @@ def create_main_window(root: object | None = None) -> Any:
     snapshot = load_core_inventory_snapshot(root)  # type: ignore[arg-type]
     build_map = load_core_build_map(root)  # type: ignore[arg-type]
     build_plan = create_local_build_plan(root)  # type: ignore[arg-type]
+    workspace_catalog = load_workspace_catalog(root)  # type: ignore[arg-type]
     sections = default_navigation_sections()
 
     class MainWindow(QtWidgets.QMainWindow):  # type: ignore[misc, valid-type]
@@ -32,6 +34,8 @@ def create_main_window(root: object | None = None) -> Any:
             for section in sections:
                 if section.key == "core":
                     page = make_core_page(snapshot, build_map, build_plan)
+                elif section.key == "strategies":
+                    page = make_strategies_page(workspace_catalog)
                 else:
                     page = make_placeholder_page(section)
                 tabs.addTab(page, section.title)

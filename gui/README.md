@@ -22,3 +22,18 @@ PyQt6 добавлен как optional dependency `gui`, а не как обяз
 ## Local build adapter
 
 `local_build.py` создаёт план локальной сборки на основе `BUILD_MAP.json`. Он возвращает `cwd`, `argv`, ожидаемые артефакты и флаги безопасности, но не вызывает `make` сам. Это даёт GUI стабильный контракт для будущего экрана сборки и позволяет тестировать workflow без Qt, без sudo и без системных изменений.
+
+## Stage 7: workspace-профили и стратегии
+
+GUI-слой теперь умеет читать профили и стратегии через `zap2_gui.adapters.workspace_profiles`. Это read-only adapter: он валидирует JSON-файлы в `profiles/` и `strategies/`, связывает профиль с `strategyId` и `buildTarget`, но не запускает стратегию и не применяет настройки к системе.
+
+CLI-команды для проверки слоя:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --list-profiles
+PYTHONPATH=gui python -m zap2_gui.app --show-profile default
+PYTHONPATH=gui python -m zap2_gui.app --list-strategies
+PYTHONPATH=gui python -m zap2_gui.app --show-strategy manual-local
+```
+
+В PyQt shell вкладка `Стратегии` получает статус `profiles-backed`. На этой стадии она показывает данные и safety boundary, но не редактирует профиль и не выполняет runtime lifecycle.

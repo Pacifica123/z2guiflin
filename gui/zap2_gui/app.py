@@ -7,6 +7,13 @@ import sys
 
 from . import PRODUCT_LABEL
 from .adapters.local_build import create_local_build_plan
+from .adapters.workspace_profiles import (
+    workspace_profile_to_text,
+    workspace_profiles_to_text,
+    workspace_strategies_to_text,
+    workspace_strategy_to_text,
+    load_workspace_catalog,
+)
 from .core_inventory import load_core_build_map, load_core_inventory, load_core_inventory_snapshot
 from .models.navigation import default_navigation_sections
 from .project_paths import discover_layout
@@ -22,6 +29,7 @@ def describe_project() -> str:
     sections = ", ".join(section.title for section in default_navigation_sections())
     pyqt_state = "available" if is_pyqt_available() else "not installed"
     build_plan = create_local_build_plan(layout.root)
+    workspace_catalog = load_workspace_catalog(layout.root)
     return "\n".join(
         [
             f"Zap2 GUI Linux {PRODUCT_LABEL}",
@@ -30,6 +38,7 @@ def describe_project() -> str:
             f"inventory: {snapshot.vendor_file_count} vendored files",
             f"build units: {units}",
             f"local build adapter: plan-only ({len(build_plan.expected_artifacts)} expected artifacts)",
+            f"workspace profiles: {len(workspace_catalog.profiles)}; strategies: {len(workspace_catalog.strategies)}",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: bootstrap/read-only baseline with optional GUI launch",
@@ -54,6 +63,27 @@ def build_parser() -> argparse.ArgumentParser:
         default="all",
         help="цель для --build-plan: all, nfqws2, ip2net, mdig или clean",
     )
+
+    parser.add_argument(
+        "--list-profiles",
+        action="store_true",
+        help="показать workspace-профили без применения настроек",
+    )
+    parser.add_argument(
+        "--show-profile",
+        metavar="PROFILE_ID",
+        help="показать один workspace-профиль без применения настроек",
+    )
+    parser.add_argument(
+        "--list-strategies",
+        action="store_true",
+        help="показать каталог стратегий без исполнения",
+    )
+    parser.add_argument(
+        "--show-strategy",
+        metavar="STRATEGY_ID",
+        help="показать одну стратегию без исполнения",
+    )
     return parser
 
 
@@ -71,6 +101,30 @@ def main(argv: list[str] | None = None) -> int:
     if args.build_plan:
         try:
             print(create_local_build_plan(target=args.build_target).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.list_profiles:
+        print(workspace_profiles_to_text())
+        return 0
+
+    if args.show_profile:
+        try:
+            print(workspace_profile_to_text(args.show_profile))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.list_strategies:
+        print(workspace_strategies_to_text())
+        return 0
+
+    if args.show_strategy:
+        try:
+            print(workspace_strategy_to_text(args.show_strategy))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

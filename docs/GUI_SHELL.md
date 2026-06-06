@@ -54,3 +54,17 @@ python -m zap2_gui.app --gui
 ## Связь с local build adapter
 
 Начиная со Stage 6, раздел `Ядро` получает не только inventory/build map, но и default local build plan. Это пока не кнопка запуска сборки: GUI показывает смысл команды, target и ожидаемые артефакты. Исполнение `make` должно появиться отдельным runner-слоем после явных подтверждений владельца.
+
+## Stage 7: вкладка `Стратегии` получает данные
+
+До Stage 7 раздел `Стратегии` был placeholder. Теперь он становится `profiles-backed`: GUI может читать `profiles/default.json`, `strategies/catalog.json` и файлы стратегий через pure Python adapter `workspace_profiles.py`.
+
+Это всё ещё не редактор и не runtime executor. Страница должна показывать владельцу:
+
+- доступные workspace-профили;
+- стратегию, связанную с выбранным профилем;
+- build target, который профиль считает основным;
+- локальные hostlists;
+- safety boundary: read-only, без `sudo`, без service/firewall mutation.
+
+Такой порядок важен для архитектуры GUI: сначала видимость данных, затем редактирование, затем dry-run plans, затем подтверждённое владельцем применение.

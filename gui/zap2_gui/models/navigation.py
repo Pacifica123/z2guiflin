@@ -16,7 +16,7 @@ class NavigationSection:
 
 
 def default_navigation_sections() -> tuple[NavigationSection, ...]:
-    """Return the stable v0.3-alpha Stage 5 navigation skeleton."""
+    """Return the stable v0.3-alpha navigation skeleton."""
 
     return (
         NavigationSection(
@@ -34,8 +34,8 @@ def default_navigation_sections() -> tuple[NavigationSection, ...]:
         NavigationSection(
             key="strategies",
             title="Стратегии",
-            purpose="Будущие профили, hostlists и параметры стратегий без скрытого запуска команд.",
-            ready_state="placeholder",
+            purpose="Workspace-профили, hostlists и каталог стратегий без скрытого запуска команд.",
+            ready_state="profiles-backed",
         ),
         NavigationSection(
             key="diagnostics",
