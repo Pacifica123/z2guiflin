@@ -1,52 +1,52 @@
-# Safety and privilege boundary
+# Граница безопасности и привилегий
 
-## Baseline
+## Базовая позиция
 
-Until `v1-stable`, the guaranteed user is the owner/developer. The product should therefore favor forward development and transparent local control over excessive UX paternalism.
+До `v1-stable` гарантированный пользователь — владелец/разработчик. Поэтому продукт должен предпочитать движение вперёд и прозрачный локальный контроль чрезмерному UX-патернализму.
 
-This is not permission for hidden system mutation. It is a decision to stop blocking development merely because the eventual product domain includes privileged Linux operations.
+Это не разрешение на скрытую системную мутацию. Это решение не блокировать разработку только потому, что домен будущего продукта включает привилегированные Linux-операции.
 
-## What automated patches may do
+## Что могут делать автоматические патчи
 
-Automated devctl checks may:
+Автоматические devctl-проверки могут:
 
-- parse Python files;
-- verify repository structure;
-- read vendored metadata;
-- validate docs and source presence;
-- run pure unit tests for our code.
+- парсить Python files;
+- проверять структуру репозитория;
+- читать vendored metadata;
+- валидировать наличие документации и исходников;
+- запускать pure unit tests для нашего кода.
 
-Automated checks should not:
+Автоматические проверки не должны:
 
-- call `sudo`;
-- install packages;
-- run upstream installer scripts;
-- change system services;
-- change firewall/nftables/iptables state;
-- download executable content from the network.
+- вызывать `sudo`;
+- устанавливать пакеты;
+- запускать upstream installer scripts;
+- менять system services;
+- менять состояние firewall/nftables/iptables;
+- скачивать executable content из сети.
 
-## What the owner may do locally
+## Что владелец может делать локально
 
-The owner may run privileged commands locally when future documentation or the GUI produces a clear plan. Those actions should be treated as owner-confirmed development operations, not assistant-side automation.
+Владелец может запускать привилегированные команды локально, когда будущая документация или GUI формирует понятный план. Такие действия должны считаться owner-confirmed development operations, а не assistant-side automation.
 
-Future privileged workflows should follow this shape:
+Будущие privileged workflows должны иметь такую форму:
 
 ```text
 collect facts -> generate command plan -> show exact plan -> owner confirms -> run locally -> log result -> offer rollback notes
 ```
 
-## No remote bootstrap principle
+## Принцип отсутствия remote bootstrap
 
-The product should not depend on `curl | sh`, blind remote installers, or automatic upstream replacement. The core source is vendored under `core/zapret2/` and updated only by explicit source-import patches.
+Продукт не должен зависеть от `curl | sh`, слепых remote installers или автоматической замены upstream. Исходники ядра лежат vendored в `core/zapret2/` и обновляются только явными source-import patches.
 
-## Practical safety attitude
+## Практическое отношение к безопасности
 
-Safety for this project means:
+Безопасность для этого проекта означает:
 
-- visible boundaries;
-- minimal hidden state;
-- local source ownership;
-- reproducible patches;
-- logs and reports;
-- refusal to run privileged commands inside the assistant environment;
-- respect for the owner’s ability to run their own development machine.
+- видимые границы;
+- минимум скрытого состояния;
+- локальное владение исходниками;
+- воспроизводимые патчи;
+- логи и отчёты;
+- отказ запускать привилегированные команды внутри среды ассистента;
+- уважение к способности владельца управлять собственной development machine.

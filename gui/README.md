@@ -1,12 +1,12 @@
-# GUI package
+# GUI-пакет
 
-`gui/` contains our application-side Python code and will grow into a PyQt desktop GUI. It must not absorb upstream engine sources and must not perform privileged host mutations during import.
+`gui/` содержит наш application-side Python-код и будет развиваться в desktop GUI на PyQt. Он не должен поглощать upstream-исходники ядра и не должен выполнять privileged host mutations во время import.
 
-Initial package responsibilities before the PyQt shell lands:
+Начальные обязанности пакета до появления PyQt shell:
 
-- know the repository layout;
-- read vendored-core metadata;
-- expose a future GUI shell entry point;
-- keep privileged operations behind explicit user-owned plans.
+- знать структуру репозитория;
+- читать vendored-core metadata;
+- предоставлять будущую точку входа GUI shell;
+- держать привилегированные операции за явными user-owned plans.
 
-The real UI should be introduced incrementally as a PyQt shell after the source tree and product rules stop moving. Do not switch the planned shell to PySide, GTK, Tkinter, Electron, or a CLI-only interface without an explicit owner decision.
+Настоящий UI следует вводить постепенно как PyQt shell после стабилизации дерева исходников и продуктовых правил. Не переключать планируемую shell на PySide, GTK, Tkinter, Electron или CLI-only interface без явного решения владельца.

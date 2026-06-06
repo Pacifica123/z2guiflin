@@ -1,13 +1,13 @@
-# Legacy project digest
+# Конспект старого проекта
 
-The previous Linux project is now a draft source, not the active implementation baseline. The useful concepts to carry forward are:
+Предыдущий Linux-проект теперь является источником черновиков, а не активной implementation baseline. Полезные идеи, которые нужно перенести дальше:
 
-- a strict privilege boundary between GUI planning and system mutation;
-- guided lifecycle flows instead of unexplained buttons;
-- “optimal next action” as a dashboard concept;
-- source alignment reports for patches that claim to follow upstream/reference behavior;
-- transactional thinking around apply/rollback/logging;
-- localization as a product requirement, not a late afterthought;
-- bytecode-safe and cache-safe checks in devctl.
+- строгая privilege boundary между GUI planning и system mutation;
+- guided lifecycle flows вместо необъяснённых кнопок;
+- “optimal next action” как dashboard concept;
+- source alignment reports для патчей, которые заявляют соответствие upstream/reference behavior;
+- transactional thinking вокруг apply/rollback/logging;
+- локализация как требование продукта, а не поздняя доработка;
+- bytecode-safe и cache-safe checks в devctl.
 
-The main lesson is also negative: many guarded installer patches can still fail to reach product essence if the architecture is centered on remote installation. `v0.3-alpha` changes the center to a vendored native core source tree.
+Главный урок также отрицательный: множество guarded installer patches всё равно могут не доходить до сути продукта, если архитектура центрирована на remote installation. `v0.3-alpha` меняет центр тяжести на vendored native core source tree.

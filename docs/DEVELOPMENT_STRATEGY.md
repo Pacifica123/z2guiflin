@@ -1,42 +1,53 @@
-# Development strategy — v0.3-alpha native-core reboot
+# Стратегия разработки — v0.3-alpha: перезапуск с нативным ядром
 
-## Decision
+## Решение
 
-The old Zapret2GUIfLin line is closed as the active implementation baseline. Its archive remains useful as a draft notebook: it contains UI experiments, privilege-boundary notes, lifecycle ideas, tests, and terminology. The new product starts at `v0.3-alpha` with a clean repository shape, a vendored upstream core, and a documented PyQt GUI direction.
+Старая линия Zapret2GUIfLin закрыта как активная implementation baseline. Её архив остаётся полезным как тетрадь черновиков: там есть UI-эксперименты, заметки о privilege boundary, lifecycle-идеи, тесты и терминология. Новый продукт начинается с `v0.3-alpha`: чистая структура репозитория, vendored upstream-ядро и зафиксированное направление GUI на PyQt.
 
-## Why restart
+## Почему мы перезапускаемся
 
-The previous chain spent many patches trying to wrap installation and update behavior safely. That was slow because the product kept orbiting around remote installation, shell orchestration and system-level side effects. The new direction removes that pressure: the engine source is inside the project, and the GUI is built around a known local source tree.
+Предыдущая цепочка потратила слишком много патчей на попытку безопасно обернуть установку и обновление. Это тормозило разработку, потому что продукт постоянно вращался вокруг remote installation, shell orchestration и системных side effects. Новое направление снимает это давление: исходники ядра лежат внутри проекта, а GUI строится вокруг известного локального дерева.
 
-This does **not** mean the assistant should run privileged commands. It means the assistant should stop trying to hide necessary developer actions behind overprotective abstractions. The correct boundary is:
+Это **не** означает, что ассистент должен запускать привилегированные команды. Это означает, что ассистент не должен прятать необходимые действия разработчика за чрезмерно защитными абстракциями. Корректная граница такая:
 
-- the assistant writes patches, docs, adapters, plans and checks;
-- checks are read-only unless explicitly scoped otherwise;
-- the owner/developer may run privileged commands locally because the current product is single-user before `v1-stable`;
-- any future privileged operation must be documented, visible and reversible enough for the owner to accept responsibility.
+- ассистент пишет патчи, документацию, адаптеры, планы и проверки;
+- проверки являются read-only, если для конкретного патча явно не задан другой безопасный scope;
+- владелец/разработчик может запускать привилегированные команды локально, потому что до `v1-stable` продукт гарантированно single-user;
+- любая будущая привилегированная операция должна быть документированной, видимой и достаточно обратимой, чтобы владелец мог осознанно принять ответственность.
 
-## GUI framework decision
+## Решение по GUI-фреймворку
 
-The Linux GUI will be built on **PyQt**. In this project, “PyQt” means the PyQt 6 line by default unless a later decision record deliberately narrows or revises that choice. The goal is to use Qt widgets as the main desktop shell for tabs, forms, logs, diagnostics, settings and future confirmation dialogs.
+Linux GUI будет построен на **PyQt**. В этом проекте “PyQt” по умолчанию означает линейку PyQt 6, если более поздний decision record не сузит или не пересмотрит этот выбор. Цель — использовать Qt widgets как основную desktop shell для вкладок, форм, логов, диагностики, настроек и будущих диалогов подтверждения.
 
-This is a framework decision, not a dependency-install patch. PyQt should become an application dependency when the first real GUI shell is introduced, not during a documentation-only stage. Do not replace the planned shell with PySide, GTK, Tkinter, a web UI, or a terminal UI unless the owner explicitly reopens this decision.
+Это решение о фреймворке, а не dependency-install patch. PyQt должен стать зависимостью приложения в момент появления первой настоящей GUI shell, а не на документационной стадии. Не заменять планируемую оболочку на PySide, GTK, Tkinter, web UI или terminal UI без явного решения владельца.
 
-## Global goal for the v0.3 series
+## Правило языка документации
 
-Build a Linux-first GUI that treats `core/zapret2/` as the native engine source and provides a controlled developer-owner workflow around it:
+Вся наша проектная документация с этого этапа ведётся на русском языке. Это правило распространяется на:
 
-1. inspect the vendored core and show what is present;
-2. build the engine locally from repository source;
-3. expose strategy/profile configuration without hiding files from the developer;
-4. provide read-only diagnostics and blockcheck-style discovery;
-5. generate explicit run/apply plans for actions that need privileges;
-6. only then introduce service/session management as an owner-confirmed layer.
+- `README.md` в корне проекта;
+- `core/README.md` и `gui/README.md`;
+- все файлы в `docs/`;
+- наши служебные заметки вроде `core/zapret2/UPSTREAM_IMPORT.md`.
 
-This goal is deliberately too large for one or two patches. It should take a sequence of v0.3-alpha stages before the project can be promoted to `v0.3-beta`.
+Исключения допустимы для имён файлов, команд, API/CLI-идентификаторов, названий upstream-проектов, коротких технических терминов, цитат и неизменяемой upstream-документации внутри `core/zapret2/docs/`. Если будущий патч добавляет или меняет проектную документацию, он должен писать её по-русски и не возвращать активные docs к англоязычной базе.
 
-## Patch workflow
+## Глобальная цель серии v0.3
 
-Future changes continue to use `devctl` zip patches:
+Построить Linux-first GUI, который считает `core/zapret2/` нативным исходным ядром и даёт владельцу-разработчику контролируемый workflow вокруг него:
+
+1. инспектировать vendored-ядро и показывать, что в нём есть;
+2. собирать ядро локально из исходников репозитория;
+3. открывать конфигурацию стратегий/профилей, не пряча файлы от разработчика;
+4. давать read-only диагностику и blockcheck-style discovery;
+5. генерировать явные run/apply plans для действий, которым нужны привилегии;
+6. только после этого вводить service/session management как слой, подтверждаемый владельцем.
+
+Эта цель намеренно слишком крупная для одного-двух патчей. Нужна последовательность стадий `v0.3-alpha`, прежде чем проект можно будет переводить в `v0.3-beta`.
+
+## Workflow патчей
+
+Дальнейшие изменения продолжают идти через devctl zip patches:
 
 ```text
 manifest.json
@@ -44,69 +55,78 @@ files/...
 PATCH_SUMMARY.md
 ```
 
-Patch naming should follow the version-qualified stage sequence:
+Имена патчей должны следовать stage-последовательности с версией:
 
 ```text
 2026-06-06-v0.3-alpha_stage_1-native-core-reboot.devctl.patch.zip
 2026-06-06-v0.3-alpha_stage_2-...
 ```
 
-A patch should include:
+Патч должен включать:
 
-- a concise product reason;
-- a source-alignment note when it touches core or reference behavior;
-- checks that do not generate bytecode artifacts outside devctl cleanup expectations;
-- no network dependency unless explicitly approved for that patch;
-- no `sudo`, service mutation or firewall mutation in automated checks.
+- краткую продуктовую причину;
+- source-alignment note, если он трогает ядро или reference behavior;
+- проверки, которые не создают bytecode artifacts за пределами ожиданий devctl cleanup;
+- отсутствие сетевой зависимости, если она явно не одобрена для конкретного патча;
+- отсутствие `sudo`, service mutation и firewall mutation в автоматических проверках;
+- русскоязычную проектную документацию, если патч меняет или добавляет docs.
 
-## Assistant/developer boundary
+## Граница ассистента и разработчика
 
-The assistant should not attempt to run `sudo`, install packages, manipulate services, change firewall rules, or execute upstream installer scripts in its own environment. Those operations are either impossible in the sandbox or inappropriate for automated patch validation.
+Ассистент не должен пытаться запускать `sudo`, устанавливать пакеты, управлять сервисами, менять firewall rules или выполнять upstream installer scripts в своей среде. Эти операции либо невозможны в sandbox, либо не подходят для автоматической валидации патча.
 
-The owner may run such commands locally when they are part of the intended product, because until `v1-stable` the only guaranteed user is also the developer. The product should therefore optimize for transparent control rather than paternalistic blocking. Safety means clear ownership, dry-run capability, logs, and command visibility — not endless refusal to model the workflow.
+Владелец может запускать такие команды локально, когда они являются частью задуманного продукта, потому что до `v1-stable` единственный гарантированный пользователь одновременно является разработчиком. Поэтому продукт должен оптимизироваться под прозрачный контроль, а не под патерналистское блокирование. Безопасность здесь означает понятное владение, dry-run capability, логи и видимость команд, а не бесконечный отказ моделировать workflow.
 
-## Preferred architecture
+## Предпочтительная архитектура
 
 ```text
-core/zapret2/       upstream engine source, imported and reviewed as source
-gui/zap2_gui/      PyQt-based Python GUI shell and application orchestration
-docs/              strategy, reference and decision records
-tools/             read-only repository checks and future developer helpers
-tests/             structural and unit tests for our layer
+core/zapret2/       upstream-исходники ядра, импортируемые и ревьюируемые как source
+gui/zap2_gui/      Python GUI shell на PyQt и orchestration приложения
+docs/              стратегия, reference notes и decision records
+tools/             read-only проверки репозитория и будущие developer helpers
+tests/             structural/unit tests для нашего слоя
 ```
 
-The GUI must depend inward on narrow adapters, not on random shell snippets. Future adapters should represent operations as data first:
+GUI должен зависеть внутрь через узкие adapters, а не через случайные shell snippets. Будущие adapters должны сначала представлять операции как данные:
 
 ```text
 inspect -> plan -> present -> owner confirms -> execute locally -> record result
 ```
 
-## Near-term stage plan
+## Ближайший план стадий
 
 ### v0.3-alpha_stage_1 — bootstrap
 
-Create the clean project tree, import core source, document the new rules, and preserve Windows GUI ideas as reference notes.
+Создать чистое дерево проекта, импортировать исходники ядра, задокументировать новые правила и сохранить идеи Windows GUI как reference notes.
 
-### v0.3-alpha_stage_2 — core inventory and build map
+### v0.3-alpha_stage_2 — решение по GUI-фреймворку
 
-Add a read-only inventory model for Makefiles, C sources, Lua scripts, configs and docs. Produce a build-plan object but do not run a privileged install.
+Зафиксировать PyQt как выбранный фреймворк Linux GUI и не добавлять runtime-зависимость до появления настоящей GUI shell.
 
-### v0.3-alpha_stage_3 — GUI shell skeleton
+### v0.3-alpha_stage_3 — русификация документации
 
-Create the initial PyQt Linux GUI shell with navigation placeholders: Overview, Core, Strategies, Diagnostics, Settings, Logs.
+Перевести активную проектную документацию на русский и закрепить правило, что будущие изменения документации тоже пишутся на русском.
 
-### v0.3-alpha_stage_4 — local build adapter
+### v0.3-alpha_stage_4 — инвентаризация ядра и build map
 
-Add a local build command plan for the engine. The assistant-generated check may validate command construction, but actual host dependencies remain owner-controlled.
+Добавить read-only inventory model для Makefiles, C sources, Lua scripts, configs и docs. Сформировать build-plan object, но не запускать privileged install.
 
-### v0.3-alpha_stage_5 — profile/strategy workspace
+### v0.3-alpha_stage_5 — скелет GUI shell
 
-Represent strategies and hostlists as editable project/user data. Borrow the Windows GUI “toolbox/apothecary” philosophy without copying Windows-specific service assumptions.
+Создать начальную PyQt Linux GUI shell с navigation placeholders: Overview, Core, Strategies, Diagnostics, Settings, Logs.
 
-### v0.3-alpha_stage_6+ — controlled runtime lifecycle
+### v0.3-alpha_stage_6 — local build adapter
 
-Introduce explicit run/apply/session/service plans with confirmation, logs and rollback notes. Do not merge this with bootstrap.
+Добавить local build command plan для ядра. Проверка, сгенерированная ассистентом, может валидировать construction команды, но реальные host dependencies остаются под контролем владельца.
 
-## Definition of done for v0.3-beta
+### v0.3-alpha_stage_7 — workspace профилей/стратегий
 
-`v0.3-beta` can be considered only when the project has a working GUI skeleton, a local core build path, visible strategy/profile management, diagnostics, and an explicit owner-confirmed path for any privileged action. Beta does not require multi-user polish.
+Представить strategies и hostlists как редактируемые project/user data. Взять из Windows GUI философию “toolbox/apothecary”, но не копировать Windows-specific service assumptions.
+
+### v0.3-alpha_stage_8+ — контролируемый runtime lifecycle
+
+Ввести явные run/apply/session/service plans с подтверждением, логами и rollback notes. Не смешивать это с bootstrap.
+
+## Definition of done для v0.3-beta
+
+`v0.3-beta` можно рассматривать только тогда, когда у проекта есть рабочий GUI skeleton, локальный core build path, видимое управление strategies/profiles, диагностика и явный owner-confirmed путь для любой привилегированной операции. Beta не обязана иметь multi-user polish.

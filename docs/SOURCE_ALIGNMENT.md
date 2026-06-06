@@ -1,29 +1,32 @@
-# Source alignment — v0.3-alpha_stage_2
+# Выравнивание с источниками — v0.3-alpha_stage_3
 
-Inputs used for this bootstrap:
+Входные материалы, использованные для bootstrap:
 
-- `zapret2-core-from_bolvan.zip` — upstream engine source snapshot supplied by the owner;
-- `zapret2-gui_windows.zip` — Windows GUI reference supplied by the owner;
-- the previous Linux project archive — treated as draft notes only;
-- the devctl archive — used to keep patch format compatible.
+- `zapret2-core-from_bolvan.zip` — снимок upstream-исходников ядра, переданный владельцем;
+- `zapret2-gui_windows.zip` — Windows GUI reference, переданный владельцем;
+- архив предыдущего Linux-проекта — используется только как draft notes;
+- архив devctl — используется для совместимости с форматом патчей.
 
-Implemented alignment:
+Реализованное выравнивание:
 
-- upstream core source is imported under `core/zapret2/` as vendored source;
-- upstream MIT license text is preserved at `core/zapret2/docs/LICENSE.txt`;
-- compiled binary artifacts from the upstream archive are not imported in this bootstrap;
-- Windows GUI ideas are summarized in `docs/reference/windows_gui_feature_digest.md` rather than copied as Linux code;
-- the old Linux project is summarized in `docs/reference/legacy_project_digest.md` and removed as active code.
+- upstream-исходники ядра импортированы в `core/zapret2/` как vendored source;
+- upstream MIT license text сохранён в `core/zapret2/docs/LICENSE.txt`;
+- скомпилированные binary artifacts из upstream-архива не импортированы в bootstrap;
+- идеи Windows GUI суммированы в `docs/reference/windows_gui_feature_digest.md`, а не скопированы как Linux-код;
+- старый Linux-проект суммирован в `docs/reference/legacy_project_digest.md` и удалён как active code.
 
-Non-goals:
+Не-цели:
 
-- no core build is performed;
-- no service/unit integration is added;
-- no privileged commands are executed;
-- no network updater is introduced;
-- no end-user installer is implemented.
+- сборка ядра не выполняется;
+- service/unit integration не добавляется;
+- привилегированные команды не выполняются;
+- network updater не вводится;
+- end-user installer не реализуется.
 
+## Добавление Stage 2
 
-## Stage 2 addition
+Stage 2 не менял импортированные upstream-исходники. Он зафиксировал решение по GUI-фреймворку для нашего слоя: Linux GUI использует PyQt, с линейкой PyQt 6 как целевой по умолчанию.
 
-This stage does not change imported upstream source. It records the GUI framework decision for our layer: the Linux GUI will use PyQt, with the PyQt 6 line as the default target.
+## Добавление Stage 3
+
+Stage 3 не меняет импортированные upstream-исходники. Он переводит активную проектную документацию на русский язык и закрепляет правило: будущие изменения нашей документации должны оставаться русскоязычными. Vendored upstream-документация внутри `core/zapret2/docs/` сохраняется как часть исходного импорта и не переводится этим правилом.

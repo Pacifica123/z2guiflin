@@ -1,31 +1,31 @@
-# Versioning policy
+# Политика версионирования
 
-## Current product label
+## Текущая метка продукта
 
 ```text
 v0.3-alpha
 ```
 
-The project starts at `v0.3-alpha` even though the code tree is rebooted. The label continues the product history while acknowledging a new implementation baseline.
+Проект начинается с `v0.3-alpha`, хотя кодовое дерево перезапущено. Метка продолжает историю продукта и одновременно признаёт новую implementation baseline.
 
-## Shape
+## Форма
 
-Product labels use:
+Метки продукта используют формат:
 
 ```text
 v<major>.<minor>-<phase>[-hf_<shortFixName>]
 ```
 
-Phases:
+Фазы:
 
-- `alpha` opens a cycle and may span many devctl patches;
-- `beta` means the cycle goal is implemented enough for concentrated validation;
-- `dev` means the owner is using it for longer real-world testing;
-- `stable` may be declared only by the owner.
+- `alpha` открывает цикл и может охватывать много devctl-патчей;
+- `beta` означает, что цель цикла реализована достаточно для концентрированной проверки;
+- `dev` означает, что владелец использует продукт для более длительного real-world testing;
+- `stable` может объявить только владелец.
 
-## v0.3-alpha stage ids
+## Stage id для v0.3-alpha
 
-The new stream resets stage numbering under the product label:
+Новый поток сбрасывает нумерацию стадий внутри продуктовой метки:
 
 ```text
 v0.3-alpha_stage_1
@@ -33,11 +33,15 @@ v0.3-alpha_stage_2
 v0.3-alpha_stage_3
 ```
 
-Do not continue the historical Stage 50+ numbering. Historical references remain valid as old-line notes, not as the active sequence.
+Не продолжать историческую нумерацию Stage 50+. Исторические ссылки остаются валидны как old-line notes, но не как активная последовательность.
 
-## Promotion rules
+## Правила продвижения
 
-- The assistant must not promote to `stable` on its own.
-- Do not rename every patch as a new product version.
-- Use the devctl patch id for patch identity and the product label for milestone identity.
-- Hotfix suffixes are for `beta` and `dev`, not for ordinary `alpha` patch flow.
+- Ассистент не должен самостоятельно продвигать проект до `stable`.
+- Не переименовывать каждый патч в новую product version.
+- Использовать devctl patch id для идентичности патча и product label для идентичности вехи.
+- Hotfix suffixes предназначены для `beta` и `dev`, а не для обычного `alpha` patch flow.
+
+## Язык документации
+
+Версионирование не меняет правило языка: вся активная проектная документация будущих патчей пишется на русском, даже если patch id, имена файлов и технические идентификаторы остаются англоязычными.

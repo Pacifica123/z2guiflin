@@ -1,30 +1,30 @@
-# GUI framework decision
+# Решение по GUI-фреймворку
 
-## Decision
+## Решение
 
-The Linux GUI for this project will be built on **PyQt**. Unless a later owner-approved decision record changes this, “PyQt” means the PyQt 6 line.
+Linux GUI этого проекта будет построен на **PyQt**. Если более поздний decision record, одобренный владельцем, не изменит это решение, “PyQt” означает линейку PyQt 6.
 
-## Why PyQt
+## Почему PyQt
 
-The project needs a real desktop GUI with structured navigation, logs, diagnostics, settings, profile editors and confirmation dialogs. Qt is a good fit for that shape, and PyQt keeps the codebase in Python while still allowing a mature native desktop shell.
+Проекту нужен полноценный desktop GUI со структурированной навигацией, логами, диагностикой, настройками, редакторами профилей и диалогами подтверждения. Qt хорошо подходит для такой формы приложения, а PyQt сохраняет кодовую базу в Python и при этом даёт зрелую native desktop shell.
 
-## Scope of this decision
+## Scope решения
 
-This patch only records the decision. It does not add PyQt as a runtime dependency yet and does not require PyQt to be installed for bootstrap checks. The dependency should be introduced together with the first real GUI shell so the project can keep documentation-only and structural stages lightweight.
+Этот этап только фиксирует выбор. Он ещё не добавляет PyQt как runtime dependency и не требует установленного PyQt для bootstrap-проверок. Зависимость следует вводить вместе с первой настоящей GUI shell, чтобы документационные и структурные стадии оставались лёгкими.
 
-## Architectural rule
+## Архитектурное правило
 
-PyQt belongs at the application shell and widget layer. Non-UI logic should stay pure Python:
+PyQt относится к application shell и widget layer. Non-UI логика должна оставаться pure Python:
 
-- repository layout discovery;
-- vendored-core inventory;
-- build-plan generation;
-- diagnostics planning;
+- обнаружение структуры репозитория;
+- inventory vendored-ядра;
+- генерация build plans;
+- планирование диагностики;
 - privilege/sudo command plans;
-- log parsing and report models.
+- парсинг логов и report models.
 
-This keeps tests runnable without a display server and prevents the GUI from becoming the only way to reason about the project.
+Так тесты смогут выполняться без display server, а GUI не станет единственным способом рассуждать о проекте.
 
-## Non-goals
+## Не-цели
 
-Do not introduce PySide, GTK, Tkinter, Electron, a browser-first UI, or a terminal-first UI as the active shell direction unless the owner explicitly reopens the GUI framework decision.
+Не вводить PySide, GTK, Tkinter, Electron, browser-first UI или terminal-first UI как активное направление shell, пока владелец явно не переоткроет решение по GUI-фреймворку.

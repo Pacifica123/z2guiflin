@@ -1,12 +1,12 @@
-# Core source area
+# Область исходников ядра
 
-`core/zapret2/` contains a vendored snapshot of the upstream `zapret2` source tree from the archive supplied for the v0.3-alpha reboot.
+`core/zapret2/` содержит vendored-снимок upstream-дерева `zapret2` из архива, переданного для перезапуска v0.3-alpha.
 
-Rules for this directory:
+Правила для этой директории:
 
-1. Keep upstream source mechanically separable from our GUI code.
-2. Do not run upstream installer scripts from assistant-generated checks.
-3. Treat future upstream refreshes as explicit source-import patches with a manifest and review notes.
-4. Exclude compiled binary artifacts from Git unless the owner explicitly decides otherwise later.
+1. Держать upstream-исходники механически отделёнными от нашего GUI-кода.
+2. Не запускать upstream installer scripts из проверок, сгенерированных ассистентом.
+3. Будущие обновления upstream оформлять как явные source-import patches с манифестом и заметками для ревью.
+4. Не добавлять скомпилированные бинарные артефакты в Git, пока владелец явно не примет другое решение.
 
-The upstream license is preserved at `core/zapret2/docs/LICENSE.txt`.
+Лицензия upstream сохранена в `core/zapret2/docs/LICENSE.txt`.

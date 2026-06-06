@@ -1,13 +1,13 @@
-# Upstream import notes
+# Заметки об upstream-импорте
 
-This directory is a vendored source snapshot imported from `zapret2-core-from_bolvan.zip` for the `v0.3-alpha` reboot.
+Эта директория содержит vendored-снимок исходников, импортированный из `zapret2-core-from_bolvan.zip` для перезапуска `v0.3-alpha`.
 
 - Upstream: `bol-van/zapret2`
-- Imported files: `245`
-- Excluded files: `9`
-- License preserved: `docs/LICENSE.txt`
-- Content digest over imported files: `9d57e8fdee29938d560a390f976def49d4692f8dfda7e59c7df4a48fffe773d5`
+- Импортировано файлов: `245`
+- Исключено файлов: `9`
+- Лицензия сохранена: `docs/LICENSE.txt`
+- Content digest по импортированным файлам: `9d57e8fdee29938d560a390f976def49d4692f8dfda7e59c7df4a48fffe773d5`
 
-The excluded files are CI metadata or compiled/binary artifacts from the supplied archive. They are listed in `UPSTREAM_IMPORT.json` so a future patch can deliberately re-evaluate them if needed.
+Исключённые файлы — это CI metadata или compiled/binary artifacts из переданного upstream-архива. Они перечислены в `UPSTREAM_IMPORT.json`, чтобы будущий патч мог осознанно пересмотреть это решение.
 
-The GUI layer must treat this directory as source input. It must not rewrite it casually and must not execute installer scripts as part of automated validation.
+GUI-слой должен считать эту директорию source input. Он не должен небрежно переписывать её и не должен выполнять installer scripts в рамках автоматической валидации.

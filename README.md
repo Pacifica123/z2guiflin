@@ -1,32 +1,34 @@
-# Zap2 GUI Linux — v0.3-alpha native-core reboot
+# Zap2 GUI Linux — v0.3-alpha: перезапуск с нативным ядром
 
-This repository is a fresh product line for a Linux GUI around a vendored copy of `zapret2` by bol-van. The previous Zapret2GUIfLin tree is treated as a notebook of drafts, tests and product experiments, not as the live architecture.
+Этот репозиторий — новая продуктовая линия Linux GUI вокруг vendored-копии `zapret2` от bol-van. Предыдущий проект Zapret2GUIfLin больше не считается активной архитектурной базой: он используется только как тетрадь черновиков, тестов, UX-экспериментов и продуктовых заметок.
 
-## What changed in v0.3-alpha
+## Что изменилось в v0.3-alpha
 
-`v0.3-alpha` starts from a clean structure:
+`v0.3-alpha` начинается с чистой структуры:
 
 ```text
-core/      vendored upstream engine source and import metadata
-gui/       our PyQt-based GUI-side Python package and future application shell
-docs/      product strategy, reference notes and development rules
-tools/     repository checks that never require network, sudo or service control
-tests/     small structural tests for the new baseline
+core/      исходники vendored-ядра и метаданные импорта
+gui/       наш Python-пакет будущего GUI на PyQt
+docs/      стратегия продукта, справочные заметки и правила разработки
+tools/     проверки репозитория без сети, sudo и управления сервисами
+tests/     небольшие структурные тесты для новой базы
 ```
 
-The key architectural decisions are that the upstream engine is part of the repository source tree and that the Linux GUI line uses PyQt as its UI framework. The application must not bootstrap itself with remote `curl` downloads or opaque installer scripts. Future privileged operations belong to explicit, reviewable user-run plans.
+Ключевые архитектурные решения: upstream-ядро является частью исходного дерева репозитория, Linux GUI строится на PyQt, а документация проекта ведётся на русском языке. Приложение не должно самозагружаться через удалённые `curl`-сценарии или непрозрачные installer scripts. Будущие привилегированные операции должны оформляться как явные, обозримые планы, которые запускает владелец проекта на своей машине.
 
-## Current status
+## Текущий статус
 
-This patch is a bootstrap, not a working end-user application. It imports the upstream source into `core/zapret2/`, creates a minimal GUI package under `gui/zap2_gui/`, records PyQt as the chosen GUI framework, and records the strategy for the next patch series.
+Это bootstrap-патч, а не готовое приложение для конечного пользователя. Он импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк и задаёт стратегию следующих серий патчей.
 
 ```bash
 python tools/check_project_tree.py
 python -m compileall -q gui tools tests
 ```
 
-These checks are intentionally read-only. They do not build the C engine, do not install packages, do not touch firewall/service state, and do not need elevated privileges.
+Эти проверки намеренно read-only. Они не собирают C-ядро, не устанавливают пакеты, не трогают firewall/service state и не требуют повышенных привилегий.
 
-## Development rule
+## Правило разработки
 
-All future work should continue through `devctl` patch archives. The assistant should generate patches and documentation; the owner/developer decides when to run local privileged commands on their own machine.
+Все дальнейшие изменения должны приходить через архивы devctl-патчей. Ассистент готовит патчи, документацию, адаптеры и проверки; владелец/разработчик решает, когда запускать локальные привилегированные команды на своей машине.
+
+Вся наша проектная документация должна быть на русском языке. Исключения: имена файлов, идентификаторы, названия upstream-проектов, команды, технические термины вроде `PyQt`, `systemd`, `sudo`, а также неизменяемая upstream-документация внутри `core/zapret2/`.

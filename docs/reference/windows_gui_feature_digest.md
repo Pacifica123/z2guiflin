@@ -1,51 +1,51 @@
-# Windows GUI reference digest
+# Конспект Windows GUI reference
 
-The Windows GUI archive is not the implementation base for the Linux reboot. It is a product reference: it shows what kinds of user-facing affordances are useful around `zapret`/`zapret2`.
+Архив Windows GUI не является implementation base для Linux-перезапуска. Это product reference: он показывает, какие user-facing affordances полезны вокруг `zapret`/`zapret2`.
 
-## Ideas to preserve
+## Идеи, которые нужно сохранить
 
-### Toolbox/apothecary philosophy
+### Философия toolbox/apothecary
 
-The reference GUI presents strategies as a set of available remedies rather than a single universal magic button. The Linux product should keep that idea: multiple profiles, visible trade-offs, and the ability for the owner to add or modify strategies.
+Reference GUI представляет стратегии как набор доступных средств, а не как одну универсальную magic button. Linux-продукт должен сохранить эту идею: несколько профилей, видимые trade-offs и возможность владельца добавлять или менять strategies.
 
-### Presets, profiles and ordering
+### Presets, profiles и ordering
 
-The Windows tree has rich vocabulary around presets, profiles, folders, ordering, raw editors and strategy resolution. The Linux reboot should eventually model strategies as first-class data, not as hard-coded buttons.
+В Windows-дереве есть богатая терминология вокруг presets, profiles, folders, ordering, raw editors и strategy resolution. Linux-перезапуск должен со временем моделировать strategies как first-class data, а не как hard-coded buttons.
 
 ### Diagnostics-first workflow
 
-Important areas from the reference include blockcheck, DNS diagnostics, logs, support bundles and runtime health checks. For Linux, the first version should prefer read-only diagnostics before privileged apply/start actions.
+Важные области reference включают blockcheck, DNS diagnostics, logs, support bundles и runtime health checks. Для Linux первая версия должна предпочитать read-only diagnostics до privileged apply/start actions.
 
-### Orchestrator/scanner idea
+### Идея orchestrator/scanner
 
-The reference includes strategy scanning/orchestration concepts. The Linux product can later use a similar idea as a developer tool: try candidate strategies, record results, and help choose the next action.
+Reference содержит концепции strategy scanning/orchestration. Linux-продукт позже может использовать похожую идею как developer tool: пробовать candidate strategies, записывать результаты и помогать выбрать next action.
 
-### Explicit runtime state
+### Явное runtime state
 
-The Windows GUI contains many modules around process/runtime monitoring, startup coordination, workers and log tailing. Linux should keep runtime state explicit and inspectable rather than hiding it behind a single “installed/not installed” label.
+Windows GUI содержит много модулей для process/runtime monitoring, startup coordination, workers и log tailing. Linux должен сохранять runtime state явным и inspectable, а не прятать его за единственной меткой “installed/not installed”.
 
-### Settings and host/domain management
+### Settings и host/domain management
 
-DNS, hosts, hostlists, ipsets, blobs and program settings are product areas worth preserving conceptually. Their Linux implementation must be adapted to Linux paths and privilege boundaries.
+DNS, hosts, hostlists, ipsets, blobs и program settings — продуктовые области, которые стоит сохранить концептуально. Их Linux-реализация должна быть адаптирована к Linux paths и privilege boundaries.
 
-## Ideas not to copy directly
+## Идеи, которые нельзя копировать напрямую
 
 - Windows registry assumptions;
 - Task Scheduler/NSSM service model;
 - WinDivert-specific runtime behavior;
 - Defender/antivirus-specific UX;
-- Windows packaging and PyInstaller assumptions;
-- direct Windows paths and batch-file strategy execution.
+- Windows packaging и PyInstaller assumptions;
+- прямые Windows paths и batch-file strategy execution.
 
-## Translation to Linux architecture
+## Перевод в Linux-архитектуру
 
-| Reference idea | Linux reboot direction |
+| Reference idea | Направление Linux-перезапуска |
 | --- | --- |
 | Presets/profiles | Project/user strategy registry |
-| Blockcheck | Read-only diagnostics first, controlled active checks later |
-| Autostart/service controls | Owner-confirmed systemd/user-service plans later |
-| Logs/support bundle | Local diagnostic report export |
+| Blockcheck | Сначала read-only diagnostics, позже controlled active checks |
+| Autostart/service controls | Позже owner-confirmed systemd/user-service plans |
+| Logs/support bundle | Экспорт local diagnostic report |
 | Raw preset editing | Text/config editor with validation |
 | Strategy scan | Developer-owner experiment runner |
 
-The reference is valuable because of product shape, not because its Windows internals should be ported one-to-one.
+Reference ценен формой продукта, а не тем, что его Windows internals нужно переносить один-в-один.
