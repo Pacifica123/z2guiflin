@@ -14,9 +14,11 @@ def test_pyqt_framework_decision_is_documented() -> None:
     assert "PyQt" in gui_readme
 
 
-def test_pyqt_decision_does_not_add_runtime_dependency_yet() -> None:
+def test_pyqt_shell_declares_optional_gui_dependency() -> None:
     root = Path(__file__).resolve().parents[1]
     pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
 
-    assert "PyQt" not in pyproject
+    assert "PyQt6" in pyproject
+    assert "[project.optional-dependencies]" in pyproject
+    assert "zap2-gui" in pyproject
     assert "PySide" not in pyproject

@@ -30,9 +30,16 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/__init__.py",
     "gui/zap2_gui/app.py",
     "gui/zap2_gui/core_inventory.py",
+    "gui/zap2_gui/qt_compat.py",
+    "gui/zap2_gui/qt_app.py",
+    "gui/zap2_gui/adapters/gui_state.py",
+    "gui/zap2_gui/models/navigation.py",
+    "gui/zap2_gui/windows/main_window.py",
+    "gui/zap2_gui/widgets/placeholders.py",
     "docs/DEVELOPMENT_STRATEGY.md",
     "docs/DOCUMENTATION_LANGUAGE.md",
     "docs/GUI_FRAMEWORK.md",
+    "docs/GUI_SHELL.md",
     "docs/CORE_INVENTORY.md",
     "docs/CORE_BUILD_MAP.md",
     "docs/VERSIONING.md",
@@ -52,6 +59,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/DEVELOPMENT_STRATEGY.md",
     "docs/DOCUMENTATION_LANGUAGE.md",
     "docs/GUI_FRAMEWORK.md",
+    "docs/GUI_SHELL.md",
     "docs/CORE_INVENTORY.md",
     "docs/CORE_BUILD_MAP.md",
     "docs/PROJECT_STRUCTURE.md",
@@ -118,6 +126,17 @@ def main() -> int:
         print("Решение по PyQt GUI framework отсутствует в документации")
         return 1
 
+    shell_doc = (ROOT / "docs/GUI_SHELL.md").read_text(encoding="utf-8")
+    for section in ("Обзор", "Ядро", "Стратегии", "Диагностика", "Настройки", "Логи"):
+        if section not in shell_doc:
+            print(f"В документации GUI shell отсутствует раздел: {section}")
+            return 1
+
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    if "PyQt6" not in pyproject or "zap2-gui" not in pyproject:
+        print("PyQt6 optional dependency или entry point zap2-gui не зафиксированы")
+        return 1
+
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
     if "русском" not in language_doc or "проектная документация" not in language_doc:
         print("Правило русского языка документации не зафиксировано")
@@ -149,7 +168,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-alpha OK; PyQt, русская документация, inventory и build map зафиксированы")
+    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory и build map зафиксированы")
     return 0
 
 

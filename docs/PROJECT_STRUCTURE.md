@@ -17,6 +17,16 @@ gui/
     app.py
     core_inventory.py
     project_paths.py
+    qt_compat.py
+    qt_app.py
+    adapters/
+      gui_state.py
+    models/
+      navigation.py
+    windows/
+      main_window.py
+    widgets/
+      placeholders.py
 
 docs/
   DEVELOPMENT_STRATEGY.md
@@ -24,6 +34,7 @@ docs/
   PROJECT_STRUCTURE.md
   SAFETY_AND_PRIVILEGE_BOUNDARY.md
   GUI_FRAMEWORK.md
+  GUI_SHELL.md
   DOCUMENTATION_LANGUAGE.md
   CORE_INVENTORY.md
   CORE_BUILD_MAP.md
@@ -38,7 +49,9 @@ tools/
 tests/
   test_bootstrap_structure.py
   test_gui_framework_decision.py
+  test_gui_shell_skeleton.py
   test_documentation_language.py
+  test_core_inventory_and_build_map.py
 ```
 
 ## Правило разделения
@@ -49,20 +62,19 @@ tests/
 
 Импортированные исходники намеренно vendored. Будущие обновления должны быть явными source refresh patches, а не runtime auto-updates. GUI позже может показывать диагностику “новый upstream существует”, но применение такого обновления остаётся решением разработчика.
 
-## Правило GUI-фреймворка
+## Правило GUI-фреймворка и shell
 
-Активный GUI-фреймворк — **PyQt**. Текущее дерево пока может содержать только минимальный Python-пакет, но будущая GUI shell должна целиться в PyQt, а не в PySide, GTK, Tkinter, Electron, browser-first interface или CLI-only application.
+Активный GUI-фреймворк — **PyQt**. Начиная со Stage 5, в дереве есть начальная PyQt shell: navigation model, optional `QApplication` bootstrap, фабрика главного окна и placeholder-страницы. При этом модульный импорт проекта остаётся headless-safe: автоматические проверки не должны требовать установленный PyQt6 или display server.
 
-Рекомендуемое будущее разделение:
+Стартовые разделы оболочки:
 
 ```text
-gui/zap2_gui/
-  app.py              application entry point
-  qt_app.py           PyQt QApplication bootstrap после добавления зависимости
-  windows/            top-level windows и navigation shell
-  widgets/            переиспользуемые PyQt widgets
-  models/             pure Python state/data models
-  adapters/           adapters для core/build/diagnostic planning
+Обзор
+Ядро
+Стратегии
+Диагностика
+Настройки
+Логи
 ```
 
 Qt-specific classes должны оставаться рядом с UI layer. Core inventory, build-plan generation и safety/privilege planning должны оставаться pure Python, чтобы их можно было тестировать без display server.
@@ -70,7 +82,6 @@ Qt-specific classes должны оставаться рядом с UI layer. Co
 ## Правило языка документации
 
 Активная проектная документация ведётся на русском языке. Исключение — vendored upstream-документация внутри `core/zapret2/docs/`, потому что она относится к импортированному ядру и должна сохраняться как source input.
-
 
 ## Метаданные ядра
 

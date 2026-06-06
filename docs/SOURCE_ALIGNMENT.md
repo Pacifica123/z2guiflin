@@ -42,3 +42,15 @@ Stage 4 не меняет импортированные upstream-исходни
 - `tools/inventory_core.py` умеет сверять snapshot с текущим деревом без запуска upstream-кода.
 
 Сборка ядра, установка зависимостей, service integration и привилегированные действия остаются не-целями этого этапа.
+
+## Добавление Stage 5
+
+Stage 5 не меняет импортированные upstream-исходники. Он добавляет наш GUI-layer skeleton поверх уже описанных inventory/build map:
+
+- `gui/zap2_gui/models/navigation.py` фиксирует будущие разделы оболочки;
+- `gui/zap2_gui/qt_compat.py` изолирует PyQt6 как optional dependency;
+- `gui/zap2_gui/qt_app.py` и `gui/zap2_gui/windows/main_window.py` вводят локальный PyQt bootstrap и главное окно;
+- `gui/zap2_gui/widgets/placeholders.py` добавляет стартовые placeholder-страницы;
+- `docs/GUI_SHELL.md` документирует правила развития оболочки.
+
+Сборка ядра, установка зависимостей, service integration, firewall mutation и привилегированные действия остаются не-целями этого этапа. Автоматические проверки проверяют импортируемость и структуру GUI shell, но не запускают окно.

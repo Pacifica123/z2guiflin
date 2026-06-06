@@ -11,6 +11,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/DEVELOPMENT_STRATEGY.md",
     "docs/DOCUMENTATION_LANGUAGE.md",
     "docs/GUI_FRAMEWORK.md",
+    "docs/GUI_SHELL.md",
     "docs/CORE_INVENTORY.md",
     "docs/CORE_BUILD_MAP.md",
     "docs/PROJECT_STRUCTURE.md",

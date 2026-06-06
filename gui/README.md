@@ -1,12 +1,19 @@
 # GUI-пакет
 
-`gui/` содержит наш application-side Python-код и будет развиваться в desktop GUI на PyQt. Он не должен поглощать upstream-исходники ядра и не должен выполнять privileged host mutations во время import.
+`gui/` содержит наш application-side Python-код и развивается в desktop GUI на PyQt. Он не должен поглощать upstream-исходники ядра и не должен выполнять privileged host mutations во время import.
 
-Начальные обязанности пакета до появления PyQt shell:
+Начиная с `v0.3-alpha_stage_5`, пакет содержит первый скелет GUI shell:
 
-- знать структуру репозитория;
-- читать vendored-core metadata, inventory snapshot и build map;
-- предоставлять будущую точку входа GUI shell;
-- держать привилегированные операции за явными user-owned plans.
+- `app.py` — CLI-visible entry point и optional GUI launcher;
+- `qt_compat.py` — безопасная проверка доступности PyQt6;
+- `qt_app.py` — локальный `QApplication` bootstrap;
+- `models/navigation.py` — pure Python модель разделов;
+- `windows/main_window.py` — фабрика главного окна PyQt;
+- `widgets/placeholders.py` — начальные placeholder-страницы;
+- `adapters/gui_state.py` — read-only сборка состояния для оболочки.
 
-Настоящий UI следует вводить постепенно как PyQt shell после стабилизации дерева исходников, inventory/build-map модели и продуктовых правил. Не переключать планируемую shell на PySide, GTK, Tkinter, Electron или CLI-only interface без явного решения владельца.
+Стартовая навигация фиксирует разделы: `Обзор`, `Ядро`, `Стратегии`, `Диагностика`, `Настройки`, `Логи`. Раздел `Ядро` уже может показывать сведения из inventory/build map, остальные разделы остаются намеренными placeholder-страницами для следующих патчей.
+
+PyQt6 добавлен как optional dependency `gui`, а не как обязательное условие devctl-проверок. Поэтому `python -m zap2_gui.app` должен работать в headless-среде без установленного Qt, а `python -m zap2_gui.app --gui` предназначен для локальной машины разработчика с установленным PyQt6 и display server.
+
+Не переключать shell на PySide, GTK, Tkinter, Electron или CLI-only interface без явного решения владельца. Non-UI логика — inventory, build-plan generation, diagnostics и privilege planning — должна оставаться pure Python, чтобы её можно было тестировать отдельно от Qt.

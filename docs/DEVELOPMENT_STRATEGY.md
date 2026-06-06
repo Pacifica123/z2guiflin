@@ -21,6 +21,8 @@ Linux GUI будет построен на **PyQt**. В этом проекте 
 
 Это решение о фреймворке, а не dependency-install patch. PyQt должен стать зависимостью приложения в момент появления первой настоящей GUI shell, а не на документационной стадии. Не заменять планируемую оболочку на PySide, GTK, Tkinter, web UI или terminal UI без явного решения владельца.
 
+Начиная со Stage 5, PyQt6 фиксируется как optional dependency `gui`, потому что появляется первый GUI shell skeleton. Это не означает, что devctl-проверки должны устанавливать Qt или запускать окно: проверки остаются headless-safe и валидируют только структуру, pure Python модели и guarded imports.
+
 ## Правило языка документации
 
 Вся наша проектная документация с этого этапа ведётся на русском языке. Это правило распространяется на:
@@ -113,7 +115,7 @@ inspect -> plan -> present -> owner confirms -> execute locally -> record result
 
 ### v0.3-alpha_stage_5 — скелет GUI shell
 
-Создать начальную PyQt Linux GUI shell с navigation placeholders: Overview, Core, Strategies, Diagnostics, Settings, Logs.
+Создать начальную PyQt Linux GUI shell с navigation placeholders: `Обзор`, `Ядро`, `Стратегии`, `Диагностика`, `Настройки`, `Логи`. Shell должна импортироваться без установленного PyQt6, а настоящий запуск окна должен оставаться локальной командой владельца.
 
 ### v0.3-alpha_stage_6 — local build adapter
 
