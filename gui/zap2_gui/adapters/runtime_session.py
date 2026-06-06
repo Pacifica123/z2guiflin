@@ -31,7 +31,7 @@ from .runtime_state import (
 )
 from ..project_paths import discover_layout
 
-SESSION_STAGE = "v0.3-beta_stage_9"
+SESSION_STAGE = "v0.3-beta_stage_10"
 SESSION_SCHEMA_VERSION = 1
 SESSION_MARKER = "zap2-runtime-session-v1"
 DEFAULT_NFQUEUE_NUM = 200
@@ -77,6 +77,7 @@ class RuntimeSessionConfig:
     session_inputs_dir: Path
     public_session_inputs_dir: Path | None
     hostlist_input_paths: tuple[Path, ...]
+    lua_input_paths: tuple[Path, ...]
     pidfile_path: Path
     stdout_log_path: Path
     stderr_log_path: Path
@@ -102,6 +103,8 @@ class RuntimeSessionConfig:
                 f"public session inputs dir: {self.public_session_inputs_dir if self.public_session_inputs_dir else 'not used'}",
                 "runtime hostlist inputs:",
                 *(f"  - {item}" for item in self.hostlist_input_paths),
+                "runtime lua inputs:",
+                *(f"  - {item}" for item in self.lua_input_paths),
                 f"pidfile: {self.pidfile_path}",
                 f"stdout log: {self.stdout_log_path}",
                 f"stderr log: {self.stderr_log_path}",
@@ -382,7 +385,7 @@ def _make_runtime_input_accessible(path: Path) -> None:
     _safe_chmod(path, 0o644)
 
 
-def _prepare_runtime_hostlist_inputs(paths_root: Path, plan: GeneratedRuntimePlan, profile_id: str, plan_hash: str) -> tuple[Path, ...]:
+def _prepare_runtime_hostlist_inputs(paths_root: Path, plan: GeneratedRuntimePlan, profile_id: str, plan_hash: str, inputs_dir: Path | None = None) -> tuple[Path, ...]:
     """Copy profile hostlists to public runtime session inputs.
 
     Source hostlists remain owner-maintained project files. Runtime uses a
@@ -392,7 +395,7 @@ def _prepare_runtime_hostlist_inputs(paths_root: Path, plan: GeneratedRuntimePla
 
     if not plan.hostlists:
         return ()
-    inputs_dir = _public_session_inputs_dir(paths_root, profile_id, plan.plan_id, plan_hash)
+    inputs_dir = inputs_dir or _public_session_inputs_dir(paths_root, profile_id, plan.plan_id, plan_hash)
     prepared: list[Path] = []
     for index, hostlist in enumerate(plan.hostlists):
         source = (paths_root / hostlist.path).resolve()
@@ -408,6 +411,52 @@ def _prepare_runtime_hostlist_inputs(paths_root: Path, plan: GeneratedRuntimePla
         _make_runtime_input_accessible(target)
         prepared.append(target)
     return tuple(prepared)
+
+
+def _resolve_project_file_reference(paths_root: Path, path_value: str) -> Path:
+    path = Path(path_value)
+    if not path.is_absolute():
+        path = paths_root / path
+    return path.resolve()
+
+
+def _prepare_runtime_lua_inputs(paths_root: Path, runtime_args: tuple[str, ...], inputs_dir: Path) -> tuple[tuple[str, ...], tuple[Path, ...]]:
+    """Copy Lua init files to public runtime inputs and rewrite args.
+
+    nfqws2 intentionally drops privileges before running Lua. When it is
+    started through GUI/pkexec from a private workspace, paths such as
+    `core/zapret2/lua/zapret-lib.lua` can become inaccessible after dropcaps.
+    We therefore keep project sources untouched and run nfqws2 against public
+    per-plan copies with 0644 file and 0755 directory modes.
+    """
+
+    rewritten: list[str] = []
+    copied: list[Path] = []
+    lua_dir = inputs_dir / "lua"
+    seen: dict[Path, Path] = {}
+
+    for arg in runtime_args:
+        if not arg.startswith("--lua-init=@"):
+            rewritten.append(arg)
+            continue
+
+        source_text = arg.split("=@", 1)[1]
+        source = _resolve_project_file_reference(paths_root, source_text)
+        if not source.is_file():
+            raise ValueError(f"lua init source отсутствует: {source}")
+        if source not in seen:
+            _ensure_public_dir(lua_dir)
+            target = lua_dir / source.name
+            tmp = target.with_suffix(target.suffix + ".tmp")
+            shutil.copyfile(source, tmp)
+            _safe_chmod(tmp, 0o644)
+            os.replace(tmp, target)
+            _make_runtime_input_accessible(target)
+            seen[source] = target
+            copied.append(target)
+        rewritten.append(f"--lua-init=@{seen[source].resolve()}")
+
+    return tuple(rewritten), tuple(copied)
 
 
 def _cleanup_public_session_inputs(paths: tuple[Path, ...]) -> None:
@@ -436,6 +485,7 @@ def _runtime_args_for_plan(
     pidfile_path: Path,
     debug_log_path: Path,
     hostlist_input_paths: tuple[Path, ...],
+    strategy_runtime_args: tuple[str, ...],
 ) -> tuple[str, ...]:
     args: list[str] = [
         f"--qnum={DEFAULT_NFQUEUE_NUM}",
@@ -443,7 +493,7 @@ def _runtime_args_for_plan(
     ]
     if _runtime_debug_enabled():
         args.append(f"--debug=@{debug_log_path}")
-    args.extend(plan.strategy.runtime_args)
+    args.extend(strategy_runtime_args)
     if drop_identity is not None:
         args.append(drop_identity.option)
     for hostlist_path in hostlist_input_paths:
@@ -478,9 +528,12 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
     stderr_log_path = paths.logs_dir / f"{profile_id}.nfqws2.stderr.log"
     debug_log_path = paths.logs_dir / f"{profile_id}.nfqws2.debug.log"
     drop_identity = _detect_drop_identity(paths.root)
-    hostlist_input_paths = _prepare_runtime_hostlist_inputs(paths.root, plan, profile_id, plan_hash)
-    public_session_inputs_dir = hostlist_input_paths[0].parent if hostlist_input_paths else None
-    runtime_args = _runtime_args_for_plan(paths.root, plan, drop_identity, pidfile_path, debug_log_path, hostlist_input_paths)
+    public_session_inputs_dir = _public_session_inputs_dir(paths.root, profile_id, plan.plan_id, plan_hash)
+    hostlist_input_paths = _prepare_runtime_hostlist_inputs(paths.root, plan, profile_id, plan_hash, public_session_inputs_dir)
+    strategy_runtime_args, lua_input_paths = _prepare_runtime_lua_inputs(paths.root, tuple(plan.strategy.runtime_args), public_session_inputs_dir)
+    if not hostlist_input_paths and not lua_input_paths:
+        public_session_inputs_dir = None
+    runtime_args = _runtime_args_for_plan(paths.root, plan, drop_identity, pidfile_path, debug_log_path, hostlist_input_paths, strategy_runtime_args)
 
     return RuntimeSessionConfig(
         profile_id=profile_id,
@@ -494,6 +547,7 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
         session_inputs_dir=paths.session_inputs_dir,
         public_session_inputs_dir=public_session_inputs_dir,
         hostlist_input_paths=hostlist_input_paths,
+        lua_input_paths=lua_input_paths,
         pidfile_path=pidfile_path,
         stdout_log_path=stdout_log_path,
         stderr_log_path=stderr_log_path,
@@ -738,6 +792,7 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "sessionInputsDir": str(config.session_inputs_dir),
         "publicSessionInputsDir": str(config.public_session_inputs_dir) if config.public_session_inputs_dir else None,
         "hostlistInputPaths": [str(path) for path in config.hostlist_input_paths],
+        "luaInputPaths": [str(path) for path in config.lua_input_paths],
         "dropIdentity": None if config.drop_identity is None else {"uid": config.drop_identity.uid, "gid": config.drop_identity.gid, "source": config.drop_identity.source},
         "argsPath": str(config.args_path),
         "pidfilePath": str(config.pidfile_path),
@@ -852,7 +907,7 @@ def stop_runtime_session(root: Path | None = None, profile_id: str = "default") 
     updated["stopSignal"] = "SIGTERM" if terminated else "SIGKILL-attempted"
     _write_json(session_path, updated)
     if terminated:
-        _cleanup_public_session_inputs(tuple(Path(item) for item in record.get("hostlistInputPaths", [])))
+        _cleanup_public_session_inputs(tuple(Path(item) for item in record.get("hostlistInputPaths", [])) + tuple(Path(item) for item in record.get("luaInputPaths", [])))
     log_path = append_runtime_event(
         paths,
         _event(

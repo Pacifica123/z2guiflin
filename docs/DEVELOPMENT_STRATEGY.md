@@ -303,3 +303,11 @@ Hotfix закрепляет правило: privileged GUI start должен п
 Исправление Stage 8: runtime hostlist copy переносится из `.zap2/runtime/session-inputs/` в public tmp-like директорию `/tmp/zap2-runtime-inputs/...`. Причина — `nfqws2` после `dropcaps()` может потерять возможность проходить приватные родительские директории workspace, даже если сам hostlist-файл внутри `.zap2` имеет `0644`.
 
 Правило: GUI/pkexec start должен передавать `nfqws2` hostlist path, доступный после `dropcaps()`, и обязан сохранять rollback/log trail.
+
+## v0.3-beta_stage_10 — public Lua runtime inputs
+
+После Stage 9 hostlist стал доступен из public runtime-директории, но следующий реальный запуск показал аналогичную проблему для Lua init-файлов: `nfqws2` после `dropcaps()` отказывается выполнять Lua как root и требует, чтобы `zapret-lib.lua`/`zapret-antidpi.lua` были доступны по пути, читаемому без root capabilities. Абсолютные пути вида `core/zapret2/lua/...` внутри workspace могут быть недоступны из-за traversal по `/home/<owner>/...`.
+
+Stage 10 расширяет механизм runtime inputs: теперь session runner копирует не только hostlist, но и `--lua-init=@...` файлы в `/tmp/zap2-runtime-inputs/<profile-hash>/lua/` с правами `0644` на файлы и `0755` на директории, после чего переписывает runtime args на public paths. Исходные vendored Lua-файлы не меняются, а stop делает best-effort cleanup public runtime inputs.
+
+Правило: любой файл, который `nfqws2` должен читать после `dropcaps()`, не должен передаваться из приватного workspace напрямую. Он должен попадать в controlled runtime input copy с явными правами и логируемым state.

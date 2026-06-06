@@ -62,3 +62,7 @@ GUI toggle использует тот же session runner, что и CLI. Пе�
 file_open_test: Permission denied
 cannot access hostlist file '.../.zap2/runtime/session-inputs/default.hostlist-0.hosts'
 ```
+
+## v0.3-beta_stage_10: Lua runtime inputs
+
+Однокнопочный GUI toggle использует public runtime copies не только для hostlist, но и для Lua init-файлов. Это нужно для GUI/pkexec запуска: `nfqws2` после `dropcaps()` отказывается выполнять Lua как root и требует читаемые пути к Lua-файлам. Поэтому GUI start больше не передаёт `core/zapret2/lua/zapret-lib.lua` напрямую, а использует `/tmp/zap2-runtime-inputs/.../lua/zapret-lib.lua`.

@@ -77,9 +77,14 @@ def main() -> int:
             print("session config должен указывать на локальный nfqws2 binary")
             return 1
         text = config.to_text()
+        args_text = "\n".join(config.runtime_args)
         hostlist_args = [arg for arg in config.runtime_args if arg.startswith("--hostlist=")]
         if not hostlist_args or "/zap2-runtime-inputs/" not in hostlist_args[0] or not hostlist_args[0].startswith("--hostlist=/"):
             print("session config должен использовать public runtime hostlist copy под /tmp-like directory")
+            return 1
+        lua_args = [arg for arg in config.runtime_args if arg.startswith("--lua-init=@")]
+        if len(lua_args) != 2 or not all("/zap2-runtime-inputs/" in arg and arg.startswith("--lua-init=@/") for arg in lua_args):
+            print("session config должен использовать public runtime lua-init copies под /tmp-like directory")
             return 1
         if not config.public_session_inputs_dir or not str(config.public_session_inputs_dir).startswith(tempfile.gettempdir()):
             print("public session inputs dir должен находиться вне приватного workspace")
@@ -87,13 +92,22 @@ def main() -> int:
         if not config.hostlist_input_paths or not config.hostlist_input_paths[0].exists():
             print("runtime hostlist copy должен существовать до запуска nfqws2")
             return 1
+        if not config.lua_input_paths or not all(item.exists() for item in config.lua_input_paths):
+            print("runtime lua-init copies должны существовать до запуска nfqws2")
+            return 1
         if config.hostlist_input_paths[0].stat().st_mode & 0o077 != 0o044:
             print("runtime hostlist copy должен быть readable для post-dropcaps процесса")
             return 1
-        if str(project / "profiles" / "hostlists" / "default.hosts") in "\n".join(config.runtime_args):
+        if any(item.stat().st_mode & 0o077 != 0o044 for item in config.lua_input_paths):
+            print("runtime lua-init copies должны быть readable для post-dropcaps процесса")
+            return 1
+        if str(project / "profiles" / "hostlists" / "default.hosts") in args_text:
             print("session args не должны передавать исходный абсолютный hostlist path")
             return 1
-        if "/.zap2/runtime/session-inputs/" in "\n".join(config.runtime_args):
+        if str(project / "core" / "zapret2" / "lua") in args_text:
+            print("session args не должны передавать исходный lua path из workspace")
+            return 1
+        if "/.zap2/runtime/session-inputs/" in args_text:
             print("session args не должны передавать .zap2 hostlist path после Stage 9")
             return 1
 
@@ -105,13 +119,14 @@ def main() -> int:
             "session inputs dir:",
             "public session inputs dir:",
             "runtime hostlist inputs:",
+            "runtime lua inputs:",
             "pidfile:",
         ):
             if fragment not in text:
                 print(f"session config не содержит обязательный фрагмент: {fragment}")
                 return 1
 
-        print("Runtime session inputs OK; config/guards проверены без запуска реального nfqws2")
+        print("Runtime public session inputs OK; hostlist/lua config проверены без запуска реального nfqws2")
         return 0
     finally:
         shutil.rmtree(project.parent, ignore_errors=True)

@@ -117,3 +117,15 @@ Runner запускает процесс с минимальным session confi
 ## v0.3-beta_stage_9: public hostlist input после dropcaps
 
 GUI/pkexec start использует public runtime copy hostlist под `/tmp/zap2-runtime-inputs/...`, а не `.zap2/runtime/session-inputs/...`. Это нужно, чтобы `nfqws2` мог выполнить повторный `file_open_test` после `dropcaps()`, когда traversal по `/home/<owner>/...` может быть запрещён из-за потери capabilities.
+
+## v0.3-beta_stage_10: public Lua inputs
+
+GUI/pkexec start теперь переписывает `--lua-init=@...` аргументы на public runtime copies под `/tmp/zap2-runtime-inputs/.../lua/`. Это закрывает ошибку:
+
+```text
+LUA file '.../core/zapret2/lua/zapret-lib.lua' ... not accessible
+I drop my privileges and do not run Lua as root
+check file permissions and +x rights on all directories in the path
+```
+
+Причина та же, что и у hostlist: после `dropcaps()` `nfqws2` не должен зависеть от traversal по приватному workspace. Vendored Lua остаётся в `core/zapret2/lua/`, а runtime получает per-plan копию с правами `0644`.

@@ -162,7 +162,7 @@ def test_session_status_marks_copied_state_from_other_workspace_as_stale(tmp_pat
     finally:
         stop_runtime_session(project, profile_id="default")
 
-def test_session_uses_public_runtime_hostlist_copy_after_dropcaps(tmp_path, monkeypatch):
+def test_session_uses_public_runtime_inputs_after_dropcaps(tmp_path, monkeypatch):
     project = _copy_project(tmp_path)
     public_base = tmp_path / "public-runtime"
     monkeypatch.setenv("ZAP2_PUBLIC_RUNTIME_INPUTS_DIR", str(public_base))
@@ -170,6 +170,8 @@ def test_session_uses_public_runtime_hostlist_copy_after_dropcaps(tmp_path, monk
     source = project / "profiles" / "hostlists" / "default.hosts"
     source.write_text("example.org\n", encoding="utf-8")
     source.chmod(0o600)
+    lua_source = project / "core" / "zapret2" / "lua" / "zapret-lib.lua"
+    lua_source.chmod(0o600)
     prepared = prepare_runtime_plan(project, action="start", profile_id="default")
     confirm_runtime_plan(project, prepared.plan_id)
 
@@ -186,6 +188,21 @@ def test_session_uses_public_runtime_hostlist_copy_after_dropcaps(tmp_path, monk
     assert copied.parent.stat().st_mode & 0o077 == 0o055
     hostlist_args = [arg for arg in config.runtime_args if arg.startswith("--hostlist=")]
     assert hostlist_args == [f"--hostlist={copied.resolve()}"]
-    assert str(source) not in "\n".join(config.runtime_args)
-    assert "/.zap2/runtime/session-inputs/" not in "\n".join(config.runtime_args)
+
+    assert config.lua_input_paths
+    lua_args = [arg for arg in config.runtime_args if arg.startswith("--lua-init=@")]
+    assert len(lua_args) == 2
+    for lua_path in config.lua_input_paths:
+        assert lua_path.exists()
+        assert lua_path.is_absolute()
+        assert lua_path.is_relative_to(public_base / "zap2-runtime-inputs")
+        assert lua_path.stat().st_mode & 0o077 == 0o044
+        assert lua_path.parent.stat().st_mode & 0o077 == 0o055
+    assert any("zapret-lib.lua" in arg and str(public_base) in arg for arg in lua_args)
+    assert any("zapret-antidpi.lua" in arg and str(public_base) in arg for arg in lua_args)
+
+    args_text = "\n".join(config.runtime_args)
+    assert str(source) not in args_text
+    assert str(lua_source) not in args_text
+    assert "/.zap2/runtime/session-inputs/" not in args_text
 

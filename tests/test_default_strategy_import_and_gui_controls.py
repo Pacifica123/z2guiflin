@@ -84,7 +84,10 @@ def test_runtime_plan_and_session_config_include_strategy_runtime_args(tmp_path:
     monkeypatch.delenv("ZAP2_RUNTIME_DEBUG", raising=False)
     config = build_runtime_session_config(project, profile_id="default")
     assert "--debug=@" not in "\n".join(config.runtime_args)
-    assert "--lua-init=@core/zapret2/lua/zapret-lib.lua" in config.runtime_args
+    lua_args = [arg for arg in config.runtime_args if arg.startswith("--lua-init=@")]
+    assert len(lua_args) == 2
+    assert any("/zap2-runtime-inputs/" in arg and arg.endswith("/lua/zapret-lib.lua") for arg in lua_args)
+    assert not any("@core/zapret2/lua/" in arg for arg in config.runtime_args)
     assert "--lua-desync=multisplit:pos=1:seqovl=5:seqovl_pattern=0x1603030000" in config.runtime_args
 
     monkeypatch.setenv("ZAP2_RUNTIME_DEBUG", "1")
