@@ -53,3 +53,9 @@ profile/strategy -> runtime plan -> owner confirmation -> execute locally -> log
 Контрактный слой Stage 8 и генератор Stage 9 теперь дополнены workspace state gate. Рабочее состояние живёт не в этой директории `runtime/`, а в локальной `.zap2/runtime/`, чтобы отделить committed contracts от пользовательского runtime-журнала.
 
 `.zap2/runtime` создаётся только локальной командой владельца и хранит prepared plans, confirmations, future session state, logs и rollback notes. Этот слой не исполняет plans и не является bootstrap.
+
+## Stage 11: runtime session runner
+
+После Stage 11 runtime lifecycle получает первый guarded executor для `session`-части. Он использует `.zap2/runtime/sessions/` и `.zap2/runtime/logs/`, требует prepared/confirmed start-plan и не применяет системные правила.
+
+Это означает, что `runtime/` остаётся контрактным слоем, а фактическое локальное состояние запуска хранится в `.zap2/runtime`. Контракты, планы, confirmation и session record должны оставаться связаны через `planId` и `planHash`.

@@ -22,6 +22,11 @@ from .adapters.runtime_state import (
     runtime_log_to_text,
     runtime_state_to_text,
 )
+from .adapters.runtime_session import (
+    runtime_session_status,
+    start_runtime_session,
+    stop_runtime_session,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -58,7 +63,7 @@ def describe_project() -> str:
             f"local build adapter: plan-only ({len(build_plan.expected_artifacts)} expected artifacts)",
             f"workspace profiles: {len(workspace_catalog.profiles)}; strategies: {len(workspace_catalog.strategies)}",
             f"runtime lifecycle contracts: {runtime_contract_status}",
-            f"runtime state gate: Stage 10 ({runtime_state_summary})",
+            f"runtime session runner: Stage 11 ({runtime_state_summary})",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: bootstrap/read-only baseline with optional GUI launch",
@@ -122,6 +127,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--runtime-log",
         action="store_true",
         help="показать локальный runtime log из .zap2/runtime/logs без исправлений и исполнения",
+    )
+
+    parser.add_argument(
+        "--runtime-session-start",
+        action="store_true",
+        help="запустить confirmed nfqws2 runtime session без firewall/systemd/service mutation",
+    )
+    parser.add_argument(
+        "--runtime-session-status",
+        action="store_true",
+        help="показать read-only статус nfqws2 runtime session",
+    )
+    parser.add_argument(
+        "--runtime-session-stop",
+        action="store_true",
+        help="остановить только PID, записанный нашим runtime session state",
     )
 
     parser.add_argument(
@@ -203,6 +224,30 @@ def main(argv: list[str] | None = None) -> int:
     if args.runtime_log:
         print(runtime_log_to_text(profile_id=args.profile))
         return 0
+
+    if args.runtime_session_start:
+        try:
+            print(start_runtime_session(profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.runtime_session_status:
+        try:
+            print(runtime_session_status(profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.runtime_session_stop:
+        try:
+            print(stop_runtime_session(profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
 
     if args.list_profiles:
         print(workspace_profiles_to_text())

@@ -56,3 +56,16 @@ GUI-слой теперь содержит `adapters/runtime_plan_generator.py`.
 GUI package теперь содержит `adapters/runtime_state.py`. Этот adapter обслуживает будущую вкладку `Логи` и будущий controlled runtime workflow: создаёт `.zap2/runtime`, сохраняет prepared plans, rollback notes, confirmations и JSONL events. Код остаётся pure Python и не требует PyQt для тестов.
 
 CLI-команды `--runtime-prepare`, `--runtime-confirm` и `--runtime-log` ничего не исполняют и не требуют `sudo`; они только создают локальный workspace trace.
+
+
+## Runtime session runner
+
+GUI/application layer теперь содержит guarded adapter `runtime_session.py`. Его CLI-команды:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-session-start --profile default
+PYTHONPATH=gui python -m zap2_gui.app --runtime-session-status --profile default
+PYTHONPATH=gui python -m zap2_gui.app --runtime-session-stop --profile default
+```
+
+Adapter требует prepared/confirmed start-plan, пишет session state в `.zap2/runtime/sessions/`, ведёт runtime log и не управляет firewall, routing или systemd. Будущий PyQt экран `Стратегии` сможет использовать этот слой для кнопок session start/status/stop, но privileged apply/revert должен остаться отдельным workflow.

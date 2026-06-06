@@ -68,8 +68,8 @@ Stage 8 создаёт словарь и контракт. Следующие с
 
 ```text
 Stage 9  -> generator default start/stop/status plans: ГОТОВО как plan-only слой
-Stage 10 -> state dir, logs и confirmation gate
-Stage 11 -> session runner процесса
+Stage 10 -> state dir, logs и confirmation gate: ГОТОВО
+Stage 11 -> session runner процесса: ГОТОВО
 Stage 12 -> owner-confirmed apply/revert
 Stage 13 -> service plans
 Stage 14 -> default start/stop workflow
@@ -88,3 +88,10 @@ Stage 9 не расширяет права исполнения. Он тольк
 После Stage 9 runtime plan может быть сохранён как workspace state. Stage 10 вводит confirmation gate: owner confirmation создаётся не просто по имени действия, а по конкретному `planHash`. Если содержимое prepared plan изменилось, подтверждение должно считаться недействительным для будущего executor.
 
 Слой остаётся неисполняющим. События `planned` и `confirmed` пишутся в JSONL-журнал, rollback notes сохраняются до исполнения, а session/service/apply действия всё ещё представлены только как данные.
+
+
+## Stage 11: session runner процесса
+
+Stage 11 переводит `session plan` из чистого контракта в guarded executor для одного процесса `nfqws2`. Executor требует prepared start-plan и confirmation для текущего `planHash`, создаёт args file, запускает процесс, пишет PID/state/log и умеет остановить только записанный PID.
+
+Эта стадия всё ещё не является полноценным default workflow: она не создаёт NFQUEUE rules, не вызывает firewall tooling, не устанавливает service и не делает автозапуск. Её задача — закрыть только process lifecycle, чтобы будущий apply/revert мог подключиться к уже проверенному session boundary.

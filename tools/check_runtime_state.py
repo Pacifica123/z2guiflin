@@ -4,9 +4,7 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -23,30 +21,18 @@ def _copy_project() -> Path:
     return target
 
 
-def _run(project: Path, *args: str) -> str:
-    env = dict(os.environ)
-    env["PYTHONPATH"] = "gui"
-    result = subprocess.run(
-        [sys.executable, "-m", "zap2_gui.app", *args],
-        cwd=project,
-        env=env,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        check=False,
-    )
-    if result.returncode != 0:
-        print(result.stdout)
-        raise SystemExit(result.returncode)
-    return result.stdout
-
-
 def main() -> int:
-    from zap2_gui.adapters.runtime_state import runtime_store_paths
+    from zap2_gui.adapters.runtime_state import (
+        confirm_runtime_plan,
+        prepare_runtime_plan,
+        runtime_log_to_text,
+        runtime_store_paths,
+    )
 
     project = _copy_project()
     try:
-        prepare_text = _run(project, "--runtime-prepare", "start", "--profile", "default")
+        prepared = prepare_runtime_plan(project, action="start", profile_id="default")
+        prepare_text = prepared.to_text()
         required_prepare = [
             "Prepared runtime plan: runtime-default-manual-local-start-plan",
             "plan hash:",
@@ -56,7 +42,7 @@ def main() -> int:
         ]
         missing = [fragment for fragment in required_prepare if fragment not in prepare_text]
         if missing:
-            print("--runtime-prepare не содержит обязательные фрагменты:")
+            print("prepare_runtime_plan не содержит обязательные фрагменты:")
             for fragment in missing:
                 print(f" - {fragment}")
             return 1
@@ -82,22 +68,23 @@ def main() -> int:
             print("Prepared plan не должен исполняться")
             return 1
 
-        confirm_text = _run(project, "--runtime-confirm", "runtime-default-manual-local-start-plan")
+        confirmation = confirm_runtime_plan(project, "runtime-default-manual-local-start-plan")
+        confirm_text = confirmation.to_text()
         if "Runtime confirmation:" not in confirm_text or "allows automatic reuse: no" not in confirm_text:
-            print("--runtime-confirm не показывает одноразовое confirmation")
+            print("confirm_runtime_plan не показывает одноразовое confirmation")
             return 1
         confirmation_path = paths.confirmations_dir / "runtime-default-manual-local-start-plan.confirmation.json"
-        confirmation = json.loads(confirmation_path.read_text(encoding="utf-8"))
-        if confirmation.get("planHash") != saved.get("planHash"):
+        confirmation_data = json.loads(confirmation_path.read_text(encoding="utf-8"))
+        if confirmation_data.get("planHash") != saved.get("planHash"):
             print("Confirmation должен быть связан с сохранённым planHash")
             return 1
-        if confirmation.get("allowsAutomaticReuse") is not False or confirmation.get("expiresWhenPlanChanges") is not True:
+        if confirmation_data.get("allowsAutomaticReuse") is not False or confirmation_data.get("expiresWhenPlanChanges") is not True:
             print("Confirmation должен быть одноразовым и истекать при изменении plan")
             return 1
 
-        log_text = _run(project, "--runtime-log", "--profile", "default")
+        log_text = runtime_log_to_text(project, profile_id="default")
         if "planned" not in log_text or "confirmed" not in log_text or "executes now: no" not in log_text:
-            print("--runtime-log должен показывать planned/confirmed events без исполнения")
+            print("runtime_log_to_text должен показывать planned/confirmed events без исполнения")
             return 1
 
         print("Runtime state Stage 10 OK; .zap2/runtime создаётся только в workspace-копии и не исполняет plans")

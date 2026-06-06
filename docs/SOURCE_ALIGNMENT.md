@@ -92,3 +92,10 @@ Stage 9 также не меняет upstream-исходники. Он доба�
 Runtime state и confirmation gate относятся к нашему application layer, а не к vendored upstream-ядру. Они не меняют `core/zapret2/`, не добавляют installer wrapper вокруг upstream scripts и не смешивают runtime lifecycle с bootstrap.
 
 Stage 10 усиливает исходную цель проекта: все потенциально чувствительные действия сначала должны существовать как данные, затем как saved plan с hash, затем как confirmation, затем как log/rollback trace, и только после этого как owner-confirmed execution в отдельном патче.
+
+
+## Stage 11 и upstream alignment
+
+Runtime session runner запускает vendored binary `core/zapret2/nfq2/nfqws2`, но не меняет upstream source tree и не использует upstream installer scripts. Args file, PID, logs и session marker создаются в `.zap2/runtime`, то есть в нашем application state layer.
+
+Это сохраняет разделение: upstream-ядро остаётся source input, а наш GUI отвечает за plan/confirmation/session lifecycle вокруг него.

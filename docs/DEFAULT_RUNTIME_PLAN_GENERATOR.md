@@ -43,3 +43,10 @@ profile -> strategy -> build target -> binary -> hostlist -> run/apply/session/s
 ## Что пойдёт дальше
 
 Следующий слой должен добавить state dir, логи и confirmation gate. После него можно будет сохранять plan id, hash и owner confirmation так, чтобы нельзя было подтвердить один план, а исполнить другой.
+
+
+## Связь со Stage 11
+
+Stage 11 использует `start` plan generator как источник `planId`, `planHash`, binary path и profile/strategy связки. Session runner не строит отдельный параллельный план запуска: он проверяет именно тот start-plan, который был подготовлен и подтверждён через Stage 10.
+
+Это сохраняет единый contract chain: generator создаёт план, state gate фиксирует hash, confirmation разрешает конкретный hash, runner запускает только этот подтверждённый процессный session.

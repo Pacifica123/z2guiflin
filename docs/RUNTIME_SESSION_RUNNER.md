@@ -1,0 +1,95 @@
+# Runtime session runner
+
+`v0.3-alpha_stage_11` вводит первый исполняемый runtime-слой: guarded session runner для локального процесса `nfqws2`.
+
+Это не bootstrap, не installer и не service mode. Runner запускает и останавливает только процесс, который описан default runtime plan, подготовлен через Stage 10 и подтверждён owner confirmation.
+
+## Что делает Stage 11
+
+Stage 11 добавляет команды:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-session-start --profile default
+PYTHONPATH=gui python -m zap2_gui.app --runtime-session-status --profile default
+PYTHONPATH=gui python -m zap2_gui.app --runtime-session-stop --profile default
+```
+
+Перед стартом runner проверяет:
+
+- существует ли подготовленный `runtime-default-manual-local-start-plan`;
+- совпадает ли текущий `planHash` с сохранённым планом;
+- есть ли owner confirmation для того же `planHash`;
+- существует ли `core/zapret2/nfq2/nfqws2`;
+- является ли `nfqws2` исполняемым файлом.
+
+Если чего-то не хватает, session не запускается.
+
+## Что записывается в `.zap2/runtime`
+
+Runner использует workspace-only state store:
+
+```text
+.zap2/runtime/
+  sessions/default.session.json
+  sessions/default.nfqws2.args
+  sessions/default.nfqws2.pid
+  logs/default.nfqws2.stdout.log
+  logs/default.nfqws2.stderr.log
+  logs/default.nfqws2.debug.log
+  logs/default.runtime.jsonl
+```
+
+`default.session.json` содержит PID, `planId`, `planHash`, путь к бинарнику, argv, marker владения и safety-флаги.
+
+Обязательный marker:
+
+```text
+zap2-runtime-session-v1
+```
+
+Без него runner не считает session своей.
+
+## Почему stop безопаснее обычного kill
+
+`--runtime-session-stop` останавливает только PID, который записан в нашем session state. Перед отправкой сигнала runner проверяет:
+
+- что session file имеет наш marker;
+- что PID больше 1;
+- что процесс жив;
+- что `/proc/<pid>/cmdline`, когда доступен, соответствует записанному binary path.
+
+Если PID уже не существует, runner не отправляет сигнал и помечает state как `stale`. Если PID существует, но команда не совпадает с session record, stop отклоняется.
+
+## Чего Stage 11 не делает
+
+Stage 11 не делает следующие вещи:
+
+- не запускает `make`;
+- не применяет firewall/routing rules;
+- не вызывает `iptables`, `nft`, `ip`, `systemctl`;
+- не создаёт и не включает systemd service;
+- не вызывает upstream installer scripts;
+- не делает remote bootstrap;
+- не исправляет систему автоматически.
+
+Сам по себе запущенный `nfqws2` ещё не означает полноценную работу стратегии, потому что трафик ещё не направлен в NFQUEUE. Это появится только в будущих owner-confirmed apply/revert patch.
+
+## Связь со Stage 10
+
+Stage 10 дал `prepare -> confirm -> log`. Stage 11 использует этот gate как обязательное условие запуска процесса.
+
+Минимальный порядок для владельца после локальной сборки ядра:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-prepare start --profile default
+PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-start-plan
+PYTHONPATH=gui python -m zap2_gui.app --runtime-session-start --profile default
+PYTHONPATH=gui python -m zap2_gui.app --runtime-session-status --profile default
+PYTHONPATH=gui python -m zap2_gui.app --runtime-session-stop --profile default
+```
+
+Если plan изменится между confirmation и start, запуск будет отклонён по `planHash`.
+
+## Ограничение Stage 11
+
+Runner запускает процесс с минимальным session config: queue number, pidfile, debug log и hostlist path из default profile. Это только lifecycle процесса. Реальное направление трафика, apply/revert системных правил и default start/stop workflow остаются задачами следующих stages.

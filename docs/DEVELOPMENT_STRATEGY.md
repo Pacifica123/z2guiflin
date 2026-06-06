@@ -192,3 +192,10 @@ Stage 9 развивает Stage 8 без перехода к исполнени
 Stage 10 продолжает controlled runtime lifecycle после generator. Теперь plan-only результат можно сохранить в `.zap2/runtime/plans/`, снабдить стабильным `planHash`, записать rollback notes в `.zap2/runtime/rollback/`, создать owner confirmation в `.zap2/runtime/confirmations/` и вести append-only журнал `.zap2/runtime/logs/`.
 
 Это первая разрешённая мутация в серии runtime lifecycle, но она ограничена workspace-директорией проекта. Stage 10 не запускает процесс, не вызывает `sudo`, не применяет системные правила и не управляет service mode. Смысл этапа — сделать будущий executor проверяемым: нельзя будет подтвердить один plan, а исполнить другой без расхождения hash.
+
+
+## Stage 11: runtime session runner
+
+Stage 11 впервые добавляет исполняемый runtime-компонент, но его область намеренно узкая: только lifecycle локального процесса `nfqws2`, только после prepared start-plan и owner confirmation, только с записью PID/state/log в `.zap2/runtime`. Runner не применяет системные правила, не управляет service mode и не смешивает процесс с bootstrap.
+
+Ключевая граница этапа: `start` может создать процесс, `status` может прочитать session state, `stop` может остановить только PID с нашим marker. Firewall/routing apply, privileged revert и service plans остаются следующими отдельными stages.

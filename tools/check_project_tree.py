@@ -53,6 +53,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/runtime_contracts.py",
     "gui/zap2_gui/adapters/runtime_plan_generator.py",
     "gui/zap2_gui/adapters/runtime_state.py",
+    "gui/zap2_gui/adapters/runtime_session.py",
     "gui/zap2_gui/models/navigation.py",
     "gui/zap2_gui/models/strategy.py",
     "gui/zap2_gui/models/workspace_profile.py",
@@ -74,6 +75,7 @@ REQUIRED_PATHS = [
     "docs/RUNTIME_PLANS.md",
     "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
     "docs/RUNTIME_STATE_AND_CONFIRMATION.md",
+    "docs/RUNTIME_SESSION_RUNNER.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/VERSIONING.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
@@ -87,12 +89,14 @@ REQUIRED_PATHS = [
     "tools/check_runtime_lifecycle.py",
     "tools/check_runtime_plan_generator.py",
     "tools/check_runtime_state.py",
+    "tools/check_runtime_session.py",
     "tests/test_core_inventory_and_build_map.py",
     "tests/test_local_build_adapter.py",
     "tests/test_workspace_profiles_and_strategies.py",
     "tests/test_runtime_lifecycle_contracts.py",
     "tests/test_runtime_plan_generator.py",
     "tests/test_runtime_state_and_confirmation.py",
+    "tests/test_runtime_session_runner.py",
 ]
 
 PROJECT_DOCUMENTATION_PATHS = [
@@ -116,6 +120,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/RUNTIME_PLANS.md",
     "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
     "docs/RUNTIME_STATE_AND_CONFIRMATION.md",
+    "docs/RUNTIME_SESSION_RUNNER.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",
@@ -281,6 +286,31 @@ def main() -> int:
         print("CLI Stage 10 должен иметь runtime prepare/confirm/log commands")
         return 1
 
+    runtime_session_doc = (ROOT / "docs/RUNTIME_SESSION_RUNNER.md").read_text(encoding="utf-8")
+    runtime_session_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_session.py").read_text(encoding="utf-8")
+    if "session runner" not in runtime_session_doc or "nfqws2" not in runtime_session_doc:
+        print("Runtime session runner Stage 11 не зафиксирован в документации")
+        return 1
+    required_runtime_session_symbols = (
+        "start_runtime_session",
+        "stop_runtime_session",
+        "runtime_session_status",
+        "build_runtime_session_config",
+        "SESSION_MARKER",
+    )
+    for symbol in required_runtime_session_symbols:
+        if symbol not in runtime_session_adapter:
+            print(f"Runtime session adapter не содержит {symbol}")
+            return 1
+    forbidden_runtime_session_fragments = ("systemctl", "iptables", "nft ", "install_easy", "curl", "wget")
+    for fragment in forbidden_runtime_session_fragments:
+        if fragment in runtime_session_adapter:
+            print(f"Runtime session adapter не должен содержать service/firewall/bootstrap fragment: {fragment}")
+            return 1
+    if "--runtime-session-start" not in app_py or "--runtime-session-stop" not in app_py or "--runtime-session-status" not in app_py:
+        print("CLI Stage 11 должен иметь runtime session start/status/stop commands")
+        return 1
+
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
     if "русском" not in language_doc or "проектная документация" not in language_doc:
         print("Правило русского языка документации не зафиксировано")
@@ -312,7 +342,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate зафиксированы")
+    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate и session runner зафиксированы")
     return 0
 
 
