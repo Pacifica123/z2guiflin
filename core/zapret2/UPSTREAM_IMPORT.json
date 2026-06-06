@@ -1,0 +1,22 @@
+{
+  "upstreamName": "bol-van/zapret2",
+  "sourceArchive": "zapret2-core-from_bolvan.zip",
+  "importedAt": "2026-06-06T00:00:00Z",
+  "importedForProductLabel": "v0.3-alpha",
+  "importedFileCount": 245,
+  "excludedFileCount": 9,
+  "excludedPolicy": "Excluded CI metadata and compiled/binary artifacts; source/docs/scripts/configs were preserved as vendored source.",
+  "excludedFiles": [
+    ".github/ISSUE_TEMPLATE/config.yml",
+    ".github/ISSUE_TEMPLATE/issue-warning.md",
+    ".github/workflows/build.yml",
+    ".github/workflows/libnetfilter_queue-android.patch",
+    "nfq2/windows/res/winws.ico",
+    "nfq2/windows/res/winws_res32.o",
+    "nfq2/windows/res/winws_res64.o",
+    "nfq2/windows/windivert/libwindivert32.a",
+    "nfq2/windows/windivert/libwindivert64.a"
+  ],
+  "licensePath": "docs/LICENSE.txt",
+  "contentDigestSha256": "9d57e8fdee29938d560a390f976def49d4692f8dfda7e59c7df4a48fffe773d5"
+}

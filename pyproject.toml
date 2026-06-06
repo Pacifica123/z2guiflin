@@ -1,0 +1,21 @@
+[project]
+name = "zap2gui-linux"
+version = "0.3.0a0"
+description = "Linux GUI shell around a vendored zapret2 core source tree"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT-compatible project shell; vendored upstream keeps its own MIT license notice" }
+authors = [
+  { name = "Zap2 GUI Linux project" }
+]
+
+[tool.setuptools]
+package-dir = {"" = "gui"}
+
+[tool.setuptools.packages.find]
+where = ["gui"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["gui"]
+addopts = "-q"
