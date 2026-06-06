@@ -8,11 +8,13 @@ bootstrap и не вызывает upstream installer scripts.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
 import signal
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -29,12 +31,13 @@ from .runtime_state import (
 )
 from ..project_paths import discover_layout
 
-SESSION_STAGE = "v0.3-beta_stage_8"
+SESSION_STAGE = "v0.3-beta_stage_9"
 SESSION_SCHEMA_VERSION = 1
 SESSION_MARKER = "zap2-runtime-session-v1"
 DEFAULT_NFQUEUE_NUM = 200
 PROCESS_START_GRACE_SECONDS = 0.25
 PROCESS_STOP_TIMEOUT_SECONDS = 5.0
+PUBLIC_SESSION_INPUTS_BASE = "zap2-runtime-inputs"
 
 
 @dataclass(frozen=True)
@@ -72,6 +75,7 @@ class RuntimeSessionConfig:
     argv: tuple[str, ...]
     args_path: Path
     session_inputs_dir: Path
+    public_session_inputs_dir: Path | None
     hostlist_input_paths: tuple[Path, ...]
     pidfile_path: Path
     stdout_log_path: Path
@@ -95,6 +99,7 @@ class RuntimeSessionConfig:
                 *(f"  - {item}" for item in self.runtime_args),
                 f"args file: {self.args_path}",
                 f"session inputs dir: {self.session_inputs_dir}",
+                f"public session inputs dir: {self.public_session_inputs_dir if self.public_session_inputs_dir else 'not used'}",
                 "runtime hostlist inputs:",
                 *(f"  - {item}" for item in self.hostlist_input_paths),
                 f"pidfile: {self.pidfile_path}",
@@ -324,50 +329,70 @@ def _runtime_debug_enabled() -> bool:
     return value in {"1", "true", "yes", "on", "debug"}
 
 
-def _runtime_input_relative_path(paths_root: Path, path: Path) -> str:
-    """Return a path suitable for nfqws2 after privilege drop.
+def _runtime_input_path_for_nfqws(path: Path) -> str:
+    """Return a hostlist path suitable for nfqws2 after dropcaps.
 
-    nfqws2 повторно проверяет hostlist уже после ``dropcaps()``. Абсолютные
-    пути через ``/home/<owner>/...`` могут стать недоступны для UID 0 без
-    ``CAP_DAC_OVERRIDE``. Поэтому runtime session передаёт относительный путь
-    к заранее подготовленной копии внутри ``.zap2/runtime/session-inputs``.
+    Stage 8 передавал относительный путь внутри `.zap2`. Это оказалось
+    недостаточно для GUI/pkexec: после `dropcaps()` nfqws2 может потерять право
+    обходить приватные родительские директории `/home/<owner>/...`. Поэтому для
+    hostlist используется абсолютный путь к public runtime copy под `/tmp`.
     """
 
+    return str(path.resolve())
+
+
+def _safe_chmod(path: Path, mode: int) -> None:
     try:
-        return str(path.resolve().relative_to(paths_root.resolve()))
-    except ValueError:
-        return str(path.resolve())
+        path.chmod(mode)
+    except PermissionError:
+        pass
+
+
+def _ensure_public_dir(path: Path) -> Path:
+    """Create a non-symlink public directory readable after nfqws2 dropcaps."""
+
+    if path.exists() and path.is_symlink():
+        raise ValueError(f"public runtime input path не должен быть symlink: {path}")
+    path.mkdir(parents=True, exist_ok=True)
+    if not path.is_dir():
+        raise ValueError(f"public runtime input path не является директорией: {path}")
+    _safe_chmod(path, 0o755)
+    return path
+
+
+def _public_session_inputs_dir(paths_root: Path, profile_id: str, plan_id: str, plan_hash: str) -> Path:
+    """Return deterministic public input dir under /tmp for one plan hash.
+
+    Hostlist не является секретом в текущем single-owner workflow, зато путь
+    должен быть доступен процессу без CAP_DAC_OVERRIDE после `dropcaps()`.
+    """
+
+    digest = hashlib.sha256(f"{paths_root.resolve()}|{profile_id}|{plan_id}|{plan_hash}".encode("utf-8")).hexdigest()[:16]
+    base = Path(os.environ.get("ZAP2_PUBLIC_RUNTIME_INPUTS_DIR", tempfile.gettempdir())) / PUBLIC_SESSION_INPUTS_BASE
+    _ensure_public_dir(base)
+    return _ensure_public_dir(base / f"{profile_id}-{digest}")
 
 
 def _make_runtime_input_accessible(path: Path) -> None:
     """Make a runtime input readable/searchable after nfqws2 drops caps."""
 
-    for directory in (path.parent.parent.parent, path.parent.parent, path.parent):
+    for directory in (path.parent.parent, path.parent):
         if directory.exists():
-            try:
-                directory.chmod(0o755)
-            except PermissionError:
-                pass
-    try:
-        path.chmod(0o644)
-    except PermissionError:
-        pass
+            _safe_chmod(directory, 0o755)
+    _safe_chmod(path, 0o644)
 
 
-def _prepare_runtime_hostlist_inputs(paths_root: Path, plan: GeneratedRuntimePlan, profile_id: str) -> tuple[Path, ...]:
-    """Copy profile hostlists to runtime-owned session inputs.
+def _prepare_runtime_hostlist_inputs(paths_root: Path, plan: GeneratedRuntimePlan, profile_id: str, plan_hash: str) -> tuple[Path, ...]:
+    """Copy profile hostlists to public runtime session inputs.
 
     Source hostlists remain owner-maintained project files. Runtime uses a
-    per-session copy so privileged GUI start does not depend on source-file
-    ownership, restrictive umask, or absolute ``/home`` traversal after
-    ``dropcaps()``.
+    per-plan public copy so privileged GUI start does not depend on source-file
+    ownership, restrictive umask, or `/home` traversal after `dropcaps()`.
     """
 
     if not plan.hostlists:
         return ()
-    paths = runtime_store_paths(paths_root)
-    inputs_dir = paths.session_inputs_dir
-    inputs_dir.mkdir(parents=True, exist_ok=True)
+    inputs_dir = _public_session_inputs_dir(paths_root, profile_id, plan.plan_id, plan_hash)
     prepared: list[Path] = []
     for index, hostlist in enumerate(plan.hostlists):
         source = (paths_root / hostlist.path).resolve()
@@ -378,10 +403,30 @@ def _prepare_runtime_hostlist_inputs(paths_root: Path, plan: GeneratedRuntimePla
         target = inputs_dir / target_name
         tmp = target.with_suffix(target.suffix + ".tmp")
         shutil.copyfile(source, tmp)
+        _safe_chmod(tmp, 0o644)
         os.replace(tmp, target)
         _make_runtime_input_accessible(target)
         prepared.append(target)
     return tuple(prepared)
+
+
+def _cleanup_public_session_inputs(paths: tuple[Path, ...]) -> None:
+    """Best-effort cleanup for public runtime hostlist copies."""
+
+    seen_dirs: set[Path] = set()
+    for item in paths:
+        try:
+            path = Path(item)
+            if path.exists() and path.is_file():
+                path.unlink()
+            seen_dirs.add(path.parent)
+        except OSError:
+            continue
+    for directory in seen_dirs:
+        try:
+            directory.rmdir()
+        except OSError:
+            pass
 
 
 def _runtime_args_for_plan(
@@ -402,7 +447,7 @@ def _runtime_args_for_plan(
     if drop_identity is not None:
         args.append(drop_identity.option)
     for hostlist_path in hostlist_input_paths:
-        args.append(f"--hostlist={_runtime_input_relative_path(paths_root, hostlist_path)}")
+        args.append(f"--hostlist={_runtime_input_path_for_nfqws(hostlist_path)}")
     return tuple(args)
 
 
@@ -433,7 +478,8 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
     stderr_log_path = paths.logs_dir / f"{profile_id}.nfqws2.stderr.log"
     debug_log_path = paths.logs_dir / f"{profile_id}.nfqws2.debug.log"
     drop_identity = _detect_drop_identity(paths.root)
-    hostlist_input_paths = _prepare_runtime_hostlist_inputs(paths.root, plan, profile_id)
+    hostlist_input_paths = _prepare_runtime_hostlist_inputs(paths.root, plan, profile_id, plan_hash)
+    public_session_inputs_dir = hostlist_input_paths[0].parent if hostlist_input_paths else None
     runtime_args = _runtime_args_for_plan(paths.root, plan, drop_identity, pidfile_path, debug_log_path, hostlist_input_paths)
 
     return RuntimeSessionConfig(
@@ -446,6 +492,7 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
         argv=(str(binary_path), f"@{args_path}"),
         args_path=args_path,
         session_inputs_dir=paths.session_inputs_dir,
+        public_session_inputs_dir=public_session_inputs_dir,
         hostlist_input_paths=hostlist_input_paths,
         pidfile_path=pidfile_path,
         stdout_log_path=stdout_log_path,
@@ -689,6 +736,7 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "argv": list(config.argv),
         "runtimeArgs": list(config.runtime_args),
         "sessionInputsDir": str(config.session_inputs_dir),
+        "publicSessionInputsDir": str(config.public_session_inputs_dir) if config.public_session_inputs_dir else None,
         "hostlistInputPaths": [str(path) for path in config.hostlist_input_paths],
         "dropIdentity": None if config.drop_identity is None else {"uid": config.drop_identity.uid, "gid": config.drop_identity.gid, "source": config.drop_identity.source},
         "argsPath": str(config.args_path),
@@ -803,6 +851,8 @@ def stop_runtime_session(root: Path | None = None, profile_id: str = "default") 
     updated["stoppedAt"] = _utc_now()
     updated["stopSignal"] = "SIGTERM" if terminated else "SIGKILL-attempted"
     _write_json(session_path, updated)
+    if terminated:
+        _cleanup_public_session_inputs(tuple(Path(item) for item in record.get("hostlistInputPaths", [])))
     log_path = append_runtime_event(
         paths,
         _event(

@@ -112,3 +112,8 @@ Runner запускает процесс с минимальным session confi
 ## Runtime-копии входных файлов
 
 `nfqws2` запускается не напрямую с исходным абсолютным `profiles/hostlists/default.hosts`, а с копией в `.zap2/runtime/session-inputs/`. Это нужно для GUI/polkit-запуска: после `dropcaps()` абсолютный путь через пользовательский workspace может стать недоступен, даже если первичная загрузка hostlist уже прошла. Подробнее: `docs/RUNTIME_SESSION_INPUTS.md`.
+
+
+## v0.3-beta_stage_9: public hostlist input после dropcaps
+
+GUI/pkexec start использует public runtime copy hostlist под `/tmp/zap2-runtime-inputs/...`, а не `.zap2/runtime/session-inputs/...`. Это нужно, чтобы `nfqws2` мог выполнить повторный `file_open_test` после `dropcaps()`, когда traversal по `/home/<owner>/...` может быть запрещён из-за потери capabilities.

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import stat
 import sys
@@ -77,14 +78,23 @@ def main() -> int:
             return 1
         text = config.to_text()
         hostlist_args = [arg for arg in config.runtime_args if arg.startswith("--hostlist=")]
-        if not hostlist_args or not hostlist_args[0].startswith("--hostlist=.zap2/runtime/session-inputs/"):
-            print("session config должен использовать runtime hostlist copy с относительным путём")
+        if not hostlist_args or "/zap2-runtime-inputs/" not in hostlist_args[0] or not hostlist_args[0].startswith("--hostlist=/"):
+            print("session config должен использовать public runtime hostlist copy под /tmp-like directory")
+            return 1
+        if not config.public_session_inputs_dir or not str(config.public_session_inputs_dir).startswith(tempfile.gettempdir()):
+            print("public session inputs dir должен находиться вне приватного workspace")
             return 1
         if not config.hostlist_input_paths or not config.hostlist_input_paths[0].exists():
             print("runtime hostlist copy должен существовать до запуска nfqws2")
             return 1
+        if config.hostlist_input_paths[0].stat().st_mode & 0o077 != 0o044:
+            print("runtime hostlist copy должен быть readable для post-dropcaps процесса")
+            return 1
         if str(project / "profiles" / "hostlists" / "default.hosts") in "\n".join(config.runtime_args):
             print("session args не должны передавать исходный абсолютный hostlist path")
+            return 1
+        if "/.zap2/runtime/session-inputs/" in "\n".join(config.runtime_args):
+            print("session args не должны передавать .zap2 hostlist path после Stage 9")
             return 1
 
         for fragment in (
@@ -93,6 +103,7 @@ def main() -> int:
             "service mode: no",
             "args file:",
             "session inputs dir:",
+            "public session inputs dir:",
             "runtime hostlist inputs:",
             "pidfile:",
         ):

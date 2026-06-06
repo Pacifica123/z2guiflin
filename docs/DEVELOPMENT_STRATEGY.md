@@ -296,3 +296,10 @@ Stage 4 переносит первую базовую стратегию из W
 ## v0.3-beta_stage_8 — runtime session inputs
 
 Hotfix закрепляет правило: privileged GUI start должен передавать `nfqws2` не исходный абсолютный hostlist path, а подготовленную runtime-копию из `.zap2/runtime/session-inputs/`. Это снижает зависимость от домашнего каталога, umask и повторной проверки hostlist после `dropcaps()`.
+
+
+## v0.3-beta_stage_9 — public runtime inputs для GUI/pkexec
+
+Исправление Stage 8: runtime hostlist copy переносится из `.zap2/runtime/session-inputs/` в public tmp-like директорию `/tmp/zap2-runtime-inputs/...`. Причина — `nfqws2` после `dropcaps()` может потерять возможность проходить приватные родительские директории workspace, даже если сам hostlist-файл внутри `.zap2` имеет `0644`.
+
+Правило: GUI/pkexec start должен передавать `nfqws2` hostlist path, доступный после `dropcaps()`, и обязан сохранять rollback/log trail.

@@ -162,8 +162,10 @@ def test_session_status_marks_copied_state_from_other_workspace_as_stale(tmp_pat
     finally:
         stop_runtime_session(project, profile_id="default")
 
-def test_session_uses_runtime_hostlist_copy_with_relative_arg(tmp_path):
+def test_session_uses_public_runtime_hostlist_copy_after_dropcaps(tmp_path, monkeypatch):
     project = _copy_project(tmp_path)
+    public_base = tmp_path / "public-runtime"
+    monkeypatch.setenv("ZAP2_PUBLIC_RUNTIME_INPUTS_DIR", str(public_base))
     _install_fake_nfqws2(project)
     source = project / "profiles" / "hostlists" / "default.hosts"
     source.write_text("example.org\n", encoding="utf-8")
@@ -173,12 +175,17 @@ def test_session_uses_runtime_hostlist_copy_with_relative_arg(tmp_path):
 
     config = build_runtime_session_config(project, profile_id="default")
 
+    assert config.public_session_inputs_dir is not None
     assert config.hostlist_input_paths
     copied = config.hostlist_input_paths[0]
     assert copied.exists()
     assert copied.read_text(encoding="utf-8") == "example.org\n"
+    assert copied.is_absolute()
+    assert copied.is_relative_to(public_base / "zap2-runtime-inputs")
     assert copied.stat().st_mode & 0o077 == 0o044
+    assert copied.parent.stat().st_mode & 0o077 == 0o055
     hostlist_args = [arg for arg in config.runtime_args if arg.startswith("--hostlist=")]
-    assert hostlist_args == ["--hostlist=.zap2/runtime/session-inputs/default.hostlist-0.hosts"]
+    assert hostlist_args == [f"--hostlist={copied.resolve()}"]
     assert str(source) not in "\n".join(config.runtime_args)
+    assert "/.zap2/runtime/session-inputs/" not in "\n".join(config.runtime_args)
 

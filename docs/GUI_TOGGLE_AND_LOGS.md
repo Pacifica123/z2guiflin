@@ -54,4 +54,11 @@ ZAP2_RUNTIME_DROP_IDENTITY=polkit-root
 
 ## Runtime session inputs
 
-GUI toggle использует тот же session runner, что и CLI. Перед privileged start runner создаёт runtime-копию hostlist в `.zap2/runtime/session-inputs/` и передаёт `nfqws2` относительный путь к этой копии. Это устраняет падение вида `file_open_test: Permission denied` после `Running as UID=0 GID=0` в pkexec-сценарии.
+GUI toggle использует тот же session runner, что и CLI. Перед privileged start runner создаёт public runtime-копию hostlist под `/tmp/zap2-runtime-inputs/...` и передаёт `nfqws2` абсолютный путь к этой копии. Это важно, потому что после `dropcaps()` процесс может потерять право проходить приватные родительские директории пользовательского workspace.
+
+Целевое исправление ошибки:
+
+```text
+file_open_test: Permission denied
+cannot access hostlist file '.../.zap2/runtime/session-inputs/default.hostlist-0.hosts'
+```

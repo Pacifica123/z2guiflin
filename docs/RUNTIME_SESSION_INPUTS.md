@@ -1,30 +1,52 @@
 # Runtime session inputs
 
-Начиная с `v0.3-beta_stage_8` session runner больше не передаёт `nfqws2` исходный абсолютный путь к `profiles/hostlists/default.hosts`.
+Начиная с `v0.3-beta_stage_9` session runner больше не передаёт `nfqws2` ни исходный абсолютный путь к `profiles/hostlists/default.hosts`, ни runtime-копию внутри `.zap2` как основной hostlist path.
 
-Причина: `nfqws2` после открытия NFQUEUE и загрузки первичных данных выполняет `dropcaps()` и повторно проверяет доступ к hostlist. В GUI/polkit-сценарии процесс может остаться `UID=0`, но уже без `CAP_DAC_OVERRIDE`, поэтому абсолютный путь через пользовательский home/workspace иногда становится недоступен даже после успешной первичной загрузки.
+## Почему Stage 8 был недостаточен
 
-Теперь перед запуском создаётся runtime-копия hostlist:
+В `v0.3-beta_stage_8` hostlist копировался в `.zap2/runtime/session-inputs/` и передавался как относительный путь. Это убрало зависимость от исходного файла профиля, но не решило проблему полностью: вся `.zap2`-директория всё равно лежит под пользовательским workspace, например внутри `/home/<owner>/...`.
 
-```text
-.zap2/runtime/session-inputs/default.hostlist-0.hosts
-```
-
-В args-файл `nfqws2` попадает относительный путь:
+`nfqws2` после открытия NFQUEUE и первичной загрузки данных выполняет `dropcaps()` и повторно проверяет доступ к hostlist. После сброса capabilities процесс может остаться `UID=0`, но уже без `CAP_DAC_OVERRIDE`; в таком состоянии он может потерять возможность проходить приватные родительские директории пользовательского home/workspace. Поэтому повторная проверка могла падать так:
 
 ```text
---hostlist=.zap2/runtime/session-inputs/default.hostlist-0.hosts
+Loaded 35 hosts ...
+Running as UID=0 GID=0
+file_open_test: Permission denied
+cannot access hostlist file '.../.zap2/runtime/session-inputs/default.hostlist-0.hosts'
 ```
 
-Это даёт три эффекта:
+## Текущий механизм
+
+Перед запуском создаётся per-plan public runtime copy под tmp-like директорией:
+
+```text
+/tmp/zap2-runtime-inputs/default-<plan-hash-prefix>/default.hostlist-0.hosts
+```
+
+В args-файл `nfqws2` попадает абсолютный путь к этой public runtime copy:
+
+```text
+--hostlist=/tmp/zap2-runtime-inputs/default-<hash>/default.hostlist-0.hosts
+```
+
+Права выставляются так, чтобы процесс после `dropcaps()` мог пройти директории и прочитать hostlist:
+
+```text
+directories: 0755
+hostlist:    0644
+```
+
+## Что это даёт
 
 1. GUI/pkexec start не зависит от прав исходного hostlist-файла.
-2. `nfqws2` повторно проверяет уже подготовленный runtime input.
-3. Источник `profiles/hostlists/default.hosts` остаётся owner-maintained, а runtime session работает с копией конкретного запуска.
+2. Повторный `file_open_test` после `dropcaps()` больше не зависит от traversal по `/home/<owner>/...`.
+3. Источник `profiles/hostlists/default.hosts` остаётся owner-maintained.
+4. Runtime session работает с копией конкретного confirmed plan.
+5. Stop делает best-effort cleanup public runtime copy.
 
-Ограничения:
+## Ограничения
 
-- копия создаётся только внутри workspace runtime state;
-- service/firewall/bootstrap не смешиваются с этим механизмом;
-- источник hostlist всё равно остаётся главным файлом профиля;
-- после изменения hostlist нужно заново подготовить и подтвердить start workflow.
+- hostlist не считается секретом в текущем single-owner workflow;
+- механизм не запускает service mode и не смешивается с bootstrap;
+- после изменения hostlist нужно заново подготовить и подтвердить start workflow;
+- если start упал до cleanup, public copy может остаться для диагностики и будет перезаписана следующим запуском того же plan hash.
