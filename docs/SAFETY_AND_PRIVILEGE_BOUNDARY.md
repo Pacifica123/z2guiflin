@@ -50,3 +50,15 @@ collect facts -> generate command plan -> show exact plan -> owner confirms -> r
 - логи и отчёты;
 - отказ запускать привилегированные команды внутри среды ассистента;
 - уважение к способности владельца управлять собственной development machine.
+
+## Stage 8: runtime contracts без исполнения
+
+Stage 8 добавляет runtime lifecycle contracts, но не меняет privilege boundary. Автоматические проверки могут валидировать JSON-схемы, example plans, events и confirmations, однако не могут запускать `nfqws2`, `make`, `sudo`, firewall tools или `systemd`.
+
+Будущий privileged runtime должен пройти через цепочку:
+
+```text
+plan -> owner confirmation -> execution -> log -> rollback/revert
+```
+
+Если будущий патч добавляет настоящий executor, он должен отдельно объяснить, какие действия требуют привилегий, где сохраняется runtime state, как владелец подтверждает конкретный plan hash и как выполняется точечный откат.

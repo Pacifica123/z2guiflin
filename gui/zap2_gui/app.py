@@ -7,6 +7,11 @@ import sys
 
 from . import PRODUCT_LABEL
 from .adapters.local_build import create_local_build_plan
+from .adapters.runtime_contracts import (
+    runtime_contracts_to_text,
+    validate_runtime_contract_catalog,
+    validate_runtime_contracts_to_text,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -30,6 +35,8 @@ def describe_project() -> str:
     pyqt_state = "available" if is_pyqt_available() else "not installed"
     build_plan = create_local_build_plan(layout.root)
     workspace_catalog = load_workspace_catalog(layout.root)
+    runtime_contract_issues = validate_runtime_contract_catalog(layout.root)
+    runtime_contract_status = "OK" if not any(issue.severity == "error" for issue in runtime_contract_issues) else "FAILED"
     return "\n".join(
         [
             f"Zap2 GUI Linux {PRODUCT_LABEL}",
@@ -39,6 +46,7 @@ def describe_project() -> str:
             f"build units: {units}",
             f"local build adapter: plan-only ({len(build_plan.expected_artifacts)} expected artifacts)",
             f"workspace profiles: {len(workspace_catalog.profiles)}; strategies: {len(workspace_catalog.strategies)}",
+            f"runtime lifecycle contracts: {runtime_contract_status}",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: bootstrap/read-only baseline with optional GUI launch",
@@ -62,6 +70,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--build-target",
         default="all",
         help="цель для --build-plan: all, nfqws2, ip2net, mdig или clean",
+    )
+
+
+    parser.add_argument(
+        "--runtime-contracts",
+        action="store_true",
+        help="показать runtime lifecycle contracts Stage 8 без исполнения",
+    )
+    parser.add_argument(
+        "--validate-runtime-contracts",
+        action="store_true",
+        help="валидировать runtime lifecycle contracts Stage 8 без исполнения",
     )
 
     parser.add_argument(
@@ -105,6 +125,16 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2
+
+
+    if args.runtime_contracts:
+        print(runtime_contracts_to_text())
+        return 0
+
+    if args.validate_runtime_contracts:
+        text = validate_runtime_contracts_to_text()
+        print(text)
+        return 0 if "FAILED" not in text else 1
 
     if args.list_profiles:
         print(workspace_profiles_to_text())

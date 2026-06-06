@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zap2.local/schemas/runtime-event.schema.json",
+  "title": "Zap2 runtime event contract",
+  "type": "object",
+  "required": ["schemaVersion", "eventId", "planId", "eventType", "level", "message", "createdAt"],
+  "properties": {
+    "schemaVersion": {"type": "integer", "const": 1},
+    "eventId": {"type": "string", "minLength": 3},
+    "planId": {"type": "string", "minLength": 3},
+    "eventType": {"type": "string", "enum": ["planned", "confirmed", "started", "stopped", "failed", "rolled-back", "status"]},
+    "level": {"type": "string", "enum": ["debug", "info", "warning", "error"]},
+    "message": {"type": "string", "minLength": 1},
+    "createdAt": {"type": "string"},
+    "metadata": {"type": "object"}
+  }
+}

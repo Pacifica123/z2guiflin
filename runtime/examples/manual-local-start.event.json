@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "eventId": "event.manual-local-default-start.planned",
+  "planId": "manual-local-default-start-contract",
+  "eventType": "planned",
+  "level": "info",
+  "message": "Stage 8 зафиксировал контракт будущего runtime plan без исполнения.",
+  "createdAt": "2026-06-06T00:00:00Z",
+  "metadata": {
+    "stage": "v0.3-alpha_stage_8",
+    "executesAnything": false
+  }
+}

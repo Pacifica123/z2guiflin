@@ -127,9 +127,13 @@ inspect -> plan -> present -> owner confirms -> execute locally -> record result
 
 Представить `profiles/` и `strategies/` как read-only project/user data. Взять из Windows GUI философию “toolbox/apothecary”, но не копировать Windows-specific service assumptions. Результат Stage 7: JSON-профили, strategy catalog, CLI `--list-profiles`/`--list-strategies`, вкладка `Стратегии` со статусом `profiles-backed` и проверки, которые валидируют связи, но ничего не применяют к системе.
 
-### v0.3-alpha_stage_8+ — контролируемый runtime lifecycle
+### v0.3-alpha_stage_8 — runtime lifecycle contracts
 
-Ввести явные run/apply/session/service plans с подтверждением, логами и rollback notes. Не смешивать это с bootstrap.
+Ввести язык runtime lifecycle как plan-only контракт: `run`, `apply`, `session`, `service`, runtime events, confirmation contract и rollback notes. Stage 8 валидирует структуры и safety-инварианты, но не запускает процессы, не применяет правила, не управляет service mode и не смешивает runtime с bootstrap.
+
+### v0.3-alpha_stage_9+ — controlled runtime plan generation/execution
+
+Следующая серия должна постепенно вывести default strategy к запуску и отключению: сначала generator start/stop/status plans, затем state dir/logs/confirmation gate, затем session runner, затем owner-confirmed apply/revert, затем service plans и только после этого default start/stop workflow.
 
 ## Definition of done для v0.3-beta
 
@@ -159,3 +163,18 @@ inspect -> plan -> present -> owner confirms -> execute locally -> record result
 Это важный архитектурный шаг: GUI больше не должен думать о “стратегии” как о наборе случайных shell-команд. Сначала есть структурированные данные, затем экран просмотра, затем редактор, затем dry-run/apply plan и только потом owner-confirmed execution. Stage 7 не запускает `sudo`, не мутирует firewall, не управляет `systemd` и не выполняет стратегии автоматически.
 
 Стратегия `manual-local` считается основной для одиночной разработки до `v1-stable`. Она следует философии `toolbox/apothecary`: приложение должно давать владельцу понятные инструменты, рецепты и планы, а не скрывать происходящее внутри install wizard.
+
+
+## Решение Stage 8: runtime lifecycle contracts
+
+Начиная со Stage 8, runtime lifecycle описывается отдельным top-level слоем `runtime/` и pure Python моделями в `gui/zap2_gui/models/`. Смысл этапа — зафиксировать язык будущих действий до появления executor:
+
+- `run plan` описывает общее намерение `start`/`stop`/`status`;
+- `apply plan` описывает будущие системные изменения отдельно от запуска процесса;
+- `session plan` описывает lifecycle локального процесса;
+- `service plan` описывает service mode отдельно от session mode;
+- `confirmation` связывает разрешение владельца с конкретным plan hash;
+- `runtime event` задаёт формат будущего журнала;
+- `rollback notes` обязательны до исполнения.
+
+Stage 8 намеренно не исполняет планы. Проверки читают схемы и examples, валидируют, что `automaticChecksMayExecute=false`, `bootstrapMixedIn=false`, `containsRemoteBootstrap=false`, `containsUpstreamInstallerScript=false`, и показывают CLI-сводку через `--runtime-contracts`. Это первый кирпич цепочки, которая позже должна привести к управляемому запуску и отключению default strategy.

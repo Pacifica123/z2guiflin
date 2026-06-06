@@ -1,0 +1,78 @@
+# Runtime lifecycle
+
+Stage 8 вводит контролируемый runtime lifecycle как язык договоров, а не как запуск. До этого проекта уже есть vendored-core, build map, local build adapter и workspace-профили/стратегии. Теперь нужен слой, который заранее разделяет будущие действия на понятные классы.
+
+## Главный принцип
+
+Runtime lifecycle не должен смешиваться с bootstrap. Bootstrap отвечает за структуру проекта, импорт исходников и подготовку базы. Runtime отвечает за будущую работу уже собранного локального ядра на машине владельца.
+
+Запрещённая смесь:
+
+```text
+скачать из интернета -> запустить installer script -> включить service -> считать это runtime lifecycle
+```
+
+Правильная модель:
+
+```text
+профиль -> стратегия -> runtime plan -> подтверждение владельца -> локальное исполнение -> лог -> rollback/revert
+```
+
+## Пять сущностей Stage 8
+
+### Run plan
+
+`run plan` описывает намерение высокого уровня: `start`, `stop`, `status`, будущий service install/remove. Он не обязан знать все детали system rules или процесса, но должен связывать профиль, стратегию, действие и safety flags.
+
+### Apply plan
+
+`apply plan` описывает системные изменения, которые могут понадобиться для работы выбранной стратегии. Это отдельный слой, потому что применение правил и запуск процесса — разные действия с разными рисками и разным откатом.
+
+На Stage 8 apply plan существует только как контракт. Реальные правила будут добавлены отдельным патчем после confirmation gate, логов и rollback notes.
+
+### Session plan
+
+`session plan` описывает будущий lifecycle локального процесса в текущей пользовательской сессии: preflight, start, PID/state, status, stop. Он не должен автоматически устанавливать systemd service.
+
+### Service plan
+
+`service plan` описывает будущий service mode. Он должен оставаться отдельным режимом, потому что service install/start/enable/remove — это другая область ответственности, чем временный session runner.
+
+### Rollback notes
+
+`rollback notes` — обязательная часть любого runtime plan. Они должны быть записаны до исполнения, а не после аварии. Если действие нельзя объяснить и откатить, оно не должно становиться default workflow.
+
+## Boundary Stage 8
+
+Stage 8 разрешает:
+
+- читать runtime-схемы;
+- читать example-contracts;
+- валидировать структуры plan/event/confirmation;
+- показывать CLI-сводку контрактов;
+- добавлять документацию и тесты.
+
+Stage 8 запрещает:
+
+- запускать `nfqws2`;
+- запускать `make`;
+- запускать `sudo`;
+- менять firewall/routing/service state;
+- выполнять upstream installer scripts;
+- использовать `curl`/`wget` как установочный путь;
+- писать runtime state как будто действие уже произошло.
+
+## Связь с будущими стадиями
+
+Stage 8 создаёт словарь и контракт. Следующие стадии должны развивать его последовательно:
+
+```text
+Stage 9  -> generator default start/stop/status plans
+Stage 10 -> state dir, logs и confirmation gate
+Stage 11 -> session runner процесса
+Stage 12 -> owner-confirmed apply/revert
+Stage 13 -> service plans
+Stage 14 -> default start/stop workflow
+```
+
+Такой порядок нужен, чтобы к первому реальному запуску уже были понятны границы ответственности, формат логов и условия отката.

@@ -29,9 +29,16 @@ REQUIRED_PATHS = [
     "profiles/hostlists/default.hosts",
     "profiles/examples/lab-readonly.json",
     "strategies/README.md",
+    "runtime/README.md",
     "strategies/catalog.json",
     "strategies/manual-local.json",
     "strategies/read-only-diagnostics.json",
+    "runtime/schemas/runtime-plan.schema.json",
+    "runtime/schemas/runtime-event.schema.json",
+    "runtime/schemas/confirmation.schema.json",
+    "runtime/examples/manual-local-start.contract.json",
+    "runtime/examples/manual-local-start.event.json",
+    "runtime/examples/manual-local-start.confirmation.json",
     "core/zapret2/nfq2/nfqws.c",
     "core/zapret2/lua/zapret-lib.lua",
     "gui/README.md",
@@ -43,9 +50,13 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/gui_state.py",
     "gui/zap2_gui/adapters/local_build.py",
     "gui/zap2_gui/adapters/workspace_profiles.py",
+    "gui/zap2_gui/adapters/runtime_contracts.py",
     "gui/zap2_gui/models/navigation.py",
     "gui/zap2_gui/models/strategy.py",
     "gui/zap2_gui/models/workspace_profile.py",
+    "gui/zap2_gui/models/lifecycle.py",
+    "gui/zap2_gui/models/runtime_plan.py",
+    "gui/zap2_gui/models/runtime_events.py",
     "gui/zap2_gui/windows/main_window.py",
     "gui/zap2_gui/widgets/placeholders.py",
     "docs/DEVELOPMENT_STRATEGY.md",
@@ -57,6 +68,8 @@ REQUIRED_PATHS = [
     "docs/LOCAL_BUILD_ADAPTER.md",
     "docs/WORKSPACE_PROFILES.md",
     "docs/STRATEGIES.md",
+    "docs/RUNTIME_LIFECYCLE.md",
+    "docs/RUNTIME_PLANS.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/VERSIONING.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
@@ -67,9 +80,11 @@ REQUIRED_PATHS = [
     "tools/inventory_core.py",
     "tools/check_local_build_adapter.py",
     "tools/check_workspace_profiles.py",
+    "tools/check_runtime_lifecycle.py",
     "tests/test_core_inventory_and_build_map.py",
     "tests/test_local_build_adapter.py",
     "tests/test_workspace_profiles_and_strategies.py",
+    "tests/test_runtime_lifecycle_contracts.py",
 ]
 
 PROJECT_DOCUMENTATION_PATHS = [
@@ -79,6 +94,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "gui/README.md",
     "profiles/README.md",
     "strategies/README.md",
+    "runtime/README.md",
     "docs/DEVELOPMENT_STRATEGY.md",
     "docs/DOCUMENTATION_LANGUAGE.md",
     "docs/GUI_FRAMEWORK.md",
@@ -88,6 +104,8 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/LOCAL_BUILD_ADAPTER.md",
     "docs/WORKSPACE_PROFILES.md",
     "docs/STRATEGIES.md",
+    "docs/RUNTIME_LIFECYCLE.md",
+    "docs/RUNTIME_PLANS.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",
@@ -183,6 +201,30 @@ def main() -> int:
         print("Workspace profiles adapter должен валидировать стратегии и read-only boundary")
         return 1
 
+    runtime_doc = (ROOT / "docs/RUNTIME_LIFECYCLE.md").read_text(encoding="utf-8")
+    runtime_plans_doc = (ROOT / "docs/RUNTIME_PLANS.md").read_text(encoding="utf-8")
+    runtime_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_contracts.py").read_text(encoding="utf-8")
+    runtime_plan_schema = json.loads((ROOT / "runtime/schemas/runtime-plan.schema.json").read_text(encoding="utf-8"))
+    runtime_contract = json.loads((ROOT / "runtime/examples/manual-local-start.contract.json").read_text(encoding="utf-8"))
+    if "run plan" not in runtime_doc or "rollback" not in runtime_plans_doc:
+        print("Документация runtime lifecycle contracts не зафиксирована")
+        return 1
+    if "validate_runtime_contract_catalog" not in runtime_adapter:
+        print("Runtime contracts adapter должен валидировать контракты")
+        return 1
+    if "sections" not in runtime_plan_schema.get("required", []):
+        print("runtime-plan schema должна требовать sections")
+        return 1
+    if runtime_contract["lifecycle"].get("automaticChecksMayExecute") is not False:
+        print("Runtime contracts не должны исполняться автоматическими проверками")
+        return 1
+    if runtime_contract["lifecycle"].get("bootstrapMixedIn") is not False:
+        print("Runtime contracts не должны смешиваться с bootstrap")
+        return 1
+    if {section["kind"] for section in runtime_contract["sections"]} != {"run", "apply", "session", "service"}:
+        print("Runtime contract должен покрывать run/apply/session/service")
+        return 1
+
     profiles_data = json.loads((ROOT / "profiles/default.json").read_text(encoding="utf-8"))
     strategies_catalog = json.loads((ROOT / "strategies/catalog.json").read_text(encoding="utf-8"))
     if profiles_data.get("strategyId") != "manual-local" or profiles_data.get("buildTarget") != "nfqws2":
@@ -223,7 +265,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter и workspace strategies зафиксированы")
+    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts зафиксированы")
     return 0
 
 

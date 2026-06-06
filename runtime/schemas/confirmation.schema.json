@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zap2.local/schemas/confirmation.schema.json",
+  "title": "Zap2 owner confirmation contract",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "confirmationId",
+    "planId",
+    "planHash",
+    "confirmedByOwner",
+    "expiresWhenPlanChanges",
+    "allowsAutomaticReuse"
+  ],
+  "properties": {
+    "schemaVersion": {"type": "integer", "const": 1},
+    "confirmationId": {"type": "string", "minLength": 3},
+    "planId": {"type": "string", "minLength": 3},
+    "planHash": {"type": "string", "minLength": 12},
+    "confirmedByOwner": {"type": "boolean"},
+    "expiresWhenPlanChanges": {"type": "boolean", "const": true},
+    "allowsAutomaticReuse": {"type": "boolean", "const": false},
+    "notes": {"type": "array", "items": {"type": "string"}}
+  }
+}

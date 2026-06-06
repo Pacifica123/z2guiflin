@@ -19,6 +19,7 @@ class ProjectLayout:
     tools_dir: Path
     profiles_dir: Path
     strategies_dir: Path
+    runtime_dir: Path
 
     def required_paths(self) -> tuple[Path, ...]:
         return (
@@ -30,6 +31,10 @@ class ProjectLayout:
             self.tools_dir / "check_project_tree.py",
             self.profiles_dir / "default.json",
             self.strategies_dir / "catalog.json",
+            self.runtime_dir / "README.md",
+            self.runtime_dir / "schemas" / "runtime-plan.schema.json",
+            self.runtime_dir / "schemas" / "runtime-event.schema.json",
+            self.runtime_dir / "schemas" / "confirmation.schema.json",
         )
 
 
@@ -43,4 +48,5 @@ def discover_layout(root: Path | None = None) -> ProjectLayout:
         tools_dir=resolved_root / "tools",
         profiles_dir=resolved_root / "profiles",
         strategies_dir=resolved_root / "strategies",
+        runtime_dir=resolved_root / "runtime",
     )

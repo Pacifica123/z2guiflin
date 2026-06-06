@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "confirmationId": "confirm.manual-local-default-start.example",
+  "planId": "manual-local-default-start-contract",
+  "planHash": "example-plan-hash-not-for-execution",
+  "confirmedByOwner": false,
+  "expiresWhenPlanChanges": true,
+  "allowsAutomaticReuse": false,
+  "notes": [
+    "Это пример контракта подтверждения, а не настоящее разрешение на выполнение.",
+    "Будущее подтверждение должно быть связано с hash конкретного сохранённого плана."
+  ]
+}

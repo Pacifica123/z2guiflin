@@ -23,10 +23,14 @@ gui/
       gui_state.py
       local_build.py
       workspace_profiles.py
+      runtime_contracts.py
     models/
       navigation.py
       strategy.py
       workspace_profile.py
+      lifecycle.py
+      runtime_plan.py
+      runtime_events.py
     windows/
       main_window.py
     widgets/
@@ -46,6 +50,17 @@ strategies/
   manual-local.json
   read-only-diagnostics.json
 
+runtime/
+  README.md
+  schemas/
+    runtime-plan.schema.json
+    runtime-event.schema.json
+    confirmation.schema.json
+  examples/
+    manual-local-start.contract.json
+    manual-local-start.event.json
+    manual-local-start.confirmation.json
+
 docs/
   DEVELOPMENT_STRATEGY.md
   VERSIONING.md
@@ -59,6 +74,8 @@ docs/
   LOCAL_BUILD_ADAPTER.md
   WORKSPACE_PROFILES.md
   STRATEGIES.md
+  RUNTIME_LIFECYCLE.md
+  RUNTIME_PLANS.md
   reference/
     windows_gui_feature_digest.md
     legacy_project_digest.md
@@ -68,6 +85,7 @@ tools/
   inventory_core.py
   check_local_build_adapter.py
   check_workspace_profiles.py
+  check_runtime_lifecycle.py
 
 tests/
   test_bootstrap_structure.py
@@ -77,6 +95,7 @@ tests/
   test_core_inventory_and_build_map.py
   test_local_build_adapter.py
   test_workspace_profiles_and_strategies.py
+  test_runtime_lifecycle_contracts.py
 ```
 
 ## Правило разделения
@@ -134,3 +153,10 @@ Stage 7 добавляет два новых top-level слоя данных:
 Эти директории намеренно находятся рядом с `core/` и `gui/`, а не внутри vendored-ядра. Они относятся к нашему приложению и описывают пользовательский workflow, но не являются upstream-исходниками и не должны автоматически применять системные изменения.
 
 `gui/zap2_gui/adapters/workspace_profiles.py` читает эти JSON-файлы, валидирует связи `profile -> strategy -> build target` и отдаёт данные CLI/GUI. Вкладка `Стратегии` теперь считается `profiles-backed`, но остаётся read-only: редактирование и применение появятся только отдельными патчами.
+
+
+## Runtime lifecycle contracts
+
+Stage 8 добавляет top-level директорию `runtime/`. Это наш контрактный слой будущего запуска, применения системных правил, session runner, service mode, runtime events, confirmation gate и rollback notes. Он находится рядом с `profiles/` и `strategies/`, потому что описывает application workflow, а не upstream-ядро.
+
+`runtime/` на Stage 8 не является executor. Файлы в нём можно читать и валидировать, но нельзя автоматически исполнять. Реальный запуск процесса, privileged apply/revert и service management должны появляться отдельными патчами после того, как будут готовы state dir, логи и подтверждения владельца.

@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "planId": "manual-local-default-start-contract",
+  "title": "Контракт будущего запуска default/manual-local",
+  "profileId": "default",
+  "strategyId": "manual-local",
+  "action": "start",
+  "lifecycle": {
+    "contractStage": "v0.3-alpha_stage_8",
+    "bootstrapMixedIn": false,
+    "automaticChecksMayExecute": false
+  },
+  "safety": {
+    "requiresOwnerConfirmation": true,
+    "mayRequireSudoWhenExecutedByOwner": true,
+    "mayMutateFirewallWhenExecutedByOwner": true,
+    "mayManageServiceWhenExecutedByOwner": false,
+    "containsRemoteBootstrap": false,
+    "containsUpstreamInstallerScript": false
+  },
+  "sections": [
+    {
+      "kind": "run",
+      "purpose": "Будущий общий план запуска: проверить профиль, build target и наличие бинарника перед действиями владельца.",
+      "steps": [
+        {
+          "stepId": "run.preflight",
+          "title": "Предварительная проверка",
+          "description": "Проверить profile default, strategy manual-local, hostlist и ожидаемый nfqws2 без изменения системы.",
+          "requiresOwnerConfirmation": false,
+          "commands": []
+        }
+      ]
+    },
+    {
+      "kind": "apply",
+      "purpose": "Будущий план применения системных правил, отделённый от bootstrap и session runner.",
+      "steps": [
+        {
+          "stepId": "apply.owner-confirmed-rules",
+          "title": "Применить правила маршрутизации/очереди после подтверждения",
+          "description": "Stage 8 только описывает контракт. Реальные правила появятся отдельным патчем и должны иметь точечный revert.",
+          "requiresOwnerConfirmation": true,
+          "commands": []
+        }
+      ]
+    },
+    {
+      "kind": "session",
+      "purpose": "Будущий lifecycle локального процесса nfqws2 в рамках текущей сессии.",
+      "steps": [
+        {
+          "stepId": "session.start-process",
+          "title": "Запустить процесс nfqws2",
+          "description": "Stage 8 не запускает процесс. Контракт фиксирует, что PID/state/log должны быть явными.",
+          "requiresOwnerConfirmation": true,
+          "commands": []
+        }
+      ]
+    },
+    {
+      "kind": "service",
+      "purpose": "Будущий service mode как отдельный путь, не являющийся default workflow Stage 8.",
+      "steps": [
+        {
+          "stepId": "service.plan-only",
+          "title": "Service mode остаётся планом",
+          "description": "Stage 8 не устанавливает и не запускает systemd unit. Service plan будет добавлен позже отдельно от session mode.",
+          "requiresOwnerConfirmation": true,
+          "commands": []
+        }
+      ]
+    }
+  ],
+  "rollbackNotes": [
+    "Откат должен быть спроектирован до исполнения apply-шага.",
+    "Остановка session должна затрагивать только процесс, записанный в runtime state.",
+    "Service mode не должен включаться как побочный эффект default start."
+  ]
+}

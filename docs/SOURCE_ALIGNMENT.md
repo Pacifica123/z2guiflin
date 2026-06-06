@@ -71,3 +71,10 @@ Stage 6 не меняет импортированные upstream-исходни
 Workspace-профили и стратегии относятся к нашему приложению, а не к upstream-ядру. Они намеренно вынесены в `profiles/` и `strategies/`, чтобы не смешивать пользовательский workflow с vendored-исходниками `core/zapret2/`.
 
 Из Windows GUI мы берём продуктовую философию “toolbox/apothecary”: владелец видит набор инструментов, рецептов и профилей. При этом мы не копируем Windows-specific service assumptions и не переносим их в Linux слой как скрытую автоматику. На Stage 7 всё остаётся read-only data model.
+
+
+## Stage 8 и runtime contracts
+
+Runtime lifecycle contracts — это наш application layer поверх vendored-ядра. Они не меняют upstream-исходники и не запускают upstream installer scripts. Их задача — заранее описать будущий запуск/остановку, apply/revert, session runner, service mode, events, confirmations и rollback notes в форме данных.
+
+Такое разделение сохраняет alignment с `core/zapret2/`: ядро остаётся source input, а runtime orchestration развивается в `runtime/` и `gui/zap2_gui/` как отдельный контролируемый слой.

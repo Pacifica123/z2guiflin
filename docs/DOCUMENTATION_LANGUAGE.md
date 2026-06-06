@@ -34,3 +34,6 @@
 ## Применение правила к Stage 7
 
 Новые документы `WORKSPACE_PROFILES.md` и `STRATEGIES.md`, а также `profiles/README.md` и `strategies/README.md` считаются нашей проектной документацией и пишутся на русском языке. JSON-ключи могут оставаться англоязычными, потому что это стабильные machine-readable идентификаторы.
+
+
+Stage 8 добавляет `docs/RUNTIME_LIFECYCLE.md`, `docs/RUNTIME_PLANS.md` и `runtime/README.md`; они также относятся к активной проектной документации и должны оставаться русскоязычными.
