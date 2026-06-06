@@ -78,3 +78,10 @@ Workspace-профили и стратегии относятся к нашем�
 Runtime lifecycle contracts — это наш application layer поверх vendored-ядра. Они не меняют upstream-исходники и не запускают upstream installer scripts. Их задача — заранее описать будущий запуск/остановку, apply/revert, session runner, service mode, events, confirmations и rollback notes в форме данных.
 
 Такое разделение сохраняет alignment с `core/zapret2/`: ядро остаётся source input, а runtime orchestration развивается в `runtime/` и `gui/zap2_gui/` как отдельный контролируемый слой.
+
+
+## Stage 9 и default runtime plan generator
+
+Stage 9 также не меняет upstream-исходники. Он добавляет application-side генератор, который читает `profiles/default.json`, `strategies/manual-local.json` и `core/zapret2/BUILD_MAP.json`, чтобы показать будущий `start`, `stop` или `status` план для локального binary `core/zapret2/nfq2/nfqws2`.
+
+Это сохраняет разделение: `core/zapret2/` остаётся vendored source input, а runtime orchestration живёт в нашем Python/GUI слое и пока остаётся plan-only.

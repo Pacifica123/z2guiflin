@@ -67,7 +67,7 @@ Stage 8 запрещает:
 Stage 8 создаёт словарь и контракт. Следующие стадии должны развивать его последовательно:
 
 ```text
-Stage 9  -> generator default start/stop/status plans
+Stage 9  -> generator default start/stop/status plans: ГОТОВО как plan-only слой
 Stage 10 -> state dir, logs и confirmation gate
 Stage 11 -> session runner процесса
 Stage 12 -> owner-confirmed apply/revert
@@ -76,3 +76,8 @@ Stage 14 -> default start/stop workflow
 ```
 
 Такой порядок нужен, чтобы к первому реальному запуску уже были понятны границы ответственности, формат логов и условия отката.
+
+
+## Stage 9 boundary
+
+Stage 9 не расширяет права исполнения. Он только связывает профиль, стратегию, build target, ожидаемый бинарник и runtime sections в один выводимый план. Это означает, что будущий GUI уже сможет показать владельцу “что будет сделано”, но кнопки исполнения по-прежнему должны ждать state dir, confirmation gate и отдельный executor.

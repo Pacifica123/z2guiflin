@@ -51,6 +51,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/local_build.py",
     "gui/zap2_gui/adapters/workspace_profiles.py",
     "gui/zap2_gui/adapters/runtime_contracts.py",
+    "gui/zap2_gui/adapters/runtime_plan_generator.py",
     "gui/zap2_gui/models/navigation.py",
     "gui/zap2_gui/models/strategy.py",
     "gui/zap2_gui/models/workspace_profile.py",
@@ -70,6 +71,7 @@ REQUIRED_PATHS = [
     "docs/STRATEGIES.md",
     "docs/RUNTIME_LIFECYCLE.md",
     "docs/RUNTIME_PLANS.md",
+    "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/VERSIONING.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
@@ -81,10 +83,12 @@ REQUIRED_PATHS = [
     "tools/check_local_build_adapter.py",
     "tools/check_workspace_profiles.py",
     "tools/check_runtime_lifecycle.py",
+    "tools/check_runtime_plan_generator.py",
     "tests/test_core_inventory_and_build_map.py",
     "tests/test_local_build_adapter.py",
     "tests/test_workspace_profiles_and_strategies.py",
     "tests/test_runtime_lifecycle_contracts.py",
+    "tests/test_runtime_plan_generator.py",
 ]
 
 PROJECT_DOCUMENTATION_PATHS = [
@@ -106,6 +110,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/STRATEGIES.md",
     "docs/RUNTIME_LIFECYCLE.md",
     "docs/RUNTIME_PLANS.md",
+    "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",
@@ -234,6 +239,18 @@ def main() -> int:
         print("Strategy catalog должен запрещать исполнение стратегий в проверках")
         return 1
 
+    runtime_generator_doc = (ROOT / "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md").read_text(encoding="utf-8")
+    runtime_generator = (ROOT / "gui/zap2_gui/adapters/runtime_plan_generator.py").read_text(encoding="utf-8")
+    if "Stage 9" not in runtime_generator_doc or "--runtime-plan" not in app_py:
+        print("Runtime plan generator Stage 9 не зафиксирован в документации или CLI")
+        return 1
+    if "create_runtime_plan" not in runtime_generator or "SUPPORTED_RUNTIME_PLAN_ACTIONS" not in runtime_generator:
+        print("Runtime plan generator должен иметь create_runtime_plan и явный список действий")
+        return 1
+    if "subprocess" in runtime_generator or "os.system" in runtime_generator:
+        print("Runtime plan generator не должен исполнять shell/process commands")
+        return 1
+
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
     if "русском" not in language_doc or "проектная документация" not in language_doc:
         print("Правило русского языка документации не зафиксировано")
@@ -265,7 +282,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts зафиксированы")
+    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts и runtime plan generator зафиксированы")
     return 0
 
 

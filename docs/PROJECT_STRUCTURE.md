@@ -24,6 +24,7 @@ gui/
       local_build.py
       workspace_profiles.py
       runtime_contracts.py
+      runtime_plan_generator.py
     models/
       navigation.py
       strategy.py
@@ -76,6 +77,7 @@ docs/
   STRATEGIES.md
   RUNTIME_LIFECYCLE.md
   RUNTIME_PLANS.md
+  DEFAULT_RUNTIME_PLAN_GENERATOR.md
   reference/
     windows_gui_feature_digest.md
     legacy_project_digest.md
@@ -86,6 +88,7 @@ tools/
   check_local_build_adapter.py
   check_workspace_profiles.py
   check_runtime_lifecycle.py
+  check_runtime_plan_generator.py
 
 tests/
   test_bootstrap_structure.py
@@ -96,6 +99,7 @@ tests/
   test_local_build_adapter.py
   test_workspace_profiles_and_strategies.py
   test_runtime_lifecycle_contracts.py
+  test_runtime_plan_generator.py
 ```
 
 ## Правило разделения
@@ -160,3 +164,8 @@ Stage 7 добавляет два новых top-level слоя данных:
 Stage 8 добавляет top-level директорию `runtime/`. Это наш контрактный слой будущего запуска, применения системных правил, session runner, service mode, runtime events, confirmation gate и rollback notes. Он находится рядом с `profiles/` и `strategies/`, потому что описывает application workflow, а не upstream-ядро.
 
 `runtime/` на Stage 8 не является executor. Файлы в нём можно читать и валидировать, но нельзя автоматически исполнять. Реальный запуск процесса, privileged apply/revert и service management должны появляться отдельными патчами после того, как будут готовы state dir, логи и подтверждения владельца.
+
+
+## Runtime plan generator
+
+Stage 9 добавляет `gui/zap2_gui/adapters/runtime_plan_generator.py`. Этот adapter не является executor: он строит read-only планы `start`, `stop` и `status` из default profile, manual-local strategy и local build map. CLI-команда `--runtime-plan` выводит эти планы для будущего GUI и будущего confirmation gate, но не запускает процесс и не меняет систему.

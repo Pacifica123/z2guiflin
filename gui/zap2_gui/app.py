@@ -12,6 +12,10 @@ from .adapters.runtime_contracts import (
     validate_runtime_contract_catalog,
     validate_runtime_contracts_to_text,
 )
+from .adapters.runtime_plan_generator import (
+    SUPPORTED_RUNTIME_PLAN_ACTIONS,
+    runtime_plan_to_text,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -79,6 +83,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="показать runtime lifecycle contracts Stage 8 без исполнения",
     )
     parser.add_argument(
+        "--runtime-plan",
+        choices=SUPPORTED_RUNTIME_PLAN_ACTIONS,
+        metavar="ACTION",
+        help="сгенерировать default strategy runtime plan: start, stop или status; без исполнения",
+    )
+    parser.add_argument(
+        "--profile",
+        default="default",
+        help="workspace-профиль для --runtime-plan; по умолчанию default",
+    )
+    parser.add_argument(
         "--validate-runtime-contracts",
         action="store_true",
         help="валидировать runtime lifecycle contracts Stage 8 без исполнения",
@@ -130,6 +145,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.runtime_contracts:
         print(runtime_contracts_to_text())
         return 0
+
+    if args.runtime_plan:
+        try:
+            print(runtime_plan_to_text(action=args.runtime_plan, profile_id=args.profile))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
 
     if args.validate_runtime_contracts:
         text = validate_runtime_contracts_to_text()

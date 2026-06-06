@@ -178,3 +178,10 @@ inspect -> plan -> present -> owner confirms -> execute locally -> record result
 - `rollback notes` обязательны до исполнения.
 
 Stage 8 намеренно не исполняет планы. Проверки читают схемы и examples, валидируют, что `automaticChecksMayExecute=false`, `bootstrapMixedIn=false`, `containsRemoteBootstrap=false`, `containsUpstreamInstallerScript=false`, и показывают CLI-сводку через `--runtime-contracts`. Это первый кирпич цепочки, которая позже должна привести к управляемому запуску и отключению default strategy.
+
+
+## Stage 9: default strategy runtime plan generator
+
+Stage 9 развивает Stage 8 без перехода к исполнению. Теперь проект умеет строить конкретный plan-only runtime view для `default/manual-local`: `start`, `stop` и `status`. В плане видны профиль, стратегия, build target, бинарник, hostlist, required artifacts, будущие session/log files, apply steps и rollback notes.
+
+Это сознательно не `6b` и не build status model. Stage 9 продолжает записанную очередь controlled runtime lifecycle: сначала планы, затем state/log/confirmation, затем session runner, затем owner-confirmed apply/revert.

@@ -44,3 +44,8 @@ PYTHONPATH=gui python -m zap2_gui.app --show-strategy manual-local
 Начиная со Stage 8 GUI-слой умеет читать и валидировать runtime lifecycle contracts через `gui/zap2_gui/adapters/runtime_contracts.py`. Это не кнопка запуска и не executor. Adapter нужен, чтобы будущие PyQt-экраны показывали владельцу run/apply/session/service plans, confirmation status и rollback notes как структурированные данные.
 
 CLI-команды `--runtime-contracts` и `--validate-runtime-contracts` доступны без установленного PyQt6 и ничего не исполняют.
+
+
+## Stage 9: runtime plan generator
+
+GUI-слой теперь содержит `adapters/runtime_plan_generator.py`. Он нужен будущей вкладке “Стратегии/Runtime”, чтобы показывать владельцу конкретные планы `start`, `stop` и `status` для default profile. Adapter читает project data и строит текст/модель плана, но не исполняет команды.

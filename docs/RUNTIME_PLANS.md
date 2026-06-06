@@ -77,3 +77,18 @@ containsUpstreamInstallerScript = false
 ```
 
 Если будущий патч меняет эти утверждения, он должен быть отдельным runtime execution patch с явным объяснением, проверками и rollback story.
+
+
+## Stage 9: генератор default runtime plans
+
+Stage 9 использует эти контракты как основу для конкретных plan-only представлений `start`, `stop` и `status`. Генератор находится в `gui/zap2_gui/adapters/runtime_plan_generator.py` и строит план из `profiles/default.json`, `strategies/manual-local.json` и `BUILD_MAP.json` через local build adapter.
+
+CLI:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-plan start --profile default
+PYTHONPATH=gui python -m zap2_gui.app --runtime-plan stop --profile default
+PYTHONPATH=gui python -m zap2_gui.app --runtime-plan status --profile default
+```
+
+Планы показывают будущие session/log/rollback paths, required artifacts, apply steps и rollback notes. Они не исполняются автоматическими проверками и не создают runtime state. `status` является полностью read-only планом. `start` и `stop` могут указывать, что будущий apply/revert потребует `sudo`, но это только metadata для будущего owner-confirmed executor.
