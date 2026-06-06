@@ -12,6 +12,7 @@ from ..models.navigation import default_navigation_sections
 from ..qt_compat import require_pyqt
 from ..widgets.placeholders import make_core_page, make_placeholder_page, make_strategies_page
 from ..widgets.runtime_controls import make_runtime_control_page
+from ..widgets.runtime_logs import make_runtime_logs_page
 
 
 def create_main_window(root: object | None = None) -> Any:
@@ -39,6 +40,8 @@ def create_main_window(root: object | None = None) -> Any:
                     page = make_core_page(snapshot, build_map, build_plan)
                 elif section.key == "strategies":
                     page = make_strategies_page(workspace_catalog)
+                elif section.key == "logs":
+                    page = make_runtime_logs_page(root)
                 else:
                     page = make_placeholder_page(section)
                 tabs.addTab(page, section.title)

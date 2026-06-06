@@ -47,6 +47,7 @@ class GuiPrivilegedCommand:
                 "uses pkexec/polkit: yes",
                 "asks password in terminal: no",
                 "stores password: no",
+                f"runtime drop identity: {'polkit-root-preserve' if self.action == 'start' else 'not changed'}",
                 "requires saved runtime confirmation: yes",
                 "bootstrap mixed in: no",
                 "contains remote bootstrap: no",
@@ -122,10 +123,17 @@ def build_gui_privileged_command(
     plan_id = confirm_plan_id or _default_plan_id_for_action(action)
     pythonpath = str(layout.root / "gui")
     executable = str(Path(sys.executable))
+    bridge_env = ()
+    if action == "start":
+        bridge_env = (
+            "ZAP2_GUI_PRIVILEGE_BRIDGE=pkexec",
+            "ZAP2_RUNTIME_DROP_IDENTITY=polkit-root",
+        )
     argv = (
         "pkexec",
         "env",
         f"PYTHONPATH={pythonpath}",
+        *bridge_env,
         executable,
         "-m",
         "zap2_gui.app",

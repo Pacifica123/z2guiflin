@@ -269,16 +269,35 @@ def _running_as_root() -> bool:
     return False if geteuid is None else geteuid() == 0
 
 
-def _detect_drop_identity(root: Path) -> RuntimeDropIdentity | None:
-    """Возвращает явную --uid identity для sudo/root запуска.
+def _preserve_root_identity_requested() -> bool:
+    """Return whether a privileged GUI bridge asked nfqws2 to keep root caps.
 
-    Нерутовый запуск оставляет upstream default untouched. Root/sudo запуск получает
-    явный uid/gid, чтобы nfqws2 после privilege drop мог читать hostlist и другие
-    файлы пользовательского workspace.
+    Через pkexec у Python-процесса нет SUDO_UID/SUDO_GID, а передача
+    --uid=<workspace-owner> может привести к потере CAP_NET_ADMIN до
+    nfq_create_queue(). Поэтому GUI/polkit bridge может явно запросить
+    root-preserving session identity. Это не является дефолтом для обычного
+    терминального sudo-пути.
+    """
+
+    value = os.environ.get("ZAP2_RUNTIME_DROP_IDENTITY", "").strip().lower()
+    return value in {"root", "preserve-root", "keep-root", "polkit-root"}
+
+
+def _detect_drop_identity(root: Path) -> RuntimeDropIdentity | None:
+    """Возвращает явную --uid identity для root запуска.
+
+    Нерутовый запуск оставляет upstream default untouched. Обычный sudo/root
+    запуск получает uid/gid владельца sudo-сессии или workspace, чтобы nfqws2
+    после privilege drop мог читать hostlist. GUI/pkexec start может запросить
+    root-preserving identity, потому что в этом пути иначе nfqws2 теряет
+    CAP_NET_ADMIN до создания NFQUEUE.
     """
 
     if not _running_as_root():
         return None
+
+    if _preserve_root_identity_requested():
+        return RuntimeDropIdentity(uid=0, gid=0, source="polkit-root-preserve")
 
     sudo_uid = _parse_positive_int(os.environ.get("SUDO_UID"))
     sudo_gid = _parse_positive_int(os.environ.get("SUDO_GID"))

@@ -21,6 +21,9 @@ from ..adapters.gui_runtime_controls import (
     gui_privileged_default_start_command,
     gui_privileged_default_stop_command,
     gui_runtime_commands,
+    gui_default_toggle_label,
+    gui_toggle_default_workflow,
+    gui_runtime_logs,
 )
 from ..qt_compat import require_pyqt
 
@@ -46,13 +49,27 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     output.setReadOnly(True)
     output.setPlainText(gui_default_status(root=root))
 
+    toggle_row = QtWidgets.QHBoxLayout()
+    toggle_button = QtWidgets.QPushButton(gui_default_toggle_label(root=root))
+    toggle_button.setCheckable(True)
+
     buttons = QtWidgets.QHBoxLayout()
+
+    def refresh_toggle_label() -> None:
+        try:
+            toggle_button.setText(gui_default_toggle_label(root=root))
+            toggle_button.setChecked(toggle_button.text().startswith("Выключить"))
+        except Exception:
+            toggle_button.setText("Включить/выключить Default")
+            toggle_button.setChecked(False)
 
     def run_action(label: str, func: Callable[[], str]) -> None:
         try:
             output.setPlainText(func())
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
             output.setPlainText(f"{label}: ошибка\n{exc}")
+        finally:
+            refresh_toggle_label()
 
     def run_privileged_action(label: str, action_text: str, func: Callable[[], str]) -> None:
         question = QtWidgets.QMessageBox.question(
@@ -69,6 +86,30 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             return
         run_action(label, func)
 
+    def run_toggle() -> None:
+        question = QtWidgets.QMessageBox.question(
+            page,
+            "Default toggle",
+            (
+                "Выполнить полный workflow одной кнопкой?\n\n"
+                "Если Default выключен: GUI при необходимости соберёт nfqws2 без sudo, "
+                "подготовит и подтвердит start-plan, затем вызовет pkexec/polkit для запуска.\n"
+                "Если Default включён: GUI подготовит и подтвердит stop-plan, затем вызовет pkexec/polkit для отключения.\n\n"
+                "Пароль обрабатывает системное графическое окно polkit; приложение пароль не хранит."
+            ),
+        )
+        if question != QtWidgets.QMessageBox.StandardButton.Yes:
+            output.setPlainText("Default toggle: отменено пользователем")
+            refresh_toggle_label()
+            return
+        run_action("Default toggle", lambda: gui_toggle_default_workflow(root=root))
+
+    toggle_button.clicked.connect(lambda _checked=False: run_toggle())
+    toggle_row.addWidget(toggle_button)
+    logs_button = QtWidgets.QPushButton("Показать runtime logs")
+    logs_button.clicked.connect(lambda _checked=False: run_action("Runtime logs", lambda: gui_runtime_logs(root=root)))
+    toggle_row.addWidget(logs_button)
+
     actions: tuple[tuple[str, Callable[[], str]], ...] = (
         ("Проверить зависимости", lambda: gui_default_build_deps(root=root)),
         ("План сборки", lambda: gui_prepare_default_build(root=root)),
@@ -78,6 +119,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         ("Подтвердить запуск", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_START_PLAN_ID)),
         ("Команда запуска через pkexec", lambda: gui_privileged_default_start_command(root=root)),
         ("Статус", lambda: gui_default_status(root=root)),
+        ("Runtime logs", lambda: gui_runtime_logs(root=root)),
         ("План отключения", lambda: gui_prepare_default_stop(root=root)),
         ("Подтвердить отключение", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_STOP_PLAN_ID)),
         ("Команда отключения через pkexec", lambda: gui_privileged_default_stop_command(root=root)),
@@ -110,6 +152,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
 
     layout.addWidget(title)
     layout.addWidget(intro)
+    layout.addLayout(toggle_row)
     layout.addLayout(buttons)
     layout.addLayout(privileged_buttons)
     layout.addWidget(output, 1)

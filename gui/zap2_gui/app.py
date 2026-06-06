@@ -28,6 +28,7 @@ from .adapters.runtime_state import (
     runtime_log_to_text,
     runtime_state_to_text,
 )
+from .adapters.runtime_logs import runtime_log_snapshot_to_text
 from .adapters.runtime_session import (
     runtime_session_status,
     start_runtime_session,
@@ -159,6 +160,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--runtime-log",
         action="store_true",
         help="показать локальный runtime log из .zap2/runtime/logs без исправлений и исполнения",
+    )
+    parser.add_argument(
+        "--runtime-logs",
+        action="store_true",
+        help="показать агрегированные runtime logs/stderr/stdout/debug tail для GUI и CLI; без исполнения",
     )
 
 
@@ -344,6 +350,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.runtime_log:
         print(runtime_log_to_text(profile_id=args.profile))
+        return 0
+
+    if args.runtime_logs:
+        print(runtime_log_snapshot_to_text(profile_id=args.profile))
         return 0
 
 

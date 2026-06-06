@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .runtime_default import default_workflow_status, prepare_default_workflow_plan
 from .runtime_default_build import execute_default_build, prepare_default_build_plan
+from .runtime_logs import runtime_log_snapshot_to_text
 from .build_dependencies import run_build_dependency_preflight
 from .runtime_state import confirm_runtime_plan
 from .gui_privilege import (
@@ -25,6 +26,81 @@ from ..project_paths import discover_layout
 DEFAULT_BUILD_PLAN_ID = "runtime-default-manual-local-default-build-workflow-plan"
 DEFAULT_START_PLAN_ID = "runtime-default-manual-local-default-start-workflow-plan"
 DEFAULT_STOP_PLAN_ID = "runtime-default-manual-local-default-stop-workflow-plan"
+
+
+def gui_runtime_logs(root: Path | None = None, profile_id: str = "default") -> str:
+    """Показать агрегированные runtime logs для GUI-вкладки «Логи»."""
+
+    return runtime_log_snapshot_to_text(root=root, profile_id=profile_id)
+
+
+def _default_binary_ready(root: Path | None) -> bool:
+    layout = discover_layout(root)
+    binary = layout.root / "core" / "zapret2" / "nfq2" / "nfqws2"
+    return binary.is_file() and bool(binary.stat().st_mode & 0o111)
+
+
+def gui_default_toggle_label(root: Path | None = None, profile_id: str = "default") -> str:
+    """Return a compact label for the single GUI on/off button."""
+
+    status = default_workflow_status(root=root, profile_id=profile_id)
+    if status.workflow_state == "started" and status.session_status.state == "running":
+        return "Выключить Default"
+    return "Включить Default"
+
+
+def gui_toggle_default_workflow(root: Path | None = None, profile_id: str = "default") -> str:
+    """One-button default workflow for the PyQt shell.
+
+    Если default уже запущен, функция строит/подтверждает stop-plan и вызывает
+    GUI privileged stop через pkexec. Если default не запущен, функция при
+    необходимости выполняет build workflow без sudo, затем строит/подтверждает
+    start-plan и вызывает GUI privileged start через pkexec.
+    """
+
+    status = default_workflow_status(root=root, profile_id=profile_id)
+    parts: list[str] = ["GUI toggle Default workflow", status.to_text()]
+    if status.workflow_state == "started" and status.session_status.state == "running":
+        parts.append("\nШаг 1/3: подготовка stop-plan")
+        parts.append(gui_prepare_default_stop(root=root, profile_id=profile_id))
+        parts.append("\nШаг 2/3: подтверждение stop-plan")
+        parts.append(gui_confirm_plan(root=root, plan_id=DEFAULT_STOP_PLAN_ID))
+        parts.append("\nШаг 3/3: privileged stop через графический polkit prompt")
+        parts.append(gui_privileged_default_stop(root=root, profile_id=profile_id))
+        parts.append("\nRuntime logs:")
+        parts.append(gui_runtime_logs(root=root, profile_id=profile_id))
+        return "\n\n".join(parts)
+
+    if not _default_binary_ready(root):
+        parts.append("\nШаг 1/7: проверка build dependencies")
+        parts.append(gui_default_build_deps(root=root, profile_id=profile_id))
+        parts.append("\nШаг 2/7: подготовка build-plan")
+        parts.append(gui_prepare_default_build(root=root, profile_id=profile_id))
+        parts.append("\nШаг 3/7: подтверждение build-plan")
+        parts.append(gui_confirm_plan(root=root, plan_id=DEFAULT_BUILD_PLAN_ID))
+        parts.append("\nШаг 4/7: локальная сборка без sudo")
+        build_output = gui_execute_default_build(root=root, profile_id=profile_id)
+        parts.append(build_output)
+        if not _default_binary_ready(root):
+            parts.append("\nСборка не дала executable nfqws2; privileged start пропущен.")
+            parts.append("\nRuntime logs:")
+            parts.append(gui_runtime_logs(root=root, profile_id=profile_id))
+            return "\n\n".join(parts)
+        next_step = 5
+        total_steps = 7
+    else:
+        next_step = 1
+        total_steps = 3
+
+    parts.append(f"\nШаг {next_step}/{total_steps}: подготовка start-plan")
+    parts.append(gui_prepare_default_start(root=root, profile_id=profile_id))
+    parts.append(f"\nШаг {next_step + 1}/{total_steps}: подтверждение start-plan")
+    parts.append(gui_confirm_plan(root=root, plan_id=DEFAULT_START_PLAN_ID))
+    parts.append(f"\nШаг {next_step + 2}/{total_steps}: privileged start через графический polkit prompt")
+    parts.append(gui_privileged_default_start(root=root, profile_id=profile_id))
+    parts.append("\nRuntime logs:")
+    parts.append(gui_runtime_logs(root=root, profile_id=profile_id))
+    return "\n\n".join(parts)
 
 
 @dataclass(frozen=True)

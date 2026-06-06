@@ -69,3 +69,8 @@ workspace могут стать root-owned. Поэтому GUI содержит 
 `not-started`, значит был только plan/confirmation или действие завершилось до
 session start. Если статус говорит `started` и `session status: running`, runtime
 считается включённым для текущего workspace.
+
+
+## GUI/pkexec и NFQUEUE capability
+
+Для `default-start` через GUI/pkexec session runner передаёт `ZAP2_RUNTIME_DROP_IDENTITY=polkit-root`, что приводит к явному `--uid=0:0` для `nfqws2`. Это нужно, чтобы `nfqws2` не терял `CAP_NET_ADMIN` до создания NFQUEUE и не падал на `nfq_create_queue(): Operation not permitted`. GUI по-прежнему не хранит пароль: подтверждение выполняет системный polkit agent.

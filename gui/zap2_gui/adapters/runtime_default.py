@@ -499,7 +499,15 @@ def default_workflow_status(root: Path | None = None, profile_id: str = "default
             if record.get("marker") == DEFAULT_WORKFLOW_MARKER:
                 workflow_state = str(record.get("state", "unknown"))
                 workflow_action = str(record.get("action", "unknown"))
-                message = str(record.get("ownerRulesResult", {}).get("message", "workflow state прочитан")) if isinstance(record.get("ownerRulesResult"), dict) else "workflow state прочитан"
+                if isinstance(record.get("ownerRulesRollbackResult"), dict) and workflow_state.startswith("failed"):
+                    rollback_state = record["ownerRulesRollbackResult"].get("state", "unknown")
+                    message = f"workflow failed; owner-rules rollback: {rollback_state}"
+                elif isinstance(record.get("sessionResult"), dict) and workflow_state.startswith("failed"):
+                    message = str(record["sessionResult"].get("message", "workflow failed"))
+                elif isinstance(record.get("ownerRulesResult"), dict):
+                    message = str(record["ownerRulesResult"].get("message", "workflow state прочитан"))
+                else:
+                    message = "workflow state прочитан"
                 root_path = record.get("rootPath")
                 if root_path:
                     try:
