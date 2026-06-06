@@ -81,6 +81,8 @@ def _parse_strategy(path: Path) -> WorkspaceStrategy:
         workflow=tuple(str(item) for item in data.get("workflow", [])),
         capabilities=capabilities,
         notes=tuple(str(item) for item in data.get("notes", [])),
+        runtime_args=tuple(str(item) for item in data.get("runtimeArgs", [])),
+        source_preset=dict(data["sourcePreset"]) if isinstance(data.get("sourcePreset"), dict) else None,
     )
 
 
@@ -258,6 +260,10 @@ def workspace_strategy_to_text(strategy_id: str, root: Path | None = None) -> st
     intended = ", ".join(strategy.intended_for) or "не указано"
     workflow = " -> ".join(strategy.workflow) or "не указан"
     notes = "\n".join(f"  - {note}" for note in strategy.notes) or "  - нет"
+    source = strategy.source_preset or {}
+    source_name = str(source.get("name", "не указан"))
+    source_level = str(source.get("portingLevel", "не указан"))
+    runtime_args = "\n".join(f"  - {arg}" for arg in strategy.runtime_args) or "  - нет"
     return "\n".join(
         [
             f"Workspace strategy: {strategy.strategy_id}",
@@ -266,6 +272,9 @@ def workspace_strategy_to_text(strategy_id: str, root: Path | None = None) -> st
             f"philosophy: {strategy.philosophy}",
             f"intended for: {intended}",
             f"workflow: {workflow}",
+            f"source preset: {source_name} ({source_level})",
+            "runtime args:",
+            runtime_args,
             "executes automatically: no",
             "requires sudo at Stage 7: no",
             "mutates services/firewall at Stage 7: no",

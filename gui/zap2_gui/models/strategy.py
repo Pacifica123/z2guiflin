@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,8 @@ class WorkspaceStrategy:
     workflow: tuple[str, ...]
     capabilities: StrategyCapabilities
     notes: tuple[str, ...]
+    runtime_args: tuple[str, ...] = ()
+    source_preset: dict[str, Any] | None = None
 
     @property
     def is_plan_only(self) -> bool:

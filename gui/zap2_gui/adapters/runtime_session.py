@@ -93,6 +93,7 @@ class RuntimeSessionConfig:
                 f"stdout log: {self.stdout_log_path}",
                 f"stderr log: {self.stderr_log_path}",
                 f"debug log: {self.debug_log_path}",
+                f"debug enabled: {'yes' if _runtime_debug_enabled() else 'no'}",
                 f"session file: {self.session_path}",
                 f"drop identity: {self.drop_identity.uid}:{self.drop_identity.gid} ({self.drop_identity.source})" if self.drop_identity else "drop identity: upstream default",
                 "requires confirmed start plan: yes",
@@ -291,12 +292,19 @@ def _detect_drop_identity(root: Path) -> RuntimeDropIdentity | None:
     return RuntimeDropIdentity(uid=0, gid=0, source="root-fallback")
 
 
+def _runtime_debug_enabled() -> bool:
+    value = os.environ.get("ZAP2_RUNTIME_DEBUG", "").strip().lower()
+    return value in {"1", "true", "yes", "on", "debug"}
+
+
 def _runtime_args_for_plan(paths_root: Path, plan: GeneratedRuntimePlan, drop_identity: RuntimeDropIdentity | None, pidfile_path: Path, debug_log_path: Path) -> tuple[str, ...]:
     args: list[str] = [
         f"--qnum={DEFAULT_NFQUEUE_NUM}",
         f"--pidfile={pidfile_path}",
-        f"--debug=@{debug_log_path}",
     ]
+    if _runtime_debug_enabled():
+        args.append(f"--debug=@{debug_log_path}")
+    args.extend(plan.strategy.runtime_args)
     if drop_identity is not None:
         args.append(drop_identity.option)
     if plan.hostlists:

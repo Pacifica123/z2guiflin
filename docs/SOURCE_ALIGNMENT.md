@@ -128,3 +128,9 @@ Default build workflow не меняет upstream-исходники и не д�
 Build dependency preflight не меняет upstream-исходники и не оборачивает upstream installer scripts. Он читает требования, вытекающие из `BUILD_MAP.json` и Makefile `nfq2`, а затем проверяет локальную систему на наличие toolchain и dev-заголовков перед `make nfqws2`.
 
 Если отсутствует `libnetfilter_queue/libnetfilter_queue.h` или другой обязательный header, workflow теперь останавливается со статусом `blocked` до запуска компилятора. Установка пакетов остаётся owner action вне проекта; наш слой только показывает подсказки и сохраняет state/log.
+
+## v0.3-beta Stage 4: Default strategy import и GUI runtime controls
+
+Stage 4 переносит первую базовую стратегию из Windows GUI: `Default v1 (game filter)`. Перенос частичный и контролируемый: оригинальный Windows preset хранится как reference, а Linux runtime получает только seed hostlist и минимальные `nfqws2`-совместимые Lua-аргументы. Полный WinDivert preset не исполняется напрямую.
+
+Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.

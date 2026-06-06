@@ -118,16 +118,23 @@ class GeneratedRuntimePlan:
         log_file_lines = "\n".join(self._format_files(self.log_files))
         apply_lines = "\n".join(self._format_apply_steps())
         rollback_lines = "\n".join(self._format_rollback_notes())
+        runtime_arg_lines = "\n".join(f"  - {arg}" for arg in self.strategy.runtime_args) or "  - нет"
+        source = self.strategy.source_preset or {}
+        source_name = str(source.get("name", "не указан"))
+        source_level = str(source.get("portingLevel", "не указан"))
         return "\n".join(
             [
                 f"Runtime plan для action: {self.action}",
                 f"plan id: {self.plan_id}",
                 f"profile: {self.profile.profile_id}",
                 f"strategy: {self.strategy.strategy_id}",
+                f"strategy source: {source_name} ({source_level})",
                 f"build target: {self.profile.build_target}",
                 f"binary: {self.binary_relative_path}",
                 "hostlists:",
                 hostlist_lines,
+                "strategy runtime args:",
+                runtime_arg_lines,
                 "required artifacts:",
                 artifact_lines,
                 "session files:",

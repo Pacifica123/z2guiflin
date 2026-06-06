@@ -262,3 +262,9 @@ Stage 14 не смешивает runtime с bootstrap: upstream installer script
 Stage 3 beta фиксирует это на уровне session runner: при запуске через `sudo` в args добавляется `--uid=<SUDO_UID>:<SUDO_GID>`, чтобы после открытия NFQUEUE процесс работал от имени владельца workspace и мог читать hostlist. Дополнительно default workflow получает аварийный child-revert: если owner-rules уже применены, но session старт падает, workflow выполняет revert owned nftables table и сохраняет state `failed-rolled-back`.
 
 Правило на будущее: любой privileged runtime workflow должен учитывать post-root/drop-root доступ к workspace-файлам и иметь автоматический rollback для изменений, которые уже были применены в рамках подтверждённого composite plan.
+
+## v0.3-beta Stage 4: Default strategy import и GUI runtime controls
+
+Stage 4 переносит первую базовую стратегию из Windows GUI: `Default v1 (game filter)`. Перенос частичный и контролируемый: оригинальный Windows preset хранится как reference, а Linux runtime получает только seed hostlist и минимальные `nfqws2`-совместимые Lua-аргументы. Полный WinDivert preset не исполняется напрямую.
+
+Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.

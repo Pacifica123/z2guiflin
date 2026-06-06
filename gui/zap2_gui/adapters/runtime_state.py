@@ -248,6 +248,8 @@ def generated_runtime_plan_to_payload(plan: GeneratedRuntimePlan) -> dict[str, A
             }
             for hostlist in plan.hostlists
         ],
+        "strategyRuntimeArgs": list(plan.strategy.runtime_args),
+        "strategySourcePreset": plan.strategy.source_preset or {},
         "requiredArtifacts": [
             {
                 "unitName": artifact.unit_name,

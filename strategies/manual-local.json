@@ -1,31 +1,54 @@
 {
-  "schemaVersion": 1,
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": true,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
   "id": "manual-local",
-  "title": "Ручная локальная стратегия",
-  "summary": "Основная стратегия Stage 7: GUI показывает локальные данные, build plan и будущие шаги, но не применяет их к системе без отдельного подтверждения.",
-  "philosophy": "toolbox/apothecary",
   "intendedFor": [
     "single-user разработка до v1-stable",
     "ручной контроль owner-maintained hostlists",
     "локальная сборка vendored-ядра"
   ],
+  "notes": [
+    "Windows preset Default v1 (game filter) найден в zapret2-gui_windows и импортирован как reference.",
+    "Полный Windows preset не исполняется напрямую: WinDivert-параметры, blob-файлы и ipset-ветки требуют отдельного портирования.",
+    "В runtime передаются только nfqws2-compatible Lua init/desync параметры и default.hosts seed.",
+    "Runtime lifecycle остаётся owner-confirmed: GUI/CLI не применяют start/stop без planHash confirmation."
+  ],
+  "philosophy": "toolbox/apothecary",
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--filter-tcp=80,443",
+    "--filter-l7=tls,http",
+    "--payload=tls_client_hello",
+    "--lua-desync=fake:blob=fake_default_tls:tcp_md5",
+    "--payload=http_req",
+    "--lua-desync=fake:blob=fake_default_http:tcp_md5",
+    "--payload=tls_client_hello,http_req",
+    "--lua-desync=multisplit:pos=1:seqovl=5:seqovl_pattern=0x1603030000"
+  ],
+  "schemaVersion": 1,
+  "sourcePreset": {
+    "engine": "winws2",
+    "id": "windows-default-v1-game-filter",
+    "metadataPath": "strategies/imported/windows-default-v1-game-filter.json",
+    "name": "Default v1 (game filter)",
+    "portingLevel": "partial-linux-bridge",
+    "sourcePath": "strategies/imported/windows-default-v1-game-filter.txt",
+    "windowsOptionsExecuted": false
+  },
+  "summary": "Основная стратегия v0.3-beta: минимальный Linux bridge для Windows preset Default v1 (game filter), owner-maintained hostlist и явные start/stop workflow.",
+  "title": "Default / ручная локальная стратегия",
   "workflow": [
     "inspect",
     "plan",
     "present",
     "owner-confirms-later",
     "execute-later"
-  ],
-  "capabilities": {
-    "readsProfiles": true,
-    "readsHostlists": true,
-    "usesLocalBuildPlan": true,
-    "executesAutomatically": false,
-    "requiresSudoAtStage7": false,
-    "mutatesServicesOrFirewallAtStage7": false
-  },
-  "notes": [
-    "Стратегия не содержит низкоуровневых команд запуска.",
-    "Runtime lifecycle будет вынесен в будущий stage с отдельными confirmations."
   ]
 }

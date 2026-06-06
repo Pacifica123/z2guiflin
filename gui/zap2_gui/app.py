@@ -44,6 +44,7 @@ from .adapters.runtime_default import (
     SUPPORTED_DEFAULT_WORKFLOW_ACTIONS,
     execute_default_workflow,
     prepare_default_workflow_plan,
+    default_workflow_status,
 )
 from .adapters.runtime_default_build import (
     execute_default_build,
@@ -248,6 +249,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="исполнить подтверждённый default stop workflow: session stop + revert owner-rules",
     )
+    parser.add_argument(
+        "--default-status",
+        action="store_true",
+        help="показать read-only статус default workflow/session для GUI и CLI",
+    )
 
     parser.add_argument(
         "--list-profiles",
@@ -451,6 +457,14 @@ def main(argv: list[str] | None = None) -> int:
             result = execute_default_workflow(action="start", profile_id=args.profile, confirm_plan_id=args.confirm or "")
             print(result.to_text())
             return 0 if result.state == "started" else 1
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.default_status:
+        try:
+            print(default_workflow_status(profile_id=args.profile).to_text())
+            return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2

@@ -1,3 +1,53 @@
-# Пустой owner-maintained hostlist для Stage 7.
-# Здесь владелец позже сможет хранить локальные домены/хосты для своих стратегий.
-# Автоматические проверки этот файл не используют для сетевых действий.
+# Default hostlist seed for v0.3-beta Stage 4.
+# Источник: Windows GUI builtin preset "Default v1 (game filter)".
+# Это не полный перенос всех списков Windows GUI, а минимальный безопасный seed.
+# Владелец проекта может расширять файл вручную.
+
+# YouTube / Google video
+youtube.com
+www.youtube.com
+m.youtube.com
+youtu.be
+ytimg.com
+googlevideo.com
+
+# Discord
+discord.com
+www.discord.com
+discord.gg
+discordapp.com
+discordapp.net
+discordcdn.com
+discord.media
+updates.discord.com
+
+# Telegram
+telegram.org
+web.telegram.org
+t.me
+
+# Соцсети и медиа
+x.com
+twitter.com
+twimg.com
+instagram.com
+cdninstagram.com
+facebook.com
+fbcdn.net
+whatsapp.com
+whatsapp.net
+soundcloud.com
+sndcdn.com
+
+# Игры / площадки
+roblox.com
+rbxcdn.com
+itch.io
+
+# Торрент-трекеры / сайты из Default preset
+rutracker.org
+rutor.info
+rutor.is
+ntc.party
+
+# Пользовательские домены добавляются ниже.

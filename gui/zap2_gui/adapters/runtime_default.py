@@ -122,6 +122,39 @@ class DefaultWorkflowPlan:
         )
 
 
+
+
+@dataclass(frozen=True)
+class DefaultWorkflowStatus:
+    """Read-only статус default workflow для CLI/GUI."""
+
+    profile_id: str
+    strategy_id: str
+    workflow_state_path: Path
+    workflow_state: str
+    workflow_action: str
+    session_status: RuntimeSessionStatus
+    log_path: Path
+    message: str
+
+    def to_text(self) -> str:
+        return "\n".join(
+            [
+                f"Default workflow status: {self.workflow_state}",
+                f"profile: {self.profile_id}",
+                f"strategy: {self.strategy_id}",
+                f"last action: {self.workflow_action}",
+                f"session status: {self.session_status.state}",
+                f"session pid: {self.session_status.pid if self.session_status.pid is not None else 'нет'}",
+                f"workflow state: {self.workflow_state_path}",
+                f"runtime log: {self.log_path}",
+                f"message: {self.message}",
+                "read-only: yes",
+                "executes now: no",
+                "mutates services/firewall now: no",
+            ]
+        )
+
 @dataclass(frozen=True)
 class DefaultWorkflowResult:
     """CLI-friendly результат default-start/default-stop."""
@@ -448,6 +481,42 @@ def _write_workflow_state(paths_root: Path, record: dict[str, Any], profile_id: 
     _write_json(state_path, record)
     return state_path
 
+
+
+def default_workflow_status(root: Path | None = None, profile_id: str = "default") -> DefaultWorkflowStatus:
+    """Возвращает read-only статус default workflow без nft/systemd/signal actions."""
+
+    layout = discover_layout(root)
+    paths = ensure_runtime_store(layout.root)
+    strategy_id = _load_strategy_id(paths.root, profile_id)
+    workflow_state_path = paths.sessions_dir / f"{profile_id}.default-workflow.json"
+    workflow_state = "not-started"
+    workflow_action = "none"
+    message = "workflow state отсутствует"
+    if workflow_state_path.exists():
+        try:
+            record = _read_json(workflow_state_path)
+            if record.get("marker") == DEFAULT_WORKFLOW_MARKER:
+                workflow_state = str(record.get("state", "unknown"))
+                workflow_action = str(record.get("action", "unknown"))
+                message = str(record.get("ownerRulesResult", {}).get("message", "workflow state прочитан")) if isinstance(record.get("ownerRulesResult"), dict) else "workflow state прочитан"
+            else:
+                workflow_state = "unknown"
+                message = "workflow state marker не совпадает"
+        except Exception as exc:  # pragma: no cover - defensive status path
+            workflow_state = "unknown"
+            message = f"workflow state не удалось прочитать: {exc}"
+    session = runtime_session_status(paths.root, profile_id=profile_id)
+    return DefaultWorkflowStatus(
+        profile_id=profile_id,
+        strategy_id=strategy_id,
+        workflow_state_path=workflow_state_path,
+        workflow_state=workflow_state,
+        workflow_action=workflow_action,
+        session_status=session,
+        log_path=paths.logs_dir / f"{profile_id}.runtime.jsonl",
+        message=message,
+    )
 
 def execute_default_workflow(
     root: Path | None = None,

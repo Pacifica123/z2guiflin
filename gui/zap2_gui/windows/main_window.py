@@ -11,6 +11,7 @@ from ..core_inventory import load_core_build_map, load_core_inventory_snapshot
 from ..models.navigation import default_navigation_sections
 from ..qt_compat import require_pyqt
 from ..widgets.placeholders import make_core_page, make_placeholder_page, make_strategies_page
+from ..widgets.runtime_controls import make_runtime_control_page
 
 
 def create_main_window(root: object | None = None) -> Any:
@@ -32,7 +33,9 @@ def create_main_window(root: object | None = None) -> Any:
             tabs = QtWidgets.QTabWidget()
             tabs.setDocumentMode(True)
             for section in sections:
-                if section.key == "core":
+                if section.key == "overview":
+                    page = make_runtime_control_page(root)
+                elif section.key == "core":
                     page = make_core_page(snapshot, build_map, build_plan)
                 elif section.key == "strategies":
                     page = make_strategies_page(workspace_catalog)

@@ -40,3 +40,9 @@ PYTHONPATH=gui python -m zap2_gui.app --show-strategy manual-local
 ```
 
 Так мы получаем основу для будущей вкладки `Стратегии`: сначала видимые данные и валидация, затем редактор профиля, и только позднее — owner-confirmed runtime lifecycle.
+
+## v0.3-beta Stage 4: Default strategy import и GUI runtime controls
+
+Stage 4 переносит первую базовую стратегию из Windows GUI: `Default v1 (game filter)`. Перенос частичный и контролируемый: оригинальный Windows preset хранится как reference, а Linux runtime получает только seed hostlist и минимальные `nfqws2`-совместимые Lua-аргументы. Полный WinDivert preset не исполняется напрямую.
+
+Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.

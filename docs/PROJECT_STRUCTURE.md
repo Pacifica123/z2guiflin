@@ -222,3 +222,9 @@ tests/test_default_build_workflow.py             unit-тесты default build w
 `runtime_default_build.py` добавляет owner-confirmed build prerequisite для `default-start`. Этот слой находится в GUI/application package, потому что он оркестрирует локальную сборку vendored-ядра через уже существующий `local_build.py` и общий runtime state/confirmation gate. Он не является частью upstream-дерева и не должен попадать в `core/zapret2/`.
 
 Проверки используют fake runner и временный workspace, поэтому не запускают настоящий `make`. Реальный владелец запускает `--default-build` только после `--default-build-plan` и `--runtime-confirm`, без `sudo`, чтобы build artifacts не становились root-owned.
+
+## v0.3-beta Stage 4: Default strategy import и GUI runtime controls
+
+Stage 4 переносит первую базовую стратегию из Windows GUI: `Default v1 (game filter)`. Перенос частичный и контролируемый: оригинальный Windows preset хранится как reference, а Linux runtime получает только seed hostlist и минимальные `nfqws2`-совместимые Lua-аргументы. Полный WinDivert preset не исполняется напрямую.
+
+Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.

@@ -126,3 +126,9 @@ PYTHONPATH=gui python -m zap2_gui.app --default-build-deps
 ```
 
 Если отсутствуют заголовки вроде `libnetfilter_queue/libnetfilter_queue.h`, команда покажет missing dependency и owner action hints для популярных дистрибутивов. Само приложение не вызывает `sudo apt install` и не смешивает dependency setup с bootstrap/runtime.
+
+## v0.3-beta Stage 4: Default strategy import и GUI runtime controls
+
+Stage 4 переносит первую базовую стратегию из Windows GUI: `Default v1 (game filter)`. Перенос частичный и контролируемый: оригинальный Windows preset хранится как reference, а Linux runtime получает только seed hostlist и минимальные `nfqws2`-совместимые Lua-аргументы. Полный WinDivert preset не исполняется напрямую.
+
+Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.
