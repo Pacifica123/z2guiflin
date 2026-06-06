@@ -207,8 +207,18 @@ Session state остаётся в `.zap2/runtime/sessions/`, а логи — в 
 ## Дополнение Stage 14
 
 ```text
-gui/zap2_gui/adapters/runtime_default.py   composite default start/stop workflow
-docs/DEFAULT_WORKFLOW.md                   документация запуска/отключения default strategy
-tools/check_runtime_default.py             fake-проверка default workflow без root/nft/systemctl
-tests/test_default_workflow.py             unit-тесты composite workflow
+gui/zap2_gui/adapters/runtime_default.py         composite default start/stop workflow
+gui/zap2_gui/adapters/runtime_default_build.py   owner-confirmed local build workflow для nfqws2
+docs/DEFAULT_WORKFLOW.md                         документация запуска/отключения default strategy
+docs/DEFAULT_BUILD_WORKFLOW.md                   документация build prerequisite перед первым start
+tools/check_runtime_default.py                   fake-проверка default workflow без root/nft/systemctl
+tools/check_default_build_workflow.py            fake-проверка default build workflow без настоящего make
+tests/test_default_workflow.py                   unit-тесты composite workflow
+tests/test_default_build_workflow.py             unit-тесты default build workflow
 ```
+
+## Дополнение v0.3-beta Stage 1
+
+`runtime_default_build.py` добавляет owner-confirmed build prerequisite для `default-start`. Этот слой находится в GUI/application package, потому что он оркестрирует локальную сборку vendored-ядра через уже существующий `local_build.py` и общий runtime state/confirmation gate. Он не является частью upstream-дерева и не должен попадать в `core/zapret2/`.
+
+Проверки используют fake runner и временный workspace, поэтому не запускают настоящий `make`. Реальный владелец запускает `--default-build` только после `--default-build-plan` и `--runtime-confirm`, без `sudo`, чтобы build artifacts не становились root-owned.

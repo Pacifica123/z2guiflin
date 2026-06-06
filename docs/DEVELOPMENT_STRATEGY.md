@@ -239,3 +239,10 @@ Stage 14 не смешивает runtime с bootstrap: upstream installer script
 - read-only просмотр runtime log;
 - улучшение профилей/стратегий без смешивания с bootstrap;
 - постепенное доведение default strategy до повседневного использования владельцем.
+
+
+## v0.3-beta_stage_1: default build prerequisite
+
+Первый beta-патч закрывает практический разрыв, обнаруженный при ручной проверке Stage 14: `default-start` корректно останавливался на отсутствии `nfqws2`, но не давал штатного owner-confirmed пути сборки. Теперь default strategy имеет явный preflight-порядок: сначала `--default-build-plan`, затем `--runtime-confirm`, затем `--default-build` без `sudo`, после чего нужно заново подготовить и подтвердить `--default-start-plan`.
+
+Это не откат к installer-подходу. Build workflow использует только vendored-исходники, локальный `make`, runtime state/confirmation gate и логи `.zap2/runtime`. Он не скачивает код, не вызывает upstream installer scripts, не меняет firewall/service state и не исполняется devctl-проверками.

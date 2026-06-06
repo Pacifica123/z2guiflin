@@ -57,6 +57,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/runtime_apply.py",
     "gui/zap2_gui/adapters/runtime_service.py",
     "gui/zap2_gui/adapters/runtime_default.py",
+    "gui/zap2_gui/adapters/runtime_default_build.py",
     "gui/zap2_gui/models/navigation.py",
     "gui/zap2_gui/models/strategy.py",
     "gui/zap2_gui/models/workspace_profile.py",
@@ -82,6 +83,7 @@ REQUIRED_PATHS = [
     "docs/RUNTIME_APPLY_REVERT.md",
     "docs/RUNTIME_SERVICE_PLANS.md",
     "docs/DEFAULT_WORKFLOW.md",
+    "docs/DEFAULT_BUILD_WORKFLOW.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/VERSIONING.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
@@ -99,6 +101,7 @@ REQUIRED_PATHS = [
     "tools/check_runtime_apply.py",
     "tools/check_runtime_service.py",
     "tools/check_runtime_default.py",
+    "tools/check_default_build_workflow.py",
     "tests/test_core_inventory_and_build_map.py",
     "tests/test_local_build_adapter.py",
     "tests/test_workspace_profiles_and_strategies.py",
@@ -109,6 +112,7 @@ REQUIRED_PATHS = [
     "tests/test_runtime_apply_revert.py",
     "tests/test_runtime_service_plans.py",
     "tests/test_default_workflow.py",
+    "tests/test_default_build_workflow.py",
 ]
 
 PROJECT_DOCUMENTATION_PATHS = [
@@ -136,6 +140,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/RUNTIME_APPLY_REVERT.md",
     "docs/RUNTIME_SERVICE_PLANS.md",
     "docs/DEFAULT_WORKFLOW.md",
+    "docs/DEFAULT_BUILD_WORKFLOW.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",
@@ -253,6 +258,22 @@ def main() -> int:
         return 1
     if {section["kind"] for section in runtime_contract["sections"]} != {"run", "apply", "session", "service"}:
         print("Runtime contract должен покрывать run/apply/session/service")
+        return 1
+
+    default_build_doc = (ROOT / "docs/DEFAULT_BUILD_WORKFLOW.md").read_text(encoding="utf-8")
+    default_build_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_default_build.py").read_text(encoding="utf-8")
+    if "--default-build-plan" not in app_py or "--default-build" not in app_py:
+        print("Default build workflow CLI-команды отсутствуют")
+        return 1
+    if "Default build workflow" not in default_build_doc or "без `sudo`" not in default_build_doc:
+        print("Документация default build workflow не зафиксирована")
+        return 1
+    for required in ("DEFAULT_BUILD_MARKER", "prepare_default_build_plan", "execute_default_build", "rejectsRootExecutionByDefault"):
+        if required not in default_build_adapter:
+            print(f"Default build adapter не содержит обязательный элемент: {required}")
+            return 1
+    if "install_easy" in default_build_adapter or "systemctl" in default_build_adapter:
+        print("Default build adapter не должен вызывать upstream installer scripts или service manager")
         return 1
 
     default_workflow_doc = (ROOT / "docs/DEFAULT_WORKFLOW.md").read_text(encoding="utf-8")
@@ -434,7 +455,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-beta OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate, session runner, owner-confirmed apply/revert, service plans и default workflow зафиксированы")
+    print("Дерево v0.3-beta OK; PyQt shell, русская документация, inventory, build map, local build adapter, default build workflow, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate, session runner, owner-confirmed apply/revert, service plans и default workflow зафиксированы")
     return 0
 
 

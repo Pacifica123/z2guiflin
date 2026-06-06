@@ -44,6 +44,10 @@ from .adapters.runtime_default import (
     execute_default_workflow,
     prepare_default_workflow_plan,
 )
+from .adapters.runtime_default_build import (
+    execute_default_build,
+    prepare_default_build_plan,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -83,6 +87,7 @@ def describe_project() -> str:
             f"runtime session runner: Stage 11 ({runtime_state_summary})",
             "runtime apply/revert: Stage 12 owner-confirmed nftables plans",
             "runtime service plans: Stage 13 systemd service mode (not default)",
+            "default build workflow: v0.3-beta Stage 1 owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
@@ -203,6 +208,18 @@ def build_parser() -> argparse.ArgumentParser:
         choices=SUPPORTED_SERVICE_EXECUTION_ACTIONS,
         metavar="ACTION",
         help="исполнить подтверждённый service install/remove plan; требует sudo для /etc/systemd/system",
+    )
+
+
+    parser.add_argument(
+        "--default-build-plan",
+        action="store_true",
+        help="подготовить owner-confirmed local build plan для build target default profile; без запуска make",
+    )
+    parser.add_argument(
+        "--default-build",
+        action="store_true",
+        help="исполнить подтверждённую локальную сборку build target default profile; без sudo/firewall/service",
     )
 
     parser.add_argument(
@@ -381,6 +398,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.service_apply:
         try:
             print(execute_service_plan(action=args.service_apply, profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+
+    if args.default_build_plan:
+        try:
+            print(prepare_default_build_plan(profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.default_build:
+        try:
+            print(execute_default_build(profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

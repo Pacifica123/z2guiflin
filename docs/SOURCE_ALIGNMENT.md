@@ -114,3 +114,10 @@ Service plan использует тот же локальный `nfqws2`, ко�
 ## Stage 14 и отношение к upstream
 
 Default workflow Stage 14 использует vendored upstream binary path `core/zapret2/nfq2/nfqws2`, но не вызывает upstream installer scripts и не копирует upstream service lifecycle. Наш слой отвечает за planHash confirmation, runtime state, logs, rollback notes и owned nftables table `inet zap2_default`.
+
+
+## v0.3-beta Stage 1 и локальная сборка upstream binary
+
+Default build workflow не меняет upstream-исходники и не добавляет installer wrapper. Он использует `BUILD_MAP.json` и Makefile самого vendored core, чтобы собрать `nfqws2` локально в `core/zapret2/nfq2/`. Это соответствует новой архитектуре проекта: upstream остаётся source core, а наш слой добавляет прозрачные plans, confirmations, logs и state вокруг него.
+
+Сборка не должна выполняться в devctl-проверках и не должна запускаться через `sudo`. Если требуются системные build dependencies, их устанавливает владелец машины вне проекта; GUI лишь показывает план, stderr и статус expected artifacts.

@@ -82,3 +82,10 @@ GUI orchestration теперь знает о service mode через `runtime_se
 ## Stage 14: default workflow в CLI/GUI shell
 
 GUI-слой получил adapter `runtime_default.py`. На CLI он уже доступен через `--default-start-plan`, `--default-start`, `--default-stop-plan`, `--default-stop`. В будущем GUI должен показывать эти же данные как экран подтверждения, а не как скрытую кнопку.
+
+
+## v0.3-beta Stage 1: default build workflow в GUI-слое
+
+GUI-слой получил adapter `runtime_default_build.py`. На CLI он доступен через `--default-build-plan` и `--default-build --confirm <plan-id>`. Будущий PyQt экран должен показывать это как отдельный preflight перед `default-start`: сначала собрать `nfqws2` без `sudo`, затем заново подготовить start-plan и только потом запускать owner-confirmed runtime workflow.
+
+Важно не встраивать сборку внутрь `default-start`, потому что `default-start` запускается через `sudo` ради nftables apply. Сборка под root может оставить root-owned artifacts в рабочем дереве и нарушить локальный developer workflow.

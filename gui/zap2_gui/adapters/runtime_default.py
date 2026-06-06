@@ -469,7 +469,20 @@ def execute_default_workflow(
 
     if action == "start":
         # Preflight до firewall apply: бинарник должен существовать и быть executable.
-        build_runtime_session_config(paths.root, profile_id)
+        try:
+            build_runtime_session_config(paths.root, profile_id)
+        except ValueError as exc:
+            message = str(exc)
+            if "nfqws2 binary отсутствует" in message:
+                raise ValueError(
+                    message
+                    + "\nШтатный путь v0.3-beta: "
+                    + "PYTHONPATH=gui python -m zap2_gui.app --default-build-plan; "
+                    + "PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-default-build-workflow-plan; "
+                    + "PYTHONPATH=gui python -m zap2_gui.app --default-build --confirm runtime-default-manual-local-default-build-workflow-plan. "
+                    + "После успешной сборки заново выполните --default-start-plan и --runtime-confirm для start-plan."
+                ) from exc
+            raise
         apply_plan_id = next(str(child["planId"]) for child in saved["childPlans"] if child["role"] == "owner-rules-apply")
         session_plan_id = next(str(child["planId"]) for child in saved["childPlans"] if child["role"] == "runtime-start")
         apply_result = execute_runtime_owner_rules(

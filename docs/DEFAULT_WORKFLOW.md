@@ -4,6 +4,18 @@ Stage 14 завершает цепочку `v0.3-alpha` для controlled runtim
 
 Это не bootstrap и не installer. Workflow использует уже импортированное ядро, уже существующий `default` profile, стратегию `manual-local`, runtime state `.zap2/runtime`, owner confirmation gate и отдельные слои `apply/revert` + `session runner`.
 
+## Предварительное условие: собранный nfqws2
+
+`default-start` проверяет наличие исполняемого `core/zapret2/nfq2/nfqws2` до применения nftables-правил. Если бинарника нет, сначала выполните beta-stage build workflow:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --default-build-plan
+PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-default-build-workflow-plan
+PYTHONPATH=gui python -m zap2_gui.app --default-build --confirm runtime-default-manual-local-default-build-workflow-plan
+```
+
+После успешной сборки нужно заново выполнить `--default-start-plan` и `--runtime-confirm runtime-default-manual-local-default-start-workflow-plan`, потому что start preflight должен подтверждаться уже для состояния, где executable существует.
+
 ## Команды владельца
 
 Подготовить запуск:

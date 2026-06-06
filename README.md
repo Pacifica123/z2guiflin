@@ -21,7 +21,7 @@ tests/     небольшие структурные тесты для ново�
 
 ## Текущий статус
 
-Это ранняя `v0.3-beta` база после закрытия alpha-цепочки Stage 14, а не готовое приложение для конечного пользователя. Она импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк, русифицирует проектную документацию, добавляет read-only инвентаризацию ядра с build map, вводит первый скелет PyQt GUI shell, добавляет local build adapter для явных планов локальной сборки и вводит workspace-профили/стратегии как read-only project data, добавляет runtime lifecycle contracts как plan-only фундамент будущего запуска/отключения, генерирует default strategy runtime plans для `start`, `stop`, `status`, вводит runtime state/confirmation gate, добавляет guarded session runner для процесса `nfqws2`, вводит owner-confirmed apply/revert plan для nftables-правил, service plans и composite default start/stop workflow.
+Это ранняя `v0.3-beta` база после закрытия alpha-цепочки Stage 14, а не готовое приложение для конечного пользователя. Она импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк, русифицирует проектную документацию, добавляет read-only инвентаризацию ядра с build map, вводит первый скелет PyQt GUI shell, добавляет local build adapter для явных планов локальной сборки и вводит workspace-профили/стратегии как read-only project data, добавляет runtime lifecycle contracts как plan-only фундамент будущего запуска/отключения, генерирует default strategy runtime plans для `start`, `stop`, `status`, вводит runtime state/confirmation gate, добавляет guarded session runner для процесса `nfqws2`, вводит owner-confirmed apply/revert plan для nftables-правил, service plans, composite default start/stop workflow и beta-stage default build workflow для локальной сборки `nfqws2` перед первым запуском.
 
 ```bash
 python tools/check_project_tree.py
@@ -81,6 +81,18 @@ PYTHONPATH=gui python -m zap2_gui.app --service-plan remove --profile default
 ```
 
 Guarded execution есть только для `install/remove` и требует `--runtime-confirm` плюс локальный owner-controlled запуск. Проверки проекта не вызывают настоящий `systemctl`.
+
+## v0.3-beta Stage 1: default build workflow
+
+Перед первым `default-start` должен существовать исполняемый `core/zapret2/nfq2/nfqws2`. Если его нет, используйте отдельный owner-confirmed build workflow без `sudo`:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --default-build-plan
+PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-default-build-workflow-plan
+PYTHONPATH=gui python -m zap2_gui.app --default-build --confirm runtime-default-manual-local-default-build-workflow-plan
+```
+
+После успешной сборки заново подготовьте и подтвердите `--default-start-plan`, затем запускайте `--default-start` через `sudo`. Сборка вынесена отдельно намеренно: `default-start` требует `sudo` для nftables, а build artifacts не должны становиться root-owned.
 
 ## Stage 14: default start/stop workflow
 
