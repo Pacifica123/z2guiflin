@@ -29,7 +29,7 @@ from ..project_paths import discover_layout
 RUNTIME_STATE_SCHEMA_VERSION = 1
 RUNTIME_STATE_STAGE = "v0.3-alpha_stage_10"
 RUNTIME_STATE_DIRNAME = ".zap2"
-RUNTIME_SUBDIRS = ("plans", "confirmations", "sessions", "logs", "rollback")
+RUNTIME_SUBDIRS = ("plans", "confirmations", "sessions", "logs", "rollback", "session-inputs")
 
 
 @dataclass(frozen=True)
@@ -44,6 +44,7 @@ class RuntimeStorePaths:
     sessions_dir: Path
     logs_dir: Path
     rollback_dir: Path
+    session_inputs_dir: Path
 
     @property
     def required_dirs(self) -> tuple[Path, ...]:
@@ -55,6 +56,7 @@ class RuntimeStorePaths:
             self.sessions_dir,
             self.logs_dir,
             self.rollback_dir,
+            self.session_inputs_dir,
         )
 
     def as_text_lines(self) -> tuple[str, ...]:
@@ -65,6 +67,7 @@ class RuntimeStorePaths:
             f"sessions: {self.sessions_dir}",
             f"logs: {self.logs_dir}",
             f"rollback: {self.rollback_dir}",
+            f"session inputs: {self.session_inputs_dir}",
         )
 
 
@@ -139,6 +142,7 @@ def runtime_store_paths(root: Path | None = None) -> RuntimeStorePaths:
         sessions_dir=runtime_root / "sessions",
         logs_dir=runtime_root / "logs",
         rollback_dir=runtime_root / "rollback",
+        session_inputs_dir=runtime_root / "session-inputs",
     )
 
 

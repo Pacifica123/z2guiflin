@@ -76,18 +76,31 @@ def main() -> int:
             print("session config должен указывать на локальный nfqws2 binary")
             return 1
         text = config.to_text()
+        hostlist_args = [arg for arg in config.runtime_args if arg.startswith("--hostlist=")]
+        if not hostlist_args or not hostlist_args[0].startswith("--hostlist=.zap2/runtime/session-inputs/"):
+            print("session config должен использовать runtime hostlist copy с относительным путём")
+            return 1
+        if not config.hostlist_input_paths or not config.hostlist_input_paths[0].exists():
+            print("runtime hostlist copy должен существовать до запуска nfqws2")
+            return 1
+        if str(project / "profiles" / "hostlists" / "default.hosts") in "\n".join(config.runtime_args):
+            print("session args не должны передавать исходный абсолютный hostlist path")
+            return 1
+
         for fragment in (
             "requires confirmed start plan: yes",
             "mutates firewall/services: no",
             "service mode: no",
             "args file:",
+            "session inputs dir:",
+            "runtime hostlist inputs:",
             "pidfile:",
         ):
             if fragment not in text:
                 print(f"session config не содержит обязательный фрагмент: {fragment}")
                 return 1
 
-        print("Runtime session Stage 11 OK; config/guards проверены без запуска процесса в devctl")
+        print("Runtime session inputs OK; config/guards проверены без запуска реального nfqws2")
         return 0
     finally:
         shutil.rmtree(project.parent, ignore_errors=True)

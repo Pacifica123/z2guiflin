@@ -161,3 +161,24 @@ def test_session_status_marks_copied_state_from_other_workspace_as_stale(tmp_pat
         assert "другому workspace" in status.message
     finally:
         stop_runtime_session(project, profile_id="default")
+
+def test_session_uses_runtime_hostlist_copy_with_relative_arg(tmp_path):
+    project = _copy_project(tmp_path)
+    _install_fake_nfqws2(project)
+    source = project / "profiles" / "hostlists" / "default.hosts"
+    source.write_text("example.org\n", encoding="utf-8")
+    source.chmod(0o600)
+    prepared = prepare_runtime_plan(project, action="start", profile_id="default")
+    confirm_runtime_plan(project, prepared.plan_id)
+
+    config = build_runtime_session_config(project, profile_id="default")
+
+    assert config.hostlist_input_paths
+    copied = config.hostlist_input_paths[0]
+    assert copied.exists()
+    assert copied.read_text(encoding="utf-8") == "example.org\n"
+    assert copied.stat().st_mode & 0o077 == 0o044
+    hostlist_args = [arg for arg in config.runtime_args if arg.startswith("--hostlist=")]
+    assert hostlist_args == ["--hostlist=.zap2/runtime/session-inputs/default.hostlist-0.hosts"]
+    assert str(source) not in "\n".join(config.runtime_args)
+

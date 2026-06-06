@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import signal
 import subprocess
 import time
@@ -28,7 +29,7 @@ from .runtime_state import (
 )
 from ..project_paths import discover_layout
 
-SESSION_STAGE = "v0.3-beta_stage_3"
+SESSION_STAGE = "v0.3-beta_stage_8"
 SESSION_SCHEMA_VERSION = 1
 SESSION_MARKER = "zap2-runtime-session-v1"
 DEFAULT_NFQUEUE_NUM = 200
@@ -70,6 +71,8 @@ class RuntimeSessionConfig:
     cwd: Path
     argv: tuple[str, ...]
     args_path: Path
+    session_inputs_dir: Path
+    hostlist_input_paths: tuple[Path, ...]
     pidfile_path: Path
     stdout_log_path: Path
     stderr_log_path: Path
@@ -91,6 +94,9 @@ class RuntimeSessionConfig:
                 "runtime args:",
                 *(f"  - {item}" for item in self.runtime_args),
                 f"args file: {self.args_path}",
+                f"session inputs dir: {self.session_inputs_dir}",
+                "runtime hostlist inputs:",
+                *(f"  - {item}" for item in self.hostlist_input_paths),
                 f"pidfile: {self.pidfile_path}",
                 f"stdout log: {self.stdout_log_path}",
                 f"stderr log: {self.stderr_log_path}",
@@ -318,7 +324,74 @@ def _runtime_debug_enabled() -> bool:
     return value in {"1", "true", "yes", "on", "debug"}
 
 
-def _runtime_args_for_plan(paths_root: Path, plan: GeneratedRuntimePlan, drop_identity: RuntimeDropIdentity | None, pidfile_path: Path, debug_log_path: Path) -> tuple[str, ...]:
+def _runtime_input_relative_path(paths_root: Path, path: Path) -> str:
+    """Return a path suitable for nfqws2 after privilege drop.
+
+    nfqws2 повторно проверяет hostlist уже после ``dropcaps()``. Абсолютные
+    пути через ``/home/<owner>/...`` могут стать недоступны для UID 0 без
+    ``CAP_DAC_OVERRIDE``. Поэтому runtime session передаёт относительный путь
+    к заранее подготовленной копии внутри ``.zap2/runtime/session-inputs``.
+    """
+
+    try:
+        return str(path.resolve().relative_to(paths_root.resolve()))
+    except ValueError:
+        return str(path.resolve())
+
+
+def _make_runtime_input_accessible(path: Path) -> None:
+    """Make a runtime input readable/searchable after nfqws2 drops caps."""
+
+    for directory in (path.parent.parent.parent, path.parent.parent, path.parent):
+        if directory.exists():
+            try:
+                directory.chmod(0o755)
+            except PermissionError:
+                pass
+    try:
+        path.chmod(0o644)
+    except PermissionError:
+        pass
+
+
+def _prepare_runtime_hostlist_inputs(paths_root: Path, plan: GeneratedRuntimePlan, profile_id: str) -> tuple[Path, ...]:
+    """Copy profile hostlists to runtime-owned session inputs.
+
+    Source hostlists remain owner-maintained project files. Runtime uses a
+    per-session copy so privileged GUI start does not depend on source-file
+    ownership, restrictive umask, or absolute ``/home`` traversal after
+    ``dropcaps()``.
+    """
+
+    if not plan.hostlists:
+        return ()
+    paths = runtime_store_paths(paths_root)
+    inputs_dir = paths.session_inputs_dir
+    inputs_dir.mkdir(parents=True, exist_ok=True)
+    prepared: list[Path] = []
+    for index, hostlist in enumerate(plan.hostlists):
+        source = (paths_root / hostlist.path).resolve()
+        if not source.is_file():
+            raise ValueError(f"hostlist source отсутствует: {source}")
+        suffix = source.suffix or ".hosts"
+        target_name = f"{profile_id}.hostlist-{index}{suffix}"
+        target = inputs_dir / target_name
+        tmp = target.with_suffix(target.suffix + ".tmp")
+        shutil.copyfile(source, tmp)
+        os.replace(tmp, target)
+        _make_runtime_input_accessible(target)
+        prepared.append(target)
+    return tuple(prepared)
+
+
+def _runtime_args_for_plan(
+    paths_root: Path,
+    plan: GeneratedRuntimePlan,
+    drop_identity: RuntimeDropIdentity | None,
+    pidfile_path: Path,
+    debug_log_path: Path,
+    hostlist_input_paths: tuple[Path, ...],
+) -> tuple[str, ...]:
     args: list[str] = [
         f"--qnum={DEFAULT_NFQUEUE_NUM}",
         f"--pidfile={pidfile_path}",
@@ -328,8 +401,8 @@ def _runtime_args_for_plan(paths_root: Path, plan: GeneratedRuntimePlan, drop_id
     args.extend(plan.strategy.runtime_args)
     if drop_identity is not None:
         args.append(drop_identity.option)
-    if plan.hostlists:
-        args.append(f"--hostlist={(paths_root / plan.hostlists[0].path).resolve()}")
+    for hostlist_path in hostlist_input_paths:
+        args.append(f"--hostlist={_runtime_input_relative_path(paths_root, hostlist_path)}")
     return tuple(args)
 
 
@@ -360,7 +433,8 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
     stderr_log_path = paths.logs_dir / f"{profile_id}.nfqws2.stderr.log"
     debug_log_path = paths.logs_dir / f"{profile_id}.nfqws2.debug.log"
     drop_identity = _detect_drop_identity(paths.root)
-    runtime_args = _runtime_args_for_plan(paths.root, plan, drop_identity, pidfile_path, debug_log_path)
+    hostlist_input_paths = _prepare_runtime_hostlist_inputs(paths.root, plan, profile_id)
+    runtime_args = _runtime_args_for_plan(paths.root, plan, drop_identity, pidfile_path, debug_log_path, hostlist_input_paths)
 
     return RuntimeSessionConfig(
         profile_id=profile_id,
@@ -371,6 +445,8 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
         cwd=paths.root,
         argv=(str(binary_path), f"@{args_path}"),
         args_path=args_path,
+        session_inputs_dir=paths.session_inputs_dir,
+        hostlist_input_paths=hostlist_input_paths,
         pidfile_path=pidfile_path,
         stdout_log_path=stdout_log_path,
         stderr_log_path=stderr_log_path,
@@ -612,6 +688,8 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "cwd": str(config.cwd),
         "argv": list(config.argv),
         "runtimeArgs": list(config.runtime_args),
+        "sessionInputsDir": str(config.session_inputs_dir),
+        "hostlistInputPaths": [str(path) for path in config.hostlist_input_paths],
         "dropIdentity": None if config.drop_identity is None else {"uid": config.drop_identity.uid, "gid": config.drop_identity.gid, "source": config.drop_identity.source},
         "argsPath": str(config.args_path),
         "pidfilePath": str(config.pidfile_path),

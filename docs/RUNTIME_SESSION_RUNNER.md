@@ -107,3 +107,8 @@ Runner запускает процесс с минимальным session confi
 ## Использование в default workflow
 
 В Stage 14 session runner вызывается не напрямую, а как часть `default-start/default-stop`. Start workflow проверяет `nfqws2` до применения owner rules, а stop workflow останавливает только recorded PID с marker `zap2-runtime-session-v1` перед revert owner rules.
+
+
+## Runtime-копии входных файлов
+
+`nfqws2` запускается не напрямую с исходным абсолютным `profiles/hostlists/default.hosts`, а с копией в `.zap2/runtime/session-inputs/`. Это нужно для GUI/polkit-запуска: после `dropcaps()` абсолютный путь через пользовательский workspace может стать недоступен, даже если первичная загрузка hostlist уже прошла. Подробнее: `docs/RUNTIME_SESSION_INPUTS.md`.

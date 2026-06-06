@@ -291,3 +291,8 @@ Stage 4 переносит первую базовую стратегию из W
 ## v0.3-beta stage 7 — GUI toggle и runtime logs
 
 Цель stage 7: сделать основной GUI-поток включения/выключения Default однокнопочным, сохранить confirmation-gate внутри автоматизированной цепочки, исправить GUI/pkexec session identity для NFQUEUE и показывать причины падений на вкладке `Логи`.
+
+
+## v0.3-beta_stage_8 — runtime session inputs
+
+Hotfix закрепляет правило: privileged GUI start должен передавать `nfqws2` не исходный абсолютный hostlist path, а подготовленную runtime-копию из `.zap2/runtime/session-inputs/`. Это снижает зависимость от домашнего каталога, umask и повторной проверки hostlist после `dropcaps()`.

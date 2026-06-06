@@ -50,3 +50,8 @@ ZAP2_RUNTIME_DROP_IDENTITY=polkit-root
 
 Вкладка логов read-only: она не запускает процессы, не применяет firewall-rules
 и не управляет systemd/service mode.
+
+
+## Runtime session inputs
+
+GUI toggle использует тот же session runner, что и CLI. Перед privileged start runner создаёт runtime-копию hostlist в `.zap2/runtime/session-inputs/` и передаёт `nfqws2` относительный путь к этой копии. Это устраняет падение вида `file_open_test: Permission denied` после `Running as UID=0 GID=0` в pkexec-сценарии.
