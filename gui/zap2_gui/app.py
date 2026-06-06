@@ -448,16 +448,18 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.default_start:
         try:
-            print(execute_default_workflow(action="start", profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
-            return 0
+            result = execute_default_workflow(action="start", profile_id=args.profile, confirm_plan_id=args.confirm or "")
+            print(result.to_text())
+            return 0 if result.state == "started" else 1
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2
 
     if args.default_stop:
         try:
-            print(execute_default_workflow(action="stop", profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
-            return 0
+            result = execute_default_workflow(action="stop", profile_id=args.profile, confirm_plan_id=args.confirm or "")
+            print(result.to_text())
+            return 0 if result.state == "stopped" else 1
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2

@@ -45,7 +45,7 @@ from .runtime_state import (
 from .workspace_profiles import load_workspace_catalog
 from ..project_paths import discover_layout
 
-DEFAULT_WORKFLOW_STAGE = "v0.3-alpha_stage_14"
+DEFAULT_WORKFLOW_STAGE = "v0.3-beta_stage_3"
 DEFAULT_WORKFLOW_SCHEMA_VERSION = 1
 DEFAULT_WORKFLOW_MARKER = "zap2-default-workflow-v1"
 SUPPORTED_DEFAULT_WORKFLOW_ACTIONS = ("start", "stop")
@@ -136,6 +136,7 @@ class DefaultWorkflowResult:
     workflow_state_path: Path
     message: str
     apply_result: RuntimeApplyExecutionResult | None = None
+    rollback_result: RuntimeApplyExecutionResult | None = None
     session_result: RuntimeSessionResult | None = None
     session_status: RuntimeSessionStatus | None = None
 
@@ -158,6 +159,8 @@ class DefaultWorkflowResult:
                 lines.append(f"session pid: {self.session_result.pid}")
         if self.apply_result is not None:
             lines.append(f"owner rules result: {self.apply_result.state}")
+        if self.rollback_result is not None:
+            lines.append(f"owner rules rollback result: {self.rollback_result.state}")
         lines.extend(
             [
                 "owner confirmation verified: yes",
@@ -228,6 +231,7 @@ def _build_composite_payload(
         "strategyId": strategy_id,
         "workflowKind": "default-strategy-start-stop",
         "executionOrder": start_order if action == "start" else stop_order,
+        "rollbackOnStartFailure": action == "start",
         "binaryPath": str(binary_path),
         "hostlists": [str(path) for path in hostlists],
         "childPlans": [child.to_dict(root) for child in child_plans],
@@ -257,7 +261,7 @@ def _rollback_text(payload: dict[str, Any], plan_hash: str) -> str:
     action = payload["action"]
     if action == "start":
         notes = [
-            "Если default-start прервался после apply, выполните default-stop-plan/default-stop для остановки session и revert owner-rules.",
+            "Если session start падает после apply, workflow автоматически выполняет child plan `owner-rules-revert-on-start-failure`.",
             "Revert удаляет только owned nftables table проекта и не делает глобальный firewall reset.",
             "Session runner останавливает только PID, записанный нашим marker в `.zap2/runtime/sessions/`.",
         ]
@@ -301,9 +305,11 @@ def prepare_default_workflow_plan(root: Path | None = None, action: DefaultWorkf
     if action == "start":
         runtime_prepared = prepare_runtime_plan(paths.root, action="start", profile_id=profile_id)
         rules_prepared = prepare_runtime_owner_rules_plan(paths.root, action="apply", profile_id=profile_id)
+        revert_on_failure_prepared = prepare_runtime_owner_rules_plan(paths.root, action="revert", profile_id=profile_id)
         child_plans = (
             _prepared_to_child("runtime-start", runtime_prepared),
             _prepared_to_child("owner-rules-apply", rules_prepared),
+            _prepared_to_child("owner-rules-revert-on-start-failure", revert_on_failure_prepared),
         )
     else:
         runtime_prepared = prepare_runtime_plan(paths.root, action="stop", profile_id=profile_id)
@@ -464,6 +470,7 @@ def execute_default_workflow(
     state = "started" if action == "start" else "stopped"
     message = f"default {action} completed"
     apply_result: RuntimeApplyExecutionResult | None = None
+    rollback_result: RuntimeApplyExecutionResult | None = None
     session_result: RuntimeSessionResult | None = None
     session_status: RuntimeSessionStatus | None = None
 
@@ -485,6 +492,10 @@ def execute_default_workflow(
             raise
         apply_plan_id = next(str(child["planId"]) for child in saved["childPlans"] if child["role"] == "owner-rules-apply")
         session_plan_id = next(str(child["planId"]) for child in saved["childPlans"] if child["role"] == "runtime-start")
+        revert_on_failure_plan_id = next(
+            (str(child["planId"]) for child in saved["childPlans"] if child["role"] == "owner-rules-revert-on-start-failure"),
+            "",
+        )
         apply_result = execute_runtime_owner_rules(
             paths.root,
             action="apply",
@@ -498,12 +509,32 @@ def execute_default_workflow(
             message = "owner-rules apply failed; session start skipped"
         else:
             # session_plan_id используется как явная self-check: start_runtime_session сам
-            # сверит подтверждение текущего runtime start plan.
+            # сверит подтверждение текущего runtime start plan. Если процесс сразу
+            # завершается, workflow обязан откатить уже применённые owner-rules.
             if session_plan_id:
-                session_result = start_runtime_session(paths.root, profile_id=profile_id)
-                session_status = runtime_session_status(paths.root, profile_id=profile_id)
-                state = "started" if session_result.state == "running" else session_result.state
-                message = "default start workflow applied owner-rules and started session"
+                try:
+                    session_result = start_runtime_session(paths.root, profile_id=profile_id)
+                    session_status = runtime_session_status(paths.root, profile_id=profile_id)
+                    state = "started" if session_result.state == "running" else session_result.state
+                    message = "default start workflow applied owner-rules and started session"
+                except Exception as exc:
+                    session_status = runtime_session_status(paths.root, profile_id=profile_id)
+                    rollback_message = ""
+                    if revert_on_failure_plan_id:
+                        try:
+                            rollback_result = execute_runtime_owner_rules(
+                                paths.root,
+                                action="revert",
+                                profile_id=profile_id,
+                                confirm_plan_id=revert_on_failure_plan_id,
+                                runner=apply_runner,
+                                allow_without_root=allow_without_root,
+                            )
+                            rollback_message = f" owner-rules rollback: {rollback_result.state}."
+                        except Exception as rollback_exc:  # pragma: no cover - defensive diagnostic path
+                            rollback_message = f" owner-rules rollback failed: {rollback_exc}."
+                    state = "failed-rolled-back" if rollback_result is not None and rollback_result.state == "reverted" else "failed"
+                    message = f"session start failed after owner-rules apply: {exc}.{rollback_message}"
     else:
         # Stop сначала пытается остановить нашу session, но revert должен быть доступен и
         # когда session state отсутствует: цель stop — отключить default strategy.
@@ -539,6 +570,7 @@ def execute_default_workflow(
         "childPlans": saved.get("childPlans", []),
         "sessionResult": None if session_result is None else {"state": session_result.state, "pid": session_result.pid, "message": session_result.message},
         "ownerRulesResult": None if apply_result is None else {"state": apply_result.state, "message": apply_result.message},
+        "ownerRulesRollbackResult": None if rollback_result is None else {"state": rollback_result.state, "message": rollback_result.message},
         "usesServiceMode": False,
         "bootstrapMixedIn": False,
         "containsRemoteBootstrap": False,
@@ -575,6 +607,7 @@ def execute_default_workflow(
         workflow_state_path=workflow_state_path,
         message=message,
         apply_result=apply_result,
+        rollback_result=rollback_result,
         session_result=session_result,
         session_status=session_status,
     )

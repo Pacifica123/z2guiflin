@@ -90,9 +90,19 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-session-stop --profile default
 
 Если plan изменится между confirmation и start, запуск будет отклонён по `planHash`.
 
-## Ограничение Stage 11
+## Sudo-owner drop identity
 
-Runner запускает процесс с минимальным session config: queue number, pidfile, debug log и hostlist path из default profile. Это только lifecycle процесса. Реальное направление трафика, apply/revert системных правил и default start/stop workflow остаются задачами следующих stages.
+Начиная с `v0.3-beta_stage_3`, runner при root/sudo запуске добавляет в args файл `nfqws2` явный `--uid=<uid>:<gid>`. Приоритет выбора:
+
+1. `SUDO_UID/SUDO_GID`, если команда запущена через `sudo`;
+2. владелец корня workspace, если root запустил команду без sudo owner env;
+3. `0:0` как диагностический fallback.
+
+Это нужно, потому что upstream `nfqws2` по умолчанию сбрасывает root в UID/GID `2147483647`, а такой synthetic пользователь может не иметь доступа к hostlist и runtime-файлам внутри домашнего workspace владельца.
+
+## Ограничение session runner
+
+Runner запускает процесс с минимальным session config: queue number, pidfile, debug log, drop identity и hostlist path из default profile. Это только lifecycle процесса. Реальное направление трафика, apply/revert системных правил и default start/stop workflow остаются отдельными слоями.
 
 ## Использование в default workflow
 

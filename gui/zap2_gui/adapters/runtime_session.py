@@ -28,12 +28,32 @@ from .runtime_state import (
 )
 from ..project_paths import discover_layout
 
-SESSION_STAGE = "v0.3-alpha_stage_11"
+SESSION_STAGE = "v0.3-beta_stage_3"
 SESSION_SCHEMA_VERSION = 1
 SESSION_MARKER = "zap2-runtime-session-v1"
 DEFAULT_NFQUEUE_NUM = 200
 PROCESS_START_GRACE_SECONDS = 0.25
 PROCESS_STOP_TIMEOUT_SECONDS = 5.0
+
+
+@dataclass(frozen=True)
+class RuntimeDropIdentity:
+    """UID/GID, к которым nfqws2 должен сбросить root после открытия NFQUEUE.
+
+    При запуске через sudo upstream nfqws2 по умолчанию сбрасывает привилегии
+    в UID/GID 2147483647. Такой synthetic uid часто не может читать hostlist
+    внутри пользовательского workspace. Поэтому runner явно передаёт --uid от
+    владельца sudo-сессии или владельца workspace.
+    """
+
+    uid: int
+    gid: int
+    source: str
+
+    @property
+    def option(self) -> str:
+        return f"--uid={self.uid}:{self.gid}"
+
 
 SessionState = Literal["not-started", "running", "stopped", "stale", "failed", "unknown"]
 
@@ -54,6 +74,8 @@ class RuntimeSessionConfig:
     stderr_log_path: Path
     debug_log_path: Path
     session_path: Path
+    runtime_args: tuple[str, ...]
+    drop_identity: RuntimeDropIdentity | None = None
 
     def to_text(self) -> str:
         return "\n".join(
@@ -64,12 +86,15 @@ class RuntimeSessionConfig:
                 f"binary: {self.binary_path}",
                 f"cwd: {self.cwd}",
                 f"argv: {' '.join(self.argv)}",
+                "runtime args:",
+                *(f"  - {item}" for item in self.runtime_args),
                 f"args file: {self.args_path}",
                 f"pidfile: {self.pidfile_path}",
                 f"stdout log: {self.stdout_log_path}",
                 f"stderr log: {self.stderr_log_path}",
                 f"debug log: {self.debug_log_path}",
                 f"session file: {self.session_path}",
+                f"drop identity: {self.drop_identity.uid}:{self.drop_identity.gid} ({self.drop_identity.source})" if self.drop_identity else "drop identity: upstream default",
                 "requires confirmed start plan: yes",
                 "mutates firewall/services: no",
                 "service mode: no",
@@ -226,6 +251,66 @@ def _binary_is_executable(path: Path) -> bool:
     return path.is_file() and os.access(path, os.X_OK)
 
 
+def _parse_positive_int(value: str | None) -> int | None:
+    if value is None or not value.strip():
+        return None
+    try:
+        parsed = int(value, 10)
+    except ValueError:
+        return None
+    return parsed if parsed >= 0 else None
+
+
+def _running_as_root() -> bool:
+    geteuid = getattr(os, "geteuid", None)
+    return False if geteuid is None else geteuid() == 0
+
+
+def _detect_drop_identity(root: Path) -> RuntimeDropIdentity | None:
+    """Возвращает явную --uid identity для sudo/root запуска.
+
+    Нерутовый запуск оставляет upstream default untouched. Root/sudo запуск получает
+    явный uid/gid, чтобы nfqws2 после privilege drop мог читать hostlist и другие
+    файлы пользовательского workspace.
+    """
+
+    if not _running_as_root():
+        return None
+
+    sudo_uid = _parse_positive_int(os.environ.get("SUDO_UID"))
+    sudo_gid = _parse_positive_int(os.environ.get("SUDO_GID"))
+    if sudo_uid is not None and sudo_gid is not None:
+        return RuntimeDropIdentity(uid=sudo_uid, gid=sudo_gid, source="sudo-owner")
+
+    try:
+        stat_result = root.stat()
+    except OSError:
+        return RuntimeDropIdentity(uid=0, gid=0, source="root-fallback")
+    if stat_result.st_uid != 0 or stat_result.st_gid != 0:
+        return RuntimeDropIdentity(uid=stat_result.st_uid, gid=stat_result.st_gid, source="workspace-owner")
+    return RuntimeDropIdentity(uid=0, gid=0, source="root-fallback")
+
+
+def _runtime_args_for_plan(paths_root: Path, plan: GeneratedRuntimePlan, drop_identity: RuntimeDropIdentity | None, pidfile_path: Path, debug_log_path: Path) -> tuple[str, ...]:
+    args: list[str] = [
+        f"--qnum={DEFAULT_NFQUEUE_NUM}",
+        f"--pidfile={pidfile_path}",
+        f"--debug=@{debug_log_path}",
+    ]
+    if drop_identity is not None:
+        args.append(drop_identity.option)
+    if plan.hostlists:
+        args.append(f"--hostlist={(paths_root / plan.hostlists[0].path).resolve()}")
+    return tuple(args)
+
+
+def _tail_text(path: Path, max_chars: int = 1200) -> str:
+    if not path.exists():
+        return ""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return text[-max_chars:].strip()
+
+
 def build_runtime_session_config(root: Path | None = None, profile_id: str = "default") -> RuntimeSessionConfig:
     """Создаёт session config из default profile и confirmed start plan."""
 
@@ -245,15 +330,8 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
     stdout_log_path = paths.logs_dir / f"{profile_id}.nfqws2.stdout.log"
     stderr_log_path = paths.logs_dir / f"{profile_id}.nfqws2.stderr.log"
     debug_log_path = paths.logs_dir / f"{profile_id}.nfqws2.debug.log"
-    hostlist_path = (paths.root / plan.hostlists[0].path).resolve() if plan.hostlists else None
-
-    runtime_args = [
-        f"--qnum={DEFAULT_NFQUEUE_NUM}",
-        f"--pidfile={pidfile_path}",
-        f"--debug=@{debug_log_path}",
-    ]
-    if hostlist_path is not None:
-        runtime_args.append(f"--hostlist={hostlist_path}")
+    drop_identity = _detect_drop_identity(paths.root)
+    runtime_args = _runtime_args_for_plan(paths.root, plan, drop_identity, pidfile_path, debug_log_path)
 
     return RuntimeSessionConfig(
         profile_id=profile_id,
@@ -268,20 +346,13 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
         stderr_log_path=stderr_log_path,
         debug_log_path=debug_log_path,
         session_path=session_path,
+        runtime_args=runtime_args,
+        drop_identity=drop_identity,
     )
 
 
 def _write_args_file(config: RuntimeSessionConfig) -> None:
-    args: list[str] = [
-        f"--qnum={DEFAULT_NFQUEUE_NUM}",
-        f"--pidfile={config.pidfile_path}",
-        f"--debug=@{config.debug_log_path}",
-    ]
-    # hostlist уже присутствует в config через plan; восстанавливаем его из saved plan проще
-    plan = create_runtime_plan(config.cwd, action="start", profile_id=config.profile_id)
-    if plan.hostlists:
-        args.append(f"--hostlist={(config.cwd / plan.hostlists[0].path).resolve()}")
-    config.args_path.write_text("\n".join(args) + "\n", encoding="utf-8")
+    config.args_path.write_text("\n".join(config.runtime_args) + "\n", encoding="utf-8")
 
 
 def _pid_alive(pid: int) -> bool:
@@ -429,7 +500,11 @@ def start_runtime_session(root: Path | None = None, profile_id: str = "default")
             ),
             profile_id=profile_id,
         )
-        raise ValueError(f"nfqws2 завершился сразу после запуска, exit code: {exit_code}. См. {config.stderr_log_path}")
+        stderr_tail = _tail_text(config.stderr_log_path)
+        detail = f"nfqws2 завершился сразу после запуска, exit code: {exit_code}. См. {config.stderr_log_path}"
+        if stderr_tail:
+            detail += f"\nstderr tail: {stderr_tail}"
+        raise ValueError(detail)
 
     record = _base_session_record(config, process.pid, state="running")
     _write_json(config.session_path, record)
@@ -478,6 +553,8 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "binaryPath": str(config.binary_path),
         "cwd": str(config.cwd),
         "argv": list(config.argv),
+        "runtimeArgs": list(config.runtime_args),
+        "dropIdentity": None if config.drop_identity is None else {"uid": config.drop_identity.uid, "gid": config.drop_identity.gid, "source": config.drop_identity.source},
         "argsPath": str(config.args_path),
         "pidfilePath": str(config.pidfile_path),
         "stdoutLogPath": str(config.stdout_log_path),

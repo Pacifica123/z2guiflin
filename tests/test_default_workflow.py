@@ -23,10 +23,9 @@ def _copy_project(tmp_path: Path) -> Path:
     return target
 
 
-def _install_fake_nfqws2(project: Path) -> Path:
+def _install_fake_nfqws2(project: Path, *, exits_immediately: bool = False) -> Path:
     binary = project / "core" / "zapret2" / "nfq2" / "nfqws2"
-    binary.write_text(
-        """#!/usr/bin/env python3
+    body = """#!/usr/bin/env python3
 import pathlib
 import signal
 import sys
@@ -44,9 +43,13 @@ for arg in sys.argv[1:]:
         pathlib.Path(arg[1:]).read_text(encoding='utf-8')
 while running:
     time.sleep(0.1)
-""",
-        encoding="utf-8",
-    )
+"""
+    if exits_immediately:
+        body = """#!/bin/sh
+echo fake immediate failure >&2
+exit 1
+"""
+    binary.write_text(body, encoding="utf-8")
     binary.chmod(binary.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     return binary
 
@@ -67,7 +70,7 @@ def test_default_start_plan_prepares_composite_and_child_plans(tmp_path):
     assert plan.plan_id == "runtime-default-manual-local-default-start-workflow-plan"
     assert len(plan.plan_hash) == 64
     assert plan.requires_sudo is True
-    assert [child.role for child in plan.child_plans] == ["runtime-start", "owner-rules-apply"]
+    assert [child.role for child in plan.child_plans] == ["runtime-start", "owner-rules-apply", "owner-rules-revert-on-start-failure"]
     assert plan.plan_path.exists()
     assert plan.rollback_path.exists()
     saved = json.loads(plan.plan_path.read_text(encoding="utf-8"))
@@ -83,7 +86,7 @@ def test_default_start_plan_prepares_composite_and_child_plans(tmp_path):
 @pytest.mark.parametrize(
     ("action", "expected_id", "child_roles"),
     [
-        ("start", "runtime-default-manual-local-default-start-workflow-plan", ["runtime-start", "owner-rules-apply"]),
+        ("start", "runtime-default-manual-local-default-start-workflow-plan", ["runtime-start", "owner-rules-apply", "owner-rules-revert-on-start-failure"]),
         ("stop", "runtime-default-manual-local-default-stop-workflow-plan", ["runtime-stop", "owner-rules-revert"]),
     ],
 )
@@ -144,6 +147,34 @@ def test_default_start_executes_apply_then_session_with_fake_runner(tmp_path):
             apply_runner=_ok_runner([]),
             allow_without_root=True,
         )
+
+
+
+def test_default_start_rolls_back_owner_rules_when_session_fails(tmp_path):
+    project = _copy_project(tmp_path)
+    _install_fake_nfqws2(project, exits_immediately=True)
+    plan = prepare_default_workflow_plan(project, action="start", profile_id="default")
+    confirm_runtime_plan(project, plan.plan_id)
+    calls: list[tuple[str, ...]] = []
+
+    result = execute_default_workflow(
+        project,
+        action="start",
+        profile_id="default",
+        confirm_plan_id=plan.plan_id,
+        apply_runner=_ok_runner(calls),
+        allow_without_root=True,
+    )
+
+    assert result.state == "failed-rolled-back"
+    assert result.rollback_result is not None
+    assert result.rollback_result.state == "reverted"
+    assert len(calls) == 5
+    assert calls[-1] == ("nft", "delete", "table", "inet", "zap2_default")
+    state = json.loads(result.workflow_state_path.read_text(encoding="utf-8"))
+    assert state["state"] == "failed-rolled-back"
+    assert state["ownerRulesRollbackResult"]["state"] == "reverted"
+    assert "session start failed" in state["sessionResult"]["message"] if state.get("sessionResult") else True
 
 
 def test_default_stop_stops_session_and_reverts_owner_rules(tmp_path):

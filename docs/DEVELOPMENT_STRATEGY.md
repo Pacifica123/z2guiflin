@@ -253,3 +253,12 @@ Stage 14 не смешивает runtime с bootstrap: upstream installer script
 После первого реального запуска `--default-build` выяснилось, что workflow корректно дошёл до локального `make`, но UX был недостаточным: при отсутствии `libnetfilter_queue` владелец видел compiler stderr вместо предварительной диагностики. Stage 2 beta добавляет `--default-build-deps` и встроенный preflight в `--default-build`.
 
 Правило на будущее: если workflow зависит от системных пакетов, сначала должен появиться read-only preflight с owner action hints. Автоматически устанавливать пакеты, запускать `sudo apt/dnf/pacman/zypper` или upstream `install_prereq.sh` нельзя.
+
+
+## v0.3-beta_stage_3 — sudo-owner runtime session fix
+
+При первом реальном `default-start` после успешной сборки `nfqws2` процесс завершился сразу: stderr показал `file_open_test: Permission denied` и невозможность заново открыть `profiles/hostlists/default.hosts`. Причина: upstream `nfqws2` под root по умолчанию сбрасывает привилегии в UID/GID `2147483647`, который не обязан иметь доступ к пользовательскому workspace.
+
+Stage 3 beta фиксирует это на уровне session runner: при запуске через `sudo` в args добавляется `--uid=<SUDO_UID>:<SUDO_GID>`, чтобы после открытия NFQUEUE процесс работал от имени владельца workspace и мог читать hostlist. Дополнительно default workflow получает аварийный child-revert: если owner-rules уже применены, но session старт падает, workflow выполняет revert owned nftables table и сохраняет state `failed-rolled-back`.
+
+Правило на будущее: любой privileged runtime workflow должен учитывать post-root/drop-root доступ к workspace-файлам и иметь автоматический rollback для изменений, которые уже были применены в рамках подтверждённого composite plan.

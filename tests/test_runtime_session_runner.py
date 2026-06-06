@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from zap2_gui.adapters import runtime_session as runtime_session_module
 from zap2_gui.adapters.runtime_session import (
     build_runtime_session_config,
     runtime_session_status,
@@ -125,3 +126,21 @@ def test_session_stop_refuses_foreign_session_marker(tmp_path):
 
     with pytest.raises(ValueError, match="не принадлежит"):
         stop_runtime_session(project, profile_id="default")
+
+
+
+def test_session_config_adds_sudo_owner_uid_for_root_run(tmp_path, monkeypatch):
+    project = _copy_project(tmp_path)
+    _install_fake_nfqws2(project)
+    prepared = prepare_runtime_plan(project, action="start", profile_id="default")
+    confirm_runtime_plan(project, prepared.plan_id)
+
+    monkeypatch.setattr(runtime_session_module, "_running_as_root", lambda: True)
+    monkeypatch.setenv("SUDO_UID", "1000")
+    monkeypatch.setenv("SUDO_GID", "1000")
+
+    config = build_runtime_session_config(project, profile_id="default")
+
+    assert "--uid=1000:1000" in config.runtime_args
+    assert config.drop_identity is not None
+    assert config.drop_identity.source == "sudo-owner"

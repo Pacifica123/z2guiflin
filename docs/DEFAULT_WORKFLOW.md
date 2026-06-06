@@ -67,12 +67,13 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-log --profile default
 Порядок действий:
 
 1. проверить `default` profile и стратегию `manual-local`;
-2. проверить дочерние plan hash для `runtime-start` и `owner-rules-apply`;
+2. проверить дочерние plan hash для `runtime-start`, `owner-rules-apply` и аварийного `owner-rules-revert-on-start-failure`;
 3. проверить наличие и исполняемость `core/zapret2/nfq2/nfqws2` до firewall apply;
 4. создать derived confirmations для дочерних plans на основе подтверждённого composite plan;
 5. применить owned nftables rules через Stage 12 apply layer;
-6. запустить локальную `nfqws2` session через Stage 11 session runner;
-7. записать workflow state и runtime log.
+6. запустить локальную `nfqws2` session через session runner;
+7. если `nfqws2` завершился сразу после start, автоматически выполнить child revert для только что применённых owner-rules;
+8. записать workflow state и runtime log.
 
 ## Что делает default-stop
 
@@ -99,6 +100,18 @@ Stage 14 намеренно не делает следующее:
 - не исполняет реальный `nft` в devctl-проверках.
 
 Автоматические проверки используют fake `nfqws2` и fake runner для nft-команд. Реальный запуск `default-start/default-stop` остаётся локальным действием владельца и требует осознанного `sudo`.
+
+## Beta-stage 3: sudo-owner UID/GID и аварийный rollback
+
+При реальном запуске выяснилось, что `nfqws2` успешно стартует под `sudo`, читает hostlist, а затем upstream drop-root переводит процесс в UID/GID `2147483647`. Такой synthetic пользователь может потерять доступ к hostlist внутри пользовательского workspace, после чего процесс завершается с `file_open_test: Permission denied`.
+
+Исправление `v0.3-beta_stage_3`:
+
+- session runner при root/sudo запуске добавляет в args файл `--uid=<SUDO_UID>:<SUDO_GID>`;
+- если `SUDO_UID/SUDO_GID` недоступны, используется владелец корня workspace, а затем root fallback;
+- default start plan включает child plan `owner-rules-revert-on-start-failure`;
+- если session падает после успешного nft apply, workflow выполняет revert owned table и возвращает состояние `failed-rolled-back`;
+- CLI `--default-start` возвращает ненулевой код, если workflow не дошёл до состояния `started`.
 
 ## Что считать готовностью alpha-цепочки
 

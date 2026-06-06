@@ -79,8 +79,11 @@ def main() -> int:
         if start_saved["safety"].get("automaticChecksMayExecute") is not False:
             print("Default workflow не должен исполняться автоматическими проверками")
             return 1
-        if [child["role"] for child in start_saved["childPlans"]] != ["runtime-start", "owner-rules-apply"]:
-            print("Default start должен связывать runtime-start и owner-rules-apply")
+        if [child["role"] for child in start_saved["childPlans"]] != ["runtime-start", "owner-rules-apply", "owner-rules-revert-on-start-failure"]:
+            print("Default start должен связывать runtime-start, owner-rules-apply и аварийный revert")
+            return 1
+        if start_saved.get("rollbackOnStartFailure") is not True:
+            print("Default start plan должен явно включать rollbackOnStartFailure")
             return 1
 
         calls: list[tuple[str, ...]] = []
@@ -135,7 +138,7 @@ def main() -> int:
         if workflow_state.get("containsUpstreamInstallerScript") is not False or workflow_state.get("usesServiceMode") is not False:
             print("Workflow state должен фиксировать отсутствие bootstrap/service mode")
             return 1
-        print("Default workflow Stage 14 OK; fake checks не вызывают sudo/root/nft/systemctl")
+        print("Default workflow v0.3-beta Stage 3 OK; fake checks не вызывают sudo/root/nft/systemctl")
         return 0
     finally:
         shutil.rmtree(project.parent, ignore_errors=True)

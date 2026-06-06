@@ -21,7 +21,7 @@ tests/     небольшие структурные тесты для ново�
 
 ## Текущий статус
 
-Это ранняя `v0.3-beta` база после закрытия alpha-цепочки Stage 14, а не готовое приложение для конечного пользователя. Она импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк, русифицирует проектную документацию, добавляет read-only инвентаризацию ядра с build map, вводит первый скелет PyQt GUI shell, добавляет local build adapter для явных планов локальной сборки и вводит workspace-профили/стратегии как read-only project data, добавляет runtime lifecycle contracts как plan-only фундамент будущего запуска/отключения, генерирует default strategy runtime plans для `start`, `stop`, `status`, вводит runtime state/confirmation gate, добавляет guarded session runner для процесса `nfqws2`, вводит owner-confirmed apply/revert plan для nftables-правил, service plans, composite default start/stop workflow и beta-stage default build workflow для локальной сборки `nfqws2` перед первым запуском.
+Это ранняя `v0.3-beta` база после закрытия alpha-цепочки Stage 14, а не готовое приложение для конечного пользователя. Она импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк, русифицирует проектную документацию, добавляет read-only инвентаризацию ядра с build map, вводит первый скелет PyQt GUI shell, добавляет local build adapter для явных планов локальной сборки и вводит workspace-профили/стратегии как read-only project data, добавляет runtime lifecycle contracts как plan-only фундамент будущего запуска/отключения, генерирует default strategy runtime plans для `start`, `stop`, `status`, вводит runtime state/confirmation gate, добавляет guarded session runner для процесса `nfqws2`, вводит owner-confirmed apply/revert plan для nftables-правил, service plans, composite default start/stop workflow, beta-stage default build workflow для локальной сборки `nfqws2` перед первым запуском и beta-stage fix для запуска `nfqws2` под sudo-owner UID/GID.
 
 ```bash
 python tools/check_project_tree.py
@@ -113,6 +113,8 @@ sudo PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-defa
 ```
 
 Этот workflow не является bootstrap: он не скачивает код, не вызывает upstream installer scripts и не включает service mode. Реальные `default-start/default-stop` остаются локальными owner-confirmed действиями, а проверки используют fake runner без root.
+
+Начиная с `v0.3-beta_stage_3`, при запуске через `sudo` session runner передаёт `nfqws2` явный `--uid=<SUDO_UID>:<SUDO_GID>`. Это нужно потому, что upstream `nfqws2` по умолчанию сбрасывает root в synthetic UID/GID `2147483647`, который может не иметь доступа к hostlist внутри пользовательского workspace. Если session падает уже после применения nftables owner-rules, default workflow автоматически выполняет подтверждённый child-revert и удаляет owned table `inet zap2_default`.
 
 
 ## Build dependency preflight
