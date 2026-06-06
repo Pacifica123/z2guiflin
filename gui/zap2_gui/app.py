@@ -32,6 +32,13 @@ from .adapters.runtime_session import (
     start_runtime_session,
     stop_runtime_session,
 )
+from .adapters.runtime_service import (
+    SUPPORTED_SERVICE_EXECUTION_ACTIONS,
+    SUPPORTED_SERVICE_PLAN_ACTIONS,
+    create_service_plan,
+    execute_service_plan,
+    prepare_service_plan,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -70,6 +77,7 @@ def describe_project() -> str:
             f"runtime lifecycle contracts: {runtime_contract_status}",
             f"runtime session runner: Stage 11 ({runtime_state_summary})",
             "runtime apply/revert: Stage 12 owner-confirmed nftables plans",
+            "runtime service plans: Stage 13 systemd service mode (not default)",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: bootstrap/read-only baseline with optional GUI launch",
@@ -176,6 +184,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--runtime-session-stop",
         action="store_true",
         help="остановить только PID, записанный нашим runtime session state",
+    )
+
+    parser.add_argument(
+        "--service-plan",
+        choices=SUPPORTED_SERVICE_PLAN_ACTIONS,
+        metavar="ACTION",
+        help="подготовить service plan install/start/stop/remove в .zap2/runtime; без исполнения",
+    )
+    parser.add_argument(
+        "--service-apply",
+        choices=SUPPORTED_SERVICE_EXECUTION_ACTIONS,
+        metavar="ACTION",
+        help="исполнить подтверждённый service install/remove plan; требует sudo для /etc/systemd/system",
     )
 
     parser.add_argument(
@@ -312,6 +333,27 @@ def main(argv: list[str] | None = None) -> int:
     if args.runtime_session_stop:
         try:
             print(stop_runtime_session(profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+
+    if args.service_plan:
+        try:
+            prepared = prepare_service_plan(action=args.service_plan, profile_id=args.profile)
+            plan_text = create_service_plan(action=args.service_plan, profile_id=args.profile).to_text()
+            print(plan_text)
+            print()
+            print(prepared.to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.service_apply:
+        try:
+            print(execute_service_plan(action=args.service_apply, profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

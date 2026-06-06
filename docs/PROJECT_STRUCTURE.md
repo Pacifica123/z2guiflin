@@ -197,3 +197,9 @@ Session state остаётся в `.zap2/runtime/sessions/`, а логи — в 
 ## Stage 12 добавление
 
 `runtime_apply.py` — adapter owner-confirmed apply/revert. Он строит nftables plans, сохраняет их через `.zap2/runtime`, проверяет confirmation и умеет исполнять только подтверждённый plan. Автотесты используют fake runner, поэтому структура проекта остаётся проверяемой без root.
+
+## Дополнение Stage 13: service plans
+
+Начиная со Stage 13 в GUI-слое есть adapter `gui/zap2_gui/adapters/runtime_service.py`. Он не относится к bootstrap и не заменяет session runner. Его задача — описывать service mode как отдельный systemd-oriented план, сохраняемый в `.zap2/runtime`.
+
+Документация решения находится в `docs/RUNTIME_SERVICE_PLANS.md`, а проверка — в `tools/check_runtime_service.py`.

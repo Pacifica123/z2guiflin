@@ -55,6 +55,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/runtime_state.py",
     "gui/zap2_gui/adapters/runtime_session.py",
     "gui/zap2_gui/adapters/runtime_apply.py",
+    "gui/zap2_gui/adapters/runtime_service.py",
     "gui/zap2_gui/models/navigation.py",
     "gui/zap2_gui/models/strategy.py",
     "gui/zap2_gui/models/workspace_profile.py",
@@ -78,6 +79,7 @@ REQUIRED_PATHS = [
     "docs/RUNTIME_STATE_AND_CONFIRMATION.md",
     "docs/RUNTIME_SESSION_RUNNER.md",
     "docs/RUNTIME_APPLY_REVERT.md",
+    "docs/RUNTIME_SERVICE_PLANS.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/VERSIONING.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
@@ -93,6 +95,7 @@ REQUIRED_PATHS = [
     "tools/check_runtime_state.py",
     "tools/check_runtime_session.py",
     "tools/check_runtime_apply.py",
+    "tools/check_runtime_service.py",
     "tests/test_core_inventory_and_build_map.py",
     "tests/test_local_build_adapter.py",
     "tests/test_workspace_profiles_and_strategies.py",
@@ -101,6 +104,7 @@ REQUIRED_PATHS = [
     "tests/test_runtime_state_and_confirmation.py",
     "tests/test_runtime_session_runner.py",
     "tests/test_runtime_apply_revert.py",
+    "tests/test_runtime_service_plans.py",
 ]
 
 PROJECT_DOCUMENTATION_PATHS = [
@@ -126,6 +130,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/RUNTIME_STATE_AND_CONFIRMATION.md",
     "docs/RUNTIME_SESSION_RUNNER.md",
     "docs/RUNTIME_APPLY_REVERT.md",
+    "docs/RUNTIME_SERVICE_PLANS.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",
@@ -346,6 +351,37 @@ def main() -> int:
         print("CLI Stage 12 должен иметь runtime apply/revert plan и execution commands")
         return 1
 
+
+    runtime_service_doc = (ROOT / "docs/RUNTIME_SERVICE_PLANS.md").read_text(encoding="utf-8")
+    runtime_service_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_service.py").read_text(encoding="utf-8")
+    if "service mode" not in runtime_service_doc or "Stage 13" not in runtime_service_doc:
+        print("Runtime service plans Stage 13 не зафиксированы в документации")
+        return 1
+    required_runtime_service_symbols = (
+        "create_service_plan",
+        "prepare_service_plan",
+        "execute_service_plan",
+        "ServicePlan",
+        "SERVICE_MARKER",
+        "SUPPORTED_SERVICE_PLAN_ACTIONS",
+    )
+    for symbol in required_runtime_service_symbols:
+        if symbol not in runtime_service_adapter:
+            print(f"Runtime service adapter не содержит {symbol}")
+            return 1
+    if "install_easy" in runtime_service_adapter or "curl" in runtime_service_adapter or "wget" in runtime_service_adapter:
+        print("Runtime service adapter не должен содержать remote/bootstrap installer fragments")
+        return 1
+    if "nft add" in runtime_service_adapter or "iptables" in runtime_service_adapter:
+        print("Runtime service adapter не должен управлять firewall")
+        return 1
+    if "DEFAULT_SERVICE_DIR" not in runtime_service_adapter or "systemctl" not in runtime_service_adapter:
+        print("Runtime service adapter должен явно описывать systemd service plans")
+        return 1
+    if "--service-plan" not in app_py or "--service-apply" not in app_py:
+        print("CLI Stage 13 должен иметь service-plan и service-apply commands")
+        return 1
+
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
     if "русском" not in language_doc or "проектная документация" not in language_doc:
         print("Правило русского языка документации не зафиксировано")
@@ -377,7 +413,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate, session runner и owner-confirmed apply/revert зафиксированы")
+    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate, session runner, owner-confirmed apply/revert и service plans зафиксированы")
     return 0
 
 

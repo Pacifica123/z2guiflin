@@ -106,3 +106,7 @@ Runtime session runner запускает vendored binary `core/zapret2/nfq2/nfq
 Upstream zapret2 описывает Linux interception через netfilter/nftables/iptables и отделяет `nfqws2` от startup scripts. Stage 12 следует этой модели: мы не запускаем upstream installer scripts и не копируем init/systemd-обвязку, а создаём минимальный собственный nftables backend как application-layer plan.
 
 Default Stage 12 backend intentionally narrow: локальный `output` hook, отдельная table `inet zap2_default`, NFQUEUE `200`. Это не претензия на полное покрытие router-сценариев upstream. Расширение до WAN/LAN профилей должно идти через новые стратегии и profiles, а не через скрытый installer.
+
+## Stage 13: соответствие service mode vendored core
+
+Service plan использует тот же локальный `nfqws2`, который описан в build map и runtime plan generator. Он не скачивает ядро, не вызывает upstream installer scripts и не применяет чужие service templates напрямую. Systemd unit генерируется нашим adapter-слоем как прозрачный plan, а не как bootstrap-установка.

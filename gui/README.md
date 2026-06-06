@@ -74,3 +74,7 @@ Adapter требует prepared/confirmed start-plan, пишет session state �
 ## Stage 12: apply/revert как GUI-данные
 
 GUI-слой получил adapter `runtime_apply.py`. Будущие PyQt-экраны должны показывать owner-rules plan, confirmation status, rollback notes и результат apply/revert как структурированные данные. Кнопки применения не должны обходить `planHash`/confirmation gate.
+
+## Stage 13: service plans в GUI-слое
+
+GUI orchestration теперь знает о service mode через `runtime_service.py`. Этот слой пока доступен через CLI и будущий GUI сможет показать его как отдельную карточку: `install/start/stop/remove`, plan hash, unit path, rollback notes и статус “не является дефолтным workflow”.

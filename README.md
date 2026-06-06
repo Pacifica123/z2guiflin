@@ -68,3 +68,16 @@ python -m zap2_gui.app --runtime-log --profile default
 Начиная со Stage 11, проект умеет управлять lifecycle локального процесса `nfqws2` как workspace session. Команды `--runtime-session-start`, `--runtime-session-status` и `--runtime-session-stop` используют `.zap2/runtime`, требуют подготовленный и подтверждённый start-plan и останавливают только PID, записанный нашим session marker.
 
 Этот слой не применяет firewall/routing rules, не создаёт systemd service, не запускает bootstrap и не вызывает upstream installer scripts. Сам запуск процесса ещё не равен полноценной работе стратегии: направление трафика в NFQUEUE появится только в будущих owner-confirmed apply/revert stages.
+
+## Stage 13: service plans
+
+В проект добавлен отдельный service mode для будущего systemd-сценария. Он не заменяет session runner и не становится дефолтным запуском. Команды Stage 13:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --service-plan install --profile default
+PYTHONPATH=gui python -m zap2_gui.app --service-plan start --profile default
+PYTHONPATH=gui python -m zap2_gui.app --service-plan stop --profile default
+PYTHONPATH=gui python -m zap2_gui.app --service-plan remove --profile default
+```
+
+Guarded execution есть только для `install/remove` и требует `--runtime-confirm` плюс локальный owner-controlled запуск. Проверки проекта не вызывают настоящий `systemctl`.

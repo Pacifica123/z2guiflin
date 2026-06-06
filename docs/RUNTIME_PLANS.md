@@ -120,3 +120,9 @@ runtime-default-manual-local-revert-owner-rules-plan
 - `containsUpstreamInstallerScript=false`;
 - rollback notes до исполнения;
 - список точечных `nft` argv без shell-склейки.
+
+## Service plans Stage 13
+
+Service plans имеют действия `install`, `start`, `stop`, `remove`. Они сохраняются через `.zap2/runtime/plans/` и подтверждаются обычным `--runtime-confirm`, потому что confirmation gate уже умеет привязывать owner decision к `planHash`.
+
+В Stage 13 guarded execution доступен только для `install/remove`. `start/stop` остаются планами: они показывают будущие systemd-команды, но не исполняются adapter-ом. Это удерживает service mode отдельно от session mode и не превращает проект в скрытый автозапуск.

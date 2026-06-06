@@ -102,3 +102,9 @@ Stage 11 переводит `session plan` из чистого контракт�
 `apply plan` теперь имеет первый guarded executor, но он остаётся отдельным от `session plan`. Это значит, что запуск `nfqws2` не создаёт firewall rules сам по себе, а применение системных правил не запускает процесс. Будущий default start workflow должен явно выполнить оба шага: owner-confirmed apply, затем confirmed session start.
 
 `revert plan` должен существовать до полноценного start workflow. Stage 12 фиксирует это через отдельный plan id для `revert` и rollback notes. Revert удаляет только owned markers/rules, созданные apply-слоем, и не должен лечить чужую конфигурацию firewall.
+
+## Stage 13: service mode как отдельный lifecycle
+
+После Stage 13 service plan стал отдельным типом runtime lifecycle. Он описывает systemd unit и команды `systemctl`, но не смешивает это с session runner, apply/revert firewall rules или bootstrap. Service mode может быть подготовлен, подтверждён и частично применён владельцем, но он не является дефолтным способом запуска default strategy.
+
+Ключевое правило Stage 13: service mode существует как отдельная форма runtime, но default start/stop workflow должен появиться позже и сначала пройти через session/apply/revert связку.

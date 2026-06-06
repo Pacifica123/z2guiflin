@@ -208,3 +208,9 @@ Stage 12 впервые добавляет controlled privileged apply/revert, �
 Default backend Stage 12 — `nftables`: отдельная table `inet zap2_default`, отдельная chain `local_out`, NFQUEUE `200` для локального TCP 80/443 и UDP 443. Revert удаляет только owned table и не делает глобальный firewall reset. Это минимальная single-user схема для default strategy, а не универсальный router installer.
 
 Devctl-проверки Stage 12 не вызывают настоящий `nft`, не требуют root и не меняют firewall. Они проверяют только структуру плана, hash/confirmation gate и fake-runner execution. Service mode остаётся будущим Stage 13.
+
+## Stage 13: service plans
+
+Stage 13 добавляет service mode, но не делает его дефолтным workflow. Теперь проект умеет подготавливать systemd-oriented plans для `install`, `start`, `stop` и `remove`, сохранять их в `.zap2/runtime`, привязывать подтверждение к `planHash` и выполнять guarded `install/remove` только после явного owner confirmation.
+
+Service mode остаётся отдельным от session runner. Он не запускается автоматически, не включает автозапуск по умолчанию, не управляет nftables/firewall и не смешивается с bootstrap. Для одиночной разработки основной путь по-прежнему должен идти через controlled default workflow на базе session mode; service mode нужен как будущая опция, когда стратегия станет достаточно стабильной.

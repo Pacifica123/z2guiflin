@@ -66,3 +66,14 @@ profile/strategy -> runtime plan -> owner confirmation -> execute locally -> log
 После Stage 12 runtime lifecycle получает отдельный слой системных правил. Apply/revert больше не являются абстрактной строкой в runtime plan: они представлены typed-plan в `runtime_apply.py`, сохраняются в `.zap2/runtime`, подтверждаются через `planHash` и только затем могут быть исполнены владельцем.
 
 Автоматические проверки не исполняют реальные `nft`-команды. Первый backend создаёт и удаляет только owned nftables table `inet zap2_default`, чтобы будущий default start/stop workflow мог включать apply/revert без upstream installer scripts.
+
+## Stage 13: service plans
+
+Runtime layer теперь включает service plans. Они описывают systemd mode отдельно от session mode:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --service-plan install --profile default
+PYTHONPATH=gui python -m zap2_gui.app --service-plan remove --profile default
+```
+
+Guarded execution для `install/remove` требует сохранённого plan, `--runtime-confirm` и локального owner-controlled запуска. Автоматические проверки не вызывают `systemctl` и не пишут в `/etc/systemd/system`.
