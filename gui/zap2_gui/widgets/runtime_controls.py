@@ -7,6 +7,8 @@ from typing import Any, Callable
 
 from ..adapters.gui_runtime_controls import (
     DEFAULT_BUILD_PLAN_ID,
+    gui_default_build_deps,
+    gui_execute_default_build,
     DEFAULT_START_PLAN_ID,
     DEFAULT_STOP_PLAN_ID,
     gui_confirm_plan,
@@ -42,7 +44,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
 
     output = QtWidgets.QPlainTextEdit()
     output.setReadOnly(True)
-    output.setPlainText(gui_runtime_commands().to_text())
+    output.setPlainText(gui_default_status(root=root))
 
     buttons = QtWidgets.QHBoxLayout()
 
@@ -68,8 +70,10 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         run_action(label, func)
 
     actions: tuple[tuple[str, Callable[[], str]], ...] = (
+        ("Проверить зависимости", lambda: gui_default_build_deps(root=root)),
         ("План сборки", lambda: gui_prepare_default_build(root=root)),
         ("Подтвердить сборку", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_BUILD_PLAN_ID)),
+        ("Собрать без sudo", lambda: gui_execute_default_build(root=root)),
         ("План запуска", lambda: gui_prepare_default_start(root=root)),
         ("Подтвердить запуск", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_START_PLAN_ID)),
         ("Команда запуска через pkexec", lambda: gui_privileged_default_start_command(root=root)),

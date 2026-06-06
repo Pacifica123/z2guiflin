@@ -144,3 +144,20 @@ def test_session_config_adds_sudo_owner_uid_for_root_run(tmp_path, monkeypatch):
     assert "--uid=1000:1000" in config.runtime_args
     assert config.drop_identity is not None
     assert config.drop_identity.source == "sudo-owner"
+
+
+
+def test_session_status_marks_copied_state_from_other_workspace_as_stale(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    _install_fake_nfqws2(project)
+    prepare_runtime_plan(project, action="start", profile_id="default")
+    confirm_runtime_plan(project, "runtime-default-manual-local-start-plan")
+    result = start_runtime_session(project, profile_id="default")
+    try:
+        copied = tmp_path / "copied"
+        shutil.copytree(project, copied, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+        status = runtime_session_status(copied, profile_id="default")
+        assert status.state == "stale"
+        assert "другому workspace" in status.message
+    finally:
+        stop_runtime_session(project, profile_id="default")

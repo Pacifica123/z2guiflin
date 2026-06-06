@@ -65,6 +65,7 @@ class RuntimeSessionConfig:
     profile_id: str
     plan_id: str
     plan_hash: str
+    root_path: Path
     binary_path: Path
     cwd: Path
     argv: tuple[str, ...]
@@ -83,6 +84,7 @@ class RuntimeSessionConfig:
                 f"Runtime session config для profile: {self.profile_id}",
                 f"plan id: {self.plan_id}",
                 f"plan hash: {self.plan_hash}",
+                f"root: {self.root_path}",
                 f"binary: {self.binary_path}",
                 f"cwd: {self.cwd}",
                 f"argv: {' '.join(self.argv)}",
@@ -345,6 +347,7 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
         profile_id=profile_id,
         plan_id=plan.plan_id,
         plan_hash=plan_hash,
+        root_path=paths.root,
         binary_path=binary_path,
         cwd=paths.root,
         argv=(str(binary_path), f"@{args_path}"),
@@ -385,6 +388,20 @@ def _proc_cmdline(pid: int) -> tuple[str, ...] | None:
     return tuple(part.decode("utf-8", errors="replace") for part in raw.split(b"\0") if part)
 
 
+def _path_belongs_to_root(path_value: object, root: Path) -> bool:
+    """Return whether an absolute path from saved state belongs to current workspace."""
+
+    if not path_value:
+        return True
+    try:
+        path = Path(str(path_value)).resolve()
+        root_resolved = root.resolve()
+        path.relative_to(root_resolved)
+        return True
+    except Exception:
+        return False
+
+
 def _record_matches_process(record: dict[str, Any]) -> bool:
     pid = int(record.get("pid", 0))
     binary_path = str(record.get("binaryPath", ""))
@@ -421,6 +438,18 @@ def runtime_session_status(root: Path | None = None, profile_id: str = "default"
     record = _load_session_record(session_path)
     if record is None:
         return RuntimeSessionStatus("not-started", profile_id, session_path, message="session state отсутствует")
+
+    if not _path_belongs_to_root(record.get("binaryPath"), layout.root) or not _path_belongs_to_root(record.get("sessionPath"), layout.root):
+        return RuntimeSessionStatus(
+            "stale",
+            profile_id,
+            session_path,
+            pid=int(record.get("pid", 0)) if int(record.get("pid", 0)) > 0 else None,
+            plan_id=str(record.get("planId", "")) or None,
+            plan_hash=str(record.get("planHash", "")) or None,
+            binary_path=str(record.get("binaryPath", "")) or None,
+            message="session record относится к другому workspace; stop из текущего workspace запрещён",
+        )
 
     pid = int(record.get("pid", 0))
     recorded_state = str(record.get("state", "unknown"))
@@ -553,6 +582,8 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "marker": SESSION_MARKER,
         "state": state,
         "profileId": config.profile_id,
+        "rootPath": str(config.root_path),
+        "sessionPath": str(config.session_path),
         "planId": config.plan_id,
         "planHash": config.plan_hash,
         "pid": pid,
@@ -618,6 +649,19 @@ def stop_runtime_session(root: Path | None = None, profile_id: str = "default") 
             profile_id=profile_id,
             message="session state отсутствует; останавливать нечего",
             session_path=session_path,
+            log_path=paths.logs_dir / f"{profile_id}.runtime.jsonl",
+        )
+
+    if not _path_belongs_to_root(record.get("binaryPath"), paths.root) or not _path_belongs_to_root(record.get("sessionPath"), paths.root):
+        return RuntimeSessionResult(
+            action="stop",
+            state="stale",
+            profile_id=profile_id,
+            message="session record относится к другому workspace; stop из текущего workspace запрещён",
+            session_path=session_path,
+            pid=int(record.get("pid", 0)) if int(record.get("pid", 0)) > 0 else None,
+            plan_id=str(record.get("planId", "")) or None,
+            plan_hash=str(record.get("planHash", "")) or None,
             log_path=paths.logs_dir / f"{profile_id}.runtime.jsonl",
         )
 

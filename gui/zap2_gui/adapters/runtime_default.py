@@ -500,6 +500,13 @@ def default_workflow_status(root: Path | None = None, profile_id: str = "default
                 workflow_state = str(record.get("state", "unknown"))
                 workflow_action = str(record.get("action", "unknown"))
                 message = str(record.get("ownerRulesResult", {}).get("message", "workflow state прочитан")) if isinstance(record.get("ownerRulesResult"), dict) else "workflow state прочитан"
+                root_path = record.get("rootPath")
+                if root_path:
+                    try:
+                        Path(str(root_path)).resolve().relative_to(paths.root.resolve())
+                    except Exception:
+                        workflow_state = "stale"
+                        message = "workflow state относится к другому workspace"
             else:
                 workflow_state = "unknown"
                 message = "workflow state marker не совпадает"
@@ -507,6 +514,9 @@ def default_workflow_status(root: Path | None = None, profile_id: str = "default
             workflow_state = "unknown"
             message = f"workflow state не удалось прочитать: {exc}"
     session = runtime_session_status(paths.root, profile_id=profile_id)
+    if workflow_state == "started" and session.state in {"stale", "unknown", "not-started"}:
+        workflow_state = "stale"
+        message = f"workflow state не подтверждён текущей session: {session.message}"
     return DefaultWorkflowStatus(
         profile_id=profile_id,
         strategy_id=strategy_id,
@@ -629,6 +639,7 @@ def execute_default_workflow(
         "schemaVersion": DEFAULT_WORKFLOW_SCHEMA_VERSION,
         "stage": DEFAULT_WORKFLOW_STAGE,
         "marker": DEFAULT_WORKFLOW_MARKER,
+        "rootPath": str(paths.root),
         "state": state,
         "action": action,
         "profileId": profile_id,

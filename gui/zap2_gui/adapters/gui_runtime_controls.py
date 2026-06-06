@@ -13,7 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .runtime_default import default_workflow_status, prepare_default_workflow_plan
-from .runtime_default_build import prepare_default_build_plan
+from .runtime_default_build import execute_default_build, prepare_default_build_plan
+from .build_dependencies import run_build_dependency_preflight
 from .runtime_state import confirm_runtime_plan
 from .gui_privilege import (
     gui_privileged_command_to_text,
@@ -68,9 +69,25 @@ def gui_runtime_commands(profile_id: str = "default") -> GuiRuntimeCommandSet:
     return GuiRuntimeCommandSet(profile_id=profile_id)
 
 
+def gui_default_build_deps(root: Path | None = None, profile_id: str = "default") -> str:
+    """Показать dependency preflight для default build без установки пакетов."""
+
+    discover_layout(root)
+    return run_build_dependency_preflight("nfqws2").to_text()
+
+
 def gui_prepare_default_build(root: Path | None = None, profile_id: str = "default") -> str:
     discover_layout(root)  # ранняя проверка workspace
     return prepare_default_build_plan(root=root, profile_id=profile_id).to_text()
+
+
+def gui_execute_default_build(root: Path | None = None, profile_id: str = "default") -> str:
+    """Исполнить подтверждённую локальную сборку из GUI без sudo."""
+
+    discover_layout(root)
+    result = execute_default_build(root=root, profile_id=profile_id, confirm_plan_id=DEFAULT_BUILD_PLAN_ID)
+    status = gui_default_status(root=root, profile_id=profile_id)
+    return "\n\n".join([result.to_text(), "После сборки текущий статус:", status])
 
 
 def gui_prepare_default_start(root: Path | None = None, profile_id: str = "default") -> str:
@@ -93,26 +110,64 @@ def gui_default_status(root: Path | None = None, profile_id: str = "default") ->
     return default_workflow_status(root=root, profile_id=profile_id).to_text()
 
 
+def _with_status_after_action(root: Path | None, profile_id: str, action_text: str, body: str) -> str:
+    """Append read-only status so GUI does not leave the owner guessing."""
+
+    try:
+        status = gui_default_status(root=root, profile_id=profile_id)
+    except Exception as exc:  # pragma: no cover - defensive GUI diagnostic path
+        status = f"Статус после действия не удалось прочитать: {exc}"
+    return "\n\n".join([body, f"Статус после действия: {action_text}", status])
+
+
+def _default_binary_guidance(root: Path | None) -> str | None:
+    layout = discover_layout(root)
+    binary = layout.root / "core" / "zapret2" / "nfq2" / "nfqws2"
+    if binary.is_file() and binary.stat().st_mode & 0o111:
+        return None
+    return "\n".join(
+        [
+            "Default start заблокирован до pkexec: nfqws2 binary отсутствует или не исполняемый.",
+            f"binary: {binary}",
+            "В GUI выполните полный build workflow:",
+            "1) Проверить зависимости сборки",
+            "2) План сборки",
+            "3) Подтвердить сборку",
+            "4) Собрать без sudo",
+            "5) План запуска",
+            "6) Подтвердить запуск",
+            "7) Включить через графический запрос прав",
+            "",
+            "pkexec/polkit сейчас не запускался; firewall/session не менялись.",
+        ]
+    )
+
+
 def gui_privileged_default_start(root: Path | None = None, profile_id: str = "default") -> str:
     """Запустить confirmed default-start через pkexec/polkit из GUI."""
 
-    return execute_gui_privileged_workflow(
+    guidance = _default_binary_guidance(root)
+    if guidance:
+        return _with_status_after_action(root, profile_id, "start blocked", guidance)
+    result = execute_gui_privileged_workflow(
         root=root,
         action="start",
         profile_id=profile_id,
         confirm_plan_id=DEFAULT_START_PLAN_ID,
     ).to_text()
+    return _with_status_after_action(root, profile_id, "start", result)
 
 
 def gui_privileged_default_stop(root: Path | None = None, profile_id: str = "default") -> str:
     """Запустить confirmed default-stop через pkexec/polkit из GUI."""
 
-    return execute_gui_privileged_workflow(
+    result = execute_gui_privileged_workflow(
         root=root,
         action="stop",
         profile_id=profile_id,
         confirm_plan_id=DEFAULT_STOP_PLAN_ID,
     ).to_text()
+    return _with_status_after_action(root, profile_id, "stop", result)
 
 
 def gui_privileged_default_start_command(root: Path | None = None, profile_id: str = "default") -> str:

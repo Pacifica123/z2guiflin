@@ -6,9 +6,12 @@ import shutil
 from pathlib import Path
 
 from zap2_gui.adapters.gui_runtime_controls import (
+    DEFAULT_BUILD_PLAN_ID,
     DEFAULT_START_PLAN_ID,
     gui_default_status,
+    gui_execute_default_build,
     gui_prepare_default_start,
+    gui_privileged_default_start,
     gui_privileged_default_start_command,
     gui_runtime_commands,
 )
@@ -139,3 +142,63 @@ def test_default_status_cli_is_read_only(capsys) -> None:
     out = capsys.readouterr().out
     assert "Default workflow status:" in out
     assert "executes now: no" in out
+
+
+
+def test_gui_start_blocks_before_pkexec_when_binary_missing(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    text = gui_privileged_default_start(project)
+
+    assert "Default start заблокирован до pkexec" in text
+    assert "nfqws2 binary отсутствует" in text
+    assert "pkexec/polkit сейчас не запускался" in text
+    assert "Статус после действия: start blocked" in text
+
+
+def test_gui_build_execute_reports_status_with_confirmed_fake_build(tmp_path: Path, monkeypatch) -> None:
+    project = _copy_project(tmp_path)
+    plan_text = __import__("zap2_gui.adapters.gui_runtime_controls", fromlist=["gui_prepare_default_build"]).gui_prepare_default_build(project)
+    assert DEFAULT_BUILD_PLAN_ID in plan_text
+    confirm_runtime_plan(project, DEFAULT_BUILD_PLAN_ID)
+
+    # Подменяем make на безопасный локальный fake, чтобы проверить именно GUI wrapper.
+    nfq = project / "core/zapret2/nfq2/nfqws2"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_make = fake_bin / "make"
+    fake_make.write_text(
+        "#!/usr/bin/env python3\n"
+        "import pathlib, stat\n"
+        f"p = pathlib.Path({str(nfq)!r})\n"
+        "p.parent.mkdir(parents=True, exist_ok=True)\n"
+        "p.write_text('#!/bin/sh\\nsleep 30\\n')\n"
+        "p.chmod(p.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)\n",
+        encoding="utf-8",
+    )
+    fake_make.chmod(0o755)
+    from zap2_gui.adapters import runtime_default_build as build_module
+    from zap2_gui.adapters.build_dependencies import BuildDependencyReport
+
+    monkeypatch.setattr(build_module, "_is_root", lambda: False)
+    monkeypatch.setattr(
+        build_module,
+        "run_build_dependency_preflight",
+        lambda target: BuildDependencyReport(
+            target=target,
+            stage="test",
+            marker="test",
+            checks=(),
+            install_hints={},
+        ),
+    )
+    old_path = os.environ.get("PATH", "")
+    try:
+        os.environ["PATH"] = f"{fake_bin}:{old_path}"
+        text = gui_execute_default_build(project)
+    finally:
+        os.environ["PATH"] = old_path
+
+    assert "Default build: built" in text
+    assert "После сборки текущий статус:" in text
+    assert nfq.exists()
+    assert os.access(nfq, os.X_OK)

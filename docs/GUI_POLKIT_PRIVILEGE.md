@@ -56,3 +56,16 @@ privileged start/stop не должны подменять себя термин
 
 Патч не добавляет автозапуск, не включает service mode и не смешивает bootstrap с
 runtime lifecycle.
+
+## Связь с build workflow
+
+`pkexec` используется только для privileged start/stop. Локальная сборка ядра не
+должна запускаться через `sudo` или `pkexec`, иначе build artifacts внутри
+workspace могут стать root-owned. Поэтому GUI содержит отдельную кнопку
+`Собрать без sudo`, а privileged кнопка `Включить` сначала проверяет наличие
+исполняемого `nfqws2` и не вызывает `pkexec`, если бинарник ещё не собран.
+
+После privileged действия GUI показывает read-only статус. Если статус говорит
+`not-started`, значит был только plan/confirmation или действие завершилось до
+session start. Если статус говорит `started` и `session status: running`, runtime
+считается включённым для текущего workspace.
