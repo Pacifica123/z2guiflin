@@ -113,3 +113,14 @@ sudo PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-defa
 ```
 
 Этот workflow не является bootstrap: он не скачивает код, не вызывает upstream installer scripts и не включает service mode. Реальные `default-start/default-stop` остаются локальными owner-confirmed действиями, а проверки используют fake runner без root.
+
+
+## Build dependency preflight
+
+Начиная с `v0.3-beta_stage_2`, перед локальной сборкой можно проверить системные dev-зависимости без установки пакетов и без запуска `make`:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --default-build-deps
+```
+
+Если отсутствуют заголовки вроде `libnetfilter_queue/libnetfilter_queue.h`, команда покажет missing dependency и owner action hints для популярных дистрибутивов. Само приложение не вызывает `sudo apt install` и не смешивает dependency setup с bootstrap/runtime.

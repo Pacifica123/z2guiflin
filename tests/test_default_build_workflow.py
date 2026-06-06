@@ -5,6 +5,7 @@ import shutil
 import stat
 from pathlib import Path
 
+from zap2_gui.adapters.build_dependencies import make_success_report, run_build_dependency_preflight
 from zap2_gui.adapters.runtime_default_build import (
     DEFAULT_BUILD_MARKER,
     DefaultBuildCommandResult,
@@ -38,6 +39,8 @@ def test_default_build_plan_is_hash_confirmed_and_safe(tmp_path: Path) -> None:
     assert saved["safety"]["containsRemoteBootstrap"] is False
     assert saved["safety"]["containsUpstreamInstallerScript"] is False
     assert saved["safety"]["automaticChecksMayExecute"] is False
+    assert saved["buildDependencyPreflight"]["runsMakeNow"] is False
+    assert "libnetfilter_queue" in str(saved["buildDependencyPreflight"])
     assert any(item["relativePath"] == "nfq2/nfqws2" for item in saved["expectedArtifacts"])
 
     confirmation = confirm_runtime_plan(project, plan.plan_id)
@@ -63,6 +66,7 @@ def test_default_build_execution_uses_fake_runner_and_writes_artifact_state(tmp_
         confirm_plan_id=plan.plan_id,
         runner=fake_runner,
         allow_as_root=True,
+        dependency_report=make_success_report(),
     )
 
     assert result.state == "built"
@@ -79,8 +83,40 @@ def test_default_build_refuses_missing_confirmation(tmp_path: Path) -> None:
     project = _copy_project(tmp_path)
     plan = prepare_default_build_plan(project, profile_id="default")
     try:
-        execute_default_build(project, profile_id="default", confirm_plan_id=plan.plan_id, runner=lambda cwd, argv: DefaultBuildCommandResult(cwd, argv, 0), allow_as_root=True)
+        execute_default_build(project, profile_id="default", confirm_plan_id=plan.plan_id, runner=lambda cwd, argv: DefaultBuildCommandResult(cwd, argv, 0), allow_as_root=True, dependency_report=make_success_report())
     except ValueError as exc:
         assert "Confirmation не найден" in str(exc)
     else:
         raise AssertionError("default build должен требовать owner confirmation")
+
+
+def test_default_build_blocks_before_make_when_dependencies_are_missing(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    plan = prepare_default_build_plan(project, profile_id="default")
+    confirm_runtime_plan(project, plan.plan_id)
+    calls: list[tuple[Path, tuple[str, ...]]] = []
+
+    def fake_runner(cwd: Path, argv: tuple[str, ...]) -> DefaultBuildCommandResult:
+        calls.append((cwd, argv))
+        return DefaultBuildCommandResult(cwd=cwd, argv=argv, returncode=0)
+
+    missing_report = run_build_dependency_preflight(
+        "nfqws2",
+        include_paths=(tmp_path / "empty-include",),
+        command_resolver=lambda command: f"/fake/{command}",
+    )
+    result = execute_default_build(
+        project,
+        profile_id="default",
+        confirm_plan_id=plan.plan_id,
+        runner=fake_runner,
+        allow_as_root=True,
+        dependency_report=missing_report,
+    )
+
+    assert result.state == "blocked"
+    assert calls == []
+    assert "dependency preflight" in result.to_text()
+    state = json.loads(result.state_path.read_text(encoding="utf-8"))
+    assert state["dependencyPreflight"]["ok"] is False
+    assert state["commands"] == []

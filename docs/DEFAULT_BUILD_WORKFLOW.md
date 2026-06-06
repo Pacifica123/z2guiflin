@@ -4,11 +4,24 @@
 
 Это не bootstrap и не installer. Workflow не скачивает исходники, не вызывает `install_easy.sh`, не запускает upstream installer scripts, не трогает `nftables`, не управляет `systemd` и не требует `sudo`. Единственная разрешённая мутация — build artifacts внутри `core/zapret2`.
 
-## Правильный порядок первого запуска
+## Проверка зависимостей сборки
 
-Сначала подготовить план сборки default build target:
+Перед сборкой можно выполнить read-only preflight:
 
 ```bash
+PYTHONPATH=gui python -m zap2_gui.app --default-build-deps
+```
+
+Он проверяет `make`, C-компилятор и dev-заголовки `zlib`, `libnetfilter_queue`, `libnfnetlink`, `libmnl`, LuaJIT/Lua. Если чего-то не хватает, команда показывает подсказки по пакетам, но не запускает `sudo` и не устанавливает ничего автоматически.
+
+`--default-build` теперь сам выполняет этот preflight перед `make`. Если зависимости отсутствуют, результат будет `blocked`, а не compiler-level `failed`: сборка не начнётся, state/log сохранят причину и owner action hints.
+
+## Правильный порядок первого запуска
+
+Сначала проверить зависимости и подготовить план сборки default build target:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --default-build-deps
 PYTHONPATH=gui python -m zap2_gui.app --default-build-plan
 ```
 
@@ -57,4 +70,4 @@ sudo PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-defa
 
 ## Границы
 
-Default build workflow не выполняется автоматическими проверками, не требует root, не меняет firewall/service state и не использует сеть. Если локальная система не содержит зависимостей сборки (`zlib`, `libnetfilter_queue`, `libnfnetlink`, `libmnl`, LuaJIT/Lua, `pthread` и toolchain), команда сборки честно завершится ошибкой и покажет stderr от `make`.
+Default build workflow не выполняется автоматическими проверками, не требует root, не меняет firewall/service state и не использует сеть. Если локальная система не содержит зависимостей сборки (`zlib`, `libnetfilter_queue`, `libnfnetlink`, `libmnl`, LuaJIT/Lua, `pthread` и toolchain), preflight блокирует `make` до запуска компилятора и показывает подсказки владельцу. Если preflight прошёл, но upstream Makefile всё равно завершился ошибкой, `default-build` сохраняет stderr и artifact status как раньше.

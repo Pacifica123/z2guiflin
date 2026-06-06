@@ -49,6 +49,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/qt_app.py",
     "gui/zap2_gui/adapters/gui_state.py",
     "gui/zap2_gui/adapters/local_build.py",
+    "gui/zap2_gui/adapters/build_dependencies.py",
     "gui/zap2_gui/adapters/workspace_profiles.py",
     "gui/zap2_gui/adapters/runtime_contracts.py",
     "gui/zap2_gui/adapters/runtime_plan_generator.py",
@@ -73,6 +74,8 @@ REQUIRED_PATHS = [
     "docs/CORE_INVENTORY.md",
     "docs/CORE_BUILD_MAP.md",
     "docs/LOCAL_BUILD_ADAPTER.md",
+    "docs/BUILD_DEPENDENCY_PREFLIGHT.md",
+    "docs/BUILD_DEPENDENCY_PREFLIGHT.md",
     "docs/WORKSPACE_PROFILES.md",
     "docs/STRATEGIES.md",
     "docs/RUNTIME_LIFECYCLE.md",
@@ -102,6 +105,7 @@ REQUIRED_PATHS = [
     "tools/check_runtime_service.py",
     "tools/check_runtime_default.py",
     "tools/check_default_build_workflow.py",
+    "tools/check_build_dependency_preflight.py",
     "tests/test_core_inventory_and_build_map.py",
     "tests/test_local_build_adapter.py",
     "tests/test_workspace_profiles_and_strategies.py",
@@ -113,6 +117,7 @@ REQUIRED_PATHS = [
     "tests/test_runtime_service_plans.py",
     "tests/test_default_workflow.py",
     "tests/test_default_build_workflow.py",
+    "tests/test_build_dependency_preflight.py",
 ]
 
 PROJECT_DOCUMENTATION_PATHS = [
@@ -130,6 +135,8 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/CORE_INVENTORY.md",
     "docs/CORE_BUILD_MAP.md",
     "docs/LOCAL_BUILD_ADAPTER.md",
+    "docs/BUILD_DEPENDENCY_PREFLIGHT.md",
+    "docs/BUILD_DEPENDENCY_PREFLIGHT.md",
     "docs/WORKSPACE_PROFILES.md",
     "docs/STRATEGIES.md",
     "docs/RUNTIME_LIFECYCLE.md",
@@ -275,6 +282,21 @@ def main() -> int:
     if "install_easy" in default_build_adapter or "systemctl" in default_build_adapter:
         print("Default build adapter не должен вызывать upstream installer scripts или service manager")
         return 1
+
+    build_deps_doc = (ROOT / "docs/BUILD_DEPENDENCY_PREFLIGHT.md").read_text(encoding="utf-8")
+    build_deps_adapter = (ROOT / "gui/zap2_gui/adapters/build_dependencies.py").read_text(encoding="utf-8")
+    if "--default-build-deps" not in app_py or "Build dependency preflight" not in build_deps_doc:
+        print("Build dependency preflight CLI/documentation отсутствуют")
+        return 1
+    for required in ("run_build_dependency_preflight", "BUILD_DEPENDENCY_MARKER", "libnetfilter_queue", "executes_install_now"):
+        if required not in build_deps_adapter:
+            print(f"Build dependency preflight adapter не содержит обязательный элемент: {required}")
+            return 1
+    forbidden_build_deps_fragments = ("subprocess", "os.system", "Popen", "check_call", "check_output", "install_prereq", "install_easy")
+    for fragment in forbidden_build_deps_fragments:
+        if fragment in build_deps_adapter:
+            print(f"Build dependency preflight adapter не должен устанавливать пакеты или запускать shell: {fragment}")
+            return 1
 
     default_workflow_doc = (ROOT / "docs/DEFAULT_WORKFLOW.md").read_text(encoding="utf-8")
     default_workflow_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_default.py").read_text(encoding="utf-8")
@@ -455,7 +477,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-beta OK; PyQt shell, русская документация, inventory, build map, local build adapter, default build workflow, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate, session runner, owner-confirmed apply/revert, service plans и default workflow зафиксированы")
+    print("Дерево v0.3-beta OK; PyQt shell, русская документация, inventory, build map, local build adapter, build dependency preflight, default build workflow, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate, session runner, owner-confirmed apply/revert, service plans и default workflow зафиксированы")
     return 0
 
 

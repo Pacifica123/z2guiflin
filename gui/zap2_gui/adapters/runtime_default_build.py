@@ -1,6 +1,6 @@
 """Owner-controlled default build workflow для v0.3-beta.
 
-Stage `v0.3-beta_stage_1` закрывает разрыв между default start workflow и
+Stage `v0.3-beta_stage_2` добавляет dependency preflight поверх Stage 1: теперь workflow не должен доходить до compiler error, если заранее отсутствуют системные build dependencies. Stage 1 закрывал разрыв между default start workflow и
 фактическим отсутствием локального бинарника `nfqws2`. Модуль не является
 bootstrap-слоем: он не скачивает код, не вызывает upstream installer scripts,
 не требует sudo и не меняет firewall/service state. Он только строит и, после
@@ -18,12 +18,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from .build_dependencies import (
+    BuildDependencyReport,
+    build_dependency_requirements_for_target,
+    run_build_dependency_preflight,
+)
 from .local_build import BuildCommand, LocalBuildPlan, create_local_build_plan, inspect_artifacts
 from .runtime_state import append_runtime_event, ensure_runtime_store, plan_payload_hash
 from .workspace_profiles import load_workspace_catalog
 from ..project_paths import discover_layout
 
-DEFAULT_BUILD_STAGE = "v0.3-beta_stage_1"
+DEFAULT_BUILD_STAGE = "v0.3-beta_stage_2"
 DEFAULT_BUILD_SCHEMA_VERSION = 1
 DEFAULT_BUILD_MARKER = "zap2-default-build-workflow-v1"
 
@@ -58,6 +63,7 @@ class DefaultBuildWorkflowPlan:
     rollback_path: Path
     log_path: Path
     local_build_plan: LocalBuildPlan
+    dependency_report: BuildDependencyReport
 
     @property
     def artifact_paths(self) -> tuple[Path, ...]:
@@ -80,6 +86,11 @@ class DefaultBuildWorkflowPlan:
                 "expected artifacts:",
                 *(artifact_lines or ["  - нет"]),
                 f"libraries hint: {libraries}",
+                "dependency preflight:",
+                f"  status: {self.dependency_report.summary_line()}",
+                *(f"  - {check.status}: {check.check_id} — {check.details}" for check in self.dependency_report.checks),
+                "  executes install now: no",
+                "  runs make now: no",
                 f"plan file: {self.plan_path}",
                 f"rollback notes: {self.rollback_path}",
                 f"runtime log: {self.log_path}",
@@ -113,6 +124,7 @@ class DefaultBuildExecutionResult:
     state_path: Path
     log_path: Path
     message: str
+    dependency_report: BuildDependencyReport | None = None
 
     def to_text(self) -> str:
         lines = [
@@ -125,8 +137,18 @@ class DefaultBuildExecutionResult:
             f"message: {self.message}",
             f"build state: {self.state_path}",
             f"runtime log: {self.log_path}",
+            f"dependency preflight: {self.dependency_report.summary_line() if self.dependency_report else 'not recorded'}",
             "executed commands:",
         ]
+        if self.dependency_report and self.dependency_report.missing_required:
+            lines.append("missing required dependencies:")
+            for check in self.dependency_report.missing_required:
+                lines.append(f"  - {check.check_id}: {check.details}")
+            lines.append("owner action hints:")
+            for family, commands in self.dependency_report.install_hints.items():
+                lines.append(f"  {family}:")
+                for command in commands:
+                    lines.append(f"    - {command}")
         for result in self.executed_commands:
             lines.append(f"  - rc={result.returncode}: cd {result.cwd} && {' '.join(result.argv)}")
             if result.stderr:
@@ -194,6 +216,7 @@ def _payload(root: Path, profile_id: str) -> tuple[dict[str, Any], LocalBuildPla
     plan_id = _default_build_plan_id(profile.profile_id, strategy_id)
     local_plan = create_local_build_plan(root, target=profile.build_target)
     artifact_status = inspect_artifacts(local_plan)
+    dependency_requirements = build_dependency_requirements_for_target(local_plan.target)
     payload = {
         "schemaVersion": DEFAULT_BUILD_SCHEMA_VERSION,
         "stage": DEFAULT_BUILD_STAGE,
@@ -214,6 +237,7 @@ def _payload(root: Path, profile_id: str) -> tuple[dict[str, Any], LocalBuildPla
             for status in artifact_status
         ],
         "requiredLibrariesHint": list(local_plan.required_libraries_hint),
+        "buildDependencyPreflight": dependency_requirements,
         "safety": {
             "requiresOwnerConfirmation": True,
             "requiresSudoWhenExecutedByOwner": False,
@@ -279,6 +303,7 @@ def prepare_default_build_plan(root: Path | None = None, profile_id: str = "defa
     layout = discover_layout(root)
     paths = ensure_runtime_store(layout.root)
     payload, local_plan, plan_id, strategy_id = _payload(paths.root, profile_id)
+    dependency_report = run_build_dependency_preflight(local_plan.target)
     plan_hash = plan_payload_hash(payload)
     record = {
         **payload,
@@ -305,7 +330,7 @@ def prepare_default_build_plan(root: Path | None = None, profile_id: str = "defa
             "planHash": plan_hash,
             "message": f"Prepared default build workflow plan for profile {profile_id}; make disabled until owner confirmation.",
             "createdAt": _utc_now(),
-            "metadata": {"profileId": profile_id, "strategyId": strategy_id, "buildTarget": local_plan.target},
+            "metadata": {"profileId": profile_id, "strategyId": strategy_id, "buildTarget": local_plan.target, "dependencyPreflight": dependency_report.to_dict()},
             "executesNow": False,
             "mutatesFirewallOrServicesNow": False,
             "managesServiceNow": False,
@@ -322,6 +347,7 @@ def prepare_default_build_plan(root: Path | None = None, profile_id: str = "defa
         rollback_path=rollback_path,
         log_path=log_path,
         local_build_plan=local_plan,
+        dependency_report=dependency_report,
     )
 
 
@@ -395,14 +421,16 @@ def execute_default_build(
     *,
     runner: BuildCommandRunner | None = None,
     allow_as_root: bool = False,
+    dependency_report: BuildDependencyReport | None = None,
 ) -> DefaultBuildExecutionResult:
     """Исполняет подтверждённую локальную сборку build target профиля."""
 
     layout = discover_layout(root)
     paths = ensure_runtime_store(layout.root)
     _saved, plan_hash, local_plan, plan_id, strategy_id = _load_confirmed_default_build_plan(paths.root, profile_id, confirm_plan_id)
+    effective_preflight = dependency_report or run_build_dependency_preflight(local_plan.target)
     if runner is None:
-        if shutil.which("make") is None:
+        if effective_preflight.ok and shutil.which("make") is None:
             raise ValueError("Команда make не найдена. Установите build toolchain и зависимости ядра.")
         runner = _default_runner
     if not allow_as_root and _is_root():
@@ -411,13 +439,17 @@ def execute_default_build(
     results: list[DefaultBuildCommandResult] = []
     state = "built"
     message = "default build completed"
-    for command in local_plan.commands:
-        result = runner(command.cwd, command.argv)
-        results.append(result)
-        if not result.ok:
-            state = "failed"
-            message = f"build command failed: {command.label}"
-            break
+    if not effective_preflight.ok:
+        state = "blocked"
+        message = "build dependency preflight failed: установите недостающие build dependencies и повторите --default-build"
+    if state == "built":
+        for command in local_plan.commands:
+            result = runner(command.cwd, command.argv)
+            results.append(result)
+            if not result.ok:
+                state = "failed"
+                message = f"build command failed: {command.label}"
+                break
     statuses = _artifact_status(local_plan)
     if state == "built" and not all(exists and executable for _path, exists, executable, _size in statuses):
         state = "failed"
@@ -435,6 +467,7 @@ def execute_default_build(
         "planId": plan_id,
         "planHash": plan_hash,
         "updatedAt": _utc_now(),
+        "dependencyPreflight": effective_preflight.to_dict(),
         "commands": [
             {"cwd": str(item.cwd.relative_to(paths.root)) if item.cwd.is_relative_to(paths.root) else str(item.cwd), "argv": list(item.argv), "returncode": item.returncode, "stdout": item.stdout, "stderr": item.stderr}
             for item in results
@@ -462,7 +495,7 @@ def execute_default_build(
             "planHash": plan_hash,
             "message": message,
             "createdAt": _utc_now(),
-            "metadata": {"profileId": profile_id, "strategyId": strategy_id, "statePath": str(state_path.relative_to(paths.root))},
+            "metadata": {"profileId": profile_id, "strategyId": strategy_id, "statePath": str(state_path.relative_to(paths.root)), "dependencyPreflight": effective_preflight.to_dict()},
             "executesNow": True,
             "mutatesFirewallOrServicesNow": False,
             "managesServiceNow": False,
@@ -481,4 +514,5 @@ def execute_default_build(
         state_path=state_path,
         log_path=log_path,
         message=message,
+        dependency_report=effective_preflight,
     )

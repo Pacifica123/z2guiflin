@@ -246,3 +246,10 @@ Stage 14 не смешивает runtime с bootstrap: upstream installer script
 Первый beta-патч закрывает практический разрыв, обнаруженный при ручной проверке Stage 14: `default-start` корректно останавливался на отсутствии `nfqws2`, но не давал штатного owner-confirmed пути сборки. Теперь default strategy имеет явный preflight-порядок: сначала `--default-build-plan`, затем `--runtime-confirm`, затем `--default-build` без `sudo`, после чего нужно заново подготовить и подтвердить `--default-start-plan`.
 
 Это не откат к installer-подходу. Build workflow использует только vendored-исходники, локальный `make`, runtime state/confirmation gate и логи `.zap2/runtime`. Он не скачивает код, не вызывает upstream installer scripts, не меняет firewall/service state и не исполняется devctl-проверками.
+
+
+## v0.3-beta_stage_2 — build dependency preflight
+
+После первого реального запуска `--default-build` выяснилось, что workflow корректно дошёл до локального `make`, но UX был недостаточным: при отсутствии `libnetfilter_queue` владелец видел compiler stderr вместо предварительной диагностики. Stage 2 beta добавляет `--default-build-deps` и встроенный preflight в `--default-build`.
+
+Правило на будущее: если workflow зависит от системных пакетов, сначала должен появиться read-only preflight с owner action hints. Автоматически устанавливать пакеты, запускать `sudo apt/dnf/pacman/zypper` или upstream `install_prereq.sh` нельзя.

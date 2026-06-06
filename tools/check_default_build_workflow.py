@@ -29,6 +29,7 @@ def main() -> int:
         execute_default_build,
         prepare_default_build_plan,
     )
+    from zap2_gui.adapters.build_dependencies import make_success_report
     from zap2_gui.adapters.runtime_state import confirm_runtime_plan
 
     project = _copy_project()
@@ -54,6 +55,9 @@ def main() -> int:
         if safety.get("automaticChecksMayExecute") is not False:
             print("Default build не должен исполняться автоматическими проверками")
             return 1
+        if saved.get("buildDependencyPreflight", {}).get("runsMakeNow") is not False:
+            print("Default build plan должен включать read-only dependency preflight contract")
+            return 1
 
         confirm_runtime_plan(project, plan.plan_id)
         calls: list[tuple[Path, tuple[str, ...]]] = []
@@ -71,6 +75,7 @@ def main() -> int:
             confirm_plan_id=plan.plan_id,
             runner=fake_runner,
             allow_as_root=True,
+            dependency_report=make_success_report(),
         )
         if result.state != "built":
             print("Fake default build должен завершиться built")
@@ -82,7 +87,7 @@ def main() -> int:
         if state.get("requiresSudo") is not False or state.get("mutatesFirewallOrServicesNow") is not False:
             print("Default build state должен фиксировать отсутствие sudo/firewall mutation")
             return 1
-        print("Default build workflow v0.3-beta Stage 1 OK; fake checks не запускают настоящий make")
+        print("Default build workflow v0.3-beta Stage 2 OK; fake checks не запускают настоящий make")
         return 0
     finally:
         shutil.rmtree(project.parent, ignore_errors=True)

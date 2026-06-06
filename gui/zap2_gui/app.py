@@ -6,6 +6,7 @@ import argparse
 import sys
 
 from . import PRODUCT_LABEL
+from .adapters.build_dependencies import run_build_dependency_preflight
 from .adapters.local_build import create_local_build_plan
 from .adapters.runtime_contracts import (
     runtime_contracts_to_text,
@@ -212,6 +213,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
     parser.add_argument(
+        "--default-build-deps",
+        action="store_true",
+        help="проверить build dependencies для default build target; без установки пакетов и без make",
+    )
+    parser.add_argument(
         "--default-build-plan",
         action="store_true",
         help="подготовить owner-confirmed local build plan для build target default profile; без запуска make",
@@ -403,6 +409,10 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 2
 
+
+    if args.default_build_deps:
+        print(run_build_dependency_preflight("nfqws2").to_text())
+        return 0
 
     if args.default_build_plan:
         try:

@@ -121,3 +121,10 @@ Default workflow Stage 14 использует vendored upstream binary path `co
 Default build workflow не меняет upstream-исходники и не добавляет installer wrapper. Он использует `BUILD_MAP.json` и Makefile самого vendored core, чтобы собрать `nfqws2` локально в `core/zapret2/nfq2/`. Это соответствует новой архитектуре проекта: upstream остаётся source core, а наш слой добавляет прозрачные plans, confirmations, logs и state вокруг него.
 
 Сборка не должна выполняться в devctl-проверках и не должна запускаться через `sudo`. Если требуются системные build dependencies, их устанавливает владелец машины вне проекта; GUI лишь показывает план, stderr и статус expected artifacts.
+
+
+## v0.3-beta Stage 2 и preflight зависимостей
+
+Build dependency preflight не меняет upstream-исходники и не оборачивает upstream installer scripts. Он читает требования, вытекающие из `BUILD_MAP.json` и Makefile `nfq2`, а затем проверяет локальную систему на наличие toolchain и dev-заголовков перед `make nfqws2`.
+
+Если отсутствует `libnetfilter_queue/libnetfilter_queue.h` или другой обязательный header, workflow теперь останавливается со статусом `blocked` до запуска компилятора. Установка пакетов остаётся owner action вне проекта; наш слой только показывает подсказки и сохраняет state/log.
