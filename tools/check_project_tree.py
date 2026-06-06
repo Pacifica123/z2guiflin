@@ -54,6 +54,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/runtime_plan_generator.py",
     "gui/zap2_gui/adapters/runtime_state.py",
     "gui/zap2_gui/adapters/runtime_session.py",
+    "gui/zap2_gui/adapters/runtime_apply.py",
     "gui/zap2_gui/models/navigation.py",
     "gui/zap2_gui/models/strategy.py",
     "gui/zap2_gui/models/workspace_profile.py",
@@ -76,6 +77,7 @@ REQUIRED_PATHS = [
     "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
     "docs/RUNTIME_STATE_AND_CONFIRMATION.md",
     "docs/RUNTIME_SESSION_RUNNER.md",
+    "docs/RUNTIME_APPLY_REVERT.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/VERSIONING.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
@@ -90,6 +92,7 @@ REQUIRED_PATHS = [
     "tools/check_runtime_plan_generator.py",
     "tools/check_runtime_state.py",
     "tools/check_runtime_session.py",
+    "tools/check_runtime_apply.py",
     "tests/test_core_inventory_and_build_map.py",
     "tests/test_local_build_adapter.py",
     "tests/test_workspace_profiles_and_strategies.py",
@@ -97,6 +100,7 @@ REQUIRED_PATHS = [
     "tests/test_runtime_plan_generator.py",
     "tests/test_runtime_state_and_confirmation.py",
     "tests/test_runtime_session_runner.py",
+    "tests/test_runtime_apply_revert.py",
 ]
 
 PROJECT_DOCUMENTATION_PATHS = [
@@ -121,6 +125,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
     "docs/RUNTIME_STATE_AND_CONFIRMATION.md",
     "docs/RUNTIME_SESSION_RUNNER.md",
+    "docs/RUNTIME_APPLY_REVERT.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",
@@ -311,6 +316,36 @@ def main() -> int:
         print("CLI Stage 11 должен иметь runtime session start/status/stop commands")
         return 1
 
+
+    runtime_apply_doc = (ROOT / "docs/RUNTIME_APPLY_REVERT.md").read_text(encoding="utf-8")
+    runtime_apply_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_apply.py").read_text(encoding="utf-8")
+    if "owner-confirmed" not in runtime_apply_doc or "nftables" not in runtime_apply_doc:
+        print("Runtime apply/revert Stage 12 не зафиксирован в документации")
+        return 1
+    required_runtime_apply_symbols = (
+        "create_runtime_apply_plan",
+        "prepare_runtime_owner_rules_plan",
+        "execute_runtime_owner_rules",
+        "RuntimeApplyPlan",
+        "APPLY_MARKER",
+    )
+    for symbol in required_runtime_apply_symbols:
+        if symbol not in runtime_apply_adapter:
+            print(f"Runtime apply adapter не содержит {symbol}")
+            return 1
+    if "install_easy" in runtime_apply_adapter or "curl" in runtime_apply_adapter or "wget" in runtime_apply_adapter:
+        print("Runtime apply adapter не должен содержать remote/bootstrap installer fragments")
+        return 1
+    if "systemctl" in runtime_apply_adapter:
+        print("Runtime apply adapter Stage 12 не должен управлять service mode")
+        return 1
+    if "nft" not in runtime_apply_adapter or "DEFAULT_NFT_TABLE_PREFIX" not in runtime_apply_adapter or "queue num" not in runtime_apply_adapter:
+        print("Runtime apply adapter должен явно описывать nftables apply/revert")
+        return 1
+    if "--runtime-apply-plan" not in app_py or "--runtime-revert-plan" not in app_py or "--runtime-apply" not in app_py or "--runtime-revert" not in app_py:
+        print("CLI Stage 12 должен иметь runtime apply/revert plan и execution commands")
+        return 1
+
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
     if "русском" not in language_doc or "проектная документация" not in language_doc:
         print("Правило русского языка документации не зафиксировано")
@@ -342,7 +377,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate и session runner зафиксированы")
+    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate, session runner и owner-confirmed apply/revert зафиксированы")
     return 0
 
 

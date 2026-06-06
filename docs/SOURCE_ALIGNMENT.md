@@ -99,3 +99,10 @@ Stage 10 усиливает исходную цель проекта: все п�
 Runtime session runner запускает vendored binary `core/zapret2/nfq2/nfqws2`, но не меняет upstream source tree и не использует upstream installer scripts. Args file, PID, logs и session marker создаются в `.zap2/runtime`, то есть в нашем application state layer.
 
 Это сохраняет разделение: upstream-ядро остаётся source input, а наш GUI отвечает за plan/confirmation/session lifecycle вокруг него.
+
+
+## Stage 12: соответствие upstream interception model
+
+Upstream zapret2 описывает Linux interception через netfilter/nftables/iptables и отделяет `nfqws2` от startup scripts. Stage 12 следует этой модели: мы не запускаем upstream installer scripts и не копируем init/systemd-обвязку, а создаём минимальный собственный nftables backend как application-layer plan.
+
+Default Stage 12 backend intentionally narrow: локальный `output` hook, отдельная table `inet zap2_default`, NFQUEUE `200`. Это не претензия на полное покрытие router-сценариев upstream. Расширение до WAN/LAN профилей должно идти через новые стратегии и profiles, а не через скрытый installer.

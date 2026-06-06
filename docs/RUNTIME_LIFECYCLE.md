@@ -95,3 +95,10 @@ Stage 9 не расширяет права исполнения. Он тольк
 Stage 11 переводит `session plan` из чистого контракта в guarded executor для одного процесса `nfqws2`. Executor требует prepared start-plan и confirmation для текущего `planHash`, создаёт args file, запускает процесс, пишет PID/state/log и умеет остановить только записанный PID.
 
 Эта стадия всё ещё не является полноценным default workflow: она не создаёт NFQUEUE rules, не вызывает firewall tooling, не устанавливает service и не делает автозапуск. Её задача — закрыть только process lifecycle, чтобы будущий apply/revert мог подключиться к уже проверенному session boundary.
+
+
+## Stage 12 и граница apply/revert
+
+`apply plan` теперь имеет первый guarded executor, но он остаётся отдельным от `session plan`. Это значит, что запуск `nfqws2` не создаёт firewall rules сам по себе, а применение системных правил не запускает процесс. Будущий default start workflow должен явно выполнить оба шага: owner-confirmed apply, затем confirmed session start.
+
+`revert plan` должен существовать до полноценного start workflow. Stage 12 фиксирует это через отдельный plan id для `revert` и rollback notes. Revert удаляет только owned markers/rules, созданные apply-слоем, и не должен лечить чужую конфигурацию firewall.

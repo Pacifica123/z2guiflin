@@ -188,6 +188,12 @@ Stage 10 добавляет локальный workspace state store `.zap2/runt
 
 ## Runtime session runner
 
-Stage 11 добавляет `gui/zap2_gui/adapters/runtime_session.py`. Этот файл находится в GUI/application layer, потому что он управляет workflow нашего приложения вокруг vendored-ядра, а не меняет upstream-исходники.
+Stage 11 добавляет `gui/zap2_gui/adapters/runtime_session.py
+  gui/zap2_gui/adapters/runtime_apply.py`. Этот файл находится в GUI/application layer, потому что он управляет workflow нашего приложения вокруг vendored-ядра, а не меняет upstream-исходники.
 
 Session state остаётся в `.zap2/runtime/sessions/`, а логи — в `.zap2/runtime/logs/`. Эти файлы не коммитятся, потому что отражают локальное состояние машины владельца. Проверки Stage 11 используют временный fake `nfqws2` в копии workspace, чтобы проверить lifecycle без сборки C-ядра, firewall rules, service manager и повышенных привилегий.
+
+
+## Stage 12 добавление
+
+`runtime_apply.py` — adapter owner-confirmed apply/revert. Он строит nftables plans, сохраняет их через `.zap2/runtime`, проверяет confirmation и умеет исполнять только подтверждённый plan. Автотесты используют fake runner, поэтому структура проекта остаётся проверяемой без root.

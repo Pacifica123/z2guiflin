@@ -16,6 +16,11 @@ from .adapters.runtime_plan_generator import (
     SUPPORTED_RUNTIME_PLAN_ACTIONS,
     runtime_plan_to_text,
 )
+from .adapters.runtime_apply import (
+    execute_runtime_owner_rules,
+    prepare_runtime_owner_rules_plan,
+    runtime_apply_plan_to_text,
+)
 from .adapters.runtime_state import (
     confirm_runtime_plan,
     prepare_runtime_plan,
@@ -64,6 +69,7 @@ def describe_project() -> str:
             f"workspace profiles: {len(workspace_catalog.profiles)}; strategies: {len(workspace_catalog.strategies)}",
             f"runtime lifecycle contracts: {runtime_contract_status}",
             f"runtime session runner: Stage 11 ({runtime_state_summary})",
+            "runtime apply/revert: Stage 12 owner-confirmed nftables plans",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: bootstrap/read-only baseline with optional GUI launch",
@@ -127,6 +133,33 @@ def build_parser() -> argparse.ArgumentParser:
         "--runtime-log",
         action="store_true",
         help="показать локальный runtime log из .zap2/runtime/logs без исправлений и исполнения",
+    )
+
+
+    parser.add_argument(
+        "--runtime-apply-plan",
+        action="store_true",
+        help="подготовить owner-confirmed nftables apply plan; без исполнения",
+    )
+    parser.add_argument(
+        "--runtime-revert-plan",
+        action="store_true",
+        help="подготовить owner-confirmed nftables revert plan; без исполнения",
+    )
+    parser.add_argument(
+        "--runtime-apply",
+        action="store_true",
+        help="исполнить подтверждённый owner-rules apply plan; требует sudo локально",
+    )
+    parser.add_argument(
+        "--runtime-revert",
+        action="store_true",
+        help="исполнить подтверждённый owner-rules revert plan; требует sudo локально",
+    )
+    parser.add_argument(
+        "--confirm",
+        metavar="PLAN_ID",
+        help="plan id для owner-confirmed apply/revert execution",
     )
 
     parser.add_argument(
@@ -224,6 +257,41 @@ def main(argv: list[str] | None = None) -> int:
     if args.runtime_log:
         print(runtime_log_to_text(profile_id=args.profile))
         return 0
+
+
+    if args.runtime_apply_plan:
+        try:
+            prepared = prepare_runtime_owner_rules_plan(action="apply", profile_id=args.profile)
+            print(prepared.to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.runtime_revert_plan:
+        try:
+            prepared = prepare_runtime_owner_rules_plan(action="revert", profile_id=args.profile)
+            print(prepared.to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.runtime_apply:
+        try:
+            print(execute_runtime_owner_rules(action="apply", profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.runtime_revert:
+        try:
+            print(execute_runtime_owner_rules(action="revert", profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
 
     if args.runtime_session_start:
         try:

@@ -99,3 +99,24 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-plan status --profile default
 Stage 10 добавляет состояние prepared plan. Сгенерированный plan сериализуется в стабильный JSON-compatible payload, после чего для него считается SHA-256 `planHash`. Confirmation record хранит этот hash и флаги `expiresWhenPlanChanges=true`, `allowsAutomaticReuse=false`.
 
 Это правило важно для будущего исполнения: пользователь подтверждает не абстрактный `start`, а конкретный план с конкретным набором секций, команд-preview, rollback notes, binary path, hostlists и safety flags.
+
+
+## Owner-rules plans Stage 12
+
+Для системных правил используются отдельные plan id:
+
+```text
+runtime-default-manual-local-apply-owner-rules-plan
+runtime-default-manual-local-revert-owner-rules-plan
+```
+
+Они не заменяют `runtime-default-manual-local-start-plan` и `runtime-default-manual-local-stop-plan`. Start/stop остаются верхнеуровневым workflow, а apply/revert являются их системной частью.
+
+Каждый owner-rules plan обязан содержать:
+
+- `planHash`;
+- `confirmationRequired=true`;
+- `containsRemoteBootstrap=false`;
+- `containsUpstreamInstallerScript=false`;
+- rollback notes до исполнения;
+- список точечных `nft` argv без shell-склейки.

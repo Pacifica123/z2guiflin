@@ -69,3 +69,8 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-session-stop --profile default
 ```
 
 Adapter требует prepared/confirmed start-plan, пишет session state в `.zap2/runtime/sessions/`, ведёт runtime log и не управляет firewall, routing или systemd. Будущий PyQt экран `Стратегии` сможет использовать этот слой для кнопок session start/status/stop, но privileged apply/revert должен остаться отдельным workflow.
+
+
+## Stage 12: apply/revert как GUI-данные
+
+GUI-слой получил adapter `runtime_apply.py`. Будущие PyQt-экраны должны показывать owner-rules plan, confirmation status, rollback notes и результат apply/revert как структурированные данные. Кнопки применения не должны обходить `planHash`/confirmation gate.

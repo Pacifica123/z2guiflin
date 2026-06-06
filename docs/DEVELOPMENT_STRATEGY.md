@@ -199,3 +199,12 @@ Stage 10 продолжает controlled runtime lifecycle после generator.
 Stage 11 впервые добавляет исполняемый runtime-компонент, но его область намеренно узкая: только lifecycle локального процесса `nfqws2`, только после prepared start-plan и owner confirmation, только с записью PID/state/log в `.zap2/runtime`. Runner не применяет системные правила, не управляет service mode и не смешивает процесс с bootstrap.
 
 Ключевая граница этапа: `start` может создать процесс, `status` может прочитать session state, `stop` может остановить только PID с нашим marker. Firewall/routing apply, privileged revert и service plans остаются следующими отдельными stages.
+
+
+## Stage 12: owner-confirmed apply/revert plan
+
+Stage 12 впервые добавляет controlled privileged apply/revert, но не смешивает его с bootstrap и не прячет за session runner. Системные правила представлены отдельным adapter-слоем `runtime_apply.py`: сначала создаётся plan, затем он сохраняется в `.zap2/runtime/plans/`, получает `planHash`, подтверждается owner confirmation и только после этого может быть исполнен локальным владельцем через `sudo`.
+
+Default backend Stage 12 — `nftables`: отдельная table `inet zap2_default`, отдельная chain `local_out`, NFQUEUE `200` для локального TCP 80/443 и UDP 443. Revert удаляет только owned table и не делает глобальный firewall reset. Это минимальная single-user схема для default strategy, а не универсальный router installer.
+
+Devctl-проверки Stage 12 не вызывают настоящий `nft`, не требуют root и не меняют firewall. Они проверяют только структуру плана, hash/confirmation gate и fake-runner execution. Service mode остаётся будущим Stage 13.
