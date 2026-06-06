@@ -1,78 +1,25 @@
-# GUI-запрос прав через polkit
+# GUI-запрос прав через sudo askpass
 
-Этот документ фиксирует правило для privileged действий из PyQt GUI: приложение не
-просит пароль само, не хранит пароль и не просит вводить `sudo` в терминале после
-нажатия кнопки.
+Начиная с `v0.3-beta_stage_12` основной GUI-путь privileged start/stop использует не `pkexec`, а `sudo -A` + `SUDO_ASKPASS`. Причина практическая: на целевой системе `pkexec` успешно показывал графический запрос прав, но запускал `nfqws2` так, что после privilege drop процесс терял возможность создать NFQUEUE и падал на `nfq_create_queue(): Operation not permitted`. Ручной `sudo`-путь при этом уже был рабочим.
 
-Для включения и отключения default workflow GUI использует системный механизм
-polkit через `pkexec`:
+Новая цепочка:
 
 ```text
-PyQt button -> pkexec/polkit -> графический authentication agent -> python -m zap2_gui.app --default-start/--default-stop
+PyQt button -> sudo -A -> SUDO_ASKPASS helper -> python -m zap2_gui.app --default-start/--default-stop
 ```
 
-## Что теперь делает GUI
+Пароль не вводится в терминале. GUI создаёт временный executable helper в `.zap2/runtime/askpass/zap2-sudo-askpass`, который запускает `python -m zap2_gui.askpass` и показывает графический диалог. Пароль не сохраняется в `.zap2`, не пишется в runtime logs и не передаётся ассистенту. Он только выводится в stdout askpass-helper по стандартному протоколу `sudo -A`.
 
-Во вкладке `Обзор` появляются две privileged-кнопки:
+## Почему не собственный root-helper
 
-```text
-Включить через графический запрос прав
-Отключить через графический запрос прав
-```
+Мы не вводим setuid-бинарник и не ставим постоянный privileged daemon. Runtime остаётся owner-controlled:
 
-Перед запуском кнопка показывает локальное предупреждение, затем вызывает
-`pkexec`. Пароль или подтверждение показывает desktop authentication agent
-окружения рабочего стола. Приложение не принимает пароль как строку и не передаёт
-его в subprocess.
+1. GUI строит план.
+2. GUI сохраняет confirmation для конкретного `planHash`.
+3. GUI вызывает `sudo -A` только для уже подтверждённого плана.
+4. `default-start` применяет только owned nftables table и запускает session.
+5. При падении session выполняется rollback owner-rules.
 
-## Что остаётся обязательным
+## Drop identity
 
-GUI не отменяет lifecycle gate. Перед privileged запуском всё ещё нужны:
-
-```text
-1. default-start-plan / default-stop-plan
-2. runtime-confirm соответствующего plan id
-3. только потом GUI-кнопка privileged start/stop
-```
-
-То есть кнопка не является обходным путём вокруг `planHash` и confirmation-файла.
-Если plan не сохранён или confirmation устарел, обычный CLI workflow завершится
-ошибкой, а GUI покажет эту ошибку в выводе.
-
-## Почему не sudo в терминале
-
-`sudo` из GUI обычно приводит к плохому UX: пользователь нажимает кнопку в окне,
-а пароль должен вводить в терминале, из которого приложение было запущено.
-Поэтому для GUI-режима выбран `pkexec`/polkit.
-
-`sudo` остаётся допустимым для ручного CLI-сценария разработчика, но GUI-кнопки
-privileged start/stop не должны подменять себя терминальным `sudo`.
-
-## Ограничения
-
-Для работы нужен установленный `pkexec` и активный polkit authentication agent в
-текущей desktop-сессии. Если agent не запущен, GUI покажет ошибку `pkexec`, но не
-будет падать обратно в терминальный ввод пароля.
-
-Патч не добавляет автозапуск, не включает service mode и не смешивает bootstrap с
-runtime lifecycle.
-
-## Связь с build workflow
-
-`pkexec` используется только для privileged start/stop. Локальная сборка ядра не
-должна запускаться через `sudo` или `pkexec`, иначе build artifacts внутри
-workspace могут стать root-owned. Поэтому GUI содержит отдельную кнопку
-`Собрать без sudo`, а privileged кнопка `Включить` сначала проверяет наличие
-исполняемого `nfqws2` и не вызывает `pkexec`, если бинарник ещё не собран.
-
-После privileged действия GUI показывает read-only статус. Если статус говорит
-`not-started`, значит был только plan/confirmation или действие завершилось до
-session start. Если статус говорит `started` и `session status: running`, runtime
-считается включённым для текущего workspace.
-
-
-## GUI/pkexec и NFQUEUE capability
-
-В Stage 7 GUI/pkexec временно форсировал `ZAP2_RUNTIME_DROP_IDENTITY=polkit-root`, что добавляло `--uid=0:0` для `nfqws2`. После переноса hostlist и Lua init-файлов в public runtime directory это оказалось лишним и на некоторых системах приводило к `nfq_create_queue(): Operation not permitted`.
-
-Теперь GUI/pkexec start передаёт `ZAP2_RUNTIME_DROP_IDENTITY=upstream-default`: session runner не добавляет явный `--uid`, а оставляет upstream default privilege-drop логику `nfqws2`. GUI по-прежнему не хранит пароль: подтверждение выполняет системный polkit agent.
+GUI больше не форсирует `ZAP2_RUNTIME_DROP_IDENTITY=upstream-default` и не передаёт `--uid=0:0`. Через `sudo -A` используется тот же путь, что и у ручного sudo: `nfqws2` получает `--uid=<SUDO_UID>:<SUDO_GID>` от session runner. Public runtime inputs для hostlist и Lua init-файлов остаются обязательными, чтобы файлы были доступны после `dropcaps()`.

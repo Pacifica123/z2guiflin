@@ -269,16 +269,16 @@ Stage 4 переносит первую базовую стратегию из W
 
 Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.
 
-### v0.3-beta stage 5 — GUI polkit privilege bridge
+### v0.3-beta stage 5 — GUI sudo askpass privilege bridge
 
-Цель этапа: перенести privileged start/stop default workflow в PyQt GUI через системный графический запрос прав polkit (`pkexec`), не используя терминальный `sudo` после нажатия кнопки и не обходя runtime confirmation gate.
+Цель этапа: перенести privileged start/stop default workflow в PyQt GUI через системный графический запрос прав графический sudo askpass, не используя терминальный `sudo` после нажатия кнопки и не обходя runtime confirmation gate.
 
 ## v0.3-beta_stage_6 — GUI workflow ясность и stale-state диагностика
 
-После появления polkit-кнопок нужно закрыть UX-разрыв между планированием и
+После появления sudo askpass-кнопок нужно закрыть UX-разрыв между планированием и
 исполнением. GUI обязан показывать не только `План сборки` и `Подтвердить
 сборку`, но и явное действие `Собрать без sudo`. Privileged `Включить` не должен
-вызывать `pkexec`, если `nfqws2` отсутствует или не исполняемый: сначала нужно
+вызывать `sudo -A`, если `nfqws2` отсутствует или не исполняемый: сначала нужно
 показать owner-facing инструкцию по build workflow.
 
 Также runtime state нельзя считать актуальным, если `.zap2/runtime` был перенесён
@@ -290,7 +290,7 @@ Stage 4 переносит первую базовую стратегию из W
 
 ## v0.3-beta stage 7 — GUI toggle и runtime logs
 
-Цель stage 7: сделать основной GUI-поток включения/выключения Default однокнопочным, сохранить confirmation-gate внутри автоматизированной цепочки, исправить GUI/pkexec session identity для NFQUEUE и показывать причины падений на вкладке `Логи`.
+Цель stage 7: сделать основной GUI-поток включения/выключения Default однокнопочным, сохранить confirmation-gate внутри автоматизированной цепочки, исправить GUI/sudo-askpass session identity для NFQUEUE и показывать причины падений на вкладке `Логи`.
 
 
 ## v0.3-beta_stage_8 — runtime session inputs
@@ -298,11 +298,11 @@ Stage 4 переносит первую базовую стратегию из W
 Hotfix закрепляет правило: privileged GUI start должен передавать `nfqws2` не исходный абсолютный hostlist path, а подготовленную runtime-копию из `.zap2/runtime/session-inputs/`. Это снижает зависимость от домашнего каталога, umask и повторной проверки hostlist после `dropcaps()`.
 
 
-## v0.3-beta_stage_9 — public runtime inputs для GUI/pkexec
+## v0.3-beta_stage_9 — public runtime inputs для GUI/sudo-askpass
 
 Исправление Stage 8: runtime hostlist copy переносится из `.zap2/runtime/session-inputs/` в public tmp-like директорию `/tmp/zap2-runtime-inputs/...`. Причина — `nfqws2` после `dropcaps()` может потерять возможность проходить приватные родительские директории workspace, даже если сам hostlist-файл внутри `.zap2` имеет `0644`.
 
-Правило: GUI/pkexec start должен передавать `nfqws2` hostlist path, доступный после `dropcaps()`, и обязан сохранять rollback/log trail.
+Правило: GUI/sudo-askpass start должен передавать `nfqws2` hostlist path, доступный после `dropcaps()`, и обязан сохранять rollback/log trail.
 
 ## v0.3-beta_stage_10 — public Lua runtime inputs
 

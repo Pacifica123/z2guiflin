@@ -67,7 +67,7 @@ def main() -> int:
         return 1
 
     session_py = (ROOT / "gui/zap2_gui/adapters/runtime_session.py").read_text(encoding="utf-8")
-    if "ZAP2_RUNTIME_DEBUG" not in session_py or "args.extend(plan.strategy.runtime_args)" not in session_py:
+    if "ZAP2_RUNTIME_DEBUG" not in session_py or "args.extend(strategy_runtime_args)" not in session_py:
         print("Session runner должен читать runtimeArgs стратегии и включать debug только явно")
         return 1
 
@@ -76,8 +76,8 @@ def main() -> int:
         "--default-start-plan",
         "--default-stop-plan",
         "--default-status",
-        "pkexec",
-        "polkit",
+        "sudo -A",
+        "SUDO_ASKPASS",
         "Включить через графический запрос прав",
         "Отключить через графический запрос прав",
         "asks password in terminal: no",
@@ -90,7 +90,7 @@ def main() -> int:
         print("GUI privileged controls не должны предлагать терминальный sudo как основной путь")
         return 1
 
-    print("Default strategy import + GUI runtime controls + polkit bridge: OK")
+    print("Default strategy import + GUI runtime controls + sudo-askpass bridge: OK")
     return 0
 
 

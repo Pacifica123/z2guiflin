@@ -3,8 +3,8 @@
 Этот слой переносит уже существующие CLI workflow в PyQt shell как явные
 действия с текстовым выводом. Он не обходит confirmation-gate и не делает hidden
 apply. Непривилегированные действия выполняются напрямую, а privileged start/stop
-передаются отдельному GUI polkit adapter через pkexec, чтобы пароль запрашивал
-системный графический authentication agent, а не терминальный sudo.
+передаются отдельному GUI sudo-askpass adapter, чтобы пароль запрашивался
+в графическом окне, а не в терминале.
 """
 
 from __future__ import annotations
@@ -53,9 +53,9 @@ def gui_toggle_default_workflow(root: Path | None = None, profile_id: str = "def
     """One-button default workflow for the PyQt shell.
 
     Если default уже запущен, функция строит/подтверждает stop-plan и вызывает
-    GUI privileged stop через pkexec. Если default не запущен, функция при
+    GUI privileged stop через sudo-askpass. Если default не запущен, функция при
     необходимости выполняет build workflow без sudo, затем строит/подтверждает
-    start-plan и вызывает GUI privileged start через pkexec.
+    start-plan и вызывает GUI privileged start через sudo-askpass.
     """
 
     status = default_workflow_status(root=root, profile_id=profile_id)
@@ -65,7 +65,7 @@ def gui_toggle_default_workflow(root: Path | None = None, profile_id: str = "def
         parts.append(gui_prepare_default_stop(root=root, profile_id=profile_id))
         parts.append("\nШаг 2/3: подтверждение stop-plan")
         parts.append(gui_confirm_plan(root=root, plan_id=DEFAULT_STOP_PLAN_ID))
-        parts.append("\nШаг 3/3: privileged stop через графический polkit prompt")
+        parts.append("\nШаг 3/3: privileged stop через графический sudo prompt")
         parts.append(gui_privileged_default_stop(root=root, profile_id=profile_id))
         parts.append("\nRuntime logs:")
         parts.append(gui_runtime_logs(root=root, profile_id=profile_id))
@@ -96,7 +96,7 @@ def gui_toggle_default_workflow(root: Path | None = None, profile_id: str = "def
     parts.append(gui_prepare_default_start(root=root, profile_id=profile_id))
     parts.append(f"\nШаг {next_step + 1}/{total_steps}: подтверждение start-plan")
     parts.append(gui_confirm_plan(root=root, plan_id=DEFAULT_START_PLAN_ID))
-    parts.append(f"\nШаг {next_step + 2}/{total_steps}: privileged start через графический polkit prompt")
+    parts.append(f"\nШаг {next_step + 2}/{total_steps}: privileged start через графический sudo prompt")
     parts.append(gui_privileged_default_start(root=root, profile_id=profile_id))
     parts.append("\nRuntime logs:")
     parts.append(gui_runtime_logs(root=root, profile_id=profile_id))
@@ -126,7 +126,7 @@ class GuiRuntimeCommandSet:
                 "2) Запуск:",
                 "PYTHONPATH=gui python -m zap2_gui.app --default-start-plan",
                 f"PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm {self.start_plan_id}",
-                f"GUI button: Включить через графический запрос прав (pkexec) -> --default-start --confirm {self.start_plan_id}",
+                f"GUI button: Включить через графический sudo-запрос -> --default-start --confirm {self.start_plan_id}",
                 "",
                 "3) Статус:",
                 "PYTHONPATH=gui python -m zap2_gui.app --default-status",
@@ -134,9 +134,9 @@ class GuiRuntimeCommandSet:
                 "4) Отключение:",
                 "PYTHONPATH=gui python -m zap2_gui.app --default-stop-plan",
                 f"PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm {self.stop_plan_id}",
-                f"GUI button: Отключить через графический запрос прав (pkexec) -> --default-stop --confirm {self.stop_plan_id}",
+                f"GUI button: Отключить через графический sudo-запрос -> --default-stop --confirm {self.stop_plan_id}",
                 "",
-                "GUI не просит пароль в терминале: privileged start/stop идут через pkexec/polkit и требуют заранее сохранённый confirmation.",
+                "GUI не просит пароль в терминале: privileged start/stop идут через sudo -A/SUDO_ASKPASS и требуют заранее сохранённый confirmation.",
             ]
         )
 
@@ -203,7 +203,7 @@ def _default_binary_guidance(root: Path | None) -> str | None:
         return None
     return "\n".join(
         [
-            "Default start заблокирован до pkexec: nfqws2 binary отсутствует или не исполняемый.",
+            "Default start заблокирован до privileged start: nfqws2 binary отсутствует или не исполняемый.",
             f"binary: {binary}",
             "В GUI выполните полный build workflow:",
             "1) Проверить зависимости сборки",
@@ -214,13 +214,13 @@ def _default_binary_guidance(root: Path | None) -> str | None:
             "6) Подтвердить запуск",
             "7) Включить через графический запрос прав",
             "",
-            "pkexec/polkit сейчас не запускался; firewall/session не менялись.",
+            "sudo-askpass сейчас не запускался; firewall/session не менялись.",
         ]
     )
 
 
 def gui_privileged_default_start(root: Path | None = None, profile_id: str = "default") -> str:
-    """Запустить confirmed default-start через pkexec/polkit из GUI."""
+    """Запустить confirmed default-start через графический sudo askpass из GUI."""
 
     guidance = _default_binary_guidance(root)
     if guidance:
@@ -235,7 +235,7 @@ def gui_privileged_default_start(root: Path | None = None, profile_id: str = "de
 
 
 def gui_privileged_default_stop(root: Path | None = None, profile_id: str = "default") -> str:
-    """Запустить confirmed default-stop через pkexec/polkit из GUI."""
+    """Запустить confirmed default-stop через графический sudo askpass из GUI."""
 
     result = execute_gui_privileged_workflow(
         root=root,

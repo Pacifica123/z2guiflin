@@ -91,4 +91,4 @@ GUI-слой получил adapter `runtime_default_build.py`. На CLI он д
 Важно не встраивать сборку внутрь `default-start`, потому что `default-start` запускается через `sudo` ради nftables apply. Сборка под root может оставить root-owned artifacts в рабочем дереве и нарушить локальный developer workflow.
 ## Графический запрос прав
 
-Вкладка `Обзор` содержит кнопки включения и отключения default workflow через `pkexec`/polkit. Перед нажатием privileged-кнопки пользователь всё ещё должен создать plan и сохранить confirmation.
+Вкладка `Обзор` содержит кнопки включения и отключения default workflow через `sudo -A`/SUDO_ASKPASS. Перед нажатием privileged-кнопки пользователь всё ещё должен создать plan и сохранить confirmation.

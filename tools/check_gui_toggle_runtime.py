@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Проверка GUI toggle/logs и polkit upstream-default bridge."""
+"""Проверка GUI toggle/logs и графического sudo-askpass bridge."""
 
 from __future__ import annotations
 
@@ -16,18 +16,24 @@ from zap2_gui.adapters.runtime_logs import runtime_log_snapshot_to_text  # noqa:
 
 def main() -> int:
     start_command = build_gui_privileged_command(root=ROOT, action="start")
-    if "ZAP2_RUNTIME_DROP_IDENTITY=upstream-default" not in start_command.argv:
-        print("GUI pkexec start должен использовать upstream-default drop identity")
+    if not start_command.argv or start_command.argv[0] != "sudo" or "-A" not in start_command.argv:
+        print("GUI privileged start должен использовать sudo -A")
         return 1
-    if "ZAP2_RUNTIME_DROP_IDENTITY=polkit-root" in start_command.argv:
-        print("GUI pkexec start больше не должен форсировать polkit-root drop identity")
+    if "ZAP2_GUI_PRIVILEGE_BRIDGE=sudo-askpass" not in start_command.argv:
+        print("GUI start не маркирует sudo-askpass bridge")
         return 1
-    if "ZAP2_GUI_PRIVILEGE_BRIDGE=pkexec" not in start_command.argv:
-        print("GUI pkexec start не маркирует privilege bridge")
+    if any(item.startswith("ZAP2_RUNTIME_DROP_IDENTITY=") for item in start_command.argv):
+        print("GUI sudo-askpass start не должен форсировать runtime drop identity; нужен sudo-owner path")
+        return 1
+    if "SUDO_ASKPASS" not in start_command.env_overrides:
+        print("GUI start должен подготовить SUDO_ASKPASS helper")
+        return 1
+    if start_command.asks_password_in_terminal or start_command.stores_password:
+        print("GUI start не должен спрашивать пароль в терминале или хранить его")
         return 1
     stop_command = build_gui_privileged_command(root=ROOT, action="stop")
-    if any(item.startswith("ZAP2_RUNTIME_DROP_IDENTITY=") for item in stop_command.argv):
-        print("GUI pkexec stop не должен менять runtime drop identity")
+    if stop_command.argv[0] != "sudo" or "-A" not in stop_command.argv:
+        print("GUI privileged stop должен использовать sudo -A")
         return 1
     label = gui_default_toggle_label(root=ROOT)
     if label not in {"Включить Default", "Выключить Default"}:
@@ -41,7 +47,7 @@ def main() -> int:
     if "executes now: no" not in direct_logs:
         print("runtime logs snapshot должен быть read-only")
         return 1
-    print("GUI toggle/runtime logs checks OK")
+    print("GUI toggle/runtime logs + sudo askpass checks OK")
     return 0
 
 

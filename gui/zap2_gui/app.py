@@ -96,7 +96,7 @@ def describe_project() -> str:
             "runtime service plans: Stage 13 systemd service mode (not default)",
             "default build workflow: v0.3-beta Stage 1 owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
-            "GUI privileged start/stop: v0.3-beta Stage 5 via pkexec/polkit",
+            "GUI privileged start/stop: v0.3-beta via graphical sudo askpass",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: bootstrap/read-only baseline with optional GUI launch",
@@ -269,7 +269,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--gui-privileged-command",
         choices=SUPPORTED_GUI_PRIVILEGED_ACTIONS,
         metavar="ACTION",
-        help="показать pkexec/polkit команду, которую GUI использует для default start/stop; без исполнения",
+        help="показать sudo-askpass команду, которую GUI использует для default start/stop; без исполнения",
     )
 
     parser.add_argument(

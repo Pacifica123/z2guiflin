@@ -231,4 +231,4 @@ Stage 4 переносит первую базовую стратегию из W
 
 ### GUI privileged bridge
 
-`gui/zap2_gui/adapters/gui_privilege.py` строит и выполняет `pkexec`-команды для GUI start/stop. Документ `docs/GUI_POLKIT_PRIVILEGE.md` описывает границу ответственности: пароль не хранится в приложении, запрос прав отдаётся polkit authentication agent.
+`gui/zap2_gui/adapters/gui_privilege.py` строит и выполняет `sudo -A`-команды для GUI start/stop. Документ `docs/GUI_POLKIT_PRIVILEGE.md` описывает границу ответственности: пароль не хранится в приложении, запрос прав отдаётся sudo askpass authentication agent.

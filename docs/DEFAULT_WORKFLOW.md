@@ -130,4 +130,4 @@ Stage 4 переносит первую базовую стратегию из W
 Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.
 ## GUI и privileged execution
 
-CLI-команды `sudo ... --default-start/--default-stop` остаются ручным путём разработчика. В PyQt GUI тот же workflow запускается через `pkexec`/polkit после сохранённого plan и confirmation. GUI не хранит пароль и не обходит `planHash`.
+CLI-команды `sudo ... --default-start/--default-stop` остаются ручным путём разработчика. В PyQt GUI тот же workflow запускается через `sudo -A`/SUDO_ASKPASS после сохранённого plan и confirmation. GUI не хранит пароль и не обходит `planHash`.

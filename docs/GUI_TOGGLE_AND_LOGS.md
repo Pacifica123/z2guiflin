@@ -1,65 +1,36 @@
 # GUI toggle и runtime logs
 
-`v0.3-beta_stage_7` переводит default workflow из набора отдельных GUI-кнопок в
-основной режим одной кнопки `Включить Default` / `Выключить Default`.
+Основной GUI-поток включения и отключения Default теперь должен восприниматься как один toggle: `Включить Default` / `Выключить Default`. Пользователь не обязан вручную нажимать все промежуточные кнопки в обычном сценарии.
 
-## Что делает toggle
+Если Default выключен, toggle делает цепочку:
 
-Если Default выключен, GUI выполняет стандартную цепочку владельца:
-
-1. при отсутствии `nfqws2` проверяет build dependencies;
-2. создаёт build-plan;
+1. проверяет build dependencies;
+2. готовит build-plan;
 3. подтверждает build-plan;
-4. запускает локальную сборку без `sudo`;
-5. создаёт start-plan;
+4. собирает `nfqws2` без sudo, если бинарник отсутствует;
+5. готовит start-plan;
 6. подтверждает start-plan;
-7. вызывает `pkexec`/polkit для privileged start.
+7. вызывает `sudo -A` с графическим `SUDO_ASKPASS` helper для privileged start.
 
-Если Default включён, GUI выполняет обратную цепочку:
+Если Default включён, toggle делает цепочку:
 
-1. создаёт stop-plan;
+1. готовит stop-plan;
 2. подтверждает stop-plan;
-3. вызывает `pkexec`/polkit для privileged stop.
+3. вызывает `sudo -A` с графическим `SUDO_ASKPASS` helper для privileged stop.
 
-Приложение не принимает и не хранит пароль. Пароль или подтверждение показывает
-системный графический polkit authentication agent.
+При неуспешном запуске toggle не должен оставаться в состоянии «включено». Status читается из runtime state, PID проверяется как принадлежащий текущему workspace, а owner-rules rollback должен быть виден в выводе и во вкладке `Логи`.
 
-## Почему start через GUI использует upstream default drop identity
+## Логи в GUI
 
-Для `nfqws2` на Linux нужен `CAP_NET_ADMIN` при создании NFQUEUE. После того как hostlist и Lua init-файлы были перенесены в public runtime directory, GUI/pkexec больше не должен форсировать `--uid=0:0`: такой режим на некоторых системах доводит процесс до Lua, но затем ломает `nfq_create_queue()`.
+Вкладка `Логи` показывает агрегированный read-only snapshot:
 
-Поэтому GUI/pkexec start передаёт во внутренний runner:
-
-```text
-ZAP2_RUNTIME_DROP_IDENTITY=upstream-default
-```
-
-Это означает: session runner не добавляет явный `--uid`, а оставляет upstream default privilege-drop поведение `nfqws2`. Stop и непривилегированные действия этот режим не используют.
-
-## Логи
-
-Вкладка `Логи` читает `.zap2/runtime` и показывает:
-
-- последние JSONL runtime events;
-- tail `default.nfqws2.stderr.log`;
+- последние runtime events из `.zap2/runtime/logs/default.runtime.jsonl`;
 - tail `default.nfqws2.stdout.log`;
-- tail debug-log, если он был явно включён через `ZAP2_RUNTIME_DEBUG=1`.
+- tail `default.nfqws2.stderr.log`;
+- размер и tail debug-log, если debug включён.
 
-Вкладка логов read-only: она не запускает процессы, не применяет firewall-rules
-и не управляет systemd/service mode.
+Эта вкладка ничего не исполняет, не меняет firewall и не запускает сервисы. Она нужна, чтобы причины падений вроде `nfq_create_queue(): Operation not permitted`, ошибок Lua или недоступных hostlist-файлов были видны прямо в GUI.
 
+## Runtime inputs
 
-## Runtime session inputs
-
-GUI toggle использует тот же session runner, что и CLI. Перед privileged start runner создаёт public runtime-копию hostlist под `/tmp/zap2-runtime-inputs/...` и передаёт `nfqws2` абсолютный путь к этой копии. Это важно, потому что после `dropcaps()` процесс может потерять право проходить приватные родительские директории пользовательского workspace.
-
-Целевое исправление ошибки:
-
-```text
-file_open_test: Permission denied
-cannot access hostlist file '.../.zap2/runtime/session-inputs/default.hostlist-0.hosts'
-```
-
-## v0.3-beta_stage_10: Lua runtime inputs
-
-Однокнопочный GUI toggle использует public runtime copies не только для hostlist, но и для Lua init-файлов. Это нужно для GUI/pkexec запуска: `nfqws2` после `dropcaps()` отказывается выполнять Lua как root и требует читаемые пути к Lua-файлам. Поэтому GUI start больше не передаёт `core/zapret2/lua/zapret-lib.lua` напрямую, а использует `/tmp/zap2-runtime-inputs/.../lua/zapret-lib.lua`.
+GUI toggle использует public runtime copies для hostlist и Lua init-файлов под `/tmp/zap2-runtime-inputs/...`. Это нужно, потому что `nfqws2` намеренно сбрасывает привилегии и повторно проверяет доступность файлов после `dropcaps()`.

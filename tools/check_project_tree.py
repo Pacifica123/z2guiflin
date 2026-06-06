@@ -60,6 +60,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/runtime_default.py",
     "gui/zap2_gui/adapters/runtime_default_build.py",
     "gui/zap2_gui/adapters/gui_privilege.py",
+    "gui/zap2_gui/askpass.py",
     "gui/zap2_gui/models/navigation.py",
     "gui/zap2_gui/models/strategy.py",
     "gui/zap2_gui/models/workspace_profile.py",

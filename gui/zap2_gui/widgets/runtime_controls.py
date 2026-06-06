@@ -40,7 +40,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     intro = QtWidgets.QLabel(
         "Кнопки ниже переносят CLI workflow в GUI shell: они готовят планы, "
         "подтверждают выбранный plan id и показывают статус. Privileged запуск/отключение "
-        "идут через pkexec/polkit, поэтому пароль запрашивает системное графическое окно, "
+        "идут через sudo -A/SUDO_ASKPASS, поэтому пароль запрашивает графическое окно, "
         "а не терминальный sudo."
     )
     intro.setWordWrap(True)
@@ -76,13 +76,13 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             page,
             label,
             (
-                f"{action_text} через графический запрос прав polkit/pkexec?\n\n"
+                f"{action_text} через графический sudo-запрос?\n\n"
                 "GUI не хранит пароль и не использует терминальный sudo. "
                 "Перед этим должен быть создан и подтверждён соответствующий runtime plan."
             ),
         )
         if question != QtWidgets.QMessageBox.StandardButton.Yes:
-            output.setPlainText(f"{label}: отменено пользователем до pkexec")
+            output.setPlainText(f"{label}: отменено пользователем до sudo-askpass")
             return
         run_action(label, func)
 
@@ -93,9 +93,9 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             (
                 "Выполнить полный workflow одной кнопкой?\n\n"
                 "Если Default выключен: GUI при необходимости соберёт nfqws2 без sudo, "
-                "подготовит и подтвердит start-plan, затем вызовет pkexec/polkit для запуска.\n"
-                "Если Default включён: GUI подготовит и подтвердит stop-plan, затем вызовет pkexec/polkit для отключения.\n\n"
-                "Пароль обрабатывает системное графическое окно polkit; приложение пароль не хранит."
+                "подготовит и подтвердит start-plan, затем вызовет sudo-askpass для запуска.\n"
+                "Если Default включён: GUI подготовит и подтвердит stop-plan, затем вызовет sudo-askpass для отключения.\n\n"
+                "Пароль обрабатывает графический sudo-askpass helper; приложение пароль не хранит."
             ),
         )
         if question != QtWidgets.QMessageBox.StandardButton.Yes:
@@ -117,12 +117,12 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         ("Собрать без sudo", lambda: gui_execute_default_build(root=root)),
         ("План запуска", lambda: gui_prepare_default_start(root=root)),
         ("Подтвердить запуск", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_START_PLAN_ID)),
-        ("Команда запуска через pkexec", lambda: gui_privileged_default_start_command(root=root)),
+        ("Команда запуска через sudo askpass", lambda: gui_privileged_default_start_command(root=root)),
         ("Статус", lambda: gui_default_status(root=root)),
         ("Runtime logs", lambda: gui_runtime_logs(root=root)),
         ("План отключения", lambda: gui_prepare_default_stop(root=root)),
         ("Подтвердить отключение", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_STOP_PLAN_ID)),
-        ("Команда отключения через pkexec", lambda: gui_privileged_default_stop_command(root=root)),
+        ("Команда отключения через sudo askpass", lambda: gui_privileged_default_stop_command(root=root)),
         ("Команды", lambda: gui_runtime_commands().to_text()),
     )
     for caption, callback in actions:

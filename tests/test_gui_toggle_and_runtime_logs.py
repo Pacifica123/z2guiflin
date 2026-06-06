@@ -10,27 +10,36 @@ from zap2_gui.adapters import runtime_session
 from zap2_gui.project_paths import discover_layout
 
 
-def test_gui_pkexec_start_uses_upstream_default_drop_identity() -> None:
+def test_gui_privileged_start_uses_sudo_askpass_not_pkexec() -> None:
     command = build_gui_privileged_command(action="start")
-    assert "pkexec" == command.argv[0]
-    assert "ZAP2_RUNTIME_DROP_IDENTITY=upstream-default" in command.argv
-    assert "ZAP2_RUNTIME_DROP_IDENTITY=polkit-root" not in command.argv
-    assert "ZAP2_GUI_PRIVILEGE_BRIDGE=pkexec" in command.argv
+    assert "sudo" == command.argv[0]
+    assert "-A" in command.argv
+    assert "ZAP2_GUI_PRIVILEGE_BRIDGE=sudo-askpass" in command.argv
+    assert not any(item.startswith("ZAP2_RUNTIME_DROP_IDENTITY=") for item in command.argv)
+    assert command.uses_sudo_askpass is True
+    assert "SUDO_ASKPASS" in command.env_overrides
     assert "--default-start" in command.argv
 
 
-def test_gui_pkexec_stop_does_not_force_root_preserve_identity() -> None:
+def test_gui_privileged_stop_uses_sudo_askpass() -> None:
     command = build_gui_privileged_command(action="stop")
+    assert command.argv[0] == "sudo"
+    assert "-A" in command.argv
     assert "--default-stop" in command.argv
     assert not any(item.startswith("ZAP2_RUNTIME_DROP_IDENTITY=") for item in command.argv)
 
 
-def test_runtime_session_detects_gui_upstream_default(monkeypatch) -> None:
+def test_runtime_session_sudo_owner_path_remains_default(monkeypatch) -> None:
     root = discover_layout().root
-    monkeypatch.setenv("ZAP2_RUNTIME_DROP_IDENTITY", "upstream-default")
+    monkeypatch.delenv("ZAP2_RUNTIME_DROP_IDENTITY", raising=False)
+    monkeypatch.setenv("SUDO_UID", "1000")
+    monkeypatch.setenv("SUDO_GID", "1000")
     monkeypatch.setattr(runtime_session.os, "geteuid", lambda: 0, raising=False)
     identity = runtime_session._detect_drop_identity(root)  # noqa: SLF001 - adapter contract regression
-    assert identity is None
+    assert identity is not None
+    assert identity.uid == 1000
+    assert identity.gid == 1000
+    assert identity.source == "sudo-owner"
 
 
 def test_runtime_session_keeps_legacy_polkit_root_mode_for_diagnostics(monkeypatch) -> None:

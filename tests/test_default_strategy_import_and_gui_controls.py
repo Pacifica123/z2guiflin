@@ -109,19 +109,20 @@ def test_gui_runtime_controls_are_confirmation_gate_wrappers(tmp_path: Path) -> 
     status = gui_default_status(project)
 
     assert DEFAULT_START_PLAN_ID in start_text
-    assert "GUI button: Включить через графический запрос прав" in commands
-    assert "pkexec/polkit" in commands
+    assert "GUI button: Включить через графический sudo-запрос" in commands
+    assert "sudo -A/SUDO_ASKPASS" in commands
     assert "терминале" in commands
     assert "Default workflow status:" in status
     assert "executes now: no" in status
 
 
-def test_gui_privileged_command_uses_pkexec_not_terminal_sudo(tmp_path: Path) -> None:
+def test_gui_privileged_command_uses_sudo_askpass_not_terminal_password(tmp_path: Path) -> None:
     project = _copy_project(tmp_path)
     command = build_gui_privileged_command(root=project, action="start")
     text = gui_privileged_default_start_command(project)
 
-    assert command.argv[0] == "pkexec"
+    assert command.argv[0] == "sudo"
+    assert "-A" in command.argv
     assert "env" in command.argv
     assert "--default-start" in command.argv
     assert DEFAULT_START_PLAN_ID in command.argv
@@ -130,13 +131,16 @@ def test_gui_privileged_command_uses_pkexec_not_terminal_sudo(tmp_path: Path) ->
     assert "asks password in terminal: no" in text
     assert "stores password: no" in text
     assert "PYTHONPATH=" in " ".join(command.argv)
+    assert "SUDO_ASKPASS" in command.env_overrides
+    assert "uses sudo askpass: yes" in text
 
 
 def test_gui_privileged_command_cli_preview_is_read_only(capsys) -> None:
     assert main(["--gui-privileged-command", "start"]) == 0
     out = capsys.readouterr().out
     assert "GUI privileged workflow command для action: start" in out
-    assert "pkexec" in out
+    assert "sudo" in out
+    assert "SUDO_ASKPASS" in out
     assert "asks password in terminal: no" in out
 
 
@@ -148,13 +152,13 @@ def test_default_status_cli_is_read_only(capsys) -> None:
 
 
 
-def test_gui_start_blocks_before_pkexec_when_binary_missing(tmp_path: Path) -> None:
+def test_gui_start_blocks_before_privileged_start_when_binary_missing(tmp_path: Path) -> None:
     project = _copy_project(tmp_path)
     text = gui_privileged_default_start(project)
 
-    assert "Default start заблокирован до pkexec" in text
+    assert "Default start заблокирован до privileged start" in text
     assert "nfqws2 binary отсутствует" in text
-    assert "pkexec/polkit сейчас не запускался" in text
+    assert "sudo-askpass сейчас не запускался" in text
     assert "Статус после действия: start blocked" in text
 
 
