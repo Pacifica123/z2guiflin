@@ -22,6 +22,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/__init__.py",
     "gui/zap2_gui/app.py",
     "docs/DEVELOPMENT_STRATEGY.md",
+    "docs/GUI_FRAMEWORK.md",
     "docs/VERSIONING.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/reference/windows_gui_feature_digest.md",
@@ -59,7 +60,13 @@ def main() -> int:
             print(f" - {path}")
         return 1
 
-    print("v0.3-alpha bootstrap tree OK")
+    gui_framework_doc = (ROOT / "docs/GUI_FRAMEWORK.md").read_text(encoding="utf-8")
+    strategy_doc = (ROOT / "docs/DEVELOPMENT_STRATEGY.md").read_text(encoding="utf-8")
+    if "PyQt" not in gui_framework_doc or "PyQt" not in strategy_doc:
+        print("PyQt GUI framework decision is missing from docs")
+        return 1
+
+    print("v0.3-alpha bootstrap tree OK; PyQt GUI decision recorded")
     return 0
 
 

@@ -2,7 +2,7 @@
 
 ## Decision
 
-The old Zapret2GUIfLin line is closed as the active implementation baseline. Its archive remains useful as a draft notebook: it contains UI experiments, privilege-boundary notes, lifecycle ideas, tests, and terminology. The new product starts at `v0.3-alpha` with a clean repository shape and a vendored upstream core.
+The old Zapret2GUIfLin line is closed as the active implementation baseline. Its archive remains useful as a draft notebook: it contains UI experiments, privilege-boundary notes, lifecycle ideas, tests, and terminology. The new product starts at `v0.3-alpha` with a clean repository shape, a vendored upstream core, and a documented PyQt GUI direction.
 
 ## Why restart
 
@@ -14,6 +14,12 @@ This does **not** mean the assistant should run privileged commands. It means th
 - checks are read-only unless explicitly scoped otherwise;
 - the owner/developer may run privileged commands locally because the current product is single-user before `v1-stable`;
 - any future privileged operation must be documented, visible and reversible enough for the owner to accept responsibility.
+
+## GUI framework decision
+
+The Linux GUI will be built on **PyQt**. In this project, “PyQt” means the PyQt 6 line by default unless a later decision record deliberately narrows or revises that choice. The goal is to use Qt widgets as the main desktop shell for tabs, forms, logs, diagnostics, settings and future confirmation dialogs.
+
+This is a framework decision, not a dependency-install patch. PyQt should become an application dependency when the first real GUI shell is introduced, not during a documentation-only stage. Do not replace the planned shell with PySide, GTK, Tkinter, a web UI, or a terminal UI unless the owner explicitly reopens this decision.
 
 ## Global goal for the v0.3 series
 
@@ -63,7 +69,7 @@ The owner may run such commands locally when they are part of the intended produ
 
 ```text
 core/zapret2/       upstream engine source, imported and reviewed as source
-gui/zap2_gui/      Python GUI shell and application orchestration
+gui/zap2_gui/      PyQt-based Python GUI shell and application orchestration
 docs/              strategy, reference and decision records
 tools/             read-only repository checks and future developer helpers
 tests/             structural and unit tests for our layer
@@ -87,7 +93,7 @@ Add a read-only inventory model for Makefiles, C sources, Lua scripts, configs a
 
 ### v0.3-alpha_stage_3 — GUI shell skeleton
 
-Create the initial Linux GUI shell with navigation placeholders: Overview, Core, Strategies, Diagnostics, Settings, Logs.
+Create the initial PyQt Linux GUI shell with navigation placeholders: Overview, Core, Strategies, Diagnostics, Settings, Logs.
 
 ### v0.3-alpha_stage_4 — local build adapter
 

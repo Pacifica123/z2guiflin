@@ -1,4 +1,4 @@
-# Source alignment — v0.3-alpha_stage_1
+# Source alignment — v0.3-alpha_stage_2
 
 Inputs used for this bootstrap:
 
@@ -22,3 +22,8 @@ Non-goals:
 - no privileged commands are executed;
 - no network updater is introduced;
 - no end-user installer is implemented.
+
+
+## Stage 2 addition
+
+This stage does not change imported upstream source. It records the GUI framework decision for our layer: the Linux GUI will use PyQt, with the PyQt 6 line as the default target.

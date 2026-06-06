@@ -8,17 +8,17 @@ This repository is a fresh product line for a Linux GUI around a vendored copy o
 
 ```text
 core/      vendored upstream engine source and import metadata
-gui/       our GUI-side Python package and future application shell
+gui/       our PyQt-based GUI-side Python package and future application shell
 docs/      product strategy, reference notes and development rules
 tools/     repository checks that never require network, sudo or service control
 tests/     small structural tests for the new baseline
 ```
 
-The key architectural decision is that the upstream engine is part of the repository source tree. The application must not bootstrap itself with remote `curl` downloads or opaque installer scripts. Future privileged operations belong to explicit, reviewable user-run plans.
+The key architectural decisions are that the upstream engine is part of the repository source tree and that the Linux GUI line uses PyQt as its UI framework. The application must not bootstrap itself with remote `curl` downloads or opaque installer scripts. Future privileged operations belong to explicit, reviewable user-run plans.
 
 ## Current status
 
-This patch is a bootstrap, not a working end-user application. It imports the upstream source into `core/zapret2/`, creates a minimal GUI package under `gui/zap2_gui/`, and records the strategy for the next patch series.
+This patch is a bootstrap, not a working end-user application. It imports the upstream source into `core/zapret2/`, creates a minimal GUI package under `gui/zap2_gui/`, records PyQt as the chosen GUI framework, and records the strategy for the next patch series.
 
 ```bash
 python tools/check_project_tree.py
