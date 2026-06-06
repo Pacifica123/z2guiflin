@@ -33,3 +33,6 @@ PYTHONPATH=gui python -m zap2_gui.app --default-status
 ## Вкладка “Обзор”
 
 Вкладка `Обзор` теперь содержит runtime controls вместо пустого placeholder. Кнопки вызывают Python adapter-функции и выводят результат в текстовое поле. Для действий, требующих root, GUI показывает copy-paste команды, которые владелец выполняет сам.
+## Графический запрос прав
+
+Privileged кнопки запуска и отключения default workflow теперь должны использовать `pkexec`/polkit. Пароль запрашивает системное графическое окно desktop-сессии, а не терминальный `sudo`. Подробности: `docs/GUI_POLKIT_PRIVILEGE.md`.

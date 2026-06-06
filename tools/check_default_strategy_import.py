@@ -16,9 +16,14 @@ def main() -> int:
     default_hosts = ROOT / "profiles/hostlists/default.hosts"
     strategy_path = ROOT / "strategies/manual-local.json"
     gui_adapter = ROOT / "gui/zap2_gui/adapters/gui_runtime_controls.py"
+    gui_privilege = ROOT / "gui/zap2_gui/adapters/gui_privilege.py"
     gui_widget = ROOT / "gui/zap2_gui/widgets/runtime_controls.py"
-    docs = [ROOT / "docs/DEFAULT_STRATEGY_IMPORT.md", ROOT / "docs/GUI_RUNTIME_CONTROLS.md"]
-    for path in [source_txt, source_json, default_hosts, strategy_path, gui_adapter, gui_widget, *docs]:
+    docs = [
+        ROOT / "docs/DEFAULT_STRATEGY_IMPORT.md",
+        ROOT / "docs/GUI_RUNTIME_CONTROLS.md",
+        ROOT / "docs/GUI_POLKIT_PRIVILEGE.md",
+    ]
+    for path in [source_txt, source_json, default_hosts, strategy_path, gui_adapter, gui_privilege, gui_widget, *docs]:
         if not path.exists():
             print(f"Отсутствует обязательный файл Stage 4: {path.relative_to(ROOT)}")
             return 1
@@ -66,13 +71,26 @@ def main() -> int:
         print("Session runner должен читать runtimeArgs стратегии и включать debug только явно")
         return 1
 
-    gui_text = gui_adapter.read_text(encoding="utf-8") + "\n" + gui_widget.read_text(encoding="utf-8")
-    for token in ("--default-start-plan", "--default-stop-plan", "--default-status", "GUI не запускает sudo"):
+    gui_text = gui_adapter.read_text(encoding="utf-8") + "\n" + gui_privilege.read_text(encoding="utf-8") + "\n" + gui_widget.read_text(encoding="utf-8")
+    for token in (
+        "--default-start-plan",
+        "--default-stop-plan",
+        "--default-status",
+        "pkexec",
+        "polkit",
+        "Включить через графический запрос прав",
+        "Отключить через графический запрос прав",
+        "asks password in terminal: no",
+        "stores password: no",
+    ):
         if token not in gui_text:
             print(f"GUI controls не содержат ожидаемый token: {token}")
             return 1
+    if "sudo PYTHONPATH=gui python -m zap2_gui.app --default-start" in gui_text:
+        print("GUI privileged controls не должны предлагать терминальный sudo как основной путь")
+        return 1
 
-    print("Default strategy import + GUI runtime controls: OK")
+    print("Default strategy import + GUI runtime controls + polkit bridge: OK")
     return 0
 
 

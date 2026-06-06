@@ -268,3 +268,7 @@ Stage 3 beta фиксирует это на уровне session runner: при 
 Stage 4 переносит первую базовую стратегию из Windows GUI: `Default v1 (game filter)`. Перенос частичный и контролируемый: оригинальный Windows preset хранится как reference, а Linux runtime получает только seed hostlist и минимальные `nfqws2`-совместимые Lua-аргументы. Полный WinDivert preset не исполняется напрямую.
 
 Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.
+
+### v0.3-beta stage 5 — GUI polkit privilege bridge
+
+Цель этапа: перенести privileged start/stop default workflow в PyQt GUI через системный графический запрос прав polkit (`pkexec`), не используя терминальный `sudo` после нажатия кнопки и не обходя runtime confirmation gate.

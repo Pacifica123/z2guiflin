@@ -128,3 +128,6 @@ profiles/strategies -> runtime plan -> state/log/confirmation -> apply/revert ->
 Stage 4 переносит первую базовую стратегию из Windows GUI: `Default v1 (game filter)`. Перенос частичный и контролируемый: оригинальный Windows preset хранится как reference, а Linux runtime получает только seed hostlist и минимальные `nfqws2`-совместимые Lua-аргументы. Полный WinDivert preset не исполняется напрямую.
 
 Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.
+## GUI и privileged execution
+
+CLI-команды `sudo ... --default-start/--default-stop` остаются ручным путём разработчика. В PyQt GUI тот же workflow запускается через `pkexec`/polkit после сохранённого plan и confirmation. GUI не хранит пароль и не обходит `planHash`.

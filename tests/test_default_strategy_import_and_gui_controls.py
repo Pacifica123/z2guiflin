@@ -9,8 +9,10 @@ from zap2_gui.adapters.gui_runtime_controls import (
     DEFAULT_START_PLAN_ID,
     gui_default_status,
     gui_prepare_default_start,
+    gui_privileged_default_start_command,
     gui_runtime_commands,
 )
+from zap2_gui.adapters.gui_privilege import build_gui_privileged_command
 from zap2_gui.adapters.runtime_plan_generator import create_runtime_plan
 from zap2_gui.adapters.runtime_session import build_runtime_session_config
 from zap2_gui.adapters.runtime_state import confirm_runtime_plan, prepare_runtime_plan
@@ -101,10 +103,35 @@ def test_gui_runtime_controls_are_confirmation_gate_wrappers(tmp_path: Path) -> 
     status = gui_default_status(project)
 
     assert DEFAULT_START_PLAN_ID in start_text
-    assert "sudo PYTHONPATH=gui python -m zap2_gui.app --default-start" in commands
-    assert "GUI не запускает sudo" in commands
+    assert "GUI button: Включить через графический запрос прав" in commands
+    assert "pkexec/polkit" in commands
+    assert "терминале" in commands
     assert "Default workflow status:" in status
     assert "executes now: no" in status
+
+
+def test_gui_privileged_command_uses_pkexec_not_terminal_sudo(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    command = build_gui_privileged_command(root=project, action="start")
+    text = gui_privileged_default_start_command(project)
+
+    assert command.argv[0] == "pkexec"
+    assert "env" in command.argv
+    assert "--default-start" in command.argv
+    assert DEFAULT_START_PLAN_ID in command.argv
+    assert command.asks_password_in_terminal is False
+    assert command.stores_password is False
+    assert "asks password in terminal: no" in text
+    assert "stores password: no" in text
+    assert "PYTHONPATH=" in " ".join(command.argv)
+
+
+def test_gui_privileged_command_cli_preview_is_read_only(capsys) -> None:
+    assert main(["--gui-privileged-command", "start"]) == 0
+    out = capsys.readouterr().out
+    assert "GUI privileged workflow command для action: start" in out
+    assert "pkexec" in out
+    assert "asks password in terminal: no" in out
 
 
 def test_default_status_cli_is_read_only(capsys) -> None:

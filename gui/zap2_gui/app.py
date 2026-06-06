@@ -50,6 +50,10 @@ from .adapters.runtime_default_build import (
     execute_default_build,
     prepare_default_build_plan,
 )
+from .adapters.gui_privilege import (
+    SUPPORTED_GUI_PRIVILEGED_ACTIONS,
+    gui_privileged_command_to_text,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -91,6 +95,7 @@ def describe_project() -> str:
             "runtime service plans: Stage 13 systemd service mode (not default)",
             "default build workflow: v0.3-beta Stage 1 owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
+            "GUI privileged start/stop: v0.3-beta Stage 5 via pkexec/polkit",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: bootstrap/read-only baseline with optional GUI launch",
@@ -253,6 +258,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--default-status",
         action="store_true",
         help="показать read-only статус default workflow/session для GUI и CLI",
+    )
+    parser.add_argument(
+        "--gui-privileged-command",
+        choices=SUPPORTED_GUI_PRIVILEGED_ACTIONS,
+        metavar="ACTION",
+        help="показать pkexec/polkit команду, которую GUI использует для default start/stop; без исполнения",
     )
 
     parser.add_argument(
@@ -464,6 +475,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.default_status:
         try:
             print(default_workflow_status(profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.gui_privileged_command:
+        try:
+            print(gui_privileged_command_to_text(action=args.gui_privileged_command, profile_id=args.profile))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

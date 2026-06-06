@@ -89,3 +89,6 @@ GUI-слой получил adapter `runtime_default.py`. На CLI он уже �
 GUI-слой получил adapter `runtime_default_build.py`. На CLI он доступен через `--default-build-plan` и `--default-build --confirm <plan-id>`. Будущий PyQt экран должен показывать это как отдельный preflight перед `default-start`: сначала собрать `nfqws2` без `sudo`, затем заново подготовить start-plan и только потом запускать owner-confirmed runtime workflow.
 
 Важно не встраивать сборку внутрь `default-start`, потому что `default-start` запускается через `sudo` ради nftables apply. Сборка под root может оставить root-owned artifacts в рабочем дереве и нарушить локальный developer workflow.
+## Графический запрос прав
+
+Вкладка `Обзор` содержит кнопки включения и отключения default workflow через `pkexec`/polkit. Перед нажатием privileged-кнопки пользователь всё ещё должен создать plan и сохранить confirmation.

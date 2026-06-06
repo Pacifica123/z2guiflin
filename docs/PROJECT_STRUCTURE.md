@@ -228,3 +228,7 @@ tests/test_default_build_workflow.py             unit-тесты default build w
 Stage 4 переносит первую базовую стратегию из Windows GUI: `Default v1 (game filter)`. Перенос частичный и контролируемый: оригинальный Windows preset хранится как reference, а Linux runtime получает только seed hostlist и минимальные `nfqws2`-совместимые Lua-аргументы. Полный WinDivert preset не исполняется напрямую.
 
 Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.
+
+### GUI privileged bridge
+
+`gui/zap2_gui/adapters/gui_privilege.py` строит и выполняет `pkexec`-команды для GUI start/stop. Документ `docs/GUI_POLKIT_PRIVILEGE.md` описывает границу ответственности: пароль не хранится в приложении, запрос прав отдаётся polkit authentication agent.
