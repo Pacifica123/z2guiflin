@@ -35,3 +35,8 @@ nfq_create_queue(): Operation not permitted
 ## Ограничение
 
 Это vendored-core patch. При будущем обновлении `core/zapret2` из upstream его нужно будет осознанно пересмотреть и либо перенести заново, либо заменить upstream-совместимым решением.
+
+
+## Дополнение Stage 14: номер очереди
+
+Stage 13 изменил порядок открытия NFQUEUE, но пользовательский лог показал, что падение может сохраняться уже на другом уровне: fixed queue `200` слишком хрупка для частых devctl-workspace запусков. Stage 14 поэтому добавляет workspace-specific NFQUEUE policy: номер очереди больше не зашит в apply/session как глобальный `200`, а вычисляется общим resolver-ом.

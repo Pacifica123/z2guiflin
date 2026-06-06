@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any, Callable, Literal
 
 from .runtime_plan_generator import create_runtime_plan
+from .runtime_queue import resolve_nfqueue_num
 from .runtime_state import PreparedRuntimePlan, append_runtime_event, ensure_runtime_store, plan_payload_hash
 from .workspace_profiles import load_workspace_catalog
 from ..project_paths import discover_layout
@@ -36,7 +37,6 @@ SERVICE_MARKER = "zap2-runtime-service-v1"
 SUPPORTED_SERVICE_PLAN_ACTIONS = ("install", "start", "stop", "remove")
 SUPPORTED_SERVICE_EXECUTION_ACTIONS = ("install", "remove")
 DEFAULT_SERVICE_DIR = Path("/etc/systemd/system")
-DEFAULT_NFQUEUE_NUM = 200
 
 ServicePlanAction = Literal["install", "start", "stop", "remove"]
 ServiceExecutionAction = Literal["install", "remove"]
@@ -254,9 +254,9 @@ def _service_name(profile_id: str) -> str:
     return f"zap2-{_safe_profile_slug(profile_id)}.service"
 
 
-def _args_content(pidfile_path: Path, debug_log_path: Path, hostlists: tuple[Path, ...]) -> str:
+def _args_content(pidfile_path: Path, debug_log_path: Path, hostlists: tuple[Path, ...], qnum: int) -> str:
     lines = [
-        f"--qnum={DEFAULT_NFQUEUE_NUM}",
+        f"--qnum={qnum}",
         f"--pidfile={pidfile_path}",
         f"--debug=@{debug_log_path}",
     ]
@@ -370,7 +370,7 @@ def create_service_plan(
     hostlists = tuple((layout.root / hostlist.path).resolve() for hostlist in start_plan.hostlists)
     binary_path = (layout.root / start_plan.binary_relative_path).resolve()
     plan_id = f"runtime-{profile.profile_id}-{profile.strategy_id}-service-{action}-plan"
-    args = _args_content(pidfile_path, debug_log_path, hostlists)
+    args = _args_content(pidfile_path, debug_log_path, hostlists, resolve_nfqueue_num(layout.root, profile.profile_id))
     unit = _unit_content(plan_id, profile.profile_id, binary_path, args_path, layout.root)
     return ServicePlan(
         action=action,

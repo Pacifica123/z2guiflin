@@ -11,6 +11,7 @@ from zap2_gui.adapters.runtime_apply import (
     prepare_runtime_owner_rules_plan,
     runtime_apply_plan_to_text,
 )
+from zap2_gui.adapters.runtime_queue import resolve_nfqueue_num
 from zap2_gui.adapters.runtime_state import confirm_runtime_plan
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,7 +31,8 @@ def test_runtime_apply_plan_is_owner_confirmed_nft_plan():
     assert plan.profile_id == "default"
     assert plan.strategy_id == "manual-local"
     assert plan.nft_table == "zap2_default"
-    assert plan.nfqueue_num == 200
+    assert plan.nfqueue_num == resolve_nfqueue_num(profile_id="default")
+    assert 200 <= plan.nfqueue_num <= 599
     assert plan.requires_sudo is True
     assert plan.mutates_firewall is True
     payload = plan.to_payload()
@@ -40,7 +42,7 @@ def test_runtime_apply_plan_is_owner_confirmed_nft_plan():
     assert payload["execution"]["executesNow"] is False
     all_argv = "\n".join(" ".join(command.argv) for command in plan.commands)
     assert "nft add table inet zap2_default" in all_argv
-    assert "queue num 200 bypass" in all_argv
+    assert f"queue num {plan.nfqueue_num} bypass" in all_argv
     assert "curl" not in all_argv
     assert "wget" not in all_argv
     assert "install_easy" not in all_argv

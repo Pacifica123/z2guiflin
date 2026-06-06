@@ -45,7 +45,7 @@ inet zap2_default
 local_out
 ```
 
-Правила направляют локальный TCP 80/443 и UDP 443 в NFQUEUE `200` с `queue bypass`. Это согласовано с session runner, где `nfqws2` получает `--qnum=200`.
+Правила направляют локальный TCP 80/443 и UDP 443 в workspace-specific NFQUEUE с `queue bypass`. Номер очереди больше не фиксируется глобально на `200`: он детерминированно выбирается для пары workspace/profile и одинаково используется в nftables apply plan и session args `nfqws2`. Это снижает риск конфликта со stale/manual процессом из предыдущего workspace.
 
 Stage 12 не пытается покрыть все возможные router/LAN/WAN схемы upstream zapret2. Это минимальный single-user desktop-oriented backend для default strategy. Расширенные схемы interception должны появляться отдельными strategy/profile options после того, как базовый lifecycle станет устойчивым.
 

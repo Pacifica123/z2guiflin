@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from .runtime_plan_generator import GeneratedRuntimePlan, create_runtime_plan
+from .runtime_queue import resolve_runtime_queue, find_nfqueue_processes
 from .runtime_state import (
     append_runtime_event,
     ensure_runtime_store,
@@ -34,7 +35,6 @@ from ..project_paths import discover_layout
 SESSION_STAGE = "v0.3-beta_stage_11"
 SESSION_SCHEMA_VERSION = 1
 SESSION_MARKER = "zap2-runtime-session-v1"
-DEFAULT_NFQUEUE_NUM = 200
 PROCESS_START_GRACE_SECONDS = 0.25
 PROCESS_STOP_TIMEOUT_SECONDS = 5.0
 PUBLIC_SESSION_INPUTS_BASE = "zap2-runtime-inputs"
@@ -85,6 +85,8 @@ class RuntimeSessionConfig:
     session_path: Path
     runtime_args: tuple[str, ...]
     drop_identity: RuntimeDropIdentity | None = None
+    nfqueue_num: int = 0
+    nfqueue_source: str = ""
 
     def to_text(self) -> str:
         return "\n".join(
@@ -112,6 +114,7 @@ class RuntimeSessionConfig:
                 f"debug enabled: {'yes' if _runtime_debug_enabled() else 'no'}",
                 f"session file: {self.session_path}",
                 f"drop identity: {self.drop_identity.uid}:{self.drop_identity.gid} ({self.drop_identity.source})" if self.drop_identity else "drop identity: upstream default",
+                f"nfqueue: {self.nfqueue_num} ({self.nfqueue_source})",
                 "requires confirmed start plan: yes",
                 "mutates firewall/services: no",
                 "service mode: no",
@@ -507,9 +510,10 @@ def _runtime_args_for_plan(
     debug_log_path: Path,
     hostlist_input_paths: tuple[Path, ...],
     strategy_runtime_args: tuple[str, ...],
+    nfqueue_num: int,
 ) -> tuple[str, ...]:
     args: list[str] = [
-        f"--qnum={DEFAULT_NFQUEUE_NUM}",
+        f"--qnum={nfqueue_num}",
         f"--pidfile={pidfile_path}",
     ]
     if _runtime_debug_enabled():
@@ -554,7 +558,8 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
     strategy_runtime_args, lua_input_paths = _prepare_runtime_lua_inputs(paths.root, tuple(plan.strategy.runtime_args), public_session_inputs_dir)
     if not hostlist_input_paths and not lua_input_paths:
         public_session_inputs_dir = None
-    runtime_args = _runtime_args_for_plan(paths.root, plan, drop_identity, pidfile_path, debug_log_path, hostlist_input_paths, strategy_runtime_args)
+    queue = resolve_runtime_queue(paths.root, profile_id)
+    runtime_args = _runtime_args_for_plan(paths.root, plan, drop_identity, pidfile_path, debug_log_path, hostlist_input_paths, strategy_runtime_args, queue.qnum)
 
     return RuntimeSessionConfig(
         profile_id=profile_id,
@@ -576,6 +581,8 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
         session_path=session_path,
         runtime_args=runtime_args,
         drop_identity=drop_identity,
+        nfqueue_num=queue.qnum,
+        nfqueue_source=queue.source,
     )
 
 
@@ -810,6 +817,9 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "cwd": str(config.cwd),
         "argv": list(config.argv),
         "runtimeArgs": list(config.runtime_args),
+        "nfqueueNum": config.nfqueue_num,
+        "nfqueueSource": config.nfqueue_source,
+        "nfqueueExistingProcessesAtStart": list(find_nfqueue_processes(config.nfqueue_num)),
         "sessionInputsDir": str(config.session_inputs_dir),
         "publicSessionInputsDir": str(config.public_session_inputs_dir) if config.public_session_inputs_dir else None,
         "hostlistInputPaths": [str(path) for path in config.hostlist_input_paths],

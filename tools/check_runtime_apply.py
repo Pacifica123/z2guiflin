@@ -28,6 +28,7 @@ def main() -> int:
         execute_runtime_owner_rules,
         prepare_runtime_owner_rules_plan,
     )
+    from zap2_gui.adapters.runtime_queue import resolve_nfqueue_num
     from zap2_gui.adapters.runtime_state import confirm_runtime_plan
 
     project = _copy_project()
@@ -49,8 +50,9 @@ def main() -> int:
         if bad:
             print("Stage 12 apply plan содержит запрещённые команды:", ", ".join(bad))
             return 1
-        if "nft add table inet zap2_default" not in command_text or "queue num 200 bypass" not in command_text:
-            print("Stage 12 apply plan должен явно использовать отдельную nft table и NFQUEUE 200")
+        expected_qnum = resolve_nfqueue_num(project, "default")
+        if "nft add table inet zap2_default" not in command_text or f"queue num {expected_qnum} bypass" not in command_text:
+            print(f"Apply plan должен явно использовать отдельную nft table и workspace NFQUEUE {expected_qnum}")
             return 1
 
         prepared = prepare_runtime_owner_rules_plan(project, action="apply", profile_id="default")

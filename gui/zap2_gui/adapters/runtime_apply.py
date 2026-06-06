@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Callable, Literal
 
 from .runtime_plan_generator import create_runtime_plan
+from .runtime_queue import resolve_runtime_queue
 from .runtime_state import (
     PreparedRuntimePlan,
     append_runtime_event,
@@ -39,7 +40,6 @@ APPLY_MARKER = "zap2-runtime-apply-v1"
 SUPPORTED_RUNTIME_APPLY_ACTIONS = ("apply", "revert")
 DEFAULT_NFT_TABLE_PREFIX = "zap2"
 DEFAULT_NFT_CHAIN = "local_out"
-DEFAULT_NFQUEUE_NUM = 200
 DEFAULT_TCP_PORTS = (80, 443)
 DEFAULT_UDP_PORTS = (443,)
 
@@ -296,7 +296,8 @@ def create_runtime_apply_plan(root: Path | None = None, action: RuntimeApplyActi
     start_plan = create_runtime_plan(layout.root, action="start", profile_id=profile_id)
     table = _nft_table_name(profile.profile_id)
     plan_id = f"runtime-{profile.profile_id}-{profile.strategy_id}-{action}-owner-rules-plan"
-    commands = _nft_apply_commands(table, DEFAULT_NFT_CHAIN, DEFAULT_NFQUEUE_NUM) if action == "apply" else _nft_revert_commands(table)
+    queue = resolve_runtime_queue(layout.root, profile.profile_id)
+    commands = _nft_apply_commands(table, DEFAULT_NFT_CHAIN, queue.qnum) if action == "apply" else _nft_revert_commands(table)
     if action == "apply":
         rollback_notes = (
             f"Откат выполняется командой revert plan для того же profile: {profile.profile_id}.",
@@ -316,7 +317,7 @@ def create_runtime_apply_plan(root: Path | None = None, action: RuntimeApplyActi
         plan_id=plan_id,
         nft_table=table,
         nft_chain=DEFAULT_NFT_CHAIN,
-        nfqueue_num=DEFAULT_NFQUEUE_NUM,
+        nfqueue_num=queue.qnum,
         commands=commands,
         rollback_notes=rollback_notes,
         binary_relative_path=start_plan.binary_relative_path,
@@ -386,7 +387,7 @@ def prepare_runtime_owner_rules_plan(root: Path | None = None, action: RuntimeAp
             "planHash": plan_hash,
             "message": f"Prepared owner-confirmed runtime {action} rules plan for profile {profile_id}; execution disabled until explicit --runtime-{action}.",
             "createdAt": _utc_now(),
-            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": plan.nft_table},
+            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": plan.nft_table, "nfqueueNum": plan.nfqueue_num},
             "executesNow": False,
             "mutatesFirewallOrServicesNow": False,
             "managesServiceNow": False,
