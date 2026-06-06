@@ -27,6 +27,7 @@ gui/zap2_gui/
   qt_compat.py              безопасная проверка доступности PyQt6
   qt_app.py                 QApplication bootstrap
   adapters/gui_state.py     read-only state assembly для оболочки
+  adapters/local_build.py   plan-only adapter локальной сборки ядра
   models/navigation.py      pure Python модель разделов
   windows/main_window.py    фабрика главного окна PyQt
   widgets/placeholders.py   начальные placeholder widgets
@@ -49,3 +50,7 @@ python -m zap2_gui.app --gui
 ## Не-цели Stage 5
 
 Этот этап не реализует сборку ядра, запуск `make`, управление сервисами, firewall, systemd, runtime lifecycle или privileged actions. Он только создаёт форму будущего приложения, чтобы следующие изменения развивались внутри стабильной навигационной модели.
+
+## Связь с local build adapter
+
+Начиная со Stage 6, раздел `Ядро` получает не только inventory/build map, но и default local build plan. Это пока не кнопка запуска сборки: GUI показывает смысл команды, target и ожидаемые артефакты. Исполнение `make` должно появиться отдельным runner-слоем после явных подтверждений владельца.

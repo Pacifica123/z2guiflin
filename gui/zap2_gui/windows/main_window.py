@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .. import PRODUCT_LABEL
+from ..adapters.local_build import create_local_build_plan
 from ..core_inventory import load_core_build_map, load_core_inventory_snapshot
 from ..models.navigation import default_navigation_sections
 from ..qt_compat import require_pyqt
@@ -17,6 +18,7 @@ def create_main_window(root: object | None = None) -> Any:
     _QtCore, QtWidgets = require_pyqt()
     snapshot = load_core_inventory_snapshot(root)  # type: ignore[arg-type]
     build_map = load_core_build_map(root)  # type: ignore[arg-type]
+    build_plan = create_local_build_plan(root)  # type: ignore[arg-type]
     sections = default_navigation_sections()
 
     class MainWindow(QtWidgets.QMainWindow):  # type: ignore[misc, valid-type]
@@ -29,7 +31,7 @@ def create_main_window(root: object | None = None) -> Any:
             tabs.setDocumentMode(True)
             for section in sections:
                 if section.key == "core":
-                    page = make_core_page(snapshot, build_map)
+                    page = make_core_page(snapshot, build_map, build_plan)
                 else:
                     page = make_placeholder_page(section)
                 tabs.addTab(page, section.title)

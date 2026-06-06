@@ -33,6 +33,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/qt_compat.py",
     "gui/zap2_gui/qt_app.py",
     "gui/zap2_gui/adapters/gui_state.py",
+    "gui/zap2_gui/adapters/local_build.py",
     "gui/zap2_gui/models/navigation.py",
     "gui/zap2_gui/windows/main_window.py",
     "gui/zap2_gui/widgets/placeholders.py",
@@ -42,13 +43,18 @@ REQUIRED_PATHS = [
     "docs/GUI_SHELL.md",
     "docs/CORE_INVENTORY.md",
     "docs/CORE_BUILD_MAP.md",
+    "docs/LOCAL_BUILD_ADAPTER.md",
+    "docs/PROJECT_STRUCTURE.md",
     "docs/VERSIONING.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
+    "docs/SOURCE_ALIGNMENT.md",
     "docs/reference/windows_gui_feature_digest.md",
     "docs/reference/legacy_project_digest.md",
     "tools/check_project_tree.py",
     "tools/inventory_core.py",
+    "tools/check_local_build_adapter.py",
     "tests/test_core_inventory_and_build_map.py",
+    "tests/test_local_build_adapter.py",
 ]
 
 PROJECT_DOCUMENTATION_PATHS = [
@@ -62,6 +68,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/GUI_SHELL.md",
     "docs/CORE_INVENTORY.md",
     "docs/CORE_BUILD_MAP.md",
+    "docs/LOCAL_BUILD_ADAPTER.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",
@@ -137,6 +144,16 @@ def main() -> int:
         print("PyQt6 optional dependency или entry point zap2-gui не зафиксированы")
         return 1
 
+    local_build_doc = (ROOT / "docs/LOCAL_BUILD_ADAPTER.md").read_text(encoding="utf-8")
+    app_py = (ROOT / "gui/zap2_gui/app.py").read_text(encoding="utf-8")
+    local_build_py = (ROOT / "gui/zap2_gui/adapters/local_build.py").read_text(encoding="utf-8")
+    if "local build adapter" not in local_build_doc or "--build-plan" not in app_py:
+        print("Local build adapter или CLI build-plan не зафиксированы")
+        return 1
+    if "automatic_checks_may_execute=False" not in local_build_py or "may_require_sudo=False" not in local_build_py:
+        print("Local build adapter должен оставаться plan-only и без sudo")
+        return 1
+
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
     if "русском" not in language_doc or "проектная документация" not in language_doc:
         print("Правило русского языка документации не зафиксировано")
@@ -168,7 +185,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory и build map зафиксированы")
+    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map и local build adapter зафиксированы")
     return 0
 
 

@@ -21,6 +21,7 @@ gui/
     qt_app.py
     adapters/
       gui_state.py
+      local_build.py
     models/
       navigation.py
     windows/
@@ -45,6 +46,7 @@ docs/
 tools/
   check_project_tree.py
   inventory_core.py
+  check_local_build_adapter.py
 
 tests/
   test_bootstrap_structure.py
@@ -52,6 +54,7 @@ tests/
   test_gui_shell_skeleton.py
   test_documentation_language.py
   test_core_inventory_and_build_map.py
+  test_local_build_adapter.py
 ```
 
 ## Правило разделения
@@ -91,3 +94,9 @@ Stage 4 добавляет два snapshot-файла рядом с vendored-я�
 - `core/zapret2/BUILD_MAP.json` — машинная карта корневого Makefile, дочерних Makefile и build units `nfqws2`, `ip2net`, `mdig`.
 
 Эти файлы являются нашим слоем описания, а не upstream-исходниками. Они должны обновляться только явным патчем или ручной командой разработчика `python tools/inventory_core.py --write` после осознанного изменения `core/zapret2/`. Автоматические проверки используют `--check` и не запускают сборку.
+
+## Local build adapter
+
+Stage 6 добавляет `gui/zap2_gui/adapters/local_build.py`. Это наш первый adapter между build map и будущим GUI workflow сборки. Он создаёт структурированный план локальной команды `make`, но не выполняет её в автоматических проверках.
+
+Слой считается частью `gui/`, потому что он обслуживает application workflow, а не меняет upstream-ядро. Его проверки находятся в `tools/check_local_build_adapter.py` и `tests/test_local_build_adapter.py`.

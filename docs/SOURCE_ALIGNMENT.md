@@ -54,3 +54,14 @@ Stage 5 не меняет импортированные upstream-исходни
 - `docs/GUI_SHELL.md` документирует правила развития оболочки.
 
 Сборка ядра, установка зависимостей, service integration, firewall mutation и привилегированные действия остаются не-целями этого этапа. Автоматические проверки проверяют импортируемость и структуру GUI shell, но не запускают окно.
+
+## Добавление Stage 6
+
+Stage 6 не меняет импортированные upstream-исходники. Он добавляет наш application-side adapter поверх `BUILD_MAP.json`:
+
+- `gui/zap2_gui/adapters/local_build.py` формирует планы локальной сборки для `all`, `nfqws2`, `ip2net`, `mdig` и `clean`;
+- `docs/LOCAL_BUILD_ADAPTER.md` описывает назначение adapter-слоя и его границы;
+- `tools/check_local_build_adapter.py` и `tests/test_local_build_adapter.py` проверяют, что план не требует `sudo`, не меняет services/firewall и не запускается автоматически;
+- `python -m zap2_gui.app --build-plan` показывает план в headless-режиме без выполнения `make`.
+
+Сборка ядра, установка зависимостей и privileged runtime integration по-прежнему не выполняются автоматическими проверками.

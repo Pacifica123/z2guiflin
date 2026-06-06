@@ -14,6 +14,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/GUI_SHELL.md",
     "docs/CORE_INVENTORY.md",
     "docs/CORE_BUILD_MAP.md",
+    "docs/LOCAL_BUILD_ADAPTER.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",

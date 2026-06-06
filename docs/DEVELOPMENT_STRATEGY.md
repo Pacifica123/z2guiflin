@@ -119,7 +119,7 @@ inspect -> plan -> present -> owner confirms -> execute locally -> record result
 
 ### v0.3-alpha_stage_6 — local build adapter
 
-Добавить local build command plan для ядра. Проверка, сгенерированная ассистентом, может валидировать construction команды, но реальные host dependencies остаются под контролем владельца.
+Добавить local build adapter для ядра: `gui/zap2_gui/adapters/local_build.py` строит явные планы `make`-сборки по `BUILD_MAP.json`, показывает ожидаемые артефакты и остаётся plan-only в автоматических проверках. Проверки валидируют команды, цели и запреты на `sudo`/service/firewall mutation, но реальные host dependencies и запуск `make` остаются под контролем владельца.
 
 ### v0.3-alpha_stage_7 — workspace профилей/стратегий
 
@@ -132,3 +132,15 @@ inspect -> plan -> present -> owner confirms -> execute locally -> record result
 ## Definition of done для v0.3-beta
 
 `v0.3-beta` можно рассматривать только тогда, когда у проекта есть рабочий GUI skeleton, локальный core build path, видимое управление strategies/profiles, диагностика и явный owner-confirmed путь для любой привилегированной операции. Beta не обязана иметь multi-user polish.
+
+## Решение Stage 6: local build adapter
+
+Начиная со Stage 6, сборка ядра моделируется как структурированный план, а не как немедленный запуск shell-команды. Adapter принимает target `all`, `nfqws2`, `ip2net`, `mdig` или `clean`, берёт данные из `BUILD_MAP.json` и возвращает:
+
+- рабочую директорию команды;
+- `argv` без склеивания в небезопасную shell-строку;
+- ожидаемые артефакты;
+- подсказки по локальным библиотекам;
+- явные флаги, что автоматические проверки не должны выполнять этот план.
+
+Это первый шаг к нормальному экрану `Ядро`: GUI сможет показывать пользователю понятную локальную сборку, а будущий runner будет добавлен отдельно и только после подтверждений.

@@ -6,6 +6,7 @@ import argparse
 import sys
 
 from . import PRODUCT_LABEL
+from .adapters.local_build import create_local_build_plan
 from .core_inventory import load_core_build_map, load_core_inventory, load_core_inventory_snapshot
 from .models.navigation import default_navigation_sections
 from .project_paths import discover_layout
@@ -20,6 +21,7 @@ def describe_project() -> str:
     units = ", ".join(unit.name for unit in build_map.units)
     sections = ", ".join(section.title for section in default_navigation_sections())
     pyqt_state = "available" if is_pyqt_available() else "not installed"
+    build_plan = create_local_build_plan(layout.root)
     return "\n".join(
         [
             f"Zap2 GUI Linux {PRODUCT_LABEL}",
@@ -27,6 +29,7 @@ def describe_project() -> str:
             f"core: {inventory.upstream_name} ({inventory.imported_files} imported files)",
             f"inventory: {snapshot.vendor_file_count} vendored files",
             f"build units: {units}",
+            f"local build adapter: plan-only ({len(build_plan.expected_artifacts)} expected artifacts)",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: bootstrap/read-only baseline with optional GUI launch",
@@ -41,6 +44,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="запустить локальную PyQt GUI shell; требует установленный PyQt6 и display server",
     )
+    parser.add_argument(
+        "--build-plan",
+        action="store_true",
+        help="показать явный local build plan для ядра без запуска make",
+    )
+    parser.add_argument(
+        "--build-target",
+        default="all",
+        help="цель для --build-plan: all, nfqws2, ip2net, mdig или clean",
+    )
     return parser
 
 
@@ -52,6 +65,14 @@ def main(argv: list[str] | None = None) -> int:
 
             return run_gui(sys.argv if argv is None else [sys.argv[0], *argv])
         except PyQtUnavailableError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.build_plan:
+        try:
+            print(create_local_build_plan(target=args.build_target).to_text())
+            return 0
+        except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2
 

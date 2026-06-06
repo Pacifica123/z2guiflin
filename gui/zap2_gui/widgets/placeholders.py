@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..adapters.local_build import LocalBuildPlan
 from ..core_inventory import CoreBuildMap, CoreInventorySnapshot
 from ..models.navigation import NavigationSection
 from ..qt_compat import require_pyqt
@@ -30,7 +31,7 @@ def make_placeholder_page(section: NavigationSection) -> Any:
     return page
 
 
-def make_core_page(snapshot: CoreInventorySnapshot, build_map: CoreBuildMap) -> Any:
+def make_core_page(snapshot: CoreInventorySnapshot, build_map: CoreBuildMap, build_plan: LocalBuildPlan) -> Any:
     """Create the first inventory-backed Core tab."""
 
     _QtCore, QtWidgets = require_pyqt()
@@ -45,6 +46,10 @@ def make_core_page(snapshot: CoreInventorySnapshot, build_map: CoreBuildMap) -> 
                 f"Upstream: {snapshot.upstream_name}",
                 f"Vendored files: {snapshot.vendor_file_count}",
                 f"Build units: {', '.join(unit.name for unit in build_map.units)}",
+                f"Local build target: {build_plan.target}",
+                f"Expected artifacts: {', '.join(item.relative_path for item in build_plan.expected_artifacts)}",
+                "Build command preview:",
+                *build_plan.command_previews(),
                 "Автоматические проверки не запускают make/sudo.",
             ]
         )

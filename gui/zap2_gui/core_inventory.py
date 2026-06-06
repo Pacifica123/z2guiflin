@@ -36,6 +36,7 @@ class CoreBuildUnit:
     makefile: str
     linux_outputs: tuple[str, ...]
     known_targets: tuple[str, ...]
+    declared_linux_libraries: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -92,6 +93,7 @@ def load_core_build_map(root: Path | None = None) -> CoreBuildMap:
             makefile=str(unit["makefile"]),
             linux_outputs=tuple(str(item) for item in unit["linuxOutputs"]),
             known_targets=tuple(str(item) for item in unit["knownTargets"]),
+            declared_linux_libraries=tuple(str(item) for item in unit.get("declaredLinuxLibraries", [])),
         )
         for unit in data["units"]
     )
