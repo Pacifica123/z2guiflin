@@ -458,6 +458,33 @@ static int nfq_main(void)
 		return 1;
 	}
 
+	/*
+	 * Zap2 Linux runtime note (v0.3-beta): open the NFQUEUE handle before
+	 * droproot/dropcaps.  In the GUI sudo-askpass workflow nfqws2 is started
+	 * by root, then intentionally drops to the owner identity for hostlist/Lua
+	 * safety.  On some desktops the post-drop capability set is sufficient for
+	 * raw sockets, but nfq_create_queue() still returns EPERM.  Creating the
+	 * queue handle first keeps the privileged operation explicit and early; the
+	 * process still drops privileges before Lua init and before packet handling.
+	 */
+	if (params.intercept)
+	{
+		if (!(buf = malloc(NFQ_MAX_RECV_SIZE)) || !(cbdata.mod = malloc(RECONSTRUCT_MAX_SIZE)))
+		{
+			DLOG_ERR("out of memory\n");
+			goto err;
+		}
+
+		if ((cbdata.sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+		{
+			DLOG_PERROR("socket");
+			goto err;
+		}
+
+		if (!nfq_init(&h, &qh, &cbdata))
+			goto err;
+	}
+
 	if (params.droproot && !droproot(params.uid, params.user, params.gid, params.gid_count) || !dropcaps())
 		goto err;
 	print_id();
@@ -492,21 +519,6 @@ static int nfq_main(void)
 		DLOG_CONDUP("no intercept quit\n");
 		goto exok;
 	}
-
-	if (!(buf = malloc(NFQ_MAX_RECV_SIZE)) || !(cbdata.mod = malloc(RECONSTRUCT_MAX_SIZE)))
-	{
-		DLOG_ERR("out of memory\n");
-		goto err;
-	}
-
-	if ((cbdata.sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-	{
-		DLOG_PERROR("socket");
-		goto err;
-	}
-
-	if (!nfq_init(&h, &qh, &cbdata))
-		goto err;
 
 #ifdef HAS_FILTER_SSID
 	if (params.filter_ssid_present)

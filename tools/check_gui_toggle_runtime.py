@@ -43,6 +43,17 @@ def main() -> int:
     if "Runtime logs" not in logs or "read-only: yes" not in logs:
         print("runtime logs adapter не вернул read-only summary")
         return 1
+
+    widget_source = (ROOT / "gui" / "zap2_gui" / "widgets" / "runtime_controls.py").read_text(encoding="utf-8")
+    for marker in ("primaryRunButton", "runtimeStatusIndicator", "▶", "■", "QGridLayout"):
+        if marker not in widget_source:
+            print(f"GUI overview не содержит compact marker: {marker}")
+            return 1
+    core_source = (ROOT / "core" / "zapret2" / "nfq2" / "nfqws.c").read_text(encoding="utf-8")
+    if "Zap2 Linux runtime note (v0.3-beta)" not in core_source:
+        print("core nfqws.c не содержит marker NFQUEUE privilege order patch")
+        return 1
+
     direct_logs = runtime_log_snapshot_to_text(root=ROOT)
     if "executes now: no" not in direct_logs:
         print("runtime logs snapshot должен быть read-only")

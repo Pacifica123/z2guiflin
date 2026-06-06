@@ -311,3 +311,13 @@ Hotfix закрепляет правило: privileged GUI start должен п
 Stage 10 расширяет механизм runtime inputs: теперь session runner копирует не только hostlist, но и `--lua-init=@...` файлы в `/tmp/zap2-runtime-inputs/<profile-hash>/lua/` с правами `0644` на файлы и `0755` на директории, после чего переписывает runtime args на public paths. Исходные vendored Lua-файлы не меняются, а stop делает best-effort cleanup public runtime inputs.
 
 Правило: любой файл, который `nfqws2` должен читать после `dropcaps()`, не должен передаваться из приватного workspace напрямую. Он должен попадать в controlled runtime input copy с явными правами и логируемым state.
+
+
+## v0.3-beta_stage_13 — NFQUEUE privilege order и компактный GUI
+
+Stage 13 фиксирует две проблемы, выявленные в GUI sudo-askpass runtime:
+
+1. `nfqws2` успешно собирался, читал public hostlist/Lua inputs и запускался через графический sudo prompt, но падал на `nfq_create_queue(): Operation not permitted`. Причина в порядке runtime-действий: upstream-код сбрасывал права до создания NFQUEUE handle. В vendored Linux entrypoint теперь NFQUEUE открывается до `droproot/dropcaps`, а Lua init и packet handling остаются после сброса прав.
+2. Вкладка `Обзор` стала слишком широкой из-за длинной горизонтальной полосы диагностических кнопок. GUI теперь использует компактную главную кнопку `▶/■`, статус-индикатор `Запущен/Остановлен`, перенос строк в выводе и сетку диагностических кнопок.
+
+Правило на будущее: privileged runtime fix должен быть отражён как явный vendored-core patch и не должен маскироваться GUI-обёрткой. GUI должен оставаться читаемым на обычном экране: одна главная кнопка, короткий статус и отдельная зона диагностики.

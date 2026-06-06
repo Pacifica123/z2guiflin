@@ -29,7 +29,8 @@ def create_main_window(root: object | None = None) -> Any:
         def __init__(self) -> None:
             super().__init__()
             self.setWindowTitle(f"Zap2 GUI Linux {PRODUCT_LABEL}")
-            self.resize(1120, 720)
+            self.resize(860, 640)
+            self.setMinimumSize(720, 520)
 
             tabs = QtWidgets.QTabWidget()
             tabs.setDocumentMode(True)

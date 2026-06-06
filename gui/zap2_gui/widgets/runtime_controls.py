@@ -7,61 +7,107 @@ from typing import Any, Callable
 
 from ..adapters.gui_runtime_controls import (
     DEFAULT_BUILD_PLAN_ID,
-    gui_default_build_deps,
-    gui_execute_default_build,
     DEFAULT_START_PLAN_ID,
     DEFAULT_STOP_PLAN_ID,
     gui_confirm_plan,
+    gui_default_build_deps,
     gui_default_status,
+    gui_default_toggle_label,
+    gui_execute_default_build,
     gui_prepare_default_build,
     gui_prepare_default_start,
     gui_prepare_default_stop,
-    gui_privileged_default_start,
-    gui_privileged_default_stop,
     gui_privileged_default_start_command,
     gui_privileged_default_stop_command,
     gui_runtime_commands,
-    gui_default_toggle_label,
-    gui_toggle_default_workflow,
     gui_runtime_logs,
+    gui_toggle_default_workflow,
 )
 from ..qt_compat import require_pyqt
 
 
+def _is_started(root: Path | None) -> bool:
+    return gui_default_toggle_label(root=root).startswith("Выключить")
+
+
+def _status_label_text(root: Path | None) -> str:
+    return "Запущен" if _is_started(root) else "Остановлен"
+
+
 def make_runtime_control_page(root: Path | None = None) -> Any:
-    """Create an Overview tab with explicit build/start/stop/status controls."""
+    """Create a compact Overview tab with one primary start/stop control."""
 
     _QtCore, QtWidgets = require_pyqt()
     page = QtWidgets.QWidget()
     layout = QtWidgets.QVBoxLayout(page)
+    layout.setContentsMargins(14, 14, 14, 14)
+    layout.setSpacing(10)
 
-    title = QtWidgets.QLabel("Обзор / управление default workflow")
+    title = QtWidgets.QLabel("Обзор")
     title.setObjectName("pageTitle")
     intro = QtWidgets.QLabel(
-        "Кнопки ниже переносят CLI workflow в GUI shell: они готовят планы, "
-        "подтверждают выбранный plan id и показывают статус. Privileged запуск/отключение "
-        "идут через sudo -A/SUDO_ASKPASS, поэтому пароль запрашивает графическое окно, "
-        "а не терминальный sudo."
+        "Главная кнопка запускает или останавливает Default workflow целиком: "
+        "проверка, сборка при необходимости, план, подтверждение и графический sudo-запрос. "
+        "Подробные шаги и ошибки выводятся ниже и во вкладке «Логи»."
     )
     intro.setWordWrap(True)
 
+    status_row = QtWidgets.QHBoxLayout()
+    status_row.setSpacing(10)
+
+    toggle_button = QtWidgets.QPushButton()
+    toggle_button.setFixedSize(46, 46)
+    toggle_button.setObjectName("primaryRunButton")
+    toggle_button.setToolTip("Включить/выключить Default workflow")
+
+    indicator = QtWidgets.QLabel()
+    indicator.setObjectName("runtimeStatusIndicator")
+    indicator.setMinimumWidth(96)
+
+    status_text = QtWidgets.QLabel()
+    status_text.setWordWrap(True)
+
+    refresh_button = QtWidgets.QPushButton("⟳")
+    refresh_button.setFixedWidth(38)
+    refresh_button.setToolTip("Обновить статус")
+
+    logs_button = QtWidgets.QPushButton("Логи")
+    logs_button.setFixedWidth(72)
+
+    status_row.addWidget(toggle_button)
+    status_row.addWidget(indicator)
+    status_row.addWidget(status_text, 1)
+    status_row.addWidget(refresh_button)
+    status_row.addWidget(logs_button)
+
     output = QtWidgets.QPlainTextEdit()
     output.setReadOnly(True)
+    output.setMinimumHeight(260)
+    try:
+        output.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.WidgetWidth)
+    except Exception:  # pragma: no cover - compatibility with older Qt bindings
+        pass
     output.setPlainText(gui_default_status(root=root))
 
-    toggle_row = QtWidgets.QHBoxLayout()
-    toggle_button = QtWidgets.QPushButton(gui_default_toggle_label(root=root))
-    toggle_button.setCheckable(True)
+    details_box = QtWidgets.QGroupBox("Диагностика и ручные шаги")
+    details_layout = QtWidgets.QGridLayout(details_box)
+    details_layout.setHorizontalSpacing(8)
+    details_layout.setVerticalSpacing(8)
 
-    buttons = QtWidgets.QHBoxLayout()
-
-    def refresh_toggle_label() -> None:
+    def refresh_visual_state() -> None:
         try:
-            toggle_button.setText(gui_default_toggle_label(root=root))
-            toggle_button.setChecked(toggle_button.text().startswith("Выключить"))
+            started = _is_started(root)
+            toggle_button.setText("■" if started else "▶")
+            indicator.setText("● Запущен" if started else "○ Остановлен")
+            indicator.setProperty("state", "running" if started else "stopped")
+            status_text.setText(_status_label_text(root))
         except Exception:
-            toggle_button.setText("Включить/выключить Default")
-            toggle_button.setChecked(False)
+            toggle_button.setText("▶")
+            indicator.setText("? Неизвестно")
+            indicator.setProperty("state", "unknown")
+            status_text.setText("Статус не прочитан")
+        page.style().unpolish(indicator)
+        page.style().polish(indicator)
 
     def run_action(label: str, func: Callable[[], str]) -> None:
         try:
@@ -69,91 +115,77 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
             output.setPlainText(f"{label}: ошибка\n{exc}")
         finally:
-            refresh_toggle_label()
-
-    def run_privileged_action(label: str, action_text: str, func: Callable[[], str]) -> None:
-        question = QtWidgets.QMessageBox.question(
-            page,
-            label,
-            (
-                f"{action_text} через графический sudo-запрос?\n\n"
-                "GUI не хранит пароль и не использует терминальный sudo. "
-                "Перед этим должен быть создан и подтверждён соответствующий runtime plan."
-            ),
-        )
-        if question != QtWidgets.QMessageBox.StandardButton.Yes:
-            output.setPlainText(f"{label}: отменено пользователем до sudo-askpass")
-            return
-        run_action(label, func)
+            refresh_visual_state()
 
     def run_toggle() -> None:
         question = QtWidgets.QMessageBox.question(
             page,
-            "Default toggle",
+            "Default workflow",
             (
-                "Выполнить полный workflow одной кнопкой?\n\n"
-                "Если Default выключен: GUI при необходимости соберёт nfqws2 без sudo, "
-                "подготовит и подтвердит start-plan, затем вызовет sudo-askpass для запуска.\n"
-                "Если Default включён: GUI подготовит и подтвердит stop-plan, затем вызовет sudo-askpass для отключения.\n\n"
-                "Пароль обрабатывает графический sudo-askpass helper; приложение пароль не хранит."
+                "Выполнить полный Default workflow одной кнопкой?\n\n"
+                "Если выключено: GUI проверит зависимости, соберёт nfqws2 при необходимости, "
+                "создаст и подтвердит start-plan, затем покажет графический sudo-запрос.\n"
+                "Если включено: GUI создаст и подтвердит stop-plan, затем покажет графический sudo-запрос.\n\n"
+                "Пароль не сохраняется приложением."
             ),
         )
         if question != QtWidgets.QMessageBox.StandardButton.Yes:
             output.setPlainText("Default toggle: отменено пользователем")
-            refresh_toggle_label()
+            refresh_visual_state()
             return
         run_action("Default toggle", lambda: gui_toggle_default_workflow(root=root))
 
     toggle_button.clicked.connect(lambda _checked=False: run_toggle())
-    toggle_row.addWidget(toggle_button)
-    logs_button = QtWidgets.QPushButton("Показать runtime logs")
+    refresh_button.clicked.connect(lambda _checked=False: run_action("Статус", lambda: gui_default_status(root=root)))
     logs_button.clicked.connect(lambda _checked=False: run_action("Runtime logs", lambda: gui_runtime_logs(root=root)))
-    toggle_row.addWidget(logs_button)
 
     actions: tuple[tuple[str, Callable[[], str]], ...] = (
-        ("Проверить зависимости", lambda: gui_default_build_deps(root=root)),
+        ("Зависимости", lambda: gui_default_build_deps(root=root)),
         ("План сборки", lambda: gui_prepare_default_build(root=root)),
         ("Подтвердить сборку", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_BUILD_PLAN_ID)),
-        ("Собрать без sudo", lambda: gui_execute_default_build(root=root)),
+        ("Собрать", lambda: gui_execute_default_build(root=root)),
         ("План запуска", lambda: gui_prepare_default_start(root=root)),
         ("Подтвердить запуск", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_START_PLAN_ID)),
-        ("Команда запуска через sudo askpass", lambda: gui_privileged_default_start_command(root=root)),
-        ("Статус", lambda: gui_default_status(root=root)),
-        ("Runtime logs", lambda: gui_runtime_logs(root=root)),
-        ("План отключения", lambda: gui_prepare_default_stop(root=root)),
-        ("Подтвердить отключение", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_STOP_PLAN_ID)),
-        ("Команда отключения через sudo askpass", lambda: gui_privileged_default_stop_command(root=root)),
+        ("Команда запуска", lambda: gui_privileged_default_start_command(root=root)),
+        ("План стоп", lambda: gui_prepare_default_stop(root=root)),
+        ("Подтвердить стоп", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_STOP_PLAN_ID)),
+        ("Команда стоп", lambda: gui_privileged_default_stop_command(root=root)),
         ("Команды", lambda: gui_runtime_commands().to_text()),
     )
-    for caption, callback in actions:
+    for index, (caption, callback) in enumerate(actions):
         button = QtWidgets.QPushButton(caption)
+        button.setMaximumWidth(160)
         button.clicked.connect(lambda _checked=False, c=caption, f=callback: run_action(c, f))
-        buttons.addWidget(button)
-
-    privileged_buttons = QtWidgets.QHBoxLayout()
-    start_button = QtWidgets.QPushButton("Включить через графический запрос прав")
-    start_button.clicked.connect(
-        lambda _checked=False: run_privileged_action(
-            "Включить",
-            "Запустить default workflow",
-            lambda: gui_privileged_default_start(root=root),
-        )
-    )
-    stop_button = QtWidgets.QPushButton("Отключить через графический запрос прав")
-    stop_button.clicked.connect(
-        lambda _checked=False: run_privileged_action(
-            "Отключить",
-            "Остановить default workflow",
-            lambda: gui_privileged_default_stop(root=root),
-        )
-    )
-    privileged_buttons.addWidget(start_button)
-    privileged_buttons.addWidget(stop_button)
+        details_layout.addWidget(button, index // 4, index % 4)
 
     layout.addWidget(title)
     layout.addWidget(intro)
-    layout.addLayout(toggle_row)
-    layout.addLayout(buttons)
-    layout.addLayout(privileged_buttons)
+    layout.addLayout(status_row)
+    layout.addWidget(details_box)
     layout.addWidget(output, 1)
+
+    page.setStyleSheet(
+        """
+        QLabel#pageTitle { font-size: 20px; font-weight: 700; }
+        QPushButton#primaryRunButton {
+            font-size: 24px;
+            font-weight: 700;
+            border-radius: 23px;
+            padding: 0;
+        }
+        QLabel#runtimeStatusIndicator {
+            font-weight: 700;
+            padding: 6px 10px;
+            border-radius: 12px;
+            background: rgba(127, 127, 127, 0.14);
+        }
+        QLabel#runtimeStatusIndicator[state="running"] {
+            background: rgba(0, 180, 80, 0.18);
+        }
+        QLabel#runtimeStatusIndicator[state="stopped"] {
+            background: rgba(180, 120, 0, 0.16);
+        }
+        """
+    )
+    refresh_visual_state()
     return page

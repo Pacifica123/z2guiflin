@@ -58,3 +58,8 @@ lua files:   0644
 - механизм не запускает service mode и не смешивается с bootstrap;
 - после изменения hostlist нужно заново подготовить и подтвердить start workflow;
 - если start упал до cleanup, public copies могут остаться для диагностики и будут перезаписаны следующим запуском того же plan hash.
+
+
+## Связь с NFQUEUE privilege order
+
+Public runtime inputs решают доступ к hostlist/Lua после `dropcaps()`, но не решают создание NFQUEUE. Для этого `v0.3-beta_stage_13` добавляет отдельный vendored-core patch: очередь NFQUEUE создаётся до сброса прав, а runtime inputs всё равно проверяются и используются после сброса прав. Подробности см. в `docs/NFQUEUE_PRIVILEGE_ORDER.md`.
