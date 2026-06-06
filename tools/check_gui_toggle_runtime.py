@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Проверка GUI toggle/logs и polkit root-preserve bridge."""
+"""Проверка GUI toggle/logs и polkit upstream-default bridge."""
 
 from __future__ import annotations
 
@@ -16,15 +16,18 @@ from zap2_gui.adapters.runtime_logs import runtime_log_snapshot_to_text  # noqa:
 
 def main() -> int:
     start_command = build_gui_privileged_command(root=ROOT, action="start")
-    if "ZAP2_RUNTIME_DROP_IDENTITY=polkit-root" not in start_command.argv:
-        print("GUI pkexec start не передаёт polkit-root drop identity")
+    if "ZAP2_RUNTIME_DROP_IDENTITY=upstream-default" not in start_command.argv:
+        print("GUI pkexec start должен использовать upstream-default drop identity")
+        return 1
+    if "ZAP2_RUNTIME_DROP_IDENTITY=polkit-root" in start_command.argv:
+        print("GUI pkexec start больше не должен форсировать polkit-root drop identity")
         return 1
     if "ZAP2_GUI_PRIVILEGE_BRIDGE=pkexec" not in start_command.argv:
         print("GUI pkexec start не маркирует privilege bridge")
         return 1
     stop_command = build_gui_privileged_command(root=ROOT, action="stop")
-    if "ZAP2_RUNTIME_DROP_IDENTITY=polkit-root" in stop_command.argv:
-        print("GUI pkexec stop не должен форсировать root-preserve identity")
+    if any(item.startswith("ZAP2_RUNTIME_DROP_IDENTITY=") for item in stop_command.argv):
+        print("GUI pkexec stop не должен менять runtime drop identity")
         return 1
     label = gui_default_toggle_label(root=ROOT)
     if label not in {"Включить Default", "Выключить Default"}:

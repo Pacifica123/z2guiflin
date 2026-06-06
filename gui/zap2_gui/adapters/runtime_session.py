@@ -31,7 +31,7 @@ from .runtime_state import (
 )
 from ..project_paths import discover_layout
 
-SESSION_STAGE = "v0.3-beta_stage_10"
+SESSION_STAGE = "v0.3-beta_stage_11"
 SESSION_SCHEMA_VERSION = 1
 SESSION_MARKER = "zap2-runtime-session-v1"
 DEFAULT_NFQUEUE_NUM = 200
@@ -283,17 +283,34 @@ def _running_as_root() -> bool:
     return False if geteuid is None else geteuid() == 0
 
 
-def _preserve_root_identity_requested() -> bool:
-    """Return whether a privileged GUI bridge asked nfqws2 to keep root caps.
+def _drop_identity_mode() -> str:
+    """Return GUI/owner-requested drop identity mode.
 
-    Через pkexec у Python-процесса нет SUDO_UID/SUDO_GID, а передача
-    --uid=<workspace-owner> может привести к потере CAP_NET_ADMIN до
-    nfq_create_queue(). Поэтому GUI/polkit bridge может явно запросить
-    root-preserving session identity. Это не является дефолтом для обычного
-    терминального sudo-пути.
+    В Stage 7 GUI/pkexec временно форсировал ``--uid=0:0`` через
+    ``ZAP2_RUNTIME_DROP_IDENTITY=polkit-root``. После того как hostlist и Lua
+    inputs были вынесены в public runtime directory, этот режим стал вредным:
+    upstream ``nfqws2`` доходил до Lua, но затем падал на
+    ``nfq_create_queue(): Operation not permitted``. Для GUI/pkexec теперь
+    нужен upstream default drop identity, а не принудительный ``--uid=0:0``.
     """
 
-    value = os.environ.get("ZAP2_RUNTIME_DROP_IDENTITY", "").strip().lower()
+    return os.environ.get("ZAP2_RUNTIME_DROP_IDENTITY", "").strip().lower()
+
+
+def _upstream_default_identity_requested() -> bool:
+    value = _drop_identity_mode()
+    return value in {"upstream-default", "upstream", "default", "synthetic", "auto"}
+
+
+def _preserve_root_identity_requested() -> bool:
+    """Return whether legacy GUI bridge asked nfqws2 to keep root uid/gid.
+
+    This mode is kept only for compatibility/diagnostics. The normal GUI/pkexec
+    path no longer uses it because public runtime inputs make explicit root
+    preservation unnecessary and it can break NFQUEUE creation on some systems.
+    """
+
+    value = _drop_identity_mode()
     return value in {"root", "preserve-root", "keep-root", "polkit-root"}
 
 
@@ -302,16 +319,20 @@ def _detect_drop_identity(root: Path) -> RuntimeDropIdentity | None:
 
     Нерутовый запуск оставляет upstream default untouched. Обычный sudo/root
     запуск получает uid/gid владельца sudo-сессии или workspace, чтобы nfqws2
-    после privilege drop мог читать hostlist. GUI/pkexec start может запросить
-    root-preserving identity, потому что в этом пути иначе nfqws2 теряет
-    CAP_NET_ADMIN до создания NFQUEUE.
+    после privilege drop мог читать hostlist. GUI/pkexec start после Stage 11
+    тоже оставляет upstream default untouched: hostlist/Lua уже доступны из
+    public runtime directory, а принудительный ``--uid=0:0`` может ломать
+    ``nfq_create_queue``.
     """
 
     if not _running_as_root():
         return None
 
+    if _upstream_default_identity_requested():
+        return None
+
     if _preserve_root_identity_requested():
-        return RuntimeDropIdentity(uid=0, gid=0, source="polkit-root-preserve")
+        return RuntimeDropIdentity(uid=0, gid=0, source="legacy-polkit-root-preserve")
 
     sudo_uid = _parse_positive_int(os.environ.get("SUDO_UID"))
     sudo_gid = _parse_positive_int(os.environ.get("SUDO_GID"))

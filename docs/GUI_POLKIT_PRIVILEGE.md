@@ -73,4 +73,6 @@ session start. Если статус говорит `started` и `session status
 
 ## GUI/pkexec и NFQUEUE capability
 
-Для `default-start` через GUI/pkexec session runner передаёт `ZAP2_RUNTIME_DROP_IDENTITY=polkit-root`, что приводит к явному `--uid=0:0` для `nfqws2`. Это нужно, чтобы `nfqws2` не терял `CAP_NET_ADMIN` до создания NFQUEUE и не падал на `nfq_create_queue(): Operation not permitted`. GUI по-прежнему не хранит пароль: подтверждение выполняет системный polkit agent.
+В Stage 7 GUI/pkexec временно форсировал `ZAP2_RUNTIME_DROP_IDENTITY=polkit-root`, что добавляло `--uid=0:0` для `nfqws2`. После переноса hostlist и Lua init-файлов в public runtime directory это оказалось лишним и на некоторых системах приводило к `nfq_create_queue(): Operation not permitted`.
+
+Теперь GUI/pkexec start передаёт `ZAP2_RUNTIME_DROP_IDENTITY=upstream-default`: session runner не добавляет явный `--uid`, а оставляет upstream default privilege-drop логику `nfqws2`. GUI по-прежнему не хранит пароль: подтверждение выполняет системный polkit agent.

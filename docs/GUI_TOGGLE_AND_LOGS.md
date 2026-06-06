@@ -24,20 +24,17 @@
 Приложение не принимает и не хранит пароль. Пароль или подтверждение показывает
 системный графический polkit authentication agent.
 
-## Почему start через GUI сохраняет root identity
+## Почему start через GUI использует upstream default drop identity
 
-Для `nfqws2` на Linux нужен `CAP_NET_ADMIN` при создании NFQUEUE. Терминальный
-`sudo`-путь и GUI/pkexec-путь отличаются окружением: `pkexec` не передаёт
-`SUDO_UID/SUDO_GID`. Поэтому GUI/pkexec start передаёт во внутренний runner:
+Для `nfqws2` на Linux нужен `CAP_NET_ADMIN` при создании NFQUEUE. После того как hostlist и Lua init-файлы были перенесены в public runtime directory, GUI/pkexec больше не должен форсировать `--uid=0:0`: такой режим на некоторых системах доводит процесс до Lua, но затем ломает `nfq_create_queue()`.
+
+Поэтому GUI/pkexec start передаёт во внутренний runner:
 
 ```text
-ZAP2_RUNTIME_DROP_IDENTITY=polkit-root
+ZAP2_RUNTIME_DROP_IDENTITY=upstream-default
 ```
 
-Это заставляет session runner передать `nfqws2` явный `--uid=0:0`, чтобы
-процесс не терял `CAP_NET_ADMIN` до `nfq_create_queue()`. Это применяется только
-к privileged GUI start. Stop и неприцивилегированные действия этот режим не
-используют.
+Это означает: session runner не добавляет явный `--uid`, а оставляет upstream default privilege-drop поведение `nfqws2`. Stop и непривилегированные действия этот режим не используют.
 
 ## Логи
 
