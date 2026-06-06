@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -15,20 +16,32 @@ REQUIRED_PATHS = [
     "pyproject.toml",
     "core/README.md",
     "core/zapret2/UPSTREAM_IMPORT.json",
+    "core/zapret2/UPSTREAM_IMPORT.md",
+    "core/zapret2/CORE_INVENTORY.json",
+    "core/zapret2/BUILD_MAP.json",
     "core/zapret2/docs/LICENSE.txt",
     "core/zapret2/Makefile",
+    "core/zapret2/nfq2/Makefile",
+    "core/zapret2/ip2net/Makefile",
+    "core/zapret2/mdig/Makefile",
     "core/zapret2/nfq2/nfqws.c",
     "core/zapret2/lua/zapret-lib.lua",
     "gui/README.md",
     "gui/zap2_gui/__init__.py",
     "gui/zap2_gui/app.py",
+    "gui/zap2_gui/core_inventory.py",
     "docs/DEVELOPMENT_STRATEGY.md",
     "docs/DOCUMENTATION_LANGUAGE.md",
     "docs/GUI_FRAMEWORK.md",
+    "docs/CORE_INVENTORY.md",
+    "docs/CORE_BUILD_MAP.md",
     "docs/VERSIONING.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/reference/windows_gui_feature_digest.md",
     "docs/reference/legacy_project_digest.md",
+    "tools/check_project_tree.py",
+    "tools/inventory_core.py",
+    "tests/test_core_inventory_and_build_map.py",
 ]
 
 PROJECT_DOCUMENTATION_PATHS = [
@@ -39,6 +52,8 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/DEVELOPMENT_STRATEGY.md",
     "docs/DOCUMENTATION_LANGUAGE.md",
     "docs/GUI_FRAMEWORK.md",
+    "docs/CORE_INVENTORY.md",
+    "docs/CORE_BUILD_MAP.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",
@@ -54,6 +69,19 @@ CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
 def _contains_russian_text(path: Path) -> bool:
     text = path.read_text(encoding="utf-8")
     return len(CYRILLIC_RE.findall(text)) >= 80
+
+
+def _run_inventory_check() -> bool:
+    result = subprocess.run(
+        [sys.executable, "tools/inventory_core.py", "--check"],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+    print(result.stdout.strip())
+    return result.returncode == 0
 
 
 def main() -> int:
@@ -106,7 +134,22 @@ def main() -> int:
             print(f" - {path}")
         return 1
 
-    print("Дерево v0.3-alpha OK; PyQt и русскоязычная документация зафиксированы")
+    inventory = json.loads((ROOT / "core/zapret2/CORE_INVENTORY.json").read_text(encoding="utf-8"))
+    build_map = json.loads((ROOT / "core/zapret2/BUILD_MAP.json").read_text(encoding="utf-8"))
+    if inventory["counts"]["vendorFileCount"] != int(manifest["importedFileCount"]):
+        print("Инвентаризация ядра не совпадает с манифестом импорта")
+        return 1
+    unit_names = {unit["name"] for unit in build_map["units"]}
+    if unit_names != {"nfqws2", "ip2net", "mdig"}:
+        print("Build map должен описывать nfqws2, ip2net и mdig")
+        return 1
+    if build_map["safetyPolicy"].get("automaticChecksMayRunMake") is not False:
+        print("Build map должен запрещать запуск make в автоматических проверках")
+        return 1
+    if not _run_inventory_check():
+        return 1
+
+    print("Дерево v0.3-alpha OK; PyQt, русская документация, inventory и build map зафиксированы")
     return 0
 
 

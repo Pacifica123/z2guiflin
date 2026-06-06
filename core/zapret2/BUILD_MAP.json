@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "snapshotFor": "v0.3-alpha_stage_4",
+  "generatedBy": "tools/inventory_core.py",
+  "coreRoot": "core/zapret2",
+  "source": "parsed from vendored Makefiles without executing make",
+  "safetyPolicy": {
+    "automaticChecksMayParseMakefiles": true,
+    "automaticChecksMayRunMake": false,
+    "automaticChecksMayInstallPackages": false,
+    "automaticChecksMayUseSudo": false,
+    "automaticChecksMayMutateServicesOrFirewall": false
+  },
+  "rootMakefile": {
+    "path": "Makefile",
+    "delegatedDirectories": [
+      "nfq2",
+      "ip2net",
+      "mdig"
+    ],
+    "outputDirectory": "binaries/my",
+    "targets": [
+      "all",
+      "systemd",
+      "android",
+      "bsd",
+      "clean"
+    ],
+    "notes": [
+      "root all/systemd/android/bsd targets call subdirectory Makefiles",
+      "clean removes binaries/my and delegates clean to subdirectories"
+    ]
+  },
+  "makefileTargets": {
+    "Makefile": [
+      "all",
+      "systemd",
+      "android",
+      "bsd",
+      "clean"
+    ],
+    "nfq2/Makefile": [
+      "all",
+      "nfqws2",
+      "ubsan",
+      "systemd",
+      "android",
+      "bsd",
+      "cygwin64",
+      "cygwin32",
+      "cygwin",
+      "clean"
+    ],
+    "ip2net/Makefile": [
+      "all",
+      "ip2net",
+      "systemd",
+      "android",
+      "bsd",
+      "mac",
+      "win",
+      "clean"
+    ],
+    "mdig/Makefile": [
+      "all",
+      "mdig",
+      "systemd",
+      "android",
+      "bsd",
+      "mac",
+      "win",
+      "clean"
+    ]
+  },
+  "units": [
+    {
+      "name": "nfqws2",
+      "kind": "packet_processing_binary",
+      "makefile": "nfq2/Makefile",
+      "sourceRoots": [
+        "nfq2",
+        "nfq2/crypto",
+        "nfq2/andr"
+      ],
+      "sourceGlobs": [
+        "nfq2/*.c",
+        "nfq2/crypto/*.c",
+        "nfq2/andr/*.c"
+      ],
+      "linuxOutputs": [
+        "nfq2/nfqws2"
+      ],
+      "otherOutputs": [
+        "nfq2/dvtws2",
+        "nfq2/winws2.exe"
+      ],
+      "declaredLinuxLibraries": [
+        "zlib",
+        "libnetfilter_queue",
+        "libnfnetlink",
+        "libmnl",
+        "libm",
+        "LuaJIT или Lua"
+      ],
+      "knownTargets": [
+        "all",
+        "nfqws2",
+        "ubsan",
+        "systemd",
+        "android",
+        "bsd",
+        "cygwin64",
+        "cygwin32",
+        "cygwin",
+        "clean"
+      ]
+    },
+    {
+      "name": "ip2net",
+      "kind": "helper_binary",
+      "makefile": "ip2net/Makefile",
+      "sourceRoots": [
+        "ip2net"
+      ],
+      "sourceGlobs": [
+        "ip2net/ip2net.c",
+        "ip2net/qsort.c"
+      ],
+      "linuxOutputs": [
+        "ip2net/ip2net"
+      ],
+      "otherOutputs": [
+        "ip2net/ip2neta",
+        "ip2net/ip2netx"
+      ],
+      "declaredLinuxLibraries": [],
+      "knownTargets": [
+        "all",
+        "ip2net",
+        "systemd",
+        "android",
+        "bsd",
+        "mac",
+        "win",
+        "clean"
+      ]
+    },
+    {
+      "name": "mdig",
+      "kind": "dns_helper_binary",
+      "makefile": "mdig/Makefile",
+      "sourceRoots": [
+        "mdig"
+      ],
+      "sourceGlobs": [
+        "mdig/*.c"
+      ],
+      "linuxOutputs": [
+        "mdig/mdig"
+      ],
+      "otherOutputs": [
+        "mdig/mdiga",
+        "mdig/mdigx"
+      ],
+      "declaredLinuxLibraries": [
+        "pthread"
+      ],
+      "knownTargets": [
+        "all",
+        "mdig",
+        "systemd",
+        "android",
+        "bsd",
+        "mac",
+        "win",
+        "clean"
+      ]
+    }
+  ],
+  "futureAdapterContract": {
+    "firstStep": "present build plan as data in GUI",
+    "secondStep": "let owner run local build explicitly",
+    "assistantBoundary": "tests validate plans and files; they do not execute host build or privileged install"
+  }
+}

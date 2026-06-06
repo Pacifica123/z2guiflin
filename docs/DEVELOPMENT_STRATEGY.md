@@ -109,7 +109,7 @@ inspect -> plan -> present -> owner confirms -> execute locally -> record result
 
 ### v0.3-alpha_stage_4 — инвентаризация ядра и build map
 
-Добавить read-only inventory model для Makefiles, C sources, Lua scripts, configs и docs. Сформировать build-plan object, но не запускать privileged install.
+Добавить read-only inventory model для Makefiles, C sources, Lua scripts, configs, service templates и docs. Сформировать machine-readable build map для `nfqws2`, `ip2net`, `mdig`, но не запускать сборку, privileged install, service management или firewall mutation. Результат этапа должен стать основой для будущего GUI-экрана Core и будущего local build adapter.
 
 ### v0.3-alpha_stage_5 — скелет GUI shell
 

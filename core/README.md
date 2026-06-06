@@ -10,3 +10,11 @@
 4. Не добавлять скомпилированные бинарные артефакты в Git, пока владелец явно не примет другое решение.
 
 Лицензия upstream сохранена в `core/zapret2/docs/LICENSE.txt`.
+
+Служебные файлы Stage 4 внутри `core/zapret2/`:
+
+- `UPSTREAM_IMPORT.json` и `UPSTREAM_IMPORT.md` — исходный манифест импорта;
+- `CORE_INVENTORY.json` — read-only снимок состава ядра;
+- `BUILD_MAP.json` — карта Makefile, targets и будущих build units.
+
+`CORE_INVENTORY.json` и `BUILD_MAP.json` относятся к нашему слою метаданных. Они не являются upstream-кодом и не запускают сборку.
