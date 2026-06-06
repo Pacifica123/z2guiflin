@@ -77,3 +77,7 @@ PYTHONPATH=gui python -m zap2_gui.app --service-plan remove --profile default
 ```
 
 Guarded execution для `install/remove` требует сохранённого plan, `--runtime-confirm` и локального owner-controlled запуска. Автоматические проверки не вызывают `systemctl` и не пишут в `/etc/systemd/system`.
+
+## Stage 14: default workflow
+
+Composite default workflow сохраняет plans, rollback notes, confirmations, session state и logs внутри `.zap2/runtime`. Реальные действия допускаются только после owner confirmation и не относятся к bootstrap.

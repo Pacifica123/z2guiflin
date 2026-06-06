@@ -108,3 +108,15 @@ Stage 11 переводит `session plan` из чистого контракт�
 После Stage 13 service plan стал отдельным типом runtime lifecycle. Он описывает systemd unit и команды `systemctl`, но не смешивает это с session runner, apply/revert firewall rules или bootstrap. Service mode может быть подготовлен, подтверждён и частично применён владельцем, но он не является дефолтным способом запуска default strategy.
 
 Ключевое правило Stage 13: service mode существует как отдельная форма runtime, но default start/stop workflow должен появиться позже и сначала пройти через session/apply/revert связку.
+
+## Stage 14: default workflow
+
+Stage 14 вводит composite workflow для дефолтной стратегии. Он объединяет уже существующие layers:
+
+```text
+runtime start/stop plan -> confirmation gate -> owner-rules apply/revert -> session runner -> runtime log
+```
+
+`default-start` сначала проверяет бинарник `nfqws2`, затем применяет owned nftables rules и только после этого запускает session. `default-stop` останавливает только recorded session PID и выполняет revert owned nftables table.
+
+Default workflow остаётся session mode, а не service mode. Systemd service plans Stage 13 существуют отдельно и не используются по умолчанию.

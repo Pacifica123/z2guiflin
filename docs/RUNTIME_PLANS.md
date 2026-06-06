@@ -126,3 +126,12 @@ runtime-default-manual-local-revert-owner-rules-plan
 Service plans имеют действия `install`, `start`, `stop`, `remove`. Они сохраняются через `.zap2/runtime/plans/` и подтверждаются обычным `--runtime-confirm`, потому что confirmation gate уже умеет привязывать owner decision к `planHash`.
 
 В Stage 13 guarded execution доступен только для `install/remove`. `start/stop` остаются планами: они показывают будущие systemd-команды, но не исполняются adapter-ом. Это удерживает service mode отдельно от session mode и не превращает проект в скрытый автозапуск.
+
+## Composite default plans
+
+Stage 14 добавляет composite plans:
+
+- `runtime-default-manual-local-default-start-workflow-plan`;
+- `runtime-default-manual-local-default-stop-workflow-plan`.
+
+Composite plan содержит child plans и их hashes. Execution разрешается только если подтверждён composite plan и сохранённые child plans совпадают с hashes внутри него. Это защищает от ситуации, когда владелец подтвердил один набор действий, а исполняется другой.

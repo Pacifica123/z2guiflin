@@ -45,3 +45,9 @@ v0.3-alpha_stage_3
 ## Язык документации
 
 Версионирование не меняет правило языка: вся активная проектная документация будущих патчей пишется на русском, даже если patch id, имена файлов и технические идентификаторы остаются англоязычными.
+
+## Переход Stage 14 к v0.3-beta
+
+После `v0.3-alpha_stage_14` продуктовая метка становится `v0.3-beta`, потому что alpha-цепочка controlled runtime lifecycle закрыта: есть профили/стратегии, runtime contracts, plan generator, state/log/confirmation gate, session runner, owner-confirmed apply/revert, service plans и default start/stop workflow.
+
+Дальнейшие патчи должны именоваться от `v0.3-beta`, если они не являются срочными hotfix-патчами к уже выпущенному Stage 14.

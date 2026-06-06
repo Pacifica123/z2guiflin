@@ -39,6 +39,11 @@ from .adapters.runtime_service import (
     execute_service_plan,
     prepare_service_plan,
 )
+from .adapters.runtime_default import (
+    SUPPORTED_DEFAULT_WORKFLOW_ACTIONS,
+    execute_default_workflow,
+    prepare_default_workflow_plan,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -78,6 +83,7 @@ def describe_project() -> str:
             f"runtime session runner: Stage 11 ({runtime_state_summary})",
             "runtime apply/revert: Stage 12 owner-confirmed nftables plans",
             "runtime service plans: Stage 13 systemd service mode (not default)",
+            "default workflow: Stage 14 owner-confirmed start/stop",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: bootstrap/read-only baseline with optional GUI launch",
@@ -197,6 +203,27 @@ def build_parser() -> argparse.ArgumentParser:
         choices=SUPPORTED_SERVICE_EXECUTION_ACTIONS,
         metavar="ACTION",
         help="исполнить подтверждённый service install/remove plan; требует sudo для /etc/systemd/system",
+    )
+
+    parser.add_argument(
+        "--default-start-plan",
+        action="store_true",
+        help="подготовить composite plan запуска default strategy; без исполнения",
+    )
+    parser.add_argument(
+        "--default-stop-plan",
+        action="store_true",
+        help="подготовить composite plan отключения default strategy; без исполнения",
+    )
+    parser.add_argument(
+        "--default-start",
+        action="store_true",
+        help="исполнить подтверждённый default start workflow: apply owner-rules + session start",
+    )
+    parser.add_argument(
+        "--default-stop",
+        action="store_true",
+        help="исполнить подтверждённый default stop workflow: session stop + revert owner-rules",
     )
 
     parser.add_argument(
@@ -354,6 +381,38 @@ def main(argv: list[str] | None = None) -> int:
     if args.service_apply:
         try:
             print(execute_service_plan(action=args.service_apply, profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.default_start_plan:
+        try:
+            print(prepare_default_workflow_plan(action="start", profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.default_stop_plan:
+        try:
+            print(prepare_default_workflow_plan(action="stop", profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.default_start:
+        try:
+            print(execute_default_workflow(action="start", profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.default_stop:
+        try:
+            print(execute_default_workflow(action="stop", profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

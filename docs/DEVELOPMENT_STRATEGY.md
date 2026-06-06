@@ -214,3 +214,28 @@ Devctl-проверки Stage 12 не вызывают настоящий `nft`,
 Stage 13 добавляет service mode, но не делает его дефолтным workflow. Теперь проект умеет подготавливать systemd-oriented plans для `install`, `start`, `stop` и `remove`, сохранять их в `.zap2/runtime`, привязывать подтверждение к `planHash` и выполнять guarded `install/remove` только после явного owner confirmation.
 
 Service mode остаётся отдельным от session runner. Он не запускается автоматически, не включает автозапуск по умолчанию, не управляет nftables/firewall и не смешивается с bootstrap. Для одиночной разработки основной путь по-прежнему должен идти через controlled default workflow на базе session mode; service mode нужен как будущая опция, когда стратегия станет достаточно стабильной.
+
+## Stage 14: default strategy start/stop workflow
+
+Stage 14 завершает alpha-цепочку controlled runtime lifecycle. Теперь отдельные кирпичи Stage 9–13 собраны в один owner-confirmed workflow для дефолтной стратегии:
+
+- `--default-start-plan` готовит composite plan для `default/manual-local`;
+- `--default-start --confirm <plan-id>` после owner confirmation выполняет `apply owner-rules` и запускает `nfqws2` session;
+- `--default-stop-plan` готовит composite plan отключения;
+- `--default-stop --confirm <plan-id>` останавливает только нашу session и выполняет revert owned nftables table;
+- workflow state, runtime log и rollback notes сохраняются в `.zap2/runtime`.
+
+Stage 14 не смешивает runtime с bootstrap: upstream installer scripts, remote install, service mode и автозапуск не входят в default workflow. Devctl-проверки используют fake `nfqws2` и fake nft runner, поэтому не требуют root и не меняют систему.
+
+## Следующая веха: v0.3-beta
+
+После Stage 14 очередь `v0.3-alpha` считается закрытой. Следующие патчи должны идти уже как `v0.3-beta`, если не возникнет срочный hotfix к Stage 14.
+
+Цель `v0.3-beta` — не переписывать заново runtime lifecycle, а превратить уже созданный controlled workflow в удобный продуктовый слой:
+
+- экран GUI для default workflow и статусов;
+- build status model и понятная диагностика отсутствующего `nfqws2`;
+- UX подтверждений planHash/rollback notes;
+- read-only просмотр runtime log;
+- улучшение профилей/стратегий без смешивания с bootstrap;
+- постепенное доведение default strategy до повседневного использования владельцем.

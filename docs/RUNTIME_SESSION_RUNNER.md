@@ -93,3 +93,7 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-session-stop --profile default
 ## Ограничение Stage 11
 
 Runner запускает процесс с минимальным session config: queue number, pidfile, debug log и hostlist path из default profile. Это только lifecycle процесса. Реальное направление трафика, apply/revert системных правил и default start/stop workflow остаются задачами следующих stages.
+
+## Использование в default workflow
+
+В Stage 14 session runner вызывается не напрямую, а как часть `default-start/default-stop`. Start workflow проверяет `nfqws2` до применения owner rules, а stop workflow останавливает только recorded PID с marker `zap2-runtime-session-v1` перед revert owner rules.

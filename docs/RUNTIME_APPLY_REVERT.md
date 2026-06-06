@@ -74,3 +74,7 @@ Stage 12 запрещает:
 ## Почему это не bootstrap
 
 Bootstrap отвечает за структуру проекта, vendored-core и developer tooling. Runtime apply/revert отвечает только за временные системные правила, необходимые для работы текущей runtime session. Эти уровни нельзя смешивать: установка/обновление проекта не должна автоматически менять firewall, а runtime stop/revert не должен удалять или пересобирать проект.
+
+## Использование в default workflow
+
+В Stage 14 apply/revert слой используется как child plan внутри composite default workflow. Пользователь подтверждает composite plan, после чего workflow создаёт derived confirmations для child plans только если их сохранённые hashes совпадают с composite plan. Это позволяет запускать `default-start/default-stop` одной понятной парой команд, не теряя hash-gate из Stage 10–12.

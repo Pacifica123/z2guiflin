@@ -110,3 +110,7 @@ Default Stage 12 backend intentionally narrow: локальный `output` hook,
 ## Stage 13: соответствие service mode vendored core
 
 Service plan использует тот же локальный `nfqws2`, который описан в build map и runtime plan generator. Он не скачивает ядро, не вызывает upstream installer scripts и не применяет чужие service templates напрямую. Systemd unit генерируется нашим adapter-слоем как прозрачный plan, а не как bootstrap-установка.
+
+## Stage 14 и отношение к upstream
+
+Default workflow Stage 14 использует vendored upstream binary path `core/zapret2/nfq2/nfqws2`, но не вызывает upstream installer scripts и не копирует upstream service lifecycle. Наш слой отвечает за planHash confirmation, runtime state, logs, rollback notes и owned nftables table `inet zap2_default`.

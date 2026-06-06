@@ -203,3 +203,12 @@ Session state остаётся в `.zap2/runtime/sessions/`, а логи — в 
 Начиная со Stage 13 в GUI-слое есть adapter `gui/zap2_gui/adapters/runtime_service.py`. Он не относится к bootstrap и не заменяет session runner. Его задача — описывать service mode как отдельный systemd-oriented план, сохраняемый в `.zap2/runtime`.
 
 Документация решения находится в `docs/RUNTIME_SERVICE_PLANS.md`, а проверка — в `tools/check_runtime_service.py`.
+
+## Дополнение Stage 14
+
+```text
+gui/zap2_gui/adapters/runtime_default.py   composite default start/stop workflow
+docs/DEFAULT_WORKFLOW.md                   документация запуска/отключения default strategy
+tools/check_runtime_default.py             fake-проверка default workflow без root/nft/systemctl
+tests/test_default_workflow.py             unit-тесты composite workflow
+```

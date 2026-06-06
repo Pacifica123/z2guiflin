@@ -1,8 +1,8 @@
-# Zap2 GUI Linux — v0.3-alpha: перезапуск с нативным ядром
+# Zap2 GUI Linux — v0.3-beta: controlled runtime baseline
 
 Этот репозиторий — новая продуктовая линия Linux GUI вокруг vendored-копии `zapret2` от bol-van. Предыдущий проект Zapret2GUIfLin больше не считается активной архитектурной базой: он используется только как тетрадь черновиков, тестов, UX-экспериментов и продуктовых заметок.
 
-## Что изменилось в v0.3-alpha
+## Что изменилось в v0.3-alpha и почему теперь v0.3-beta
 
 `v0.3-alpha` начинается с чистой структуры:
 
@@ -21,7 +21,7 @@ tests/     небольшие структурные тесты для ново�
 
 ## Текущий статус
 
-Это ранняя `v0.3-alpha` база, а не готовое приложение для конечного пользователя. Она импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк, русифицирует проектную документацию, добавляет read-only инвентаризацию ядра с build map, вводит первый скелет PyQt GUI shell, добавляет local build adapter для явных планов локальной сборки и вводит workspace-профили/стратегии как read-only project data, добавляет runtime lifecycle contracts как plan-only фундамент будущего запуска/отключения, генерирует default strategy runtime plans для `start`, `stop`, `status`, вводит runtime state/confirmation gate, добавляет guarded session runner для процесса `nfqws2` и вводит owner-confirmed apply/revert plan для nftables-правил.
+Это ранняя `v0.3-beta` база после закрытия alpha-цепочки Stage 14, а не готовое приложение для конечного пользователя. Она импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк, русифицирует проектную документацию, добавляет read-only инвентаризацию ядра с build map, вводит первый скелет PyQt GUI shell, добавляет local build adapter для явных планов локальной сборки и вводит workspace-профили/стратегии как read-only project data, добавляет runtime lifecycle contracts как plan-only фундамент будущего запуска/отключения, генерирует default strategy runtime plans для `start`, `stop`, `status`, вводит runtime state/confirmation gate, добавляет guarded session runner для процесса `nfqws2`, вводит owner-confirmed apply/revert plan для nftables-правил, service plans и composite default start/stop workflow.
 
 ```bash
 python tools/check_project_tree.py
@@ -81,3 +81,23 @@ PYTHONPATH=gui python -m zap2_gui.app --service-plan remove --profile default
 ```
 
 Guarded execution есть только для `install/remove` и требует `--runtime-confirm` плюс локальный owner-controlled запуск. Проверки проекта не вызывают настоящий `systemctl`.
+
+## Stage 14: default start/stop workflow
+
+Начиная с `v0.3-alpha_stage_14`, дефолтную стратегию можно вести через composite workflow:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --default-start-plan
+PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-default-start-workflow-plan
+sudo PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-default-manual-local-default-start-workflow-plan
+```
+
+Отключение:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --default-stop-plan
+PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-default-stop-workflow-plan
+sudo PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-default-manual-local-default-stop-workflow-plan
+```
+
+Этот workflow не является bootstrap: он не скачивает код, не вызывает upstream installer scripts и не включает service mode. Реальные `default-start/default-stop` остаются локальными owner-confirmed действиями, а проверки используют fake runner без root.

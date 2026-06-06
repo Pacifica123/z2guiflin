@@ -78,3 +78,7 @@ GUI-слой получил adapter `runtime_apply.py`. Будущие PyQt-эк
 ## Stage 13: service plans в GUI-слое
 
 GUI orchestration теперь знает о service mode через `runtime_service.py`. Этот слой пока доступен через CLI и будущий GUI сможет показать его как отдельную карточку: `install/start/stop/remove`, plan hash, unit path, rollback notes и статус “не является дефолтным workflow”.
+
+## Stage 14: default workflow в CLI/GUI shell
+
+GUI-слой получил adapter `runtime_default.py`. На CLI он уже доступен через `--default-start-plan`, `--default-start`, `--default-stop-plan`, `--default-stop`. В будущем GUI должен показывать эти же данные как экран подтверждения, а не как скрытую кнопку.
