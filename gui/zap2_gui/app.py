@@ -16,6 +16,12 @@ from .adapters.runtime_plan_generator import (
     SUPPORTED_RUNTIME_PLAN_ACTIONS,
     runtime_plan_to_text,
 )
+from .adapters.runtime_state import (
+    confirm_runtime_plan,
+    prepare_runtime_plan,
+    runtime_log_to_text,
+    runtime_state_to_text,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -41,6 +47,7 @@ def describe_project() -> str:
     workspace_catalog = load_workspace_catalog(layout.root)
     runtime_contract_issues = validate_runtime_contract_catalog(layout.root)
     runtime_contract_status = "OK" if not any(issue.severity == "error" for issue in runtime_contract_issues) else "FAILED"
+    runtime_state_summary = runtime_state_to_text(layout.root).splitlines()[-2]
     return "\n".join(
         [
             f"Zap2 GUI Linux {PRODUCT_LABEL}",
@@ -51,6 +58,7 @@ def describe_project() -> str:
             f"local build adapter: plan-only ({len(build_plan.expected_artifacts)} expected artifacts)",
             f"workspace profiles: {len(workspace_catalog.profiles)}; strategies: {len(workspace_catalog.strategies)}",
             f"runtime lifecycle contracts: {runtime_contract_status}",
+            f"runtime state gate: Stage 10 ({runtime_state_summary})",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: bootstrap/read-only baseline with optional GUI launch",
@@ -97,6 +105,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--validate-runtime-contracts",
         action="store_true",
         help="валидировать runtime lifecycle contracts Stage 8 без исполнения",
+    )
+
+    parser.add_argument(
+        "--runtime-prepare",
+        choices=SUPPORTED_RUNTIME_PLAN_ACTIONS,
+        metavar="ACTION",
+        help="сохранить runtime plan в .zap2/runtime, записать rollback notes и log; без исполнения",
+    )
+    parser.add_argument(
+        "--runtime-confirm",
+        metavar="PLAN_ID",
+        help="создать owner confirmation для сохранённого plan id; без исполнения",
+    )
+    parser.add_argument(
+        "--runtime-log",
+        action="store_true",
+        help="показать локальный runtime log из .zap2/runtime/logs без исправлений и исполнения",
     )
 
     parser.add_argument(
@@ -158,6 +183,26 @@ def main(argv: list[str] | None = None) -> int:
         text = validate_runtime_contracts_to_text()
         print(text)
         return 0 if "FAILED" not in text else 1
+
+    if args.runtime_prepare:
+        try:
+            print(prepare_runtime_plan(action=args.runtime_prepare, profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.runtime_confirm:
+        try:
+            print(confirm_runtime_plan(plan_id=args.runtime_confirm).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.runtime_log:
+        print(runtime_log_to_text(profile_id=args.profile))
+        return 0
 
     if args.list_profiles:
         print(workspace_profiles_to_text())

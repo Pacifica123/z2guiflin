@@ -185,3 +185,10 @@ Stage 8 намеренно не исполняет планы. Проверки 
 Stage 9 развивает Stage 8 без перехода к исполнению. Теперь проект умеет строить конкретный plan-only runtime view для `default/manual-local`: `start`, `stop` и `status`. В плане видны профиль, стратегия, build target, бинарник, hostlist, required artifacts, будущие session/log files, apply steps и rollback notes.
 
 Это сознательно не `6b` и не build status model. Stage 9 продолжает записанную очередь controlled runtime lifecycle: сначала планы, затем state/log/confirmation, затем session runner, затем owner-confirmed apply/revert.
+
+
+## Stage 10: runtime state, logs и confirmation gate
+
+Stage 10 продолжает controlled runtime lifecycle после generator. Теперь plan-only результат можно сохранить в `.zap2/runtime/plans/`, снабдить стабильным `planHash`, записать rollback notes в `.zap2/runtime/rollback/`, создать owner confirmation в `.zap2/runtime/confirmations/` и вести append-only журнал `.zap2/runtime/logs/`.
+
+Это первая разрешённая мутация в серии runtime lifecycle, но она ограничена workspace-директорией проекта. Stage 10 не запускает процесс, не вызывает `sudo`, не применяет системные правила и не управляет service mode. Смысл этапа — сделать будущий executor проверяемым: нельзя будет подтвердить один plan, а исполнить другой без расхождения hash.

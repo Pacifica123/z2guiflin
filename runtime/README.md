@@ -46,3 +46,10 @@ remote download -> install script -> service enable -> runtime start
 ```text
 profile/strategy -> runtime plan -> owner confirmation -> execute locally -> log -> rollback/revert
 ```
+
+
+## Runtime state Stage 10
+
+Контрактный слой Stage 8 и генератор Stage 9 теперь дополнены workspace state gate. Рабочее состояние живёт не в этой директории `runtime/`, а в локальной `.zap2/runtime/`, чтобы отделить committed contracts от пользовательского runtime-журнала.
+
+`.zap2/runtime` создаётся только локальной командой владельца и хранит prepared plans, confirmations, future session state, logs и rollback notes. Этот слой не исполняет plans и не является bootstrap.

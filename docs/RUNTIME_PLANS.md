@@ -92,3 +92,10 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-plan status --profile default
 ```
 
 Планы показывают будущие session/log/rollback paths, required artifacts, apply steps и rollback notes. Они не исполняются автоматическими проверками и не создают runtime state. `status` является полностью read-only планом. `start` и `stop` могут указывать, что будущий apply/revert потребует `sudo`, но это только metadata для будущего owner-confirmed executor.
+
+
+## Prepared plan и plan hash
+
+Stage 10 добавляет состояние prepared plan. Сгенерированный plan сериализуется в стабильный JSON-compatible payload, после чего для него считается SHA-256 `planHash`. Confirmation record хранит этот hash и флаги `expiresWhenPlanChanges=true`, `allowsAutomaticReuse=false`.
+
+Это правило важно для будущего исполнения: пользователь подтверждает не абстрактный `start`, а конкретный план с конкретным набором секций, команд-preview, rollback notes, binary path, hostlists и safety flags.

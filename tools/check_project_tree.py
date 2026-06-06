@@ -52,6 +52,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/workspace_profiles.py",
     "gui/zap2_gui/adapters/runtime_contracts.py",
     "gui/zap2_gui/adapters/runtime_plan_generator.py",
+    "gui/zap2_gui/adapters/runtime_state.py",
     "gui/zap2_gui/models/navigation.py",
     "gui/zap2_gui/models/strategy.py",
     "gui/zap2_gui/models/workspace_profile.py",
@@ -72,6 +73,7 @@ REQUIRED_PATHS = [
     "docs/RUNTIME_LIFECYCLE.md",
     "docs/RUNTIME_PLANS.md",
     "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
+    "docs/RUNTIME_STATE_AND_CONFIRMATION.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/VERSIONING.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
@@ -84,11 +86,13 @@ REQUIRED_PATHS = [
     "tools/check_workspace_profiles.py",
     "tools/check_runtime_lifecycle.py",
     "tools/check_runtime_plan_generator.py",
+    "tools/check_runtime_state.py",
     "tests/test_core_inventory_and_build_map.py",
     "tests/test_local_build_adapter.py",
     "tests/test_workspace_profiles_and_strategies.py",
     "tests/test_runtime_lifecycle_contracts.py",
     "tests/test_runtime_plan_generator.py",
+    "tests/test_runtime_state_and_confirmation.py",
 ]
 
 PROJECT_DOCUMENTATION_PATHS = [
@@ -111,6 +115,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/RUNTIME_LIFECYCLE.md",
     "docs/RUNTIME_PLANS.md",
     "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
+    "docs/RUNTIME_STATE_AND_CONFIRMATION.md",
     "docs/PROJECT_STRUCTURE.md",
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",
@@ -251,6 +256,31 @@ def main() -> int:
         print("Runtime plan generator не должен исполнять shell/process commands")
         return 1
 
+    runtime_state_doc = (ROOT / "docs/RUNTIME_STATE_AND_CONFIRMATION.md").read_text(encoding="utf-8")
+    runtime_state_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_state.py").read_text(encoding="utf-8")
+    if "confirmation gate" not in runtime_state_doc or ".zap2/runtime" not in runtime_state_doc:
+        print("Runtime state/confirmation gate Stage 10 не зафиксирован в документации")
+        return 1
+    required_runtime_state_symbols = (
+        "prepare_runtime_plan",
+        "confirm_runtime_plan",
+        "runtime_log_to_text",
+        "plan_payload_hash",
+        "ensure_runtime_store",
+    )
+    for symbol in required_runtime_state_symbols:
+        if symbol not in runtime_state_adapter:
+            print(f"Runtime state adapter не содержит {symbol}")
+            return 1
+    forbidden_runtime_state_fragments = ("subprocess", "os.system", "systemctl", "iptables", "nft ", "curl", "wget")
+    for fragment in forbidden_runtime_state_fragments:
+        if fragment in runtime_state_adapter:
+            print(f"Runtime state adapter не должен содержать execution/system fragment: {fragment}")
+            return 1
+    if "--runtime-prepare" not in app_py or "--runtime-confirm" not in app_py or "--runtime-log" not in app_py:
+        print("CLI Stage 10 должен иметь runtime prepare/confirm/log commands")
+        return 1
+
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
     if "русском" not in language_doc or "проектная документация" not in language_doc:
         print("Правило русского языка документации не зафиксировано")
@@ -282,7 +312,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts и runtime plan generator зафиксированы")
+    print("Дерево v0.3-alpha OK; PyQt shell, русская документация, inventory, build map, local build adapter, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate зафиксированы")
     return 0
 
 

@@ -49,3 +49,10 @@ CLI-команды `--runtime-contracts` и `--validate-runtime-contracts` до�
 ## Stage 9: runtime plan generator
 
 GUI-слой теперь содержит `adapters/runtime_plan_generator.py`. Он нужен будущей вкладке “Стратегии/Runtime”, чтобы показывать владельцу конкретные планы `start`, `stop` и `status` для default profile. Adapter читает project data и строит текст/модель плана, но не исполняет команды.
+
+
+## Runtime state CLI Stage 10
+
+GUI package теперь содержит `adapters/runtime_state.py`. Этот adapter обслуживает будущую вкладку `Логи` и будущий controlled runtime workflow: создаёт `.zap2/runtime`, сохраняет prepared plans, rollback notes, confirmations и JSONL events. Код остаётся pure Python и не требует PyQt для тестов.
+
+CLI-команды `--runtime-prepare`, `--runtime-confirm` и `--runtime-log` ничего не исполняют и не требуют `sudo`; они только создают локальный workspace trace.

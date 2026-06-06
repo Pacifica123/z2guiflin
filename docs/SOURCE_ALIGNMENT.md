@@ -85,3 +85,10 @@ Runtime lifecycle contracts — это наш application layer поверх ven
 Stage 9 также не меняет upstream-исходники. Он добавляет application-side генератор, который читает `profiles/default.json`, `strategies/manual-local.json` и `core/zapret2/BUILD_MAP.json`, чтобы показать будущий `start`, `stop` или `status` план для локального binary `core/zapret2/nfq2/nfqws2`.
 
 Это сохраняет разделение: `core/zapret2/` остаётся vendored source input, а runtime orchestration живёт в нашем Python/GUI слое и пока остаётся plan-only.
+
+
+## Alignment Stage 10
+
+Runtime state и confirmation gate относятся к нашему application layer, а не к vendored upstream-ядру. Они не меняют `core/zapret2/`, не добавляют installer wrapper вокруг upstream scripts и не смешивают runtime lifecycle с bootstrap.
+
+Stage 10 усиливает исходную цель проекта: все потенциально чувствительные действия сначала должны существовать как данные, затем как saved plan с hash, затем как confirmation, затем как log/rollback trace, и только после этого как owner-confirmed execution в отдельном патче.

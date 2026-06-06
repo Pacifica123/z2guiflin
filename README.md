@@ -45,3 +45,16 @@ python -m zap2_gui.app --runtime-plan status --profile default
 Все дальнейшие изменения должны приходить через архивы devctl-патчей. Ассистент готовит патчи, документацию, адаптеры и проверки; владелец/разработчик решает, когда запускать локальные привилегированные команды на своей машине.
 
 Вся наша проектная документация должна быть на русском языке. Исключения: имена файлов, идентификаторы, названия upstream-проектов, команды, технические термины вроде `PyQt`, `systemd`, `sudo`, а также неизменяемая upstream-документация внутри `core/zapret2/`.
+
+
+## Runtime state и confirmation gate
+
+Начиная со Stage 10, проект умеет создавать локальный runtime state store в `.zap2/runtime/`. Это workspace-only слой: он сохраняет prepared runtime plan, считает `planHash`, пишет rollback notes, создаёт confirmation record и ведёт JSONL-журнал. Он не запускает `nfqws2`, не применяет firewall rules, не управляет сервисами и не требует `sudo`.
+
+```bash
+python -m zap2_gui.app --runtime-prepare start --profile default
+python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-start-plan
+python -m zap2_gui.app --runtime-log --profile default
+```
+
+Эти команды являются подготовкой будущего controlled runtime lifecycle. Они дают проверяемую связь `plan id -> plan hash -> confirmation -> rollback notes -> log`, но не исполняют сам plan.

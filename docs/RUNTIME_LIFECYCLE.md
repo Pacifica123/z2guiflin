@@ -81,3 +81,10 @@ Stage 14 -> default start/stop workflow
 ## Stage 9 boundary
 
 Stage 9 не расширяет права исполнения. Он только связывает профиль, стратегию, build target, ожидаемый бинарник и runtime sections в один выводимый план. Это означает, что будущий GUI уже сможет показать владельцу “что будет сделано”, но кнопки исполнения по-прежнему должны ждать state dir, confirmation gate и отдельный executor.
+
+
+## Stage 10: state/log/confirmation
+
+После Stage 9 runtime plan может быть сохранён как workspace state. Stage 10 вводит confirmation gate: owner confirmation создаётся не просто по имени действия, а по конкретному `planHash`. Если содержимое prepared plan изменилось, подтверждение должно считаться недействительным для будущего executor.
+
+Слой остаётся неисполняющим. События `planned` и `confirmed` пишутся в JSONL-журнал, rollback notes сохраняются до исполнения, а session/service/apply действия всё ещё представлены только как данные.

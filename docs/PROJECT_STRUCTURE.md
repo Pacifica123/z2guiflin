@@ -169,3 +169,18 @@ Stage 8 добавляет top-level директорию `runtime/`. Это н�
 ## Runtime plan generator
 
 Stage 9 добавляет `gui/zap2_gui/adapters/runtime_plan_generator.py`. Этот adapter не является executor: он строит read-only планы `start`, `stop` и `status` из default profile, manual-local strategy и local build map. CLI-команда `--runtime-plan` выводит эти планы для будущего GUI и будущего confirmation gate, но не запускает процесс и не меняет систему.
+
+
+## Runtime state store
+
+Stage 10 добавляет локальный workspace state store `.zap2/runtime/`. Он не коммитится как исходный код и не считается bootstrap-слоем. Директория создаётся CLI-командой `--runtime-prepare` и содержит prepared plans, confirmations, future session state, JSONL logs и rollback notes.
+
+```text
+.zap2/runtime/plans/
+.zap2/runtime/confirmations/
+.zap2/runtime/sessions/
+.zap2/runtime/logs/
+.zap2/runtime/rollback/
+```
+
+В исходном дереве Stage 10 добавляет `gui/zap2_gui/adapters/runtime_state.py`, `docs/RUNTIME_STATE_AND_CONFIRMATION.md`, `tools/check_runtime_state.py` и тесты. Системные директории, `/opt`, service units и firewall state этим этапом не создаются.
