@@ -6,6 +6,16 @@ import argparse
 import sys
 
 from . import PRODUCT_LABEL
+from .adapters.blockcheck_gui import (
+    SUPPORTED_BLOCKCHECK_IPVS,
+    SUPPORTED_BLOCKCHECK_SCANLEVELS,
+    SUPPORTED_BLOCKCHECK_TESTS,
+    BlockcheckOptions,
+    blockcheck_plan_to_text,
+    blockcheck_preflight_to_text,
+    execute_blockcheck_with_gui_sudo,
+    last_blockcheck_log_to_text,
+)
 from .adapters.build_dependencies import run_build_dependency_preflight
 from .adapters.local_build import create_local_build_plan
 from .adapters.runtime_contracts import (
@@ -97,6 +107,7 @@ def describe_project() -> str:
             "default build workflow: v0.3-dev over beta baseline owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
             "GUI privileged start/stop: v0.3-dev via graphical sudo askpass",
+            "blockcheck lab: v0.3-dev stage 1 GUI/CLI wrapper for manual strategy discovery",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: v0.3-dev controlled runtime baseline with optional GUI launch",
@@ -273,6 +284,87 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--blockcheck-preflight",
+        action="store_true",
+        help="показать read-only preflight для GUI blockcheck lab",
+    )
+    parser.add_argument(
+        "--blockcheck-plan",
+        action="store_true",
+        help="показать sudo-askpass план запуска upstream blockcheck2.sh; без исполнения",
+    )
+    parser.add_argument(
+        "--blockcheck-run",
+        action="store_true",
+        help="запустить upstream blockcheck2.sh через графический sudo askpass",
+    )
+    parser.add_argument(
+        "--blockcheck-last-log",
+        action="store_true",
+        help="показать последний сохранённый GUI blockcheck log; без исполнения",
+    )
+    parser.add_argument(
+        "--blockcheck-domains",
+        default="youtube.com www.youtube.com",
+        help="домены/URI для blockcheck; пробельный список, по умолчанию YouTube",
+    )
+    parser.add_argument(
+        "--blockcheck-test",
+        choices=SUPPORTED_BLOCKCHECK_TESTS,
+        default="standard",
+        help="набор blockcheck2.d: standard или custom",
+    )
+    parser.add_argument(
+        "--blockcheck-scanlevel",
+        choices=SUPPORTED_BLOCKCHECK_SCANLEVELS,
+        default="quick",
+        help="scanlevel: quick, standard или force",
+    )
+    parser.add_argument(
+        "--blockcheck-ipvs",
+        choices=SUPPORTED_BLOCKCHECK_IPVS,
+        default="4",
+        help="IP версии для blockcheck: 4, 6 или 46",
+    )
+    parser.add_argument(
+        "--blockcheck-http",
+        action="store_true",
+        help="включить HTTP checks; по умолчанию выключено для YouTube-oriented scan",
+    )
+    parser.add_argument(
+        "--blockcheck-disable-tls12",
+        action="store_true",
+        help="выключить HTTPS TLS1.2 checks",
+    )
+    parser.add_argument(
+        "--blockcheck-disable-tls13",
+        action="store_true",
+        help="выключить HTTPS TLS1.3 checks",
+    )
+    parser.add_argument(
+        "--blockcheck-disable-http3",
+        action="store_true",
+        help="выключить HTTP/3 QUIC checks",
+    )
+    parser.add_argument(
+        "--blockcheck-dnscheck",
+        action="store_true",
+        help="включить upstream DNS precheck; по умолчанию пропускается",
+    )
+    parser.add_argument(
+        "--blockcheck-repeats",
+        type=int,
+        default=1,
+        help="число повторов blockcheck на стратегию: 1..5",
+    )
+    parser.add_argument(
+        "--blockcheck-curl-timeout",
+        type=int,
+        default=3,
+        help="curl timeout для отдельных проб: 1..15 секунд",
+    )
+
+    parser.add_argument(
         "--list-profiles",
         action="store_true",
         help="показать workspace-профили без применения настроек",
@@ -293,6 +385,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="показать одну стратегию без исполнения",
     )
     return parser
+
+
+def _blockcheck_options_from_args(args: argparse.Namespace) -> BlockcheckOptions:
+    return BlockcheckOptions(
+        domains=args.blockcheck_domains,
+        test=args.blockcheck_test,
+        scanlevel=args.blockcheck_scanlevel,
+        ipvs=args.blockcheck_ipvs,
+        enable_http=args.blockcheck_http,
+        enable_https_tls12=not args.blockcheck_disable_tls12,
+        enable_https_tls13=not args.blockcheck_disable_tls13,
+        enable_http3=not args.blockcheck_disable_http3,
+        skip_dnscheck=not args.blockcheck_dnscheck,
+        repeats=args.blockcheck_repeats,
+        curl_max_time=args.blockcheck_curl_timeout,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -506,6 +614,31 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2
+
+    if args.blockcheck_preflight:
+        print(blockcheck_preflight_to_text())
+        return 0
+
+    if args.blockcheck_plan:
+        try:
+            print(blockcheck_plan_to_text(options=_blockcheck_options_from_args(args)))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.blockcheck_run:
+        try:
+            result = execute_blockcheck_with_gui_sudo(options=_blockcheck_options_from_args(args))
+            print(result.to_text())
+            return 0 if result.ok else 1
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.blockcheck_last_log:
+        print(last_blockcheck_log_to_text())
+        return 0
 
     if args.list_profiles:
         print(workspace_profiles_to_text())

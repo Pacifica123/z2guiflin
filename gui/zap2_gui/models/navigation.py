@@ -40,8 +40,8 @@ def default_navigation_sections() -> tuple[NavigationSection, ...]:
         NavigationSection(
             key="diagnostics",
             title="Диагностика",
-            purpose="Будущие read-only проверки, discovery и отчёты перед действиями владельца.",
-            ready_state="placeholder",
+            purpose="Blockcheck lab для ручного подбора стратегии под домен без скрытых действий.",
+            ready_state="blockcheck-backed",
         ),
         NavigationSection(
             key="settings",

@@ -150,3 +150,32 @@ Stage 17 чинит отказ запуска после Stage 16: GUI мог п
 сохранённый owner-confirmed plan после проверки его собственного hash, не
 пересчитывая UID/команды заново под root. Заодно nft loop guard записывается
 как `meta mark & 0x40000000 == 0`.
+
+## v0.3-dev Stage 1: GUI Blockcheck lab и сброс нумерации dev-цикла
+
+Начиная с этого патча нумерация внутри `v0.3-dev` считается заново: предыдущие
+Stage 16/17 остаются переходными beta/dev hotfix-слоями, а первый нормальный dev
+stage получает номер `Stage 1`.
+
+Stage 1 добавляет вкладку `Диагностика: Blockcheck lab`. Это GUI/CLI-обёртка
+над vendored upstream `core/zapret2/blockcheck2.sh` для ручного подбора стратегии
+под YouTube или другой домен. Дефолтный target — `youtube.com www.youtube.com`,
+включены HTTPS TLS1.2/TLS1.3 и HTTP/3 QUIC, DNS precheck по умолчанию пропущен,
+чтобы не смешивать подбор стратегии с отдельной диагностикой DNS.
+
+CLI-эквиваленты:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-preflight
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-plan --blockcheck-domains "youtube.com www.youtube.com"
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-run --blockcheck-domains "youtube.com www.youtube.com"
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-last-log
+```
+
+`--blockcheck-plan` не исполняется и явно показывает, что реальный run идёт
+через `sudo -A/SUDO_ASKPASS`, не хранит пароль, не вызывает upstream installer
+scripts и не создаёт persistent service. Сам upstream blockcheck временно меняет
+firewall redirect для теста и должен запускаться при выключенном Default
+workflow, VPN и других DPI-bypass процессах. Для полноценного запуска обычно
+нужны локально собранные `core/zapret2/nfq2/nfqws2` и `core/zapret2/mdig/mdig`;
+если их нет, `--blockcheck-preflight` покажет owner-action hint.

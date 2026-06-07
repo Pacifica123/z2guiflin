@@ -74,3 +74,10 @@ python -m zap2_gui.app --gui
 Stage 4 переносит первую базовую стратегию из Windows GUI: `Default v1 (game filter)`. Перенос частичный и контролируемый: оригинальный Windows preset хранится как reference, а Linux runtime получает только seed hostlist и минимальные `nfqws2`-совместимые Lua-аргументы. Полный WinDivert preset не исполняется напрямую.
 
 Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.
+
+## v0.3-dev Stage 1: вкладка «Диагностика» стала Blockcheck lab
+
+Вкладка `Диагностика` больше не является пустым placeholder. Она открывает GUI
+обёртку над upstream `blockcheck2.sh` для ручного подбора стратегии под домен.
+Запуск scan остаётся явным privileged действием через `sudo -A/SUDO_ASKPASS`, а
+preflight и plan доступны как read-only действия без изменения firewall.
