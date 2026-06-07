@@ -14,6 +14,7 @@ from ..adapters.blockcheck_gui import (
     blockcheck_preflight_to_text,
     execute_blockcheck_prereq_build,
     last_blockcheck_log_to_text,
+    parse_blockcheck_run_stats,
     parse_blockcheck_summary,
     prepare_blockcheck_execution,
     write_blockcheck_last_log,
@@ -211,7 +212,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         if stopped:
             stderr += "\n[GUI] Blockcheck process was stopped by owner.\n"
             state["stderr"] = [stderr]
-        flush_live_log()
+        stats = parse_blockcheck_run_stats(stdout, stderr)
         summary = parse_blockcheck_summary(stdout)
         footer = [
             "",
@@ -222,10 +223,15 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         ]
         if prepared is not None:
             footer.append(f"log path: {prepared.command.log_path or 'не задан'}")
+        if stats.has_observations:
+            footer.extend(["", stats.to_text()])
         if summary:
             footer.extend(["", "Parsed SUMMARY / working strategy hints:"])
             footer.extend(f"- {line}" for line in summary)
-        append_output("\n".join(footer))
+        footer_text = "\n".join(footer)
+        append_output(footer_text)
+        if prepared is not None:
+            write_blockcheck_last_log(prepared.command, stdout, stderr, footer=footer_text)
         state["process"] = None
         state["prepared"] = None
         state["stopped_by_user"] = False

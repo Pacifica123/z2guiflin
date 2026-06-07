@@ -227,3 +227,17 @@ GUI/CLI wrapper теперь явно передаёт в blockcheck environment
 `WS_UID/WS_GID` в список environment passed to blockcheck2.sh. Preflight также
 проверяет наличие Lua support files, чтобы отличать проблему отсутствующих файлов
 от проблемы доступа после privilege drop.
+
+## v0.3-dev Stage 5: Blockcheck run statistics after Stop
+
+Stage 5 делает долгие Blockcheck-прогоны более читаемыми после ручной остановки
+или штатного завершения. GUI теперь парсит уже накопленный stdout/stderr и
+добавляет в финальный блок краткую статистику: сколько `nfqws2`-стратегий было
+увидено, сколько дали `AVAILABLE`, сколько завершились `UNAVAILABLE`, сколько
+осталось в неизвестном состоянии на момент Stop, как прошёл port precheck и
+какая причина недоступности встречалась чаще всего.
+
+Та же статистика сохраняется в `.zap2/blockcheck/logs/last-blockcheck.txt` в
+отдельной секции `BLOCKCHECK RUN STATISTICS`, поэтому её можно посмотреть позже
+через кнопку `Последний лог` или CLI `--blockcheck-last-log`, даже если исходный
+live-output был очень длинным.

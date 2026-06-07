@@ -160,3 +160,45 @@ Stage 4 меняет только GUI/CLI wrapper вокруг blockcheck:
 границу sudo: root всё ещё нужен только для upstream firewall/NFQUEUE действий,
 а `nfqws2` после старта сбрасывается к владельцу workspace вместо synthetic
 `1:3003`.
+
+## v0.3-dev Stage 5: краткая статистика после Stop/finish
+
+Практический запуск показал, что live streaming решает проблему заморозки окна,
+но длинный blockcheck всё равно трудно интерпретировать: после ручного Stop в
+логе остаются сотни строк вида `curl: (28) ...` и `UNAVAILABLE code=28`, а
+понять общий масштаб прогона приходится вручную.
+
+Stage 5 добавляет консервативный parser поверх уже полученного вывода. Он не
+останавливает blockcheck автоматически и не сокращает поиск стратегий. Его задача
+только summarization после завершения или остановки владельцем:
+
+- `strategy checks seen` — количество строк `- curl_test... : nfqws2 ...`;
+- `available strategies` — количество стратегий, для которых внутри активной
+  пробы появился `!!!!! AVAILABLE !!!!!` или `working strategy found`;
+- `unavailable strategies` — количество проб, дошедших до `UNAVAILABLE`;
+- `in-progress/unknown checks` — последняя или оборванная проба без финального
+  результата на момент Stop;
+- `port precheck` — сколько IP перед scan отвечали/не отвечали на TCP connect;
+- `top unavailable reasons` — нормализованные частые причины, например
+  `curl code 28: connection timed out`;
+- `scripts seen` и `top probes` — какие upstream blockcheck sections уже были
+  пройдены.
+
+Секция пишется и в GUI footer, и в `.zap2/blockcheck/logs/last-blockcheck.txt`:
+
+```text
+===== BLOCKCHECK RUN STATISTICS =====
+Blockcheck run statistics
+strategy checks seen: 123
+available strategies: 0
+unavailable strategies: 122
+in-progress/unknown checks: 1
+port precheck: connects=0; failed=4
+top unavailable reasons:
+  - curl code 28: connection timed out: 122
+```
+
+Parser намеренно игнорирует `!!!!! AVAILABLE !!!!!` из ручных IP block tests,
+если в этот момент не активна строка strategy attempt. Это важно, потому что
+upstream blockcheck может печатать `AVAILABLE` для контрольного `iana.org`, и это
+не означает найденную рабочую стратегию для YouTube.

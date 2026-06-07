@@ -13,6 +13,7 @@ import os
 import re
 import shutil
 import subprocess
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -243,6 +244,65 @@ class BlockcheckCommand:
 
 
 @dataclass(frozen=True)
+class BlockcheckRunStats:
+    """Compact statistics extracted from partial or complete blockcheck output."""
+
+    strategy_attempts: int
+    available: int
+    unavailable: int
+    unknown: int
+    port_connects: int
+    port_failures: int
+    top_unavailable_reasons: tuple[tuple[str, int], ...] = ()
+    top_probes: tuple[tuple[str, int], ...] = ()
+    top_scripts: tuple[tuple[str, int], ...] = ()
+    infrastructure_notes: tuple[tuple[str, int], ...] = ()
+    available_strategies: tuple[str, ...] = ()
+
+    @property
+    def has_observations(self) -> bool:
+        return any(
+            (
+                self.strategy_attempts,
+                self.available,
+                self.unavailable,
+                self.unknown,
+                self.port_connects,
+                self.port_failures,
+                self.infrastructure_notes,
+            )
+        )
+
+    def to_text(self) -> str:
+        lines = [
+            "Blockcheck run statistics",
+            f"strategy checks seen: {self.strategy_attempts}",
+            f"available strategies: {self.available}",
+            f"unavailable strategies: {self.unavailable}",
+            f"in-progress/unknown checks: {self.unknown}",
+            f"port precheck: connects={self.port_connects}; failed={self.port_failures}",
+        ]
+        if self.top_unavailable_reasons:
+            lines.append("top unavailable reasons:")
+            lines.extend(f"  - {reason}: {count}" for reason, count in self.top_unavailable_reasons)
+        elif self.strategy_attempts:
+            lines.append("top unavailable reasons: none observed yet")
+        if self.top_probes:
+            lines.append("top probes:")
+            lines.extend(f"  - {probe}: {count}" for probe, count in self.top_probes)
+        if self.top_scripts:
+            lines.append("scripts seen:")
+            lines.extend(f"  - {script}: {count}" for script, count in self.top_scripts)
+        if self.infrastructure_notes:
+            lines.append("infrastructure notes:")
+            lines.extend(f"  - {note}: {count}" for note, count in self.infrastructure_notes)
+        if self.available_strategies:
+            lines.append("available strategy samples:")
+            lines.extend(f"  - {strategy}" for strategy in self.available_strategies[:5])
+        return "\n".join(lines)
+
+
+@dataclass(frozen=True)
 class BlockcheckResult:
     """Completed blockcheck run and parsed summary hints."""
 
@@ -268,6 +328,9 @@ class BlockcheckResult:
         ]
         if self.skipped_reason:
             lines.append(f"message: {self.skipped_reason}")
+        stats = parse_blockcheck_run_stats(self.stdout, self.stderr)
+        if stats.has_observations:
+            lines.extend(["", stats.to_text()])
         if self.summary_lines:
             lines.extend(["", "Parsed SUMMARY / working strategy hints:"])
             lines.extend(f"- {line}" for line in self.summary_lines)
@@ -646,6 +709,151 @@ def blockcheck_plan_to_text(root: Path | None = None, options: BlockcheckOptions
     return "\n\n".join([preflight.to_text(), command.to_text()])
 
 
+
+_STRATEGY_ATTEMPT_RE = re.compile(
+    r"^-\s+(?P<probe>\S+)\s+(?P<ipver>ipv[46])\s+(?P<target>\S+)\s+:\s+(?P<strategy>nfqws2\b.*)$"
+)
+_SCRIPT_RE = re.compile(r"^\*\s+script\s+:\s+(?P<script>.+)$")
+_CURL_ERROR_RE = re.compile(r"^curl:\s+\((?P<code>\d+)\)\s+(?P<message>.+)$")
+_UNAVAILABLE_RE = re.compile(r"^UNAVAILABLE(?:\s+code=(?P<code>\d+))?")
+_PORT_RESULT_RE = re.compile(
+    r"^(?:\d{1,3}\.){3}\d{1,3}\s+(?P<status>connects|does not connect\. netcat code \d+)"
+)
+
+
+def _normalize_curl_error(line: str) -> str | None:
+    match = _CURL_ERROR_RE.match(line.strip())
+    if not match:
+        return None
+    code = match.group("code")
+    message = match.group("message").strip()
+    lowered = message.lower()
+    if code == "28" or "timed out" in lowered or "connection timed out" in lowered:
+        return f"curl code {code}: connection timed out"
+    if "could not resolve" in lowered:
+        return f"curl code {code}: could not resolve host"
+    if "ssl" in lowered or "certificate" in lowered:
+        return f"curl code {code}: TLS/certificate failure"
+    if "quic" in lowered or "http/3" in lowered:
+        return f"curl code {code}: HTTP/3/QUIC failure"
+    return f"curl code {code}: {message[:80]}"
+
+
+def parse_blockcheck_run_stats(stdout: str, stderr: str = "") -> BlockcheckRunStats:
+    """Parse partial blockcheck logs into compact progress statistics.
+
+    The parser is intentionally conservative: it counts only strategy attempts
+    printed as ``- curl_test... : nfqws2 ...``. Generic ``!!!!! AVAILABLE !!!!!``
+    lines from IP/manual interpretation checks are ignored unless a strategy
+    attempt is currently active.
+    """
+
+    attempts = available = unavailable = unknown = 0
+    port_connects = port_failures = 0
+    unavailable_reasons: Counter[str] = Counter()
+    probes: Counter[str] = Counter()
+    scripts: Counter[str] = Counter()
+    infrastructure: Counter[str] = Counter()
+    available_strategies: list[str] = []
+    current_strategy: str | None = None
+    current_probe: str | None = None
+    current_error: str | None = None
+    current_script = "<no script>"
+
+    def close_current(status: str, reason: str | None = None) -> None:
+        nonlocal current_strategy, current_probe, current_error, available, unavailable, unknown
+        if current_strategy is None:
+            return
+        if status == "available":
+            available += 1
+            if current_strategy not in available_strategies:
+                available_strategies.append(current_strategy)
+        elif status == "unavailable":
+            unavailable += 1
+            unavailable_reasons[reason or current_error or "UNAVAILABLE"] += 1
+        else:
+            unknown += 1
+        current_strategy = None
+        current_probe = None
+        current_error = None
+
+    combined_lines = stdout.splitlines()
+    for raw_line in combined_lines:
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        script_match = _SCRIPT_RE.match(line)
+        if script_match:
+            current_script = script_match.group("script").strip()
+            continue
+
+        port_match = _PORT_RESULT_RE.match(line)
+        if port_match:
+            if port_match.group("status") == "connects":
+                port_connects += 1
+            else:
+                port_failures += 1
+            continue
+
+        strategy_match = _STRATEGY_ATTEMPT_RE.match(line)
+        if strategy_match:
+            close_current("unknown")
+            attempts += 1
+            current_probe = f"{strategy_match.group('probe')} {strategy_match.group('ipver')} {strategy_match.group('target')}"
+            current_strategy = strategy_match.group("strategy").strip()
+            current_error = None
+            probes[current_probe] += 1
+            scripts[current_script] += 1
+            continue
+
+        normalized_error = _normalize_curl_error(line)
+        if normalized_error and current_strategy is not None:
+            current_error = normalized_error
+            continue
+
+        unavailable_match = _UNAVAILABLE_RE.match(line)
+        if unavailable_match and current_strategy is not None:
+            code = unavailable_match.group("code")
+            fallback = f"UNAVAILABLE code={code}" if code else "UNAVAILABLE"
+            close_current("unavailable", current_error or fallback)
+            continue
+
+        if "!!!!! AVAILABLE !!!!!" in line and current_strategy is not None:
+            close_current("available")
+            continue
+        if "working strategy found" in line and current_strategy is not None:
+            close_current("available")
+            continue
+
+    close_current("unknown")
+
+    for raw_line in stderr.splitlines():
+        line = raw_line.strip()
+        lowered = line.lower()
+        if not line:
+            continue
+        if "lua file" in lowered and "not accessible" in lowered:
+            infrastructure["Lua support file not accessible"] += 1
+        elif "qsettings::value: empty key" in lowered:
+            infrastructure["Qt/QSettings empty key warning"] += 1
+        elif "no askpass" in lowered:
+            infrastructure["sudo askpass problem"] += 1
+
+    return BlockcheckRunStats(
+        strategy_attempts=attempts,
+        available=available,
+        unavailable=unavailable,
+        unknown=unknown,
+        port_connects=port_connects,
+        port_failures=port_failures,
+        top_unavailable_reasons=tuple(unavailable_reasons.most_common(5)),
+        top_probes=tuple(probes.most_common(5)),
+        top_scripts=tuple((script, count) for script, count in scripts.most_common(8) if script != "<no script>"),
+        infrastructure_notes=tuple(infrastructure.most_common(5)),
+        available_strategies=tuple(available_strategies[:10]),
+    )
+
 def parse_blockcheck_summary(stdout: str) -> tuple[str, ...]:
     """Extract concise strategy lines from blockcheck output."""
 
@@ -673,22 +881,23 @@ def parse_blockcheck_summary(stdout: str) -> tuple[str, ...]:
     return tuple(deduped[:40])
 
 
-def write_blockcheck_last_log(command: BlockcheckCommand, stdout: str, stderr: str) -> None:
+def write_blockcheck_last_log(command: BlockcheckCommand, stdout: str, stderr: str, footer: str = "") -> None:
     if not command.log_path:
         return
     command.log_path.parent.mkdir(parents=True, exist_ok=True)
-    command.log_path.write_text(
-        "".join(
-            [
-                command.to_text(),
-                "\n\n===== STDOUT =====\n",
-                stdout,
-                "\n===== STDERR =====\n",
-                stderr,
-            ]
-        ),
-        encoding="utf-8",
-    )
+    stats = parse_blockcheck_run_stats(stdout, stderr)
+    parts = [
+        command.to_text(),
+        "\n\n===== STDOUT =====\n",
+        stdout,
+        "\n===== BLOCKCHECK RUN STATISTICS =====\n",
+        stats.to_text(),
+        "\n===== STDERR =====\n",
+        stderr,
+    ]
+    if footer.strip():
+        parts.extend(["\n===== GUI FINISH =====\n", footer.rstrip(), "\n"])
+    command.log_path.write_text("".join(parts), encoding="utf-8")
 
 
 def _preflight_failed_result(command: BlockcheckCommand, preflight: BlockcheckPreflight) -> BlockcheckResult:

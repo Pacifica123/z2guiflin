@@ -13,6 +13,7 @@ from zap2_gui.adapters.blockcheck_gui import (
     current_blockcheck_worker_identity,
     BlockcheckPreparationError,
     execute_blockcheck_with_gui_sudo,
+    parse_blockcheck_run_stats,
     parse_blockcheck_summary,
     prepare_blockcheck_execution,
 )
@@ -84,6 +85,65 @@ Please note this SUMMARY does not guarantee a magic pill.
         "check_domain_http3 ipv4 youtube.com : nfqws2 --filter-udp=443 --dpi-desync=fake",
     )
 
+
+
+def test_blockcheck_run_stats_parser_summarizes_partial_owner_stopped_log() -> None:
+    stdout = """
+* port block tests ipv4 youtube.com:443
+142.251.127.136 does not connect. netcat code 1
+142.251.127.190 connects
+
+* curl_test_https_tls12 ipv4 youtube.com
+* script : standard/15-misc.sh
+- curl_test_https_tls12 ipv4 youtube.com : nfqws2 --payload=tls_client_hello --lua-desync=tcpseg:pos=0,1
+curl: (28) Connection timed out after 3002 milliseconds
+UNAVAILABLE code=28
+- curl_test_https_tls12 ipv4 youtube.com : nfqws2 --payload=tls_client_hello --lua-desync=tcpseg:pos=0,midsld
+!!!!! AVAILABLE !!!!!
+- curl_test_https_tls12 ipv4 youtube.com : nfqws2 --payload=tls_client_hello --lua-desync=tcpseg:pos=1
+"""
+    stderr = "QSettings::value: Empty key passed\n"
+
+    stats = parse_blockcheck_run_stats(stdout, stderr)
+
+    assert stats.strategy_attempts == 3
+    assert stats.unavailable == 1
+    assert stats.available == 1
+    assert stats.unknown == 1
+    assert stats.port_connects == 1
+    assert stats.port_failures == 1
+    assert stats.top_unavailable_reasons[0] == ("curl code 28: connection timed out", 1)
+    assert "curl_test_https_tls12 ipv4 youtube.com" in stats.to_text()
+    assert "Qt/QSettings empty key warning" in stats.to_text()
+
+
+def test_blockcheck_last_log_writer_includes_run_statistics(tmp_path: Path) -> None:
+    command = build_blockcheck_command(root=ROOT, options=BlockcheckOptions(domains="youtube.com"))
+    command = command.__class__(
+        options=command.options,
+        argv=command.argv,
+        cwd=command.cwd,
+        env_overrides=command.env_overrides,
+        script_env=command.script_env,
+        log_path=tmp_path / "last-blockcheck.txt",
+        backend=command.backend,
+        worker_identity=command.worker_identity,
+    )
+    from zap2_gui.adapters.blockcheck_gui import write_blockcheck_last_log
+
+    stdout = """
+* script : standard/15-misc.sh
+- curl_test_https_tls12 ipv4 youtube.com : nfqws2 --payload=tls_client_hello
+curl: (28) Connection timed out after 3002 milliseconds
+UNAVAILABLE code=28
+"""
+    write_blockcheck_last_log(command, stdout, "", footer="return code: 15")
+
+    text = command.log_path.read_text(encoding="utf-8")
+    assert "===== BLOCKCHECK RUN STATISTICS =====" in text
+    assert "strategy checks seen: 1" in text
+    assert "curl code 28: connection timed out: 1" in text
+    assert "===== GUI FINISH =====" in text
 
 def test_navigation_marks_diagnostics_as_blockcheck_backed() -> None:
     diagnostics = [section for section in default_navigation_sections() if section.key == "diagnostics"][0]
@@ -185,3 +245,11 @@ def test_blockcheck_lab_suppresses_expected_crash_message_after_owner_stop() -> 
 
     assert 'if state.get("stopped_by_user")' in source
     assert "Qt reports a SIGTERM/SIGKILL stopped process as CrashExit" in source
+
+
+def test_blockcheck_lab_footer_uses_parsed_run_statistics() -> None:
+    source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
+
+    assert "parse_blockcheck_run_stats" in source
+    assert "Blockcheck run statistics" in source or "stats.to_text()" in source
+    assert "footer=footer_text" in source

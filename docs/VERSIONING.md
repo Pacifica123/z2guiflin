@@ -72,6 +72,7 @@ v0.3-dev_stage_1
 v0.3-dev_stage_2
 v0.3-dev_stage_3
 v0.3-dev_stage_4
+v0.3-dev_stage_5
 ```
 
 Это не меняет продуктовую метку `v0.3-dev`, но делает следующие dev-патчи
@@ -91,3 +92,13 @@ v0.3-dev_stage_4
 `blockcheck2.sh` в пользовательском workspace: GUI wrapper теперь передаёт
 `WS_UID/WS_GID` владельца, чтобы `nfqws2` после privilege drop мог читать
 `core/zapret2/lua/*.lua`. Номер Stage 4 остаётся внутри сброшенного dev-цикла.
+
+
+## v0.3-dev Stage 5
+
+`v0.3-dev_stage_5` продолжает Blockcheck lab без изменения продуктовой метки.
+Stage 5 не добавляет автоматических эвристик ранней остановки и не меняет
+privileged boundary; он только сохраняет краткую статистику по уже увиденному
+выводу blockcheck после Stop или finish. Это помогает анализировать длинные
+прогоны, где большинство candidate strategies завершается одинаковой ошибкой,
+например `curl code 28: connection timed out`.
