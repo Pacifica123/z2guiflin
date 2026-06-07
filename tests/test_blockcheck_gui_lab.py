@@ -20,6 +20,7 @@ from zap2_gui.adapters.blockcheck_gui import (
     prepare_blockcheck_execution,
     export_blockcheck_available_strategies,
     parse_blockcheck_available_strategies,
+    BlockcheckPortPrecheckMonitor,
 )
 from zap2_gui.app import main
 from zap2_gui.models.navigation import default_navigation_sections
@@ -116,9 +117,45 @@ UNAVAILABLE code=28
     assert stats.unknown == 1
     assert stats.port_connects == 1
     assert stats.port_failures == 1
+    assert not stats.port_precheck_dead
+    assert "verdict:" in stats.to_text()
     assert stats.top_unavailable_reasons[0] == ("curl code 28: connection timed out", 1)
     assert "curl_test_https_tls12 ipv4 youtube.com" in stats.to_text()
     assert "Qt/QSettings empty key warning" in stats.to_text()
+
+
+def test_blockcheck_stats_detect_dead_port_precheck_verdict() -> None:
+    stdout = """
+* port block tests ipv4 youtube.com:443
+142.251.127.136 does not connect. netcat code 1
+142.251.127.190 does not connect. netcat code 1
+
+* curl_test_https_tls12 ipv4 youtube.com
+* script : standard/15-misc.sh
+- curl_test_https_tls12 ipv4 youtube.com : nfqws2 --payload=tls_client_hello
+curl: (28) Connection timed out after 3002 milliseconds
+UNAVAILABLE code=28
+"""
+
+    stats = parse_blockcheck_run_stats(stdout)
+
+    assert stats.port_precheck_dead
+    assert "port-precheck-dead-target" in stats.to_text()
+
+
+def test_blockcheck_port_precheck_monitor_requests_evidence_based_skip() -> None:
+    monitor = BlockcheckPortPrecheckMonitor(target="youtube.com")
+
+    reason = monitor.feed_stdout(
+        "* port block tests ipv4 youtube.com:443\n"
+        "142.251.127.136 does not connect. netcat code 1\n"
+        "142.251.127.190 does not connect. netcat code 1\n"
+        "\n"
+        "* curl_test_https_tls12 ipv4 youtube.com\n"
+    )
+
+    assert "port-precheck-dead-target for youtube.com" in reason
+    assert monitor.dead_target
 
 
 def test_blockcheck_last_log_writer_includes_run_statistics(tmp_path: Path) -> None:
@@ -148,6 +185,7 @@ UNAVAILABLE code=28
     assert "strategy checks seen: 1" in text
     assert "curl code 28: connection timed out: 1" in text
     assert "===== GUI FINISH =====" in text
+    assert not (tmp_path / "latest-successful-blockcheck.txt").exists()
 
 def test_navigation_marks_diagnostics_as_blockcheck_backed() -> None:
     diagnostics = [section for section in default_navigation_sections() if section.key == "diagnostics"][0]
@@ -219,6 +257,8 @@ def test_blockcheck_lab_widget_uses_qprocess_live_streaming() -> None:
     assert "QtCore.QProcess" in source
     assert "readyReadStandardOutput" in source
     assert "Остановить" in source
+    assert "candidate_targets" in source
+    assert "BlockcheckPortPrecheckMonitor" in source
     assert "execute_blockcheck_with_gui_sudo" not in source
 
 
@@ -320,6 +360,48 @@ UNAVAILABLE code=28
         assert data["sourcePreset"]["name"] == "Blockcheck generated AVAILABLE strategy"
         assert "--filter-tcp=443" in data["runtimeArgs"]
         assert "--lua-init=@core/zapret2/lua/zapret-antidpi.lua" in data["runtimeArgs"]
+
+
+def test_blockcheck_export_prefers_latest_successful_log_over_failed_last(tmp_path: Path) -> None:
+    project = _copy_project_for_blockcheck(tmp_path)
+    logs = project / ".zap2" / "blockcheck" / "logs"
+    logs.mkdir(parents=True)
+    (logs / "latest-successful-blockcheck.txt").write_text(
+        """
+Blockcheck GUI plan
+domains: www.youtube.com
+
+===== STDOUT =====
+* script : standard/15-misc.sh
+- curl_test_https_tls12 ipv4 www.youtube.com : nfqws2 --payload=tls_client_hello --lua-desync=tcpseg:pos=0,1
+!!!!! AVAILABLE !!!!!
+""".strip() + "\n",
+        encoding="utf-8",
+    )
+    (logs / "last-blockcheck.txt").write_text(
+        """
+Blockcheck GUI plan
+domains: youtube.com
+
+===== STDOUT =====
+* port block tests ipv4 youtube.com:443
+142.251.127.136 does not connect. netcat code 1
+142.251.127.190 does not connect. netcat code 1
+
+* curl_test_https_tls12 ipv4 youtube.com
+* script : standard/15-misc.sh
+- curl_test_https_tls12 ipv4 youtube.com : nfqws2 --payload=tls_client_hello
+curl: (28) Connection timed out after 3002 milliseconds
+UNAVAILABLE code=28
+""".strip() + "\n",
+        encoding="utf-8",
+    )
+
+    result = export_blockcheck_available_strategies(project)
+
+    assert result.ok
+    assert result.source_log.name == "latest-successful-blockcheck.txt"
+    assert result.target_label == "www.youtube.com"
 
 
 def test_blockcheck_lab_exposes_export_button() -> None:

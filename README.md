@@ -264,3 +264,9 @@ PYTHONPATH=gui python -m zap2_gui.app --select-strategy <strategy-id>
 PYTHONPATH=gui python -m zap2_gui.app --list-strategies
 PYTHONPATH=gui python -m zap2_gui.app --show-strategy <strategy-id>
 ```
+
+## v0.3-dev Stage 7: sequential Blockcheck candidates и dead-target guard
+
+Stage 7 делает Blockcheck lab более пригодным для реального подбора стратегии. GUI больше не обязан тратить сотни проверок на target, который уже провалил базовый TCP/443 port precheck: если upstream-лог показывает `0 connects / N failed`, текущий candidate автоматически останавливается с verdict `port-precheck-dead-target`, а следующий домен из списка запускается отдельно. Это не wall-clock timeout, а evidence-based остановка по фактам из самого blockcheck output.
+
+Экспорт стратегий теперь берёт источник из `latest-successful-blockcheck.txt`, который обновляется только когда в run были реальные `AVAILABLE` strategy attempts. Поэтому неудачный последний запуск, например с мёртвым `youtube.com:443`, не затирает предыдущий пригодный результат для кнопки «Создать стратегии».

@@ -245,3 +245,33 @@ PYTHONPATH=gui python -m zap2_gui.app --blockcheck-export-strategies
 Команда не требует sudo, не меняет firewall/services и не запускает `nfqws2`.
 Она меняет только рабочее дерево проекта: `strategies/generated/*.json` и
 `strategies/catalog.json`.
+
+## v0.3-dev Stage 7: sequential candidates и safe export source
+
+Stage 7 исправляет важный сценарий после появления статистики: `DOMAINS=youtube.com www.youtube.com` больше не рассматривается GUI как один монолитный запуск. Blockcheck lab запускает targets последовательно. Для каждого target создаётся отдельный `BlockcheckOptions` с одним доменом, отдельный live process и отдельная статистика.
+
+Новая защита не является произвольным timeout. GUI читает live stdout и отслеживает upstream-блок вида:
+
+```text
+* port block tests ipv4 youtube.com:443
+142.251.127.136 does not connect. netcat code 1
+...
+* curl_test_https_tls12 ipv4 youtube.com
+```
+
+Если после port precheck для текущего target было `connects=0` и `failed>0`, GUI завершает только этот candidate и пишет в footer:
+
+```text
+auto skipped dead target: yes
+auto skip reason: port-precheck-dead-target ...
+```
+
+Затем, если в списке есть следующий target, GUI переходит к нему. Если target не провалил port precheck, scan остаётся долгим и управляется владельцем через Stop, без общего таймера.
+
+Статистика теперь выводит `verdict`. Для dead-target случая verdict выглядит так:
+
+```text
+verdict: port-precheck-dead-target: strategy scan skipped/should be skipped
+```
+
+Также Stage 7 разделяет «последний запуск» и «последний успешный источник для экспорта». `last-blockcheck.txt` остаётся live/diagnostic логом. `latest-successful-blockcheck.txt` обновляется только когда parser увидел хотя бы одну настоящую `AVAILABLE` nfqws2 strategy attempt. Кнопка «Создать стратегии» сначала читает successful log, поэтому неудачный последний run не уничтожает возможность экспортировать предыдущие найденные стратегии.

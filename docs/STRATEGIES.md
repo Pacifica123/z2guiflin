@@ -83,3 +83,9 @@ PYTHONPATH=gui python -m zap2_gui.app --select-strategy <strategy-id>
 Выбор стратегии не исполняется как сетевое действие. Это только локальное
 состояние owner choice, которое последующие plan/confirmation этапы используют
 как входные данные.
+
+## v0.3-dev Stage 7: safe Blockcheck export source
+
+Stage 7 меняет источник экспорта generated strategies. `strategies/generated/*.json` теперь создаются не из любого последнего Blockcheck лога, а из последнего лога, где были обнаружены реальные `AVAILABLE` nfqws2 strategy attempts. Такой лог сохраняется как `.zap2/blockcheck/logs/latest-successful-blockcheck.txt`.
+
+Это защищает пользовательскую цепочку от ситуации, когда после удачного поиска стратегий пользователь запускает новый candidate с мёртвым TCP/443 port precheck. `last-blockcheck.txt` может стать диагностически неудачным, но кнопка «Создать стратегии» не потеряет предыдущий успешный источник.

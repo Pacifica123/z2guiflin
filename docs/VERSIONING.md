@@ -110,3 +110,7 @@ privileged boundary; он только сохраняет краткую ста�
 экспортировать в `strategies/generated/`, увидеть во вкладке `Стратегии`, выбрать
 одну из них для Default profile и затем заново пройти обычный plan/confirmation
 путь запуска. Номер Stage 6 остаётся внутри сброшенного dev-цикла.
+
+## v0.3-dev Stage 7
+
+`v0.3-dev_stage_7` продолжает Blockcheck lab без изменения продуктовой метки. Основной смысл stage — evidence-based управление долгими blockcheck-запусками: sequential candidates, автоматический skip target с мёртвым TCP/443 port precheck и экспорт только из последнего successful blockcheck source.

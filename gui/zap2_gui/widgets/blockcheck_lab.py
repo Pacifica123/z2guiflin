@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 from ..adapters.blockcheck_gui import (
     BlockcheckOptions,
+    BlockcheckPortPrecheckMonitor,
     BlockcheckPreparationError,
     PreparedBlockcheckExecution,
     blockcheck_build_plan_to_text,
@@ -135,6 +136,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         "stdout": [],
         "stderr": [],
         "stopped_by_user": False,
+        "auto_skip_reason": "",
+        "monitor": None,
+        "candidate_targets": [],
+        "candidate_index": 0,
     }
 
     def collect_options() -> BlockcheckOptions:
@@ -178,7 +183,15 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, log_button):
             button.setEnabled(not running)
         stop_button.setEnabled(running)
-        status.setText("Статус: blockcheck выполняется…" if running else "Статус: idle")
+        if running:
+            targets = state.get("candidate_targets") or []
+            index = int(state.get("candidate_index") or 0)
+            if targets:
+                status.setText(f"Статус: blockcheck candidate {index + 1}/{len(targets)} выполняется…")
+            else:
+                status.setText("Статус: blockcheck выполняется…")
+        else:
+            status.setText("Статус: idle")
 
     def run_action(label: str, func: Callable[[], str]) -> None:
         if state.get("process") is not None:
@@ -207,13 +220,47 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             return
         run_action("Blockcheck prerequisites build", lambda: execute_blockcheck_prereq_build(root=root).to_text())
 
+    def start_next_candidate() -> None:
+        targets = list(state.get("candidate_targets") or [])
+        index = int(state.get("candidate_index") or 0)
+        if index >= len(targets):
+            append_output("\n[GUI] Sequential Blockcheck candidates finished.")
+            state["candidate_targets"] = []
+            state["candidate_index"] = 0
+            set_running(False)
+            return
+
+        target = str(targets[index])
+        base_options = collect_options()
+        try:
+            prepared = prepare_blockcheck_execution(root=root, options=base_options.for_single_domain(target))
+        except BlockcheckPreparationError as exc:
+            output.setPlainText(exc.result.to_text())
+            state["candidate_targets"] = []
+            state["candidate_index"] = 0
+            set_running(False)
+            return
+        except Exception as exc:  # pragma: no cover - GUI diagnostic path
+            output.setPlainText(f"Blockcheck run: ошибка подготовки candidate {target}\n{exc}")
+            state["candidate_targets"] = []
+            state["candidate_index"] = 0
+            set_running(False)
+            return
+
+        append_output(f"\n[GUI] Starting candidate {index + 1}/{len(targets)}: {target}")
+        start_prepared_process(prepared, clear_output=False)
+
     def finalize_process(exit_code: int, exit_status: Any) -> None:
         prepared = current_prepared()
         stdout = "".join(state["stdout"])
         stderr = "".join(state["stderr"])
         stopped = bool(state.get("stopped_by_user"))
+        auto_skip_reason = str(state.get("auto_skip_reason") or "")
         if stopped:
             stderr += "\n[GUI] Blockcheck process was stopped by owner.\n"
+            state["stderr"] = [stderr]
+        elif auto_skip_reason:
+            stderr += f"\n[GUI] Blockcheck candidate auto-stopped: {auto_skip_reason}\n"
             state["stderr"] = [stderr]
         stats = parse_blockcheck_run_stats(stdout, stderr)
         summary = parse_blockcheck_summary(stdout)
@@ -223,7 +270,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             f"return code: {exit_code}",
             f"exit status: {exit_status}",
             f"stopped by owner: {'yes' if stopped else 'no'}",
+            f"auto skipped dead target: {'yes' if auto_skip_reason else 'no'}",
         ]
+        if auto_skip_reason:
+            footer.append(f"auto skip reason: {auto_skip_reason}")
         if prepared is not None:
             footer.append(f"log path: {prepared.command.log_path or 'не задан'}")
         if stats.has_observations:
@@ -235,23 +285,36 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         append_output(footer_text)
         if prepared is not None:
             write_blockcheck_last_log(prepared.command, stdout, stderr, footer=footer_text)
+
         state["process"] = None
         state["prepared"] = None
+        state["monitor"] = None
         state["stopped_by_user"] = False
+        state["auto_skip_reason"] = ""
+
+        targets = list(state.get("candidate_targets") or [])
+        if auto_skip_reason and not stopped and int(state.get("candidate_index") or 0) + 1 < len(targets):
+            state["candidate_index"] = int(state.get("candidate_index") or 0) + 1
+            status.setText("Статус: переход к следующему candidate…")
+            QtCore.QTimer.singleShot(250, start_next_candidate)
+            return
+
+        state["candidate_targets"] = []
+        state["candidate_index"] = 0
         set_running(False)
 
     def handle_process_error(error: Any) -> None:
-        if state.get("stopped_by_user"):
+        if state.get("stopped_by_user") or state.get("auto_skip_reason"):
             # Qt reports a SIGTERM/SIGKILL stopped process as CrashExit. For an
-            # explicit owner Stop this is expected and the final footer already
-            # records that the run was stopped intentionally.
+            # explicit owner Stop or an evidence-based dead-target skip this is
+            # expected and the final footer records the reason.
             return
         text = f"\n[GUI] QProcess error: {error}"
         state["stderr"].append(text)
         append_output(text)
         flush_live_log()
 
-    def start_prepared_process(prepared: PreparedBlockcheckExecution) -> None:
+    def start_prepared_process(prepared: PreparedBlockcheckExecution, *, clear_output: bool = True) -> None:
         process = QtCore.QProcess(page)
         process.setProgram(prepared.command.argv[0])
         process.setArguments(list(prepared.command.argv[1:]))
@@ -262,11 +325,31 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             process_env.insert(str(key), str(value))
         process.setProcessEnvironment(process_env)
 
+        target = prepared.command.options.normalized_domains()[0]
+        monitor = BlockcheckPortPrecheckMonitor(target=target)
+
+        def request_auto_skip(reason: str) -> None:
+            if state.get("auto_skip_reason") or state.get("stopped_by_user"):
+                return
+            state["auto_skip_reason"] = reason
+            message = (
+                "\n[GUI] Evidence-based early stop: "
+                f"{reason}. Moving to the next candidate if one exists.\n"
+            )
+            state["stderr"].append(message)
+            append_output(message)
+            status.setText("Статус: dead target detected; stopping candidate…")
+            process.terminate()
+            QtCore.QTimer.singleShot(3000, lambda: process.kill() if state.get("process") is process else None)
+
         def read_stdout() -> None:
             data = bytes(process.readAllStandardOutput()).decode("utf-8", errors="replace")
             state["stdout"].append(data)
             append_output(data)
             status.setText(f"Статус: running; stdout {len(''.join(state['stdout'])) // 1024} KiB")
+            reason = monitor.feed_stdout(data)
+            if reason:
+                request_auto_skip(reason)
             flush_live_log()
 
         def read_stderr() -> None:
@@ -285,7 +368,12 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         state["stdout"] = []
         state["stderr"] = []
         state["stopped_by_user"] = False
-        output.setPlainText(prepared.start_text())
+        state["auto_skip_reason"] = ""
+        state["monitor"] = monitor
+        if clear_output:
+            output.setPlainText(prepared.start_text())
+        else:
+            append_output("\n" + prepared.start_text())
         write_blockcheck_last_log(prepared.command, "", "")
         set_running(True)
         process.start()
@@ -299,6 +387,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             "Blockcheck lab",
             (
                 "Запустить upstream blockcheck2.sh через графический sudo prompt?\n\n"
+                "Targets будут проверяться последовательно. Если port precheck текущего target даст 0 connects / N failed, "
+                "GUI остановит только этот candidate и перейдёт к следующему, не сжигая сотни strategy checks впустую. "
                 "Рекомендуется сначала выключить Default workflow, VPN и другие DPI-bypass процессы. "
                 "Blockcheck временно меняет firewall redirect и затем очищает его через свой cleanup. "
                 "Пароль не сохраняется приложением. Общий таймер не ставится: лог будет идти в окно, "
@@ -309,11 +399,18 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             output.setPlainText("Blockcheck run: отменено пользователем")
             return
         try:
-            start_prepared_process(prepare_blockcheck_execution(root=root, options=collect_options()))
-        except BlockcheckPreparationError as exc:
-            output.setPlainText(exc.result.to_text())
-        except Exception as exc:  # pragma: no cover - GUI diagnostic path
-            output.setPlainText(f"Blockcheck run: ошибка подготовки\n{exc}")
+            targets = list(collect_options().normalized_domains())
+        except Exception as exc:
+            output.setPlainText(f"Blockcheck run: ошибка параметров\n{exc}")
+            return
+        state["candidate_targets"] = targets
+        state["candidate_index"] = 0
+        output.setPlainText(
+            "Sequential Blockcheck run\n"
+            f"candidates: {', '.join(targets)}\n"
+            "dead-target guard: enabled; evidence-based, no wall-clock timeout"
+        )
+        start_next_candidate()
 
     def stop_blockcheck() -> None:
         process = state.get("process")

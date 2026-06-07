@@ -107,6 +107,24 @@ class BlockcheckOptions:
                 )
         return values
 
+    def for_single_domain(self, target: str) -> "BlockcheckOptions":
+        """Return a copy constrained to one sequential blockcheck candidate."""
+
+        return BlockcheckOptions(
+            domains=target,
+            test=self.test,
+            scanlevel=self.scanlevel,
+            ipvs=self.ipvs,
+            enable_http=self.enable_http,
+            enable_https_tls12=self.enable_https_tls12,
+            enable_https_tls13=self.enable_https_tls13,
+            enable_http3=self.enable_http3,
+            skip_dnscheck=self.skip_dnscheck,
+            repeats=self.repeats,
+            curl_max_time=self.curl_max_time,
+            timeout_seconds=self.timeout_seconds,
+        )
+
     def validate(self) -> None:
         self.normalized_domains()
         if self.test not in SUPPORTED_BLOCKCHECK_TESTS:
@@ -191,7 +209,7 @@ class BlockcheckGeneratedStrategiesResult:
             f"catalog: {self.catalog_path}",
         ]
         if not self.generated:
-            lines.append("message: available strategies were not found in the last blockcheck log")
+            lines.append("message: available strategies were not found in the latest successful blockcheck log")
         else:
             lines.append("generated strategy files:")
             for item in self.generated:
@@ -327,6 +345,24 @@ class BlockcheckRunStats:
     available_strategies: tuple[str, ...] = ()
 
     @property
+    def port_precheck_dead(self) -> bool:
+        """True when the observed target had no connectable TCP/443 candidates."""
+
+        return self.port_failures > 0 and self.port_connects == 0
+
+    @property
+    def verdict(self) -> str:
+        if self.port_precheck_dead:
+            return "port-precheck-dead-target: strategy scan skipped/should be skipped"
+        if self.available > 0:
+            return "available-strategies-observed"
+        if self.strategy_attempts > 0 and self.unavailable >= self.strategy_attempts - self.unknown:
+            return "no-available-strategy-observed-yet"
+        if self.has_observations:
+            return "inconclusive"
+        return "no-observations"
+
+    @property
     def has_observations(self) -> bool:
         return any(
             (
@@ -348,6 +384,7 @@ class BlockcheckRunStats:
             f"unavailable strategies: {self.unavailable}",
             f"in-progress/unknown checks: {self.unknown}",
             f"port precheck: connects={self.port_connects}; failed={self.port_failures}",
+            f"verdict: {self.verdict}",
         ]
         if self.top_unavailable_reasons:
             lines.append("top unavailable reasons:")
@@ -783,9 +820,83 @@ _STRATEGY_ATTEMPT_RE = re.compile(
 _SCRIPT_RE = re.compile(r"^\*\s+script\s+:\s+(?P<script>.+)$")
 _CURL_ERROR_RE = re.compile(r"^curl:\s+\((?P<code>\d+)\)\s+(?P<message>.+)$")
 _UNAVAILABLE_RE = re.compile(r"^UNAVAILABLE(?:\s+code=(?P<code>\d+))?")
+_PORT_HEADER_RE = re.compile(r"^\*\s+port block tests\s+(?P<ipver>ipv[46])\s+(?P<target>\S+):(?P<port>\d+)$")
 _PORT_RESULT_RE = re.compile(
-    r"^(?:\d{1,3}\.){3}\d{1,3}\s+(?P<status>connects|does not connect\. netcat code \d+)"
+    r"^(?P<address>[0-9A-Fa-f:.]+)\s+(?P<status>connects|does not connect\. netcat code \d+)"
 )
+_TEST_SECTION_RE = re.compile(r"^\*\s+curl_test_")
+
+
+@dataclass
+class BlockcheckPortPrecheckMonitor:
+    """Live stdout monitor used by GUI to skip provably dead targets.
+
+    It does not impose a wall-clock timeout. It only reacts to upstream evidence:
+    once the port precheck for the active target has observed at least one failed
+    address and zero connectable addresses, the following test/strategy section is
+    a strong signal that continuing the strategy scan for this target is wasted.
+    """
+
+    target: str
+    buffer: str = ""
+    in_port_precheck: bool = False
+    port_connects: int = 0
+    port_failures: int = 0
+    decided_reason: str = ""
+
+    @property
+    def dead_target(self) -> bool:
+        return self.port_failures > 0 and self.port_connects == 0
+
+    def feed_stdout(self, data: str) -> str:
+        """Feed one stdout chunk and return a skip reason when one is proven."""
+
+        if self.decided_reason:
+            return self.decided_reason
+        self.buffer += data
+        if "\n" not in self.buffer:
+            return ""
+        *complete, self.buffer = self.buffer.split("\n")
+        for raw_line in complete:
+            reason = self.feed_line(raw_line)
+            if reason:
+                return reason
+        return ""
+
+    def feed_line(self, raw_line: str) -> str:
+        line = raw_line.strip()
+        if not line:
+            return ""
+
+        header = _PORT_HEADER_RE.match(line)
+        if header:
+            self.in_port_precheck = header.group("target") == self.target
+            if self.in_port_precheck:
+                self.port_connects = 0
+                self.port_failures = 0
+            return ""
+
+        port_result = _PORT_RESULT_RE.match(line)
+        if self.in_port_precheck and port_result:
+            if port_result.group("status") == "connects":
+                self.port_connects += 1
+            else:
+                self.port_failures += 1
+            return ""
+
+        if self.in_port_precheck and (
+            _TEST_SECTION_RE.match(line)
+            or _STRATEGY_ATTEMPT_RE.match(line)
+            or line.startswith("preparing nfqws2 redirection")
+        ):
+            self.in_port_precheck = False
+            if self.dead_target:
+                self.decided_reason = (
+                    f"port-precheck-dead-target for {self.target}: "
+                    f"connects=0; failed={self.port_failures}; skipping strategy scan for this candidate"
+                )
+                return self.decided_reason
+        return ""
 
 
 def _normalize_curl_error(line: str) -> str | None:
@@ -1015,6 +1126,29 @@ def _last_blockcheck_log_path(root: Path | None = None) -> Path:
     return layout.root / ".zap2" / "blockcheck" / "logs" / "last-blockcheck.txt"
 
 
+def _successful_blockcheck_log_path(root: Path | None = None) -> Path:
+    layout = discover_layout(root)
+    return layout.root / ".zap2" / "blockcheck" / "logs" / "latest-successful-blockcheck.txt"
+
+
+def _blockcheck_log_has_available_strategies(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return bool(parse_blockcheck_available_strategies(text))
+
+
+def _select_blockcheck_export_log(root: Path | None = None) -> Path:
+    layout = discover_layout(root)
+    successful = _successful_blockcheck_log_path(layout.root)
+    last = _last_blockcheck_log_path(layout.root)
+    if _blockcheck_log_has_available_strategies(successful):
+        return successful
+    if _blockcheck_log_has_available_strategies(last):
+        return last
+    return successful if successful.exists() else last
+
+
 def _domains_from_blockcheck_log(text: str, fallback: str = "blockcheck") -> tuple[str, ...]:
     for raw_line in text.splitlines():
         line = raw_line.strip()
@@ -1112,11 +1246,11 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
     """Convert AVAILABLE strategies from the last blockcheck log into catalog files."""
 
     layout = discover_layout(root)
-    source_log = _last_blockcheck_log_path(layout.root)
+    source_log = _select_blockcheck_export_log(layout.root)
     catalog_path = layout.root / "strategies" / "catalog.json"
     generated_dir = layout.root / "strategies" / "generated"
     if not source_log.is_file():
-        raise ValueError(f"Последний blockcheck log не найден: {source_log}")
+        raise ValueError(f"Успешный blockcheck log для экспорта не найден: {source_log}")
     text = source_log.read_text(encoding="utf-8", errors="replace")
     available = list(parse_blockcheck_available_strategies(text))
     if max_strategies > 0:
@@ -1213,7 +1347,16 @@ def write_blockcheck_last_log(command: BlockcheckCommand, stdout: str, stderr: s
     ]
     if footer.strip():
         parts.extend(["\n===== GUI FINISH =====\n", footer.rstrip(), "\n"])
-    command.log_path.write_text("".join(parts), encoding="utf-8")
+    text = "".join(parts)
+    command.log_path.write_text(text, encoding="utf-8")
+
+    # Keep a durable export source that is not overwritten by a later dead-target
+    # or owner-stopped failed run. This turns Blockcheck lab into a safe pipeline:
+    # the Export button reads the latest log that actually contains AVAILABLE
+    # strategy attempts, not merely the last attempted candidate.
+    if stats.available > 0:
+        successful_path = command.log_path.with_name("latest-successful-blockcheck.txt")
+        successful_path.write_text(text, encoding="utf-8")
 
 
 def _preflight_failed_result(command: BlockcheckCommand, preflight: BlockcheckPreflight) -> BlockcheckResult:
