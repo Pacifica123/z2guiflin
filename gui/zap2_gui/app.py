@@ -109,7 +109,7 @@ def describe_project() -> str:
             "default build workflow: v0.3-dev over beta baseline owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
             "GUI privileged start/stop: v0.3-dev via graphical sudo askpass",
-            "blockcheck lab: v0.3-dev stage 2 GUI/CLI wrapper with local prerequisites build guard",
+            "blockcheck lab: v0.3-dev stage 3 live QProcess streaming with manual stop",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: v0.3-dev controlled runtime baseline with optional GUI launch",

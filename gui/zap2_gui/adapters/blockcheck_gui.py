@@ -43,7 +43,7 @@ class BlockcheckOptions:
     skip_dnscheck: bool = True
     repeats: int = 1
     curl_max_time: int = 3
-    timeout_seconds: int = 900
+    timeout_seconds: int = 0
 
     def normalized_domains(self) -> tuple[str, ...]:
         values = tuple(item.strip() for item in self.domains.split() if item.strip())
@@ -71,8 +71,8 @@ class BlockcheckOptions:
             raise ValueError("repeats должен быть в диапазоне 1..5")
         if not 1 <= self.curl_max_time <= 15:
             raise ValueError("curl timeout должен быть в диапазоне 1..15 секунд")
-        if not 30 <= self.timeout_seconds <= 3600:
-            raise ValueError("overall timeout должен быть в диапазоне 30..3600 секунд")
+        if self.timeout_seconds != 0 and not 30 <= self.timeout_seconds <= 3600:
+            raise ValueError("overall timeout должен быть 0 (без общего лимита) или в диапазоне 30..3600 секунд")
 
     def to_env(self) -> dict[str, str]:
         self.validate()
@@ -174,6 +174,7 @@ class BlockcheckCommand:
             "contains upstream installer script: no",
             "mutates services persistently: no",
             "mutates firewall temporarily: yes, inside upstream blockcheck cleanup path",
+            f"overall timeout: {'none; owner stops manually' if self.options.timeout_seconds == 0 else str(self.options.timeout_seconds) + ' seconds'}",
             "executes now: no",
             "",
             "environment passed to blockcheck2.sh:",
@@ -222,6 +223,36 @@ class BlockcheckResult:
             lines.append("message: команда завершилась без вывода")
         return "\n".join(lines)
 
+
+
+class BlockcheckPreparationError(ValueError):
+    """Raised when a GUI run must stop before starting sudo/QProcess."""
+
+    def __init__(self, result: BlockcheckResult) -> None:
+        super().__init__(result.to_text())
+        self.result = result
+
+
+@dataclass(frozen=True)
+class PreparedBlockcheckExecution:
+    """Fully prepared QProcess-compatible blockcheck execution context."""
+
+    command: BlockcheckCommand
+    env: dict[str, str]
+
+    def start_text(self) -> str:
+        return "\n".join(
+            [
+                "Blockcheck run: started",
+                "mode: live QProcess streaming; GUI remains responsive",
+                "overall timeout: none; use Stop to terminate intentionally",
+                f"log path: {self.command.log_path or 'не задан'}",
+                "",
+                self.command.to_text(),
+                "",
+                "===== LIVE OUTPUT =====",
+            ]
+        )
 
 
 
@@ -575,7 +606,7 @@ def parse_blockcheck_summary(stdout: str) -> tuple[str, ...]:
     return tuple(deduped[:40])
 
 
-def _write_last_log(command: BlockcheckCommand, stdout: str, stderr: str) -> None:
+def write_blockcheck_last_log(command: BlockcheckCommand, stdout: str, stderr: str) -> None:
     if not command.log_path:
         return
     command.log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -593,43 +624,58 @@ def _write_last_log(command: BlockcheckCommand, stdout: str, stderr: str) -> Non
     )
 
 
-def execute_blockcheck_with_gui_sudo(
+def _preflight_failed_result(command: BlockcheckCommand, preflight: BlockcheckPreflight) -> BlockcheckResult:
+    missing = ", ".join(item.label for item in preflight.items if not item.ok)
+    message = (
+        "blockcheck preflight failed: "
+        f"{missing}. Сначала соберите prerequisites кнопкой/CLI Blockcheck build "
+        "или вручную выполните local build target all; sudo сейчас не запускался."
+    )
+    stderr = "\n\n".join([preflight.to_text(), message])
+    write_blockcheck_last_log(command, "", stderr)
+    return BlockcheckResult(
+        command=command,
+        returncode=6,
+        stdout="",
+        stderr=stderr,
+        summary_lines=(),
+        skipped_reason=message,
+    )
+
+
+def _sudo_missing_result(command: BlockcheckCommand) -> BlockcheckResult:
+    message = "sudo не найден; GUI blockcheck требует sudo -A/SUDO_ASKPASS"
+    result = BlockcheckResult(
+        command=command,
+        returncode=127,
+        stdout="",
+        stderr="",
+        summary_lines=(),
+        skipped_reason=message,
+    )
+    write_blockcheck_last_log(command, "", result.to_text())
+    return result
+
+
+def prepare_blockcheck_execution(
     root: Path | None = None,
     options: BlockcheckOptions | None = None,
-) -> BlockcheckResult:
-    """Run upstream blockcheck2.sh through graphical sudo askpass."""
+) -> PreparedBlockcheckExecution:
+    """Prepare a privileged blockcheck run without blocking the GUI thread.
+
+    The returned object is suitable for ``QProcess``: argv, cwd and desktop
+    askpass environment are ready, but the process has not been started yet.
+    Preflight failures are converted to ``BlockcheckPreparationError`` so GUI
+    code can display the same user-facing text as the synchronous CLI path.
+    """
 
     command = build_blockcheck_command(root=root, options=options)
     preflight = blockcheck_preflight(root)
     if not preflight.ok:
-        missing = ", ".join(item.label for item in preflight.items if not item.ok)
-        message = (
-            "blockcheck preflight failed: "
-            f"{missing}. Сначала соберите prerequisites кнопкой/CLI Blockcheck build "
-            "или вручную выполните local build target all; sudo сейчас не запускался."
-        )
-        stderr = "\n\n".join([preflight.to_text(), message])
-        _write_last_log(command, "", stderr)
-        return BlockcheckResult(
-            command=command,
-            returncode=6,
-            stdout="",
-            stderr=stderr,
-            summary_lines=(),
-            skipped_reason=message,
-        )
+        raise BlockcheckPreparationError(_preflight_failed_result(command, preflight))
     if not is_sudo_available():
-        return BlockcheckResult(
-            command=command,
-            returncode=127,
-            stdout="",
-            stderr="",
-            summary_lines=(),
-            skipped_reason="sudo не найден; GUI blockcheck требует sudo -A/SUDO_ASKPASS",
-        )
+        raise BlockcheckPreparationError(_sudo_missing_result(command))
 
-    # These directories/helpers are created only for actual execution, not for
-    # read-only preflight/plan rendering.
     (command.cwd / ".zap2" / "blockcheck" / "rw").mkdir(parents=True, exist_ok=True)
     if command.log_path:
         command.log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -637,15 +683,36 @@ def execute_blockcheck_with_gui_sudo(
 
     env = _desktop_env_for_askpass(command)  # type: ignore[arg-type]
     env.setdefault("ZAP2_SUDO_ASKPASS_PROMPT", "Введите пароль sudo для Zap2 blockcheck")
+    return PreparedBlockcheckExecution(command=command, env=env)
+
+
+def execute_blockcheck_with_gui_sudo(
+    root: Path | None = None,
+    options: BlockcheckOptions | None = None,
+) -> BlockcheckResult:
+    """Run upstream blockcheck2.sh through graphical sudo askpass.
+
+    This CLI-compatible path streams only after completion because it returns a
+    dataclass result, but it deliberately has no arbitrary overall timeout by
+    default. The PyQt page uses ``prepare_blockcheck_execution`` plus QProcess
+    for live output and manual Stop.
+    """
+
+    try:
+        prepared = prepare_blockcheck_execution(root=root, options=options)
+    except BlockcheckPreparationError as exc:
+        return exc.result
+
+    timeout: int | None = None if prepared.command.options.timeout_seconds == 0 else prepared.command.options.timeout_seconds
     completed = subprocess.run(
-        list(command.argv),
-        cwd=command.cwd,
+        list(prepared.command.argv),
+        cwd=prepared.command.cwd,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
-        timeout=command.options.timeout_seconds,
-        env=env,
+        timeout=timeout,
+        env=prepared.env,
     )
     stdout = completed.stdout
     stderr = completed.stderr
@@ -654,9 +721,9 @@ def execute_blockcheck_with_gui_sudo(
             "\n\nПодсказка: sudo не смог запустить SUDO_ASKPASS helper. "
             "Проверьте desktop-сессию DISPLAY/WAYLAND_DISPLAY."
         )
-    _write_last_log(command, stdout, stderr)
+    write_blockcheck_last_log(prepared.command, stdout, stderr)
     return BlockcheckResult(
-        command=command,
+        command=prepared.command,
         returncode=completed.returncode,
         stdout=stdout,
         stderr=stderr,

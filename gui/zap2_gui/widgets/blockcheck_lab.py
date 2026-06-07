@@ -7,12 +7,16 @@ from typing import Any, Callable
 
 from ..adapters.blockcheck_gui import (
     BlockcheckOptions,
+    BlockcheckPreparationError,
+    PreparedBlockcheckExecution,
     blockcheck_build_plan_to_text,
     blockcheck_plan_to_text,
     blockcheck_preflight_to_text,
     execute_blockcheck_prereq_build,
-    execute_blockcheck_with_gui_sudo,
     last_blockcheck_log_to_text,
+    parse_blockcheck_summary,
+    prepare_blockcheck_execution,
+    write_blockcheck_last_log,
 )
 from ..qt_compat import require_pyqt
 
@@ -20,7 +24,7 @@ from ..qt_compat import require_pyqt
 def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     """Create a GUI page that wraps upstream blockcheck2.sh explicitly."""
 
-    _QtCore, QtWidgets = require_pyqt()
+    QtCore, QtWidgets = require_pyqt()
     page = QtWidgets.QWidget()
     layout = QtWidgets.QVBoxLayout(page)
     layout.setContentsMargins(14, 14, 14, 14)
@@ -31,7 +35,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     intro = QtWidgets.QLabel(
         "Здесь можно вручную прогнать upstream blockcheck2.sh для домена YouTube или другого target, "
         "посмотреть найденные стратегии и потом осознанно перенести удачную строку в каталог стратегий. "
-        "Запуск требует sudo, временно меняет firewall redirect внутри blockcheck и должен выполняться при выключенном Default workflow/VPN."
+        "Запуск требует sudo, временно меняет firewall redirect внутри blockcheck и должен выполняться при выключенном Default workflow/VPN. "
+        "Долгий run теперь идёт в фоне: окно остаётся живым, лог дописывается потоком, остановка выполняется отдельной кнопкой."
     )
     intro.setWordWrap(True)
 
@@ -96,14 +101,20 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     build_button = QtWidgets.QPushButton("Собрать binaries")
     plan_button = QtWidgets.QPushButton("План run")
     run_button = QtWidgets.QPushButton("Запустить blockcheck")
+    stop_button = QtWidgets.QPushButton("Остановить")
     log_button = QtWidgets.QPushButton("Последний лог")
+    stop_button.setEnabled(False)
     buttons.addWidget(preflight_button)
     buttons.addWidget(build_plan_button)
     buttons.addWidget(build_button)
     buttons.addWidget(plan_button)
     buttons.addWidget(run_button)
+    buttons.addWidget(stop_button)
     buttons.addWidget(log_button)
     buttons.addStretch(1)
+
+    status = QtWidgets.QLabel("Статус: idle")
+    status.setObjectName("mutedText")
 
     output = QtWidgets.QPlainTextEdit()
     output.setReadOnly(True)
@@ -113,6 +124,14 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     except Exception:  # pragma: no cover - compatibility with older Qt bindings
         pass
     output.setPlainText(blockcheck_preflight_to_text(root=root))
+
+    state: dict[str, Any] = {
+        "process": None,
+        "prepared": None,
+        "stdout": [],
+        "stderr": [],
+        "stopped_by_user": False,
+    }
 
     def collect_options() -> BlockcheckOptions:
         return BlockcheckOptions(
@@ -127,15 +146,49 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             skip_dnscheck=not dns_check.isChecked(),
             repeats=int(repeats_spin.value()),
             curl_max_time=int(timeout_spin.value()),
+            timeout_seconds=0,
         )
 
+    def append_output(text: str) -> None:
+        if not text:
+            return
+        output.appendPlainText(text.rstrip("\n"))
+        scrollbar = output.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+
+    def current_prepared() -> PreparedBlockcheckExecution | None:
+        prepared = state.get("prepared")
+        return prepared if isinstance(prepared, PreparedBlockcheckExecution) else None
+
+    def flush_live_log() -> None:
+        prepared = current_prepared()
+        if prepared is None:
+            return
+        write_blockcheck_last_log(
+            prepared.command,
+            "".join(state["stdout"]),
+            "".join(state["stderr"]),
+        )
+
+    def set_running(running: bool) -> None:
+        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, log_button):
+            button.setEnabled(not running)
+        stop_button.setEnabled(running)
+        status.setText("Статус: blockcheck выполняется…" if running else "Статус: idle")
+
     def run_action(label: str, func: Callable[[], str]) -> None:
+        if state.get("process") is not None:
+            output.setPlainText("Blockcheck уже выполняется. Сначала остановите текущий run или дождитесь завершения.")
+            return
         try:
             output.setPlainText(func())
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
             output.setPlainText(f"{label}: ошибка\n{exc}")
 
     def build_binaries() -> None:
+        if state.get("process") is not None:
+            output.setPlainText("Blockcheck уже выполняется. Сначала остановите текущий run или дождитесь завершения.")
+            return
         question = QtWidgets.QMessageBox.question(
             page,
             "Blockcheck prerequisites",
@@ -150,7 +203,83 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             return
         run_action("Blockcheck prerequisites build", lambda: execute_blockcheck_prereq_build(root=root).to_text())
 
+    def finalize_process(exit_code: int, exit_status: Any) -> None:
+        prepared = current_prepared()
+        stdout = "".join(state["stdout"])
+        stderr = "".join(state["stderr"])
+        stopped = bool(state.get("stopped_by_user"))
+        if stopped:
+            stderr += "\n[GUI] Blockcheck process was stopped by owner.\n"
+            state["stderr"] = [stderr]
+        flush_live_log()
+        summary = parse_blockcheck_summary(stdout)
+        footer = [
+            "",
+            "===== FINISHED =====",
+            f"return code: {exit_code}",
+            f"exit status: {exit_status}",
+            f"stopped by owner: {'yes' if stopped else 'no'}",
+        ]
+        if prepared is not None:
+            footer.append(f"log path: {prepared.command.log_path or 'не задан'}")
+        if summary:
+            footer.extend(["", "Parsed SUMMARY / working strategy hints:"])
+            footer.extend(f"- {line}" for line in summary)
+        append_output("\n".join(footer))
+        state["process"] = None
+        state["prepared"] = None
+        state["stopped_by_user"] = False
+        set_running(False)
+
+    def handle_process_error(error: Any) -> None:
+        text = f"\n[GUI] QProcess error: {error}"
+        state["stderr"].append(text)
+        append_output(text)
+        flush_live_log()
+
+    def start_prepared_process(prepared: PreparedBlockcheckExecution) -> None:
+        process = QtCore.QProcess(page)
+        process.setProgram(prepared.command.argv[0])
+        process.setArguments(list(prepared.command.argv[1:]))
+        process.setWorkingDirectory(str(prepared.command.cwd))
+        process.setProcessChannelMode(QtCore.QProcess.ProcessChannelMode.SeparateChannels)
+        process_env = QtCore.QProcessEnvironment.systemEnvironment()
+        for key, value in prepared.env.items():
+            process_env.insert(str(key), str(value))
+        process.setProcessEnvironment(process_env)
+
+        def read_stdout() -> None:
+            data = bytes(process.readAllStandardOutput()).decode("utf-8", errors="replace")
+            state["stdout"].append(data)
+            append_output(data)
+            status.setText(f"Статус: running; stdout {len(''.join(state['stdout'])) // 1024} KiB")
+            flush_live_log()
+
+        def read_stderr() -> None:
+            data = bytes(process.readAllStandardError()).decode("utf-8", errors="replace")
+            state["stderr"].append(data)
+            append_output(data)
+            flush_live_log()
+
+        process.readyReadStandardOutput.connect(read_stdout)
+        process.readyReadStandardError.connect(read_stderr)
+        process.finished.connect(finalize_process)
+        process.errorOccurred.connect(handle_process_error)
+
+        state["process"] = process
+        state["prepared"] = prepared
+        state["stdout"] = []
+        state["stderr"] = []
+        state["stopped_by_user"] = False
+        output.setPlainText(prepared.start_text())
+        write_blockcheck_last_log(prepared.command, "", "")
+        set_running(True)
+        process.start()
+
     def run_blockcheck() -> None:
+        if state.get("process") is not None:
+            output.setPlainText("Blockcheck уже выполняется. Сначала остановите текущий run или дождитесь завершения.")
+            return
         question = QtWidgets.QMessageBox.question(
             page,
             "Blockcheck lab",
@@ -158,24 +287,42 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 "Запустить upstream blockcheck2.sh через графический sudo prompt?\n\n"
                 "Рекомендуется сначала выключить Default workflow, VPN и другие DPI-bypass процессы. "
                 "Blockcheck временно меняет firewall redirect и затем очищает его через свой cleanup. "
-                "Пароль не сохраняется приложением."
+                "Пароль не сохраняется приложением. Общий таймер не ставится: лог будет идти в окно, "
+                "а остановка выполняется кнопкой Stop."
             ),
         )
         if question != QtWidgets.QMessageBox.StandardButton.Yes:
             output.setPlainText("Blockcheck run: отменено пользователем")
             return
-        run_action("Blockcheck run", lambda: execute_blockcheck_with_gui_sudo(root=root, options=collect_options()).to_text())
+        try:
+            start_prepared_process(prepare_blockcheck_execution(root=root, options=collect_options()))
+        except BlockcheckPreparationError as exc:
+            output.setPlainText(exc.result.to_text())
+        except Exception as exc:  # pragma: no cover - GUI diagnostic path
+            output.setPlainText(f"Blockcheck run: ошибка подготовки\n{exc}")
+
+    def stop_blockcheck() -> None:
+        process = state.get("process")
+        if process is None:
+            return
+        state["stopped_by_user"] = True
+        append_output("\n[GUI] Stop requested by owner; sending terminate() to blockcheck process…")
+        status.setText("Статус: stop requested…")
+        process.terminate()
+        QtCore.QTimer.singleShot(3000, lambda: process.kill() if state.get("process") is process else None)
 
     preflight_button.clicked.connect(lambda _checked=False: run_action("Preflight", lambda: blockcheck_preflight_to_text(root=root)))
     build_plan_button.clicked.connect(lambda _checked=False: run_action("План binaries", lambda: blockcheck_build_plan_to_text(root=root)))
     build_button.clicked.connect(lambda _checked=False: build_binaries())
     plan_button.clicked.connect(lambda _checked=False: run_action("План run", lambda: blockcheck_plan_to_text(root=root, options=collect_options())))
     run_button.clicked.connect(lambda _checked=False: run_blockcheck())
+    stop_button.clicked.connect(lambda _checked=False: stop_blockcheck())
     log_button.clicked.connect(lambda _checked=False: run_action("Последний лог", lambda: last_blockcheck_log_to_text(root=root)))
 
     layout.addWidget(title)
     layout.addWidget(intro)
     layout.addWidget(form_box)
     layout.addLayout(buttons)
+    layout.addWidget(status)
     layout.addWidget(output, 1)
     return page

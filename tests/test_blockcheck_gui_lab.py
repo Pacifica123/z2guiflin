@@ -10,8 +10,10 @@ from zap2_gui.adapters.blockcheck_gui import (
     blockcheck_plan_to_text,
     blockcheck_preflight,
     build_blockcheck_command,
+    BlockcheckPreparationError,
     execute_blockcheck_with_gui_sudo,
     parse_blockcheck_summary,
+    prepare_blockcheck_execution,
 )
 from zap2_gui.app import main
 from zap2_gui.models.navigation import default_navigation_sections
@@ -120,3 +122,33 @@ def test_blockcheck_run_stops_before_sudo_when_local_binaries_are_missing(tmp_pa
     assert "nfqws2 binary" in result.stderr
     assert "mdig binary" in result.stderr
     assert "uses sudo askpass: no (skipped before sudo)" in result.to_text()
+
+
+def test_blockcheck_has_no_arbitrary_overall_timeout_by_default() -> None:
+    opts = BlockcheckOptions()
+    command = build_blockcheck_command(root=ROOT, options=opts)
+
+    assert opts.timeout_seconds == 0
+    assert "overall timeout: none; owner stops manually" in command.to_text()
+
+
+def test_prepare_blockcheck_execution_raises_result_before_sudo_when_missing_binaries(tmp_path: Path) -> None:
+    core = tmp_path / "core" / "zapret2"
+    core.mkdir(parents=True)
+    (core / "blockcheck2.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+
+    with pytest.raises(BlockcheckPreparationError) as raised:
+        prepare_blockcheck_execution(root=tmp_path, options=BlockcheckOptions(domains="youtube.com"))
+
+    assert raised.value.result.returncode == 6
+    assert "sudo сейчас не запускался" in raised.value.result.skipped_reason
+    assert "nfqws2 binary" in raised.value.result.stderr
+
+
+def test_blockcheck_lab_widget_uses_qprocess_live_streaming() -> None:
+    source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
+
+    assert "QtCore.QProcess" in source
+    assert "readyReadStandardOutput" in source
+    assert "Остановить" in source
+    assert "execute_blockcheck_with_gui_sudo" not in source
