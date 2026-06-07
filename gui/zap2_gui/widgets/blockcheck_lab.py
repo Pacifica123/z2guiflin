@@ -7,8 +7,10 @@ from typing import Any, Callable
 
 from ..adapters.blockcheck_gui import (
     BlockcheckOptions,
+    blockcheck_build_plan_to_text,
     blockcheck_plan_to_text,
     blockcheck_preflight_to_text,
+    execute_blockcheck_prereq_build,
     execute_blockcheck_with_gui_sudo,
     last_blockcheck_log_to_text,
 )
@@ -90,10 +92,14 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
     buttons = QtWidgets.QHBoxLayout()
     preflight_button = QtWidgets.QPushButton("Preflight")
-    plan_button = QtWidgets.QPushButton("План")
+    build_plan_button = QtWidgets.QPushButton("План binaries")
+    build_button = QtWidgets.QPushButton("Собрать binaries")
+    plan_button = QtWidgets.QPushButton("План run")
     run_button = QtWidgets.QPushButton("Запустить blockcheck")
     log_button = QtWidgets.QPushButton("Последний лог")
     buttons.addWidget(preflight_button)
+    buttons.addWidget(build_plan_button)
+    buttons.addWidget(build_button)
     buttons.addWidget(plan_button)
     buttons.addWidget(run_button)
     buttons.addWidget(log_button)
@@ -129,6 +135,21 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
             output.setPlainText(f"{label}: ошибка\n{exc}")
 
+    def build_binaries() -> None:
+        question = QtWidgets.QMessageBox.question(
+            page,
+            "Blockcheck prerequisites",
+            (
+                "Собрать локальные prerequisites для blockcheck через make all?\n\n"
+                "Это не требует sudo, не запускает install scripts и не меняет firewall/services, "
+                "но создаёт build artifacts внутри core/zapret2: nfqws2, mdig и ip2net."
+            ),
+        )
+        if question != QtWidgets.QMessageBox.StandardButton.Yes:
+            output.setPlainText("Blockcheck prerequisites build: отменено пользователем")
+            return
+        run_action("Blockcheck prerequisites build", lambda: execute_blockcheck_prereq_build(root=root).to_text())
+
     def run_blockcheck() -> None:
         question = QtWidgets.QMessageBox.question(
             page,
@@ -146,7 +167,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         run_action("Blockcheck run", lambda: execute_blockcheck_with_gui_sudo(root=root, options=collect_options()).to_text())
 
     preflight_button.clicked.connect(lambda _checked=False: run_action("Preflight", lambda: blockcheck_preflight_to_text(root=root)))
-    plan_button.clicked.connect(lambda _checked=False: run_action("План", lambda: blockcheck_plan_to_text(root=root, options=collect_options())))
+    build_plan_button.clicked.connect(lambda _checked=False: run_action("План binaries", lambda: blockcheck_build_plan_to_text(root=root)))
+    build_button.clicked.connect(lambda _checked=False: build_binaries())
+    plan_button.clicked.connect(lambda _checked=False: run_action("План run", lambda: blockcheck_plan_to_text(root=root, options=collect_options())))
     run_button.clicked.connect(lambda _checked=False: run_blockcheck())
     log_button.clicked.connect(lambda _checked=False: run_action("Последний лог", lambda: last_blockcheck_log_to_text(root=root)))
 

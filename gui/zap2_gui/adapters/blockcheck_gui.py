@@ -15,8 +15,11 @@ import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
+from .build_dependencies import BuildDependencyReport, run_build_dependency_preflight
 from .gui_privilege import _desktop_env_for_askpass, ensure_sudo_askpass_helper, is_sudo_available
+from .local_build import LocalBuildPlan, create_local_build_plan, inspect_artifacts
 from ..project_paths import discover_layout
 
 SUPPORTED_BLOCKCHECK_TESTS = ("standard", "custom")
@@ -201,7 +204,7 @@ class BlockcheckResult:
         lines = [
             f"Blockcheck run: {'OK' if self.ok else 'FAILED'}",
             f"return code: {self.returncode}",
-            "uses sudo askpass: yes",
+            "uses sudo askpass: no (skipped before sudo)" if self.skipped_reason else "uses sudo askpass: yes",
             "asks password in terminal: no",
             "stores password: no",
             f"log path: {self.command.log_path or 'не задан'}",
@@ -219,6 +222,117 @@ class BlockcheckResult:
             lines.append("message: команда завершилась без вывода")
         return "\n".join(lines)
 
+
+
+
+@dataclass(frozen=True)
+class BlockcheckBuildCommandResult:
+    """Result of one local unprivileged build command for blockcheck prerequisites."""
+
+    cwd: Path
+    argv: tuple[str, ...]
+    returncode: int
+    stdout: str = ""
+    stderr: str = ""
+
+    @property
+    def ok(self) -> bool:
+        return self.returncode == 0
+
+
+@dataclass(frozen=True)
+class BlockcheckPrereqBuildPlan:
+    """Explicit local build plan for binaries required by upstream blockcheck2."""
+
+    local_build_plan: LocalBuildPlan
+    dependency_report: BuildDependencyReport
+    required_artifacts: tuple[Path, ...]
+
+    def to_text(self) -> str:
+        command_lines = [f"  - {command.shell_preview()}" for command in self.local_build_plan.commands]
+        required_lines = [f"  - {path}" for path in self.required_artifacts]
+        expected_lines = [f"  - {artifact.absolute_path}" for artifact in self.local_build_plan.expected_artifacts]
+        return "\n".join(
+            [
+                "Blockcheck prerequisites build plan",
+                "purpose: собрать nfqws2 и mdig перед privileged blockcheck run",
+                f"target: {self.local_build_plan.target}",
+                f"core root: {self.local_build_plan.core_root}",
+                "commands:",
+                *(command_lines or ["  - нет"]),
+                "required artifacts for blockcheck:",
+                *(required_lines or ["  - нет"]),
+                "expected artifacts from selected build target:",
+                *(expected_lines or ["  - нет"]),
+                "dependency preflight:",
+                f"  status: {self.dependency_report.summary_line()}",
+                *(f"  - {check.status}: {check.check_id} — {check.details}" for check in self.dependency_report.checks),
+                "executes now: no",
+                "runs make now: no",
+                "requires sudo: no",
+                "mutates services/firewall: no",
+                "mutates worktree when executed by owner: yes",
+                "contains remote bootstrap: no",
+                "contains upstream installer script: no",
+            ]
+        )
+
+
+@dataclass(frozen=True)
+class BlockcheckPrereqBuildResult:
+    """Completed local build attempt for blockcheck prerequisites."""
+
+    state: str
+    plan: BlockcheckPrereqBuildPlan
+    executed_commands: tuple[BlockcheckBuildCommandResult, ...]
+    artifact_status: tuple[tuple[Path, bool, bool, int | None], ...]
+    message: str
+
+    @property
+    def ok(self) -> bool:
+        return self.state == "built"
+
+    def to_text(self) -> str:
+        lines = [
+            f"Blockcheck prerequisites build: {self.state}",
+            f"message: {self.message}",
+            f"target: {self.plan.local_build_plan.target}",
+            f"core root: {self.plan.local_build_plan.core_root}",
+            f"dependency preflight: {self.plan.dependency_report.summary_line()}",
+            "executed commands:",
+        ]
+        if self.plan.dependency_report.missing_required:
+            lines.append("missing required dependencies:")
+            for check in self.plan.dependency_report.missing_required:
+                lines.append(f"  - {check.check_id}: {check.details}")
+            lines.append("owner action hints:")
+            for family, commands in self.plan.dependency_report.install_hints.items():
+                lines.append(f"  {family}:")
+                for command in commands:
+                    lines.append(f"    - {command}")
+        if not self.executed_commands:
+            lines.append("  - нет")
+        for result in self.executed_commands:
+            lines.append(f"  - rc={result.returncode}: cd {result.cwd} && {' '.join(result.argv)}")
+            if result.stderr.strip():
+                lines.append(f"    stderr: {result.stderr.strip()}")
+        lines.append("artifacts:")
+        for path, exists, executable, size_bytes in self.artifact_status:
+            size = "?" if size_bytes is None else str(size_bytes)
+            lines.append(f"  - {path}: exists={'yes' if exists else 'no'}; executable={'yes' if executable else 'no'}; size={size}")
+        lines.extend(
+            [
+                "requires sudo: no",
+                "mutates services/firewall: no",
+                "contains remote bootstrap: no",
+                "contains upstream installer script: no",
+                "next: повторите Blockcheck preflight, затем Blockcheck run",
+            ]
+        )
+        return "\n".join(lines)
+
+
+BlockcheckBuildRunner = Callable[[Path, tuple[str, ...]], BlockcheckBuildCommandResult]
 
 def _is_executable(path: Path) -> bool:
     return path.is_file() and bool(path.stat().st_mode & 0o111)
@@ -273,6 +387,114 @@ def blockcheck_preflight(root: Path | None = None) -> BlockcheckPreflight:
 def blockcheck_preflight_to_text(root: Path | None = None) -> str:
     return blockcheck_preflight(root).to_text()
 
+
+
+
+def _blockcheck_required_artifacts(core_root: Path) -> tuple[Path, ...]:
+    return (core_root / "nfq2" / "nfqws2", core_root / "mdig" / "mdig")
+
+
+def _artifact_rows(paths: tuple[Path, ...]) -> tuple[tuple[Path, bool, bool, int | None], ...]:
+    rows: list[tuple[Path, bool, bool, int | None]] = []
+    for path in paths:
+        exists = path.exists()
+        executable = path.is_file() and os.access(path, os.X_OK)
+        rows.append((path, exists, executable, path.stat().st_size if exists else None))
+    return tuple(rows)
+
+
+def _is_root() -> bool:
+    geteuid = getattr(os, "geteuid", None)
+    return True if geteuid is None else geteuid() == 0
+
+
+def _default_build_runner(cwd: Path, argv: tuple[str, ...]) -> BlockcheckBuildCommandResult:
+    completed = subprocess.run(
+        list(argv),
+        cwd=str(cwd),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    return BlockcheckBuildCommandResult(
+        cwd=cwd,
+        argv=argv,
+        returncode=completed.returncode,
+        stdout=completed.stdout,
+        stderr=completed.stderr,
+    )
+
+
+def create_blockcheck_prereq_build_plan(root: Path | None = None) -> BlockcheckPrereqBuildPlan:
+    """Create a read-only local build plan for blockcheck-required binaries."""
+
+    layout = discover_layout(root)
+    local_plan = create_local_build_plan(layout.root, target="all")
+    dependency_report = run_build_dependency_preflight("nfqws2")
+    return BlockcheckPrereqBuildPlan(
+        local_build_plan=local_plan,
+        dependency_report=dependency_report,
+        required_artifacts=_blockcheck_required_artifacts(local_plan.core_root),
+    )
+
+
+def blockcheck_build_plan_to_text(root: Path | None = None) -> str:
+    return create_blockcheck_prereq_build_plan(root).to_text()
+
+
+def execute_blockcheck_prereq_build(
+    root: Path | None = None,
+    *,
+    runner: BlockcheckBuildRunner | None = None,
+    allow_as_root: bool = False,
+    dependency_report: BuildDependencyReport | None = None,
+) -> BlockcheckPrereqBuildResult:
+    """Run local make for blockcheck prerequisites after an explicit owner action.
+
+    This path intentionally does not use sudo, does not install packages and does
+    not touch firewall/service state. It only creates build artifacts inside the
+    vendored core tree.
+    """
+
+    plan = create_blockcheck_prereq_build_plan(root)
+    effective_report = dependency_report or plan.dependency_report
+    if dependency_report is not None:
+        plan = BlockcheckPrereqBuildPlan(
+            local_build_plan=plan.local_build_plan,
+            dependency_report=dependency_report,
+            required_artifacts=plan.required_artifacts,
+        )
+    if runner is None:
+        if not allow_as_root and _is_root():
+            raise ValueError("Blockcheck prerequisites build не нужно запускать через sudo/root: это создаст root-owned артефакты в workspace.")
+        runner = _default_build_runner
+
+    results: list[BlockcheckBuildCommandResult] = []
+    state = "built"
+    message = "blockcheck prerequisites build completed"
+    if not effective_report.ok:
+        state = "blocked"
+        message = "build dependency preflight failed: установите недостающие build dependencies и повторите сборку"
+    if state == "built":
+        for command in plan.local_build_plan.commands:
+            result = runner(command.cwd, command.argv)
+            results.append(result)
+            if not result.ok:
+                state = "failed"
+                message = f"build command failed: {command.label}"
+                break
+    artifact_status = _artifact_rows(plan.required_artifacts)
+    if state == "built" and not all(exists and executable for _path, exists, executable, _size in artifact_status):
+        state = "failed"
+        message = "build completed, but nfqws2/mdig executables are still missing"
+    return BlockcheckPrereqBuildResult(
+        state=state,
+        plan=plan,
+        executed_commands=tuple(results),
+        artifact_status=artifact_status,
+        message=message,
+    )
 
 def _planned_askpass_script_path(root: Path) -> Path:
     return root / ".zap2" / "runtime" / "askpass" / "zap2-sudo-askpass"
@@ -378,6 +600,24 @@ def execute_blockcheck_with_gui_sudo(
     """Run upstream blockcheck2.sh through graphical sudo askpass."""
 
     command = build_blockcheck_command(root=root, options=options)
+    preflight = blockcheck_preflight(root)
+    if not preflight.ok:
+        missing = ", ".join(item.label for item in preflight.items if not item.ok)
+        message = (
+            "blockcheck preflight failed: "
+            f"{missing}. Сначала соберите prerequisites кнопкой/CLI Blockcheck build "
+            "или вручную выполните local build target all; sudo сейчас не запускался."
+        )
+        stderr = "\n\n".join([preflight.to_text(), message])
+        _write_last_log(command, "", stderr)
+        return BlockcheckResult(
+            command=command,
+            returncode=6,
+            stdout="",
+            stderr=stderr,
+            summary_lines=(),
+            skipped_reason=message,
+        )
     if not is_sudo_available():
         return BlockcheckResult(
             command=command,

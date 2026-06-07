@@ -65,3 +65,39 @@ Preflight ничего не исполняет и проверяет тольк�
 Stage 16/17 остаются историческими переходными hotfix-патчами вокруг safer
 interception и saved owner-rules execution. Этот документ считается первым
 нормальным stage нового dev-loop.
+
+## v0.3-dev Stage 2: локальная сборка prerequisites
+
+Первый реальный запуск показал важный разрыв: `blockcheck2.sh` стартовал через
+sudo, но падал на upstream preflight, потому что в workspace не было исполняемых
+`core/zapret2/nfq2/nfqws2` и `core/zapret2/mdig/mdig`. Stage 2 закрывает этот
+разрыв до запроса sudo.
+
+Теперь `Blockcheck lab` умеет:
+
+- показать отдельный план сборки prerequisites: `make all` внутри
+  `core/zapret2`;
+- запустить эту сборку явной кнопкой владельца без sudo;
+- не вызывать `install_bin.sh`, `install_easy.sh`, `install_prereq.sh` или другие
+  upstream installer scripts;
+- перед privileged blockcheck run ещё раз проверить preflight и остановиться до
+  `sudo -A`, если `nfqws2`, `mdig`, `curl`, `sudo` или firewall toolchain не
+  готовы.
+
+Новые CLI-эквиваленты:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-build-plan
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-build
+```
+
+`--blockcheck-build-plan` только печатает план. `--blockcheck-build` запускает
+локальный `make all` без sudo и без изменений firewall/services. Если системные
+заголовки или build tools отсутствуют, команда блокируется на dependency
+preflight и печатает подсказки пакетов для Debian/Ubuntu, Fedora/RHEL-like,
+Arch/Manjaro и openSUSE.
+
+`--blockcheck-run` теперь не должен доходить до upstream ошибки вида
+`nfqws2 or mdig is not available`: GUI/CLI wrapper заранее пишет понятное
+сообщение, сохраняет last log и не показывает парольный prompt, пока prerequisites
+не готовы.

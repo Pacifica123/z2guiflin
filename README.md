@@ -179,3 +179,16 @@ firewall redirect для теста и должен запускаться пр�
 workflow, VPN и других DPI-bypass процессах. Для полноценного запуска обычно
 нужны локально собранные `core/zapret2/nfq2/nfqws2` и `core/zapret2/mdig/mdig`;
 если их нет, `--blockcheck-preflight` покажет owner-action hint.
+
+
+## v0.3-dev Stage 2: Blockcheck prerequisites build guard
+
+Stage 2 чинит первый реальный запуск Blockcheck lab: upstream `blockcheck2.sh`
+требует локально собранные `nfqws2` и `mdig`, а в свежем workspace их может не
+быть. Теперь вкладка диагностики имеет отдельные кнопки `План binaries` и
+`Собрать binaries`, которые показывают/запускают локальный `make all` без sudo,
+без installer scripts и без изменений firewall/services.
+
+`--blockcheck-run` дополнительно останавливается до `sudo -A`, если preflight
+видит отсутствующие binaries или другие prerequisites, и пишет понятный last log
+в `.zap2/blockcheck/logs/last-blockcheck.txt`.

@@ -11,8 +11,10 @@ from .adapters.blockcheck_gui import (
     SUPPORTED_BLOCKCHECK_SCANLEVELS,
     SUPPORTED_BLOCKCHECK_TESTS,
     BlockcheckOptions,
+    blockcheck_build_plan_to_text,
     blockcheck_plan_to_text,
     blockcheck_preflight_to_text,
+    execute_blockcheck_prereq_build,
     execute_blockcheck_with_gui_sudo,
     last_blockcheck_log_to_text,
 )
@@ -107,7 +109,7 @@ def describe_project() -> str:
             "default build workflow: v0.3-dev over beta baseline owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
             "GUI privileged start/stop: v0.3-dev via graphical sudo askpass",
-            "blockcheck lab: v0.3-dev stage 1 GUI/CLI wrapper for manual strategy discovery",
+            "blockcheck lab: v0.3-dev stage 2 GUI/CLI wrapper with local prerequisites build guard",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: v0.3-dev controlled runtime baseline with optional GUI launch",
@@ -297,6 +299,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--blockcheck-run",
         action="store_true",
         help="запустить upstream blockcheck2.sh через графический sudo askpass",
+    )
+    parser.add_argument(
+        "--blockcheck-build-plan",
+        action="store_true",
+        help="показать local build plan для nfqws2/mdig prerequisites blockcheck; без запуска make",
+    )
+    parser.add_argument(
+        "--blockcheck-build",
+        action="store_true",
+        help="собрать nfqws2/mdig prerequisites локально через make без sudo/firewall/service",
     )
     parser.add_argument(
         "--blockcheck-last-log",
@@ -623,6 +635,23 @@ def main(argv: list[str] | None = None) -> int:
         try:
             print(blockcheck_plan_to_text(options=_blockcheck_options_from_args(args)))
             return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.blockcheck_build_plan:
+        try:
+            print(blockcheck_build_plan_to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.blockcheck_build:
+        try:
+            result = execute_blockcheck_prereq_build()
+            print(result.to_text())
+            return 0 if result.ok else 1
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2

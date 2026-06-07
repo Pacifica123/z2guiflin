@@ -6,9 +6,11 @@ import pytest
 
 from zap2_gui.adapters.blockcheck_gui import (
     BlockcheckOptions,
+    blockcheck_build_plan_to_text,
     blockcheck_plan_to_text,
     blockcheck_preflight,
     build_blockcheck_command,
+    execute_blockcheck_with_gui_sudo,
     parse_blockcheck_summary,
 )
 from zap2_gui.app import main
@@ -91,3 +93,30 @@ def test_blockcheck_preflight_is_read_only() -> None:
 
 def test_blockcheck_cli_plan_returns_success() -> None:
     assert main(["--blockcheck-plan", "--blockcheck-domains", "youtube.com"]) == 0
+
+
+def test_blockcheck_build_plan_is_local_and_unprivileged() -> None:
+    text = blockcheck_build_plan_to_text(root=ROOT)
+
+    assert "Blockcheck prerequisites build plan" in text
+    assert "target: all" in text
+    assert "nfq2/nfqws2" in text
+    assert "mdig/mdig" in text
+    assert "requires sudo: no" in text
+    assert "mutates services/firewall: no" in text
+    assert "contains upstream installer script: no" in text
+
+
+def test_blockcheck_run_stops_before_sudo_when_local_binaries_are_missing(tmp_path: Path) -> None:
+    core = tmp_path / "core" / "zapret2"
+    core.mkdir(parents=True)
+    (core / "blockcheck2.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+
+    result = execute_blockcheck_with_gui_sudo(root=tmp_path, options=BlockcheckOptions(domains="youtube.com"))
+
+    assert result.returncode == 6
+    assert "blockcheck preflight failed" in result.skipped_reason
+    assert "sudo сейчас не запускался" in result.skipped_reason
+    assert "nfqws2 binary" in result.stderr
+    assert "mdig binary" in result.stderr
+    assert "uses sudo askpass: no (skipped before sudo)" in result.to_text()
