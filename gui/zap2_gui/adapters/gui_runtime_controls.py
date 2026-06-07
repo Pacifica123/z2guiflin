@@ -18,14 +18,31 @@ from .runtime_logs import runtime_log_snapshot_to_text
 from .build_dependencies import run_build_dependency_preflight
 from .runtime_state import confirm_runtime_plan
 from .gui_privilege import (
+    default_plan_id_for_action,
     gui_privileged_command_to_text,
     execute_gui_privileged_workflow,
 )
+from .workspace_profiles import load_workspace_catalog
 from ..project_paths import discover_layout
 
 DEFAULT_BUILD_PLAN_ID = "runtime-default-manual-local-default-build-workflow-plan"
 DEFAULT_START_PLAN_ID = "runtime-default-manual-local-default-start-workflow-plan"
 DEFAULT_STOP_PLAN_ID = "runtime-default-manual-local-default-stop-workflow-plan"
+
+
+def default_build_plan_id(root: Path | None = None, profile_id: str = "default") -> str:
+    layout = discover_layout(root)
+    catalog = load_workspace_catalog(layout.root)
+    profiles = catalog.profile_by_id()
+    if profile_id not in profiles:
+        raise ValueError(f"Неизвестный workspace-профиль: {profile_id}")
+    return f"runtime-{profile_id}-{profiles[profile_id].strategy_id}-default-build-workflow-plan"
+
+
+def current_default_plan_id(root: Path | None = None, action: str = "start", profile_id: str = "default") -> str:
+    if action == "build":
+        return default_build_plan_id(root, profile_id)
+    return default_plan_id_for_action(root, action=action, profile_id=profile_id)
 
 
 def gui_runtime_logs(root: Path | None = None, profile_id: str = "default") -> str:
@@ -62,11 +79,12 @@ def gui_toggle_default_workflow(root: Path | None = None, profile_id: str = "def
     parts: list[str] = ["GUI toggle Default workflow", status.to_text()]
     if status.workflow_state == "started" and status.session_status.state == "running":
         parts.append("\nШаг 1/3: подготовка stop-plan")
-        parts.append(gui_prepare_default_stop(root=root, profile_id=profile_id))
+        stop_plan = prepare_default_workflow_plan(root=root, action="stop", profile_id=profile_id)
+        parts.append(stop_plan.to_text())
         parts.append("\nШаг 2/3: подтверждение stop-plan")
-        parts.append(gui_confirm_plan(root=root, plan_id=DEFAULT_STOP_PLAN_ID))
+        parts.append(gui_confirm_plan(root=root, plan_id=stop_plan.plan_id))
         parts.append("\nШаг 3/3: privileged stop через графический sudo prompt")
-        parts.append(gui_privileged_default_stop(root=root, profile_id=profile_id))
+        parts.append(gui_privileged_default_stop(root=root, profile_id=profile_id, confirm_plan_id=stop_plan.plan_id))
         parts.append("\nRuntime logs:")
         parts.append(gui_runtime_logs(root=root, profile_id=profile_id))
         return "\n\n".join(parts)
@@ -75,11 +93,12 @@ def gui_toggle_default_workflow(root: Path | None = None, profile_id: str = "def
         parts.append("\nШаг 1/7: проверка build dependencies")
         parts.append(gui_default_build_deps(root=root, profile_id=profile_id))
         parts.append("\nШаг 2/7: подготовка build-plan")
-        parts.append(gui_prepare_default_build(root=root, profile_id=profile_id))
+        build_plan = prepare_default_build_plan(root=root, profile_id=profile_id)
+        parts.append(build_plan.to_text())
         parts.append("\nШаг 3/7: подтверждение build-plan")
-        parts.append(gui_confirm_plan(root=root, plan_id=DEFAULT_BUILD_PLAN_ID))
+        parts.append(gui_confirm_plan(root=root, plan_id=build_plan.plan_id))
         parts.append("\nШаг 4/7: локальная сборка без sudo")
-        build_output = gui_execute_default_build(root=root, profile_id=profile_id)
+        build_output = gui_execute_default_build(root=root, profile_id=profile_id, confirm_plan_id=build_plan.plan_id)
         parts.append(build_output)
         if not _default_binary_ready(root):
             parts.append("\nСборка не дала executable nfqws2; privileged start пропущен.")
@@ -93,11 +112,12 @@ def gui_toggle_default_workflow(root: Path | None = None, profile_id: str = "def
         total_steps = 3
 
     parts.append(f"\nШаг {next_step}/{total_steps}: подготовка start-plan")
-    parts.append(gui_prepare_default_start(root=root, profile_id=profile_id))
+    start_plan = prepare_default_workflow_plan(root=root, action="start", profile_id=profile_id)
+    parts.append(start_plan.to_text())
     parts.append(f"\nШаг {next_step + 1}/{total_steps}: подтверждение start-plan")
-    parts.append(gui_confirm_plan(root=root, plan_id=DEFAULT_START_PLAN_ID))
+    parts.append(gui_confirm_plan(root=root, plan_id=start_plan.plan_id))
     parts.append(f"\nШаг {next_step + 2}/{total_steps}: privileged start через графический sudo prompt")
-    parts.append(gui_privileged_default_start(root=root, profile_id=profile_id))
+    parts.append(gui_privileged_default_start(root=root, profile_id=profile_id, confirm_plan_id=start_plan.plan_id))
     parts.append("\nRuntime logs:")
     parts.append(gui_runtime_logs(root=root, profile_id=profile_id))
     return "\n\n".join(parts)
@@ -141,8 +161,13 @@ class GuiRuntimeCommandSet:
         )
 
 
-def gui_runtime_commands(profile_id: str = "default") -> GuiRuntimeCommandSet:
-    return GuiRuntimeCommandSet(profile_id=profile_id)
+def gui_runtime_commands(root: Path | None = None, profile_id: str = "default") -> GuiRuntimeCommandSet:
+    return GuiRuntimeCommandSet(
+        profile_id=profile_id,
+        build_plan_id=current_default_plan_id(root, "build", profile_id),
+        start_plan_id=current_default_plan_id(root, "start", profile_id),
+        stop_plan_id=current_default_plan_id(root, "stop", profile_id),
+    )
 
 
 def gui_default_build_deps(root: Path | None = None, profile_id: str = "default") -> str:
@@ -157,11 +182,11 @@ def gui_prepare_default_build(root: Path | None = None, profile_id: str = "defau
     return prepare_default_build_plan(root=root, profile_id=profile_id).to_text()
 
 
-def gui_execute_default_build(root: Path | None = None, profile_id: str = "default") -> str:
+def gui_execute_default_build(root: Path | None = None, profile_id: str = "default", confirm_plan_id: str | None = None) -> str:
     """Исполнить подтверждённую локальную сборку из GUI без sudo."""
 
     discover_layout(root)
-    result = execute_default_build(root=root, profile_id=profile_id, confirm_plan_id=DEFAULT_BUILD_PLAN_ID)
+    result = execute_default_build(root=root, profile_id=profile_id, confirm_plan_id=confirm_plan_id or current_default_plan_id(root, "build", profile_id))
     status = gui_default_status(root=root, profile_id=profile_id)
     return "\n\n".join([result.to_text(), "После сборки текущий статус:", status])
 
@@ -174,6 +199,18 @@ def gui_prepare_default_start(root: Path | None = None, profile_id: str = "defau
 def gui_prepare_default_stop(root: Path | None = None, profile_id: str = "default") -> str:
     discover_layout(root)
     return prepare_default_workflow_plan(root=root, action="stop", profile_id=profile_id).to_text()
+
+
+def gui_confirm_default_build(root: Path | None = None, profile_id: str = "default") -> str:
+    return gui_confirm_plan(root=root, plan_id=current_default_plan_id(root, "build", profile_id))
+
+
+def gui_confirm_default_start(root: Path | None = None, profile_id: str = "default") -> str:
+    return gui_confirm_plan(root=root, plan_id=current_default_plan_id(root, "start", profile_id))
+
+
+def gui_confirm_default_stop(root: Path | None = None, profile_id: str = "default") -> str:
+    return gui_confirm_plan(root=root, plan_id=current_default_plan_id(root, "stop", profile_id))
 
 
 def gui_confirm_plan(root: Path | None = None, plan_id: str = "") -> str:
@@ -219,7 +256,7 @@ def _default_binary_guidance(root: Path | None) -> str | None:
     )
 
 
-def gui_privileged_default_start(root: Path | None = None, profile_id: str = "default") -> str:
+def gui_privileged_default_start(root: Path | None = None, profile_id: str = "default", confirm_plan_id: str | None = None) -> str:
     """Запустить confirmed default-start через графический sudo askpass из GUI."""
 
     guidance = _default_binary_guidance(root)
@@ -229,19 +266,19 @@ def gui_privileged_default_start(root: Path | None = None, profile_id: str = "de
         root=root,
         action="start",
         profile_id=profile_id,
-        confirm_plan_id=DEFAULT_START_PLAN_ID,
+        confirm_plan_id=confirm_plan_id or current_default_plan_id(root, "start", profile_id),
     ).to_text()
     return _with_status_after_action(root, profile_id, "start", result)
 
 
-def gui_privileged_default_stop(root: Path | None = None, profile_id: str = "default") -> str:
+def gui_privileged_default_stop(root: Path | None = None, profile_id: str = "default", confirm_plan_id: str | None = None) -> str:
     """Запустить confirmed default-stop через графический sudo askpass из GUI."""
 
     result = execute_gui_privileged_workflow(
         root=root,
         action="stop",
         profile_id=profile_id,
-        confirm_plan_id=DEFAULT_STOP_PLAN_ID,
+        confirm_plan_id=confirm_plan_id or current_default_plan_id(root, "stop", profile_id),
     ).to_text()
     return _with_status_after_action(root, profile_id, "stop", result)
 
@@ -251,7 +288,7 @@ def gui_privileged_default_start_command(root: Path | None = None, profile_id: s
         root=root,
         action="start",
         profile_id=profile_id,
-        confirm_plan_id=DEFAULT_START_PLAN_ID,
+        confirm_plan_id=current_default_plan_id(root, "start", profile_id),
     )
 
 
@@ -260,5 +297,5 @@ def gui_privileged_default_stop_command(root: Path | None = None, profile_id: st
         root=root,
         action="stop",
         profile_id=profile_id,
-        confirm_plan_id=DEFAULT_STOP_PLAN_ID,
+        confirm_plan_id=current_default_plan_id(root, "stop", profile_id),
     )

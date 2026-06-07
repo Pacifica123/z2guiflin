@@ -102,3 +102,11 @@ privileged boundary; он только сохраняет краткую ста�
 выводу blockcheck после Stop или finish. Это помогает анализировать длинные
 прогоны, где большинство candidate strategies завершается одинаковой ошибкой,
 например `curl code 28: connection timed out`.
+
+## v0.3-dev Stage 6
+
+`v0.3-dev_stage_6` продолжает Blockcheck lab и замыкает первую полноценную
+пользовательскую петлю подбора стратегии: available results из blockcheck можно
+экспортировать в `strategies/generated/`, увидеть во вкладке `Стратегии`, выбрать
+одну из них для Default profile и затем заново пройти обычный plan/confirmation
+путь запуска. Номер Stage 6 остаётся внутри сброшенного dev-цикла.

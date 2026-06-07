@@ -9,12 +9,15 @@ and starts the scan manually.
 
 from __future__ import annotations
 
+import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -139,6 +142,70 @@ class BlockcheckOptions:
             "CURL_MAX_TIME": str(self.curl_max_time),
             "CURL_MAX_TIME_QUIC": str(self.curl_max_time),
         }
+
+
+
+
+@dataclass(frozen=True)
+class AvailableBlockcheckStrategy:
+    """One concrete AVAILABLE nfqws2 strategy observed in blockcheck output."""
+
+    probe: str
+    ip_version: str
+    target: str
+    script: str
+    command: str
+    runtime_args: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class GeneratedStrategyFile:
+    """One strategy file generated from a blockcheck AVAILABLE result."""
+
+    strategy_id: str
+    path: Path
+    source_probe: str
+    source_target: str
+    runtime_args: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class BlockcheckGeneratedStrategiesResult:
+    """Result of converting blockcheck AVAILABLE results into catalog strategies."""
+
+    source_log: Path
+    target_label: str
+    generated: tuple[GeneratedStrategyFile, ...]
+    catalog_path: Path
+
+    @property
+    def ok(self) -> bool:
+        return bool(self.generated)
+
+    def to_text(self) -> str:
+        lines = [
+            "Blockcheck generated strategies",
+            f"source log: {self.source_log}",
+            f"target label: {self.target_label}",
+            f"generated files: {len(self.generated)}",
+            f"catalog: {self.catalog_path}",
+        ]
+        if not self.generated:
+            lines.append("message: available strategies were not found in the last blockcheck log")
+        else:
+            lines.append("generated strategy files:")
+            for item in self.generated:
+                lines.append(f"  - {item.strategy_id}: {item.path}")
+                lines.append(f"    probe: {item.source_probe}; target: {item.source_target}; runtime args: {len(item.runtime_args)}")
+            lines.extend(
+                [
+                    "next: open the Strategies tab, select one generated strategy for Default, then run Default workflow",
+                    "executes now: no",
+                    "mutates services/firewall now: no",
+                    "mutates worktree/catalog now: yes",
+                ]
+            )
+        return "\n".join(lines)
 
 
 @dataclass(frozen=True)
@@ -853,6 +920,255 @@ def parse_blockcheck_run_stats(stdout: str, stderr: str = "") -> BlockcheckRunSt
         infrastructure_notes=tuple(infrastructure.most_common(5)),
         available_strategies=tuple(available_strategies[:10]),
     )
+
+def _split_nfqws2_command(command: str) -> tuple[str, ...]:
+    try:
+        parts = tuple(shlex.split(command))
+    except ValueError:
+        parts = tuple(command.split())
+    if parts and parts[0] == "nfqws2":
+        return parts[1:]
+    return parts
+
+
+def _protocol_runtime_prefix(probe: str) -> tuple[str, ...]:
+    lowered = probe.lower()
+    if "http3" in lowered or "quic" in lowered:
+        return ("--filter-udp=443", "--filter-l7=quic")
+    if "https" in lowered or "tls" in lowered:
+        return ("--filter-tcp=443", "--filter-l7=tls")
+    if "http" in lowered:
+        return ("--filter-tcp=80", "--filter-l7=http")
+    return ("--filter-tcp=443",)
+
+
+def _runtime_args_from_available_command(probe: str, command: str) -> tuple[str, ...]:
+    raw_args = list(_split_nfqws2_command(command))
+    args: list[str] = [
+        "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+        "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    ]
+    existing_options = {item.split("=", 1)[0] for item in raw_args if item.startswith("--")}
+    for item in _protocol_runtime_prefix(probe):
+        option = item.split("=", 1)[0]
+        if option not in existing_options:
+            args.append(item)
+    args.extend(raw_args)
+    return tuple(args)
+
+
+def parse_blockcheck_available_strategies(stdout: str) -> tuple[AvailableBlockcheckStrategy, ...]:
+    """Extract concrete AVAILABLE strategy commands from blockcheck output."""
+
+    current_command: str | None = None
+    current_probe = ""
+    current_ip_version = ""
+    current_target = ""
+    current_script = "<no script>"
+    available: list[AvailableBlockcheckStrategy] = []
+    seen_commands: set[str] = set()
+
+    def mark_available() -> None:
+        nonlocal current_command
+        if current_command is None or current_command in seen_commands:
+            current_command = None
+            return
+        seen_commands.add(current_command)
+        available.append(
+            AvailableBlockcheckStrategy(
+                probe=current_probe,
+                ip_version=current_ip_version,
+                target=current_target,
+                script=current_script,
+                command=current_command,
+                runtime_args=_runtime_args_from_available_command(current_probe, current_command),
+            )
+        )
+        current_command = None
+
+    for raw_line in stdout.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        script_match = _SCRIPT_RE.match(line)
+        if script_match:
+            current_script = script_match.group("script").strip()
+            continue
+        strategy_match = _STRATEGY_ATTEMPT_RE.match(line)
+        if strategy_match:
+            current_probe = strategy_match.group("probe")
+            current_ip_version = strategy_match.group("ipver")
+            current_target = strategy_match.group("target")
+            current_command = strategy_match.group("strategy").strip()
+            continue
+        if current_command is not None and ("!!!!! AVAILABLE !!!!!" in line or "working strategy found" in line):
+            mark_available()
+            continue
+        if _UNAVAILABLE_RE.match(line):
+            current_command = None
+            continue
+    return tuple(available)
+
+
+def _last_blockcheck_log_path(root: Path | None = None) -> Path:
+    layout = discover_layout(root)
+    return layout.root / ".zap2" / "blockcheck" / "logs" / "last-blockcheck.txt"
+
+
+def _domains_from_blockcheck_log(text: str, fallback: str = "blockcheck") -> tuple[str, ...]:
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if line.startswith("domains:"):
+            raw_value = line.split(":", 1)[1]
+            values = [item.strip() for item in raw_value.replace(",", " ").split() if item.strip()]
+            if values:
+                return tuple(values)
+    return (fallback,)
+
+
+def _slug(value: str, *, max_len: int = 48) -> str:
+    cleaned = value.lower().replace("://", "-").replace("/", "-")
+    cleaned = re.sub(r"[^a-z0-9._-]+", "-", cleaned).strip("-._")
+    cleaned = re.sub(r"[-_.]{2,}", "-", cleaned)
+    return (cleaned or "blockcheck")[:max_len].strip("-._") or "blockcheck"
+
+
+def _catalog_relative(path: Path, root: Path) -> str:
+    return path.relative_to(root).as_posix()
+
+
+def _update_strategy_catalog(catalog_path: Path, new_files: tuple[Path, ...], root: Path) -> None:
+    data = json.loads(catalog_path.read_text(encoding="utf-8"))
+    existing = [str(item) for item in data.get("strategyFiles", [])]
+    for path in new_files:
+        rel = _catalog_relative(path, root)
+        if rel not in existing:
+            existing.append(rel)
+    data["strategyFiles"] = existing
+    catalog_path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _strategy_payload(
+    *,
+    strategy_id: str,
+    title: str,
+    summary: str,
+    target_domains: tuple[str, ...],
+    available: AvailableBlockcheckStrategy,
+    source_log: Path,
+    root: Path,
+    index: int,
+    generated_at: str,
+) -> dict[str, object]:
+    try:
+        source_path = _catalog_relative(source_log, root)
+    except ValueError:
+        source_path = str(source_log)
+    return {
+        "schemaVersion": 1,
+        "id": strategy_id,
+        "title": title,
+        "summary": summary,
+        "philosophy": "blockcheck-generated-owner-choice",
+        "intendedFor": [
+            f"target: {', '.join(target_domains)}",
+            "manual owner comparison of blockcheck-discovered AVAILABLE strategies",
+            "Default workflow start after explicit selection in the Strategies tab",
+        ],
+        "workflow": ["blockcheck", "generate", "owner-selects", "plan", "owner-confirms", "execute-later"],
+        "capabilities": {
+            "readsProfiles": True,
+            "readsHostlists": True,
+            "usesLocalBuildPlan": True,
+            "executesAutomatically": False,
+            "requiresSudoAtStage7": False,
+            "mutatesServicesOrFirewallAtStage7": False,
+        },
+        "runtimeArgs": list(available.runtime_args),
+        "sourcePreset": {
+            "engine": "nfqws2",
+            "id": "blockcheck-generated",
+            "name": "Blockcheck generated AVAILABLE strategy",
+            "portingLevel": "generated-local-runtime-args",
+            "sourcePath": source_path,
+            "generatedAt": generated_at,
+            "probe": available.probe,
+            "ipVersion": available.ip_version,
+            "target": available.target,
+            "script": available.script,
+            "availableIndex": index,
+            "originalCommand": available.command,
+            "windowsOptionsExecuted": False,
+        },
+        "notes": [
+            "Generated from a concrete AVAILABLE line in the last Blockcheck lab log.",
+            "The original nfqws2 command is preserved after base Lua init and protocol filter args.",
+            "This file is catalog data only; choosing it does not start network changes until Default workflow is explicitly planned, confirmed and started.",
+        ],
+    }
+
+
+def export_blockcheck_available_strategies(root: Path | None = None, max_strategies: int = 0) -> BlockcheckGeneratedStrategiesResult:
+    """Convert AVAILABLE strategies from the last blockcheck log into catalog files."""
+
+    layout = discover_layout(root)
+    source_log = _last_blockcheck_log_path(layout.root)
+    catalog_path = layout.root / "strategies" / "catalog.json"
+    generated_dir = layout.root / "strategies" / "generated"
+    if not source_log.is_file():
+        raise ValueError(f"Последний blockcheck log не найден: {source_log}")
+    text = source_log.read_text(encoding="utf-8", errors="replace")
+    available = list(parse_blockcheck_available_strategies(text))
+    if max_strategies > 0:
+        available = available[:max_strategies]
+    domains = _domains_from_blockcheck_log(text)
+    target_label = _slug(domains[0])
+    if not available:
+        return BlockcheckGeneratedStrategiesResult(
+            source_log=source_log,
+            target_label=target_label,
+            generated=(),
+            catalog_path=catalog_path,
+        )
+    generated_dir.mkdir(parents=True, exist_ok=True)
+    generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    stamp = datetime.fromtimestamp(source_log.stat().st_mtime, timezone.utc).strftime("%Y%m%d-%H%M%S")
+    files: list[GeneratedStrategyFile] = []
+    for index, item in enumerate(available, 1):
+        strategy_id = f"blockcheck-{target_label}-{stamp}-{index:02d}"
+        filename = f"{strategy_id}.json"
+        path = generated_dir / filename
+        title = f"Blockcheck {domains[0]} #{index:02d}"
+        summary = f"Generated AVAILABLE strategy for {', '.join(domains)} from {item.probe} ({item.script})."
+        payload = _strategy_payload(
+            strategy_id=strategy_id,
+            title=title,
+            summary=summary,
+            target_domains=domains,
+            available=item,
+            source_log=source_log,
+            root=layout.root,
+            index=index,
+            generated_at=generated_at,
+        )
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        files.append(
+            GeneratedStrategyFile(
+                strategy_id=strategy_id,
+                path=path,
+                source_probe=item.probe,
+                source_target=item.target,
+                runtime_args=item.runtime_args,
+            )
+        )
+    _update_strategy_catalog(catalog_path, tuple(item.path for item in files), layout.root)
+    return BlockcheckGeneratedStrategiesResult(
+        source_log=source_log,
+        target_label=target_label,
+        generated=tuple(files),
+        catalog_path=catalog_path,
+    )
+
 
 def parse_blockcheck_summary(stdout: str) -> tuple[str, ...]:
     """Extract concise strategy lines from blockcheck output."""

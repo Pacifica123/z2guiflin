@@ -16,6 +16,7 @@ from .adapters.blockcheck_gui import (
     blockcheck_preflight_to_text,
     execute_blockcheck_prereq_build,
     execute_blockcheck_with_gui_sudo,
+    export_blockcheck_available_strategies,
     last_blockcheck_log_to_text,
 )
 from .adapters.build_dependencies import run_build_dependency_preflight
@@ -73,6 +74,7 @@ from .adapters.workspace_profiles import (
     workspace_strategies_to_text,
     workspace_strategy_to_text,
     load_workspace_catalog,
+    select_workspace_strategy,
 )
 from .core_inventory import load_core_build_map, load_core_inventory, load_core_inventory_snapshot
 from .models.navigation import default_navigation_sections
@@ -109,7 +111,7 @@ def describe_project() -> str:
             "default build workflow: v0.3-dev over beta baseline owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
             "GUI privileged start/stop: v0.3-dev via graphical sudo askpass",
-            "blockcheck lab: v0.3-dev stage 5 live run statistics after Stop/finish",
+            "blockcheck lab: v0.3-dev stage 6 export AVAILABLE strategies into selectable generated catalog files",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: v0.3-dev controlled runtime baseline with optional GUI launch",
@@ -314,6 +316,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--blockcheck-last-log",
         action="store_true",
         help="показать последний сохранённый GUI blockcheck log; без исполнения",
+    )
+    parser.add_argument(
+        "--blockcheck-export-strategies",
+        action="store_true",
+        help="создать strategies/generated/*.json из AVAILABLE стратегий последнего blockcheck log и обновить catalog.json",
+    )
+    parser.add_argument(
+        "--select-strategy",
+        metavar="STRATEGY_ID",
+        help="выбрать strategy id для Default profile; только сохраняет .zap2 selection, без запуска",
     )
     parser.add_argument(
         "--blockcheck-domains",
@@ -668,6 +680,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.blockcheck_last_log:
         print(last_blockcheck_log_to_text())
         return 0
+
+    if args.blockcheck_export_strategies:
+        try:
+            result = export_blockcheck_available_strategies()
+            print(result.to_text())
+            return 0 if result.ok else 1
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.select_strategy:
+        try:
+            print(select_workspace_strategy(strategy_id=args.select_strategy, profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
 
     if args.list_profiles:
         print(workspace_profiles_to_text())

@@ -202,3 +202,46 @@ Parser намеренно игнорирует `!!!!! AVAILABLE !!!!!` из ру
 если в этот момент не активна строка strategy attempt. Это важно, потому что
 upstream blockcheck может печатать `AVAILABLE` для контрольного `iana.org`, и это
 не означает найденную рабочую стратегию для YouTube.
+
+## v0.3-dev Stage 6: экспорт AVAILABLE в generated strategies
+
+Stage 6 замыкает ручную цепочку `Blockcheck lab -> generated strategy -> выбор -> Default workflow`.
+После длинного run и статистики владелец теперь может нажать `Создать стратегии`:
+GUI прочитает `.zap2/blockcheck/logs/last-blockcheck.txt`, найдёт только реальные
+`AVAILABLE` строки вида `- curl_test... : nfqws2 ...`, создаст по одному
+strategy JSON на каждую найденную команду и добавит эти файлы в
+`strategies/catalog.json`.
+
+Файлы кладутся в:
+
+```text
+strategies/generated/
+```
+
+Идентификатор строится по схеме:
+
+```text
+blockcheck-<target>-<mtime-last-log>-NN
+```
+
+Каждый generated strategy получает безопасные базовые runtime args:
+
+- Lua init: `zapret-lib.lua` и `zapret-antidpi.lua`;
+- protocol filter по типу probe: TCP/443 для HTTPS/TLS, UDP/443 для HTTP/3/QUIC,
+  TCP/80 для HTTP;
+- оригинальную `nfqws2 ...` часть из blockcheck без объединения с другими
+  стратегиями.
+
+Стратегии намеренно создаются раздельно. Слепить 38 `AVAILABLE` строк в один
+`runtimeArgs` было бы методологически неверно: blockcheck проверял их как
+отдельные варианты, а не как одну составную команду.
+
+CLI-эквивалент:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-export-strategies
+```
+
+Команда не требует sudo, не меняет firewall/services и не запускает `nfqws2`.
+Она меняет только рабочее дерево проекта: `strategies/generated/*.json` и
+`strategies/catalog.json`.

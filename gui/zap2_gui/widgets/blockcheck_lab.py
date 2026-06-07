@@ -13,6 +13,7 @@ from ..adapters.blockcheck_gui import (
     blockcheck_plan_to_text,
     blockcheck_preflight_to_text,
     execute_blockcheck_prereq_build,
+    export_blockcheck_available_strategies,
     last_blockcheck_log_to_text,
     parse_blockcheck_run_stats,
     parse_blockcheck_summary,
@@ -35,9 +36,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     title.setObjectName("pageTitle")
     intro = QtWidgets.QLabel(
         "Здесь можно вручную прогнать upstream blockcheck2.sh для домена YouTube или другого target, "
-        "посмотреть найденные стратегии и потом осознанно перенести удачную строку в каталог стратегий. "
+        "посмотреть найденные стратегии и затем одной кнопкой сгенерировать strategy-файлы в strategies/generated. "
         "Запуск требует sudo, временно меняет firewall redirect внутри blockcheck и должен выполняться при выключенном Default workflow/VPN. "
-        "Долгий run теперь идёт в фоне: окно остаётся живым, лог дописывается потоком, остановка выполняется отдельной кнопкой."
+        "Долгий run идёт в фоне: окно остаётся живым, лог дописывается потоком, остановка выполняется отдельной кнопкой."
     )
     intro.setWordWrap(True)
 
@@ -103,6 +104,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     plan_button = QtWidgets.QPushButton("План run")
     run_button = QtWidgets.QPushButton("Запустить blockcheck")
     stop_button = QtWidgets.QPushButton("Остановить")
+    export_button = QtWidgets.QPushButton("Создать стратегии")
     log_button = QtWidgets.QPushButton("Последний лог")
     stop_button.setEnabled(False)
     buttons.addWidget(preflight_button)
@@ -111,6 +113,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     buttons.addWidget(plan_button)
     buttons.addWidget(run_button)
     buttons.addWidget(stop_button)
+    buttons.addWidget(export_button)
     buttons.addWidget(log_button)
     buttons.addStretch(1)
 
@@ -172,7 +175,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         )
 
     def set_running(running: bool) -> None:
-        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, log_button):
+        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, log_button):
             button.setEnabled(not running)
         stop_button.setEnabled(running)
         status.setText("Статус: blockcheck выполняется…" if running else "Статус: idle")
@@ -328,6 +331,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     plan_button.clicked.connect(lambda _checked=False: run_action("План run", lambda: blockcheck_plan_to_text(root=root, options=collect_options())))
     run_button.clicked.connect(lambda _checked=False: run_blockcheck())
     stop_button.clicked.connect(lambda _checked=False: stop_blockcheck())
+    export_button.clicked.connect(lambda _checked=False: run_action("Создать стратегии", lambda: export_blockcheck_available_strategies(root=root).to_text()))
     log_button.clicked.connect(lambda _checked=False: run_action("Последний лог", lambda: last_blockcheck_log_to_text(root=root)))
 
     layout.addWidget(title)

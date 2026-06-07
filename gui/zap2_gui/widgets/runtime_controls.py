@@ -6,10 +6,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ..adapters.gui_runtime_controls import (
-    DEFAULT_BUILD_PLAN_ID,
-    DEFAULT_START_PLAN_ID,
-    DEFAULT_STOP_PLAN_ID,
-    gui_confirm_plan,
+    gui_confirm_default_build,
+    gui_confirm_default_start,
+    gui_confirm_default_stop,
     gui_default_build_deps,
     gui_default_status,
     gui_default_toggle_label,
@@ -142,15 +141,15 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     actions: tuple[tuple[str, Callable[[], str]], ...] = (
         ("Зависимости", lambda: gui_default_build_deps(root=root)),
         ("План сборки", lambda: gui_prepare_default_build(root=root)),
-        ("Подтвердить сборку", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_BUILD_PLAN_ID)),
+        ("Подтвердить сборку", lambda: gui_confirm_default_build(root=root)),
         ("Собрать", lambda: gui_execute_default_build(root=root)),
         ("План запуска", lambda: gui_prepare_default_start(root=root)),
-        ("Подтвердить запуск", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_START_PLAN_ID)),
+        ("Подтвердить запуск", lambda: gui_confirm_default_start(root=root)),
         ("Команда запуска", lambda: gui_privileged_default_start_command(root=root)),
         ("План стоп", lambda: gui_prepare_default_stop(root=root)),
-        ("Подтвердить стоп", lambda: gui_confirm_plan(root=root, plan_id=DEFAULT_STOP_PLAN_ID)),
+        ("Подтвердить стоп", lambda: gui_confirm_default_stop(root=root)),
         ("Команда стоп", lambda: gui_privileged_default_stop_command(root=root)),
-        ("Команды", lambda: gui_runtime_commands().to_text()),
+        ("Команды", lambda: gui_runtime_commands(root=root).to_text()),
     )
     for index, (caption, callback) in enumerate(actions):
         button = QtWidgets.QPushButton(caption)

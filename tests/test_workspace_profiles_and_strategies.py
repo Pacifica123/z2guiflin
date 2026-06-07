@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -15,8 +16,10 @@ from zap2_gui.adapters.workspace_profiles import (
     workspace_profiles_to_text,
     workspace_strategies_to_text,
     workspace_strategy_to_text,
+    select_workspace_strategy,
 )
 from zap2_gui.app import describe_project, main
+from zap2_gui.adapters.runtime_plan_generator import create_runtime_plan
 from zap2_gui.models.navigation import default_navigation_sections
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -114,3 +117,33 @@ def test_entrypoint_can_print_profiles_and_strategies_without_execution() -> Non
     assert main(["--list-strategies"]) == 0
     assert main(["--show-strategy", "manual-local"]) == 0
     assert "workspace profiles: 1; strategies: 2" in describe_project()
+
+
+
+def _copy_project_for_strategy_tests(tmp_path: Path) -> Path:
+    project = tmp_path / "project"
+    shutil.copytree(ROOT, project, ignore=shutil.ignore_patterns(".git", ".zap2", "__pycache__", "*.pyc", ".pytest_cache"))
+    return project
+
+
+def test_strategy_selection_overrides_default_profile_for_next_plans(tmp_path: Path) -> None:
+    project = _copy_project_for_strategy_tests(tmp_path)
+
+    result = select_workspace_strategy(project, strategy_id="read-only-diagnostics", profile_id="default")
+    catalog = load_workspace_catalog(project)
+    plan = create_runtime_plan(project, action="start", profile_id="default")
+
+    assert "Strategy selection: saved" in result.to_text()
+    assert catalog.active_selection is not None
+    assert catalog.profile_by_id()["default"].strategy_id == "read-only-diagnostics"
+    assert catalog.default_strategy_id == "read-only-diagnostics"
+    assert plan.strategy.strategy_id == "read-only-diagnostics"
+    assert "read-only-diagnostics" in plan.plan_id
+
+
+def test_strategies_widget_is_a_real_selector_not_placeholder() -> None:
+    source = (ROOT / "gui" / "zap2_gui" / "widgets" / "strategies.py").read_text(encoding="utf-8")
+
+    assert "QListWidget" in source
+    assert "Выбрать для Default" in source
+    assert "select_workspace_strategy" in source

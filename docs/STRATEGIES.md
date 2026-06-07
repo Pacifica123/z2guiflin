@@ -46,3 +46,40 @@ PYTHONPATH=gui python -m zap2_gui.app --show-strategy manual-local
 Stage 4 переносит первую базовую стратегию из Windows GUI: `Default v1 (game filter)`. Перенос частичный и контролируемый: оригинальный Windows preset хранится как reference, а Linux runtime получает только seed hostlist и минимальные `nfqws2`-совместимые Lua-аргументы. Полный WinDivert preset не исполняется напрямую.
 
 Также Stage 4 переносит CLI build/start/stop/status workflow во вкладку `Обзор` PyQt shell. GUI не запускает `sudo` и не применяет firewall скрыто: он готовит планы, подтверждает plan id через существующий confirmation gate и показывает owner-команды для терминала.
+
+## v0.3-dev Stage 6: generated strategies и выбор для Default
+
+После Blockcheck lab каталог может пополняться локально сгенерированными
+стратегиями:
+
+```text
+strategies/generated/
+  blockcheck-youtube-com-YYYYMMDD-HHMMSS-01.json
+  blockcheck-youtube-com-YYYYMMDD-HHMMSS-02.json
+```
+
+Эти файлы создаются из конкретных `AVAILABLE` строк последнего blockcheck log и
+автоматически добавляются в `strategies/catalog.json`. Они остаются обычными
+plan-only strategy data: сами по себе не запускают процессы и не меняют firewall.
+
+Вкладка `Стратегии` теперь не placeholder: она показывает список catalog
+strategies, детали выбранной стратегии и кнопку `Выбрать для Default`. Выбор
+пишется в:
+
+```text
+.zap2/strategies/default.active-strategy.json
+```
+
+После выбора все следующие Default build/start/stop/status plans строятся уже
+для выбранной strategy id. Если стратегия поменялась, старые confirmations
+устаревают: нужно заново подготовить и подтвердить start-plan перед запуском.
+
+CLI-эквивалент выбора:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --select-strategy <strategy-id>
+```
+
+Выбор стратегии не исполняется как сетевое действие. Это только локальное
+состояние owner choice, которое последующие plan/confirmation этапы используют
+как входные данные.

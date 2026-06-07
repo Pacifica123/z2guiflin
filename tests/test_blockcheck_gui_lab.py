@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
+import shutil
 
 import pytest
 
@@ -16,6 +18,8 @@ from zap2_gui.adapters.blockcheck_gui import (
     parse_blockcheck_run_stats,
     parse_blockcheck_summary,
     prepare_blockcheck_execution,
+    export_blockcheck_available_strategies,
+    parse_blockcheck_available_strategies,
 )
 from zap2_gui.app import main
 from zap2_gui.models.navigation import default_navigation_sections
@@ -253,3 +257,73 @@ def test_blockcheck_lab_footer_uses_parsed_run_statistics() -> None:
     assert "parse_blockcheck_run_stats" in source
     assert "Blockcheck run statistics" in source or "stats.to_text()" in source
     assert "footer=footer_text" in source
+
+
+
+def _copy_project_for_blockcheck(tmp_path: Path) -> Path:
+    project = tmp_path / "project"
+    shutil.copytree(ROOT, project, ignore=shutil.ignore_patterns(".git", ".zap2", "__pycache__", "*.pyc", ".pytest_cache"))
+    return project
+
+
+def test_blockcheck_available_strategy_parser_keeps_concrete_runtime_args() -> None:
+    stdout = """
+* script : standard/15-misc.sh
+- curl_test_https_tls12 ipv4 youtube.com : nfqws2 --payload=tls_client_hello --lua-desync=tcpseg:pos=0,1
+!!!!! AVAILABLE !!!!!
+- curl_test_http3 ipv4 youtube.com : nfqws2 --payload=quic_initial --lua-desync=fake
+!!!!! AVAILABLE !!!!!
+"""
+    available = parse_blockcheck_available_strategies(stdout)
+
+    assert len(available) == 2
+    assert available[0].command.startswith("nfqws2 --payload=tls_client_hello")
+    assert "--filter-tcp=443" in available[0].runtime_args
+    assert "--filter-l7=tls" in available[0].runtime_args
+    assert "--filter-udp=443" in available[1].runtime_args
+    assert "--lua-init=@core/zapret2/lua/zapret-lib.lua" in available[0].runtime_args
+
+
+def test_blockcheck_export_available_strategies_updates_generated_catalog(tmp_path: Path) -> None:
+    project = _copy_project_for_blockcheck(tmp_path)
+    log_path = project / ".zap2" / "blockcheck" / "logs" / "last-blockcheck.txt"
+    log_path.parent.mkdir(parents=True)
+    log_path.write_text(
+        """
+Blockcheck GUI plan
+domains: youtube.com, www.youtube.com
+
+===== STDOUT =====
+* script : standard/15-misc.sh
+- curl_test_https_tls12 ipv4 youtube.com : nfqws2 --payload=tls_client_hello --lua-desync=tcpseg:pos=0,1
+!!!!! AVAILABLE !!!!!
+- curl_test_https_tls12 ipv4 youtube.com : nfqws2 --payload=tls_client_hello --lua-desync=tcpseg:pos=0,midsld
+curl: (28) Connection timed out after 3002 milliseconds
+UNAVAILABLE code=28
+- curl_test_https_tls13 ipv4 youtube.com : nfqws2 --payload=tls_client_hello --lua-desync=multidisorder:pos=midsld
+!!!!! AVAILABLE !!!!!
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = export_blockcheck_available_strategies(project)
+
+    assert result.ok
+    assert len(result.generated) == 2
+    catalog = json.loads((project / "strategies" / "catalog.json").read_text(encoding="utf-8"))
+    for item in result.generated:
+        rel = item.path.relative_to(project).as_posix()
+        assert rel in catalog["strategyFiles"]
+        data = json.loads(item.path.read_text(encoding="utf-8"))
+        assert data["id"] == item.strategy_id
+        assert data["sourcePreset"]["name"] == "Blockcheck generated AVAILABLE strategy"
+        assert "--filter-tcp=443" in data["runtimeArgs"]
+        assert "--lua-init=@core/zapret2/lua/zapret-antidpi.lua" in data["runtimeArgs"]
+
+
+def test_blockcheck_lab_exposes_export_button() -> None:
+    source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
+
+    assert "Создать стратегии" in source
+    assert "export_blockcheck_available_strategies" in source

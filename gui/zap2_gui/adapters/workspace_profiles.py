@@ -8,7 +8,8 @@ Stage 7 делает стратегии и профили видимыми да�
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -36,12 +37,167 @@ class WorkspaceCatalog:
     strategies: tuple[WorkspaceStrategy, ...]
     default_profile_id: str
     default_strategy_id: str
+    active_selection: "ActiveStrategySelection | None" = None
 
     def profile_by_id(self) -> dict[str, WorkspaceProfile]:
         return {profile.profile_id: profile for profile in self.profiles}
 
     def strategy_by_id(self) -> dict[str, WorkspaceStrategy]:
         return {strategy.strategy_id: strategy for strategy in self.strategies}
+
+
+
+
+ACTIVE_STRATEGY_SELECTION_SCHEMA_VERSION = 1
+
+
+@dataclass(frozen=True)
+class ActiveStrategySelection:
+    """Owner-selected strategy override stored in .zap2 state."""
+
+    schema_version: int
+    profile_id: str
+    strategy_id: str
+    selected_at: str
+    reason: str
+    path: Path
+    previous_strategy_id: str | None = None
+
+    def to_text(self) -> str:
+        previous = self.previous_strategy_id or "не указан"
+        return "\n".join(
+            [
+                "Active strategy selection",
+                f"profile: {self.profile_id}",
+                f"strategy: {self.strategy_id}",
+                f"previous strategy: {previous}",
+                f"selected at: {self.selected_at}",
+                f"reason: {self.reason}",
+                f"selection file: {self.path}",
+                "read-only in checks: yes",
+            ]
+        )
+
+
+@dataclass(frozen=True)
+class StrategySelectionResult:
+    """Result of an explicit owner strategy selection."""
+
+    profile_id: str
+    strategy_id: str
+    previous_strategy_id: str
+    path: Path
+    selected_at: str
+
+    def to_text(self) -> str:
+        return "\n".join(
+            [
+                "Strategy selection: saved",
+                f"profile: {self.profile_id}",
+                f"strategy: {self.strategy_id}",
+                f"previous strategy: {self.previous_strategy_id}",
+                f"selection file: {self.path}",
+                f"selected at: {self.selected_at}",
+                "effect: next default build/start/stop/status plans use selected strategy",
+                "executes now: no",
+                "mutates services/firewall now: no",
+            ]
+        )
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def active_strategy_selection_path(root: Path | None = None, profile_id: str = "default") -> Path:
+    layout = discover_layout(root)
+    safe_profile = "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "_" for ch in profile_id)
+    return layout.root / ".zap2" / "strategies" / f"{safe_profile}.active-strategy.json"
+
+
+def load_active_strategy_selection(root: Path | None = None, profile_id: str = "default") -> ActiveStrategySelection | None:
+    path = active_strategy_selection_path(root, profile_id)
+    if not path.is_file():
+        return None
+    data = _read_json(path)
+    if int(data.get("schemaVersion", 0)) != ACTIVE_STRATEGY_SELECTION_SCHEMA_VERSION:
+        return None
+    if str(data.get("profileId", "")) != profile_id:
+        return None
+    return ActiveStrategySelection(
+        schema_version=int(data["schemaVersion"]),
+        profile_id=str(data["profileId"]),
+        strategy_id=str(data["strategyId"]),
+        selected_at=str(data.get("selectedAt", "")),
+        reason=str(data.get("reason", "owner-selected")),
+        previous_strategy_id=str(data["previousStrategyId"]) if data.get("previousStrategyId") else None,
+        path=path,
+    )
+
+
+def select_workspace_strategy(
+    root: Path | None = None,
+    strategy_id: str = "",
+    profile_id: str = "default",
+    reason: str = "owner-selected",
+) -> StrategySelectionResult:
+    """Persist owner-selected strategy for a profile without starting anything."""
+
+    if not strategy_id:
+        raise ValueError("strategy_id обязателен для выбора стратегии")
+    layout = discover_layout(root)
+    profiles = {profile.profile_id: profile for profile in load_workspace_profiles(layout.root)}
+    if profile_id not in profiles:
+        raise ValueError(f"Неизвестный workspace-профиль: {profile_id}")
+    strategies = load_strategy_catalog(layout.root).by_id()
+    if strategy_id not in strategies:
+        raise ValueError(f"Неизвестная стратегия: {strategy_id}. Доступно: {', '.join(sorted(strategies))}")
+    previous = load_active_strategy_selection(layout.root, profile_id)
+    previous_strategy_id = previous.strategy_id if previous is not None else profiles[profile_id].strategy_id
+    path = active_strategy_selection_path(layout.root, profile_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    selected_at = _utc_now()
+    payload = {
+        "schemaVersion": ACTIVE_STRATEGY_SELECTION_SCHEMA_VERSION,
+        "profileId": profile_id,
+        "strategyId": strategy_id,
+        "previousStrategyId": previous_strategy_id,
+        "selectedAt": selected_at,
+        "reason": reason,
+        "safety": {
+            "executesNow": False,
+            "mutatesServicesOrFirewallNow": False,
+            "automaticChecksMayExecute": False,
+        },
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return StrategySelectionResult(
+        profile_id=profile_id,
+        strategy_id=strategy_id,
+        previous_strategy_id=previous_strategy_id,
+        path=path,
+        selected_at=selected_at,
+    )
+
+
+def _apply_active_selection(
+    root: Path,
+    profiles: tuple[WorkspaceProfile, ...],
+    strategies: dict[str, WorkspaceStrategy],
+    default_profile_id: str,
+) -> tuple[tuple[WorkspaceProfile, ...], ActiveStrategySelection | None, str]:
+    selection = load_active_strategy_selection(root, default_profile_id)
+    if selection is None:
+        return profiles, None, ""
+    if selection.strategy_id not in strategies:
+        return profiles, None, ""
+    updated = tuple(
+        replace(profile, strategy_id=selection.strategy_id)
+        if profile.profile_id == selection.profile_id
+        else profile
+        for profile in profiles
+    )
+    return updated, selection, selection.strategy_id
 
 
 @dataclass(frozen=True)
@@ -203,11 +359,18 @@ def load_workspace_catalog(root: Path | None = None) -> WorkspaceCatalog:
     if errors:
         raise ValueError("; ".join(errors))
     default_profile_id = "default" if "default" in set(profile_ids) else profiles[0].profile_id
+    active_profiles, active_selection, active_default_strategy_id = _apply_active_selection(
+        layout.root,
+        profiles,
+        strategy_catalog.by_id(),
+        default_profile_id,
+    )
     return WorkspaceCatalog(
-        profiles=profiles,
+        profiles=active_profiles,
         strategies=strategy_catalog.strategies,
         default_profile_id=default_profile_id,
-        default_strategy_id=strategy_catalog.default_strategy_id,
+        default_strategy_id=active_default_strategy_id or strategy_catalog.default_strategy_id,
+        active_selection=active_selection,
     )
 
 
@@ -216,21 +379,32 @@ def workspace_profiles_to_text(root: Path | None = None) -> str:
     lines = ["Workspace profiles:"]
     for profile in catalog.profiles:
         default_marker = " (default)" if profile.profile_id == catalog.default_profile_id else ""
-        lines.append(f"  {profile.profile_id}{default_marker}: {profile.title}")
+        active_marker = " [active selected]" if catalog.active_selection and catalog.active_selection.profile_id == profile.profile_id else ""
+        lines.append(f"  {profile.profile_id}{default_marker}: {profile.title}{active_marker}")
         lines.append(f"    strategy: {profile.strategy_id}; build target: {profile.build_target}")
         lines.append(f"    hostlists: {len(profile.hostlists)}; read-only checks: yes")
     return "\n".join(lines)
 
 
 def workspace_profile_to_text(profile_id: str = "default", root: Path | None = None) -> str:
-    profile = load_workspace_profile(root, profile_id)
+    catalog = load_workspace_catalog(root)
+    profiles = catalog.profile_by_id()
+    if profile_id not in profiles:
+        raise ValueError(f"Неизвестный workspace-профиль: {profile_id}. Доступно: {', '.join(sorted(profiles))}")
+    profile = profiles[profile_id]
     hostlists = ", ".join(item.path for item in profile.hostlists) or "нет"
     notes = "\n".join(f"  - {note}" for note in profile.notes) or "  - нет"
+    active_line = (
+        f"active selection file: {catalog.active_selection.path}"
+        if catalog.active_selection and catalog.active_selection.profile_id == profile.profile_id
+        else "active selection file: нет"
+    )
     return "\n".join(
         [
             f"Workspace profile: {profile.profile_id}",
             f"title: {profile.title}",
             f"strategy: {profile.strategy_id}",
+            active_line,
             f"build target: {profile.build_target}",
             f"hostlists: {hostlists}",
             "read-only checks: yes",
@@ -243,11 +417,15 @@ def workspace_profile_to_text(profile_id: str = "default", root: Path | None = N
 
 def workspace_strategies_to_text(root: Path | None = None) -> str:
     catalog = load_workspace_catalog(root)
+    active_id = catalog.active_selection.strategy_id if catalog.active_selection else ""
     lines = ["Workspace strategies:"]
     for strategy in catalog.strategies:
         default_marker = " (default)" if strategy.strategy_id == catalog.default_strategy_id else ""
-        lines.append(f"  {strategy.strategy_id}{default_marker}: {strategy.title}")
-        lines.append(f"    philosophy: {strategy.philosophy}; plan-only: yes")
+        active_marker = " [selected for Default]" if strategy.strategy_id == active_id else ""
+        lines.append(f"  {strategy.strategy_id}{default_marker}{active_marker}: {strategy.title}")
+        lines.append(f"    philosophy: {strategy.philosophy}; plan-only: yes; runtime args: {len(strategy.runtime_args)}")
+    if catalog.active_selection:
+        lines.append(f"active selection file: {catalog.active_selection.path}")
     return "\n".join(lines)
 
 

@@ -16,6 +16,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .workspace_profiles import load_workspace_catalog
 from ..project_paths import discover_layout
 
 DEFAULT_START_PLAN_ID = "runtime-default-manual-local-default-start-workflow-plan"
@@ -108,7 +109,20 @@ class GuiPrivilegedResult:
         return "\n".join(lines)
 
 
+def default_plan_id_for_action(root: Path | None = None, action: str = "start", profile_id: str = "default") -> str:
+    if action not in SUPPORTED_GUI_PRIVILEGED_ACTIONS:
+        raise ValueError(f"Неподдерживаемое GUI privileged action: {action}")
+    layout = discover_layout(root)
+    catalog = load_workspace_catalog(layout.root)
+    profiles = catalog.profile_by_id()
+    if profile_id not in profiles:
+        raise ValueError(f"Неизвестный workspace-профиль: {profile_id}")
+    strategy_id = profiles[profile_id].strategy_id
+    return f"runtime-{profile_id}-{strategy_id}-default-{action}-workflow-plan"
+
+
 def _default_plan_id_for_action(action: str) -> str:
+    # Backward-compatible constant for tests/docs when no root is available.
     if action == "start":
         return DEFAULT_START_PLAN_ID
     if action == "stop":
@@ -162,7 +176,7 @@ def build_gui_privileged_command(
     if action not in SUPPORTED_GUI_PRIVILEGED_ACTIONS:
         raise ValueError(f"Неподдерживаемое GUI privileged action: {action}")
     layout = discover_layout(root)
-    plan_id = confirm_plan_id or _default_plan_id_for_action(action)
+    plan_id = confirm_plan_id or default_plan_id_for_action(layout.root, action=action, profile_id=profile_id)
     pythonpath = str(layout.root / "gui")
     executable = str(Path(sys.executable))
     askpass = ensure_sudo_askpass_helper(layout.root)

@@ -241,3 +241,26 @@ Stage 5 делает долгие Blockcheck-прогоны более чита�
 отдельной секции `BLOCKCHECK RUN STATISTICS`, поэтому её можно посмотреть позже
 через кнопку `Последний лог` или CLI `--blockcheck-last-log`, даже если исходный
 live-output был очень длинным.
+
+## v0.3-dev Stage 6: Blockcheck → generated strategies → selection
+
+Stage 6 замыкает первую полноценную пользовательскую цепочку подбора: после
+Blockcheck run кнопка `Создать стратегии` читает последний лог, извлекает
+реальные `AVAILABLE` строки `nfqws2`, создаёт отдельные JSON-стратегии в
+`strategies/generated/` и добавляет их в `strategies/catalog.json`.
+
+Новая вкладка `Стратегии` теперь показывает каталог как интерактивный список,
+отображает детали выбранной стратегии и позволяет явно выбрать одну strategy для
+Default profile. Выбор сохраняется в `.zap2/strategies/default.active-strategy.json`
+и не запускает сеть сам по себе: следующие Default build/start/stop/status plans
+строятся по выбранной strategy id, а запуск всё равно требует обычный
+plan/confirmation/sudo-askpass workflow.
+
+CLI-эквиваленты:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-export-strategies
+PYTHONPATH=gui python -m zap2_gui.app --select-strategy <strategy-id>
+PYTHONPATH=gui python -m zap2_gui.app --list-strategies
+PYTHONPATH=gui python -m zap2_gui.app --show-strategy <strategy-id>
+```
