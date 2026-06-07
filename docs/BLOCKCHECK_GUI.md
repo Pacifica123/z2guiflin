@@ -129,3 +129,34 @@ Arch/Manjaro и openSUSE.
 владельцем. Автоматические эвристики ранней остановки пока намеренно не
 включены в GUI по умолчанию: их нужно валидировать отдельно, чтобы не срезать
 длинный, но потенциально полезный поиск.
+
+## v0.3-dev Stage 4: owner UID/GID для Lua после privilege drop
+
+Live-run выявил новую проблему: `blockcheck2.sh` стартует scan, но `nfqws2`
+пишет в stderr:
+
+```text
+LUA file '.../core/zapret2/lua/zapret-lib.lua' or '...zapret-lib.lua.gz' not accessible
+I drop my privileges and do not run Lua as root
+check file permissions and +x rights on all directories in the path
+```
+
+Сами Lua-файлы находятся в vendored core tree. Ошибка возникает не из-за их
+отсутствия, а из-за того, что upstream blockcheck передаёт `nfqws2` дефолтный
+`--uid 1:3003`, если `WS_UID/WS_GID` не заданы. После сброса root такой user не
+обязан иметь право прохода по `/home/<owner>/projects/...`, поэтому Lua-init не
+может прочитать файлы в workspace.
+
+Stage 4 меняет только GUI/CLI wrapper вокруг blockcheck:
+
+- при построении команды добавляются `WS_UID` и `WS_GID` владельца GUI-процесса;
+- если wrapper уже запущен через sudo, используются `SUDO_UID/SUDO_GID`;
+- `Blockcheck plan` печатает выбранный worker uid/gid и source выбора;
+- preflight проверяет наличие `lua/zapret-lib.lua` и `lua/zapret-antidpi.lua`;
+- Stop больше не показывает `QProcess error: Crashed`, если crash был ожидаемым
+  результатом owner-остановки.
+
+Это не добавляет installer scripts, не меняет persistent services и не ослабляет
+границу sudo: root всё ещё нужен только для upstream firewall/NFQUEUE действий,
+а `nfqws2` после старта сбрасывается к владельцу workspace вместо synthetic
+`1:3003`.

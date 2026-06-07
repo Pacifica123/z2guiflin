@@ -71,6 +71,7 @@ safer interception, исторически назывались Stage 16/17, п�
 v0.3-dev_stage_1
 v0.3-dev_stage_2
 v0.3-dev_stage_3
+v0.3-dev_stage_4
 ```
 
 Это не меняет продуктовую метку `v0.3-dev`, но делает следующие dev-патчи
@@ -83,3 +84,10 @@ v0.3-dev_stage_3
 обнаруживаться только после запуска privileged upstream script. Номер Stage 2
 подтверждает сброшенную dev-нумерацию и не возвращается к историческим Stage
 16/17.
+
+## v0.3-dev Stage 4
+
+`v0.3-dev_stage_4` продолжает Blockcheck lab и исправляет запуск upstream
+`blockcheck2.sh` в пользовательском workspace: GUI wrapper теперь передаёт
+`WS_UID/WS_GID` владельца, чтобы `nfqws2` после privilege drop мог читать
+`core/zapret2/lua/*.lua`. Номер Stage 4 остаётся внутри сброшенного dev-цикла.

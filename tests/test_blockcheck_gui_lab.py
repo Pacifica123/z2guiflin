@@ -10,6 +10,7 @@ from zap2_gui.adapters.blockcheck_gui import (
     blockcheck_plan_to_text,
     blockcheck_preflight,
     build_blockcheck_command,
+    current_blockcheck_worker_identity,
     BlockcheckPreparationError,
     execute_blockcheck_with_gui_sudo,
     parse_blockcheck_summary,
@@ -49,6 +50,9 @@ def test_blockcheck_command_uses_sudo_askpass_and_state_dir() -> None:
     assert "SUDO_ASKPASS" in command.env_overrides
     assert any(item.startswith("ZAPRET_RW=") and "/.zap2/blockcheck/rw" in item for item in command.argv)
     assert any(item == "DOMAINS=youtube.com" for item in command.argv)
+    assert any(item.startswith("WS_UID=") for item in command.argv)
+    assert any(item.startswith("WS_GID=") for item in command.argv)
+    assert "blockcheck worker uid/gid:" in command.to_text()
     assert command.log_path == ROOT / ".zap2" / "blockcheck" / "logs" / "last-blockcheck.txt"
 
 
@@ -152,3 +156,32 @@ def test_blockcheck_lab_widget_uses_qprocess_live_streaming() -> None:
     assert "readyReadStandardOutput" in source
     assert "Остановить" in source
     assert "execute_blockcheck_with_gui_sudo" not in source
+
+
+def test_blockcheck_worker_identity_prefers_sudo_owner(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SUDO_UID", "1000")
+    monkeypatch.setenv("SUDO_GID", "1000")
+
+    identity = current_blockcheck_worker_identity()
+    command = build_blockcheck_command(root=ROOT, options=BlockcheckOptions(domains="youtube.com"))
+
+    assert identity.pair == "1000:1000"
+    assert identity.source == "SUDO_UID/SUDO_GID"
+    assert "WS_UID=1000" in command.argv
+    assert "WS_GID=1000" in command.argv
+    assert "blockcheck worker uid/gid: 1000:1000" in command.to_text()
+
+
+def test_blockcheck_preflight_checks_lua_support_files() -> None:
+    preflight = blockcheck_preflight(ROOT)
+
+    labels = {item.label for item in preflight.items}
+    assert "lua support files" in labels
+    assert "lua/zapret-lib.lua" in preflight.to_text()
+
+
+def test_blockcheck_lab_suppresses_expected_crash_message_after_owner_stop() -> None:
+    source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
+
+    assert 'if state.get("stopped_by_user")' in source
+    assert "Qt reports a SIGTERM/SIGKILL stopped process as CrashExit" in source

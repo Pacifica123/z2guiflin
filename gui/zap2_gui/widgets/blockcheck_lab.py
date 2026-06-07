@@ -232,6 +232,11 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         set_running(False)
 
     def handle_process_error(error: Any) -> None:
+        if state.get("stopped_by_user"):
+            # Qt reports a SIGTERM/SIGKILL stopped process as CrashExit. For an
+            # explicit owner Stop this is expected and the final footer already
+            # records that the run was stopped intentionally.
+            return
         text = f"\n[GUI] QProcess error: {error}"
         state["stderr"].append(text)
         append_output(text)

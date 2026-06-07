@@ -29,6 +29,52 @@ _SAFE_TARGET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/?=&%+~#@-]{0,250}$")
 
 
 @dataclass(frozen=True)
+class BlockcheckWorkerIdentity:
+    """UID/GID that upstream nfqws2 should use after dropping root."""
+
+    uid: int
+    gid: int
+    source: str
+
+    @property
+    def pair(self) -> str:
+        return f"{self.uid}:{self.gid}"
+
+
+def _parse_nonnegative_int(value: str | None) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        parsed = int(value, 10)
+    except ValueError:
+        return None
+    return parsed if parsed >= 0 else None
+
+
+def current_blockcheck_worker_identity() -> BlockcheckWorkerIdentity:
+    """Return the owner identity to pass as WS_UID/WS_GID to blockcheck2.
+
+    ``blockcheck2.sh`` starts ``nfqws2`` as root and then asks it to drop
+    privileges. Upstream defaults to ``WS_UID=1`` and ``WS_GID=3003``; that
+    synthetic account often cannot traverse a user workspace under ``/home`` and
+    therefore cannot read ``core/zapret2/lua/*.lua``. The GUI already knows the
+    owner process identity before invoking ``sudo -A``, so we pass that identity
+    explicitly and keep Lua file access aligned with the workspace owner.
+    """
+
+    sudo_uid = _parse_nonnegative_int(os.environ.get("SUDO_UID"))
+    sudo_gid = _parse_nonnegative_int(os.environ.get("SUDO_GID"))
+    if sudo_uid is not None and sudo_gid is not None:
+        return BlockcheckWorkerIdentity(uid=sudo_uid, gid=sudo_gid, source="SUDO_UID/SUDO_GID")
+
+    getuid = getattr(os, "getuid", None)
+    getgid = getattr(os, "getgid", None)
+    uid = int(getuid()) if getuid is not None else 0
+    gid = int(getgid()) if getgid is not None else 0
+    return BlockcheckWorkerIdentity(uid=uid, gid=gid, source="current process uid/gid")
+
+
+@dataclass(frozen=True)
 class BlockcheckOptions:
     """Owner-selected blockcheck2 scan parameters."""
 
@@ -146,8 +192,10 @@ class BlockcheckCommand:
     argv: tuple[str, ...]
     cwd: Path
     env_overrides: dict[str, str] = field(default_factory=dict)
+    script_env: dict[str, str] = field(default_factory=dict)
     log_path: Path | None = None
     backend: str = "sudo-askpass"
+    worker_identity: BlockcheckWorkerIdentity | None = None
 
     @property
     def uses_sudo_askpass(self) -> bool:
@@ -157,7 +205,14 @@ class BlockcheckCommand:
         return " ".join(self.argv)
 
     def to_text(self) -> str:
-        env_lines = [f"  {key}={value}" for key, value in sorted(self.options.to_env().items())]
+        display_env = self.script_env or self.options.to_env()
+        env_lines = [f"  {key}={value}" for key, value in sorted(display_env.items())]
+        worker = self.worker_identity
+        worker_line = (
+            f"blockcheck worker uid/gid: {worker.pair} ({worker.source})"
+            if worker is not None
+            else "blockcheck worker uid/gid: upstream default"
+        )
         lines = [
             "Blockcheck GUI plan",
             f"domains: {', '.join(self.options.normalized_domains())}",
@@ -166,6 +221,7 @@ class BlockcheckCommand:
             f"ip versions: {self.options.ipvs}",
             f"cwd: {self.cwd}",
             f"log path: {self.log_path or 'не задан'}",
+            worker_line,
             "uses sudo askpass: yes",
             "uses pkexec/polkit: no",
             "asks password in terminal: no",
@@ -394,6 +450,12 @@ def blockcheck_preflight(root: Path | None = None) -> BlockcheckPreflight:
             hint="для blockcheck upstream требует mdig; соберите core target all или mdig",
         ),
         BlockcheckArtifactStatus(
+            label="lua support files",
+            path_or_command=str(core_root / "lua" / "zapret-lib.lua"),
+            ok=(core_root / "lua" / "zapret-lib.lua").is_file() and (core_root / "lua" / "zapret-antidpi.lua").is_file(),
+            hint="nfqws2 загружает lua после privilege drop; GUI передаёт WS_UID/WS_GID владельца workspace",
+        ),
+        BlockcheckArtifactStatus(
             label="curl",
             path_or_command="curl",
             ok=shutil.which("curl") is not None,
@@ -547,12 +609,15 @@ def build_blockcheck_command(root: Path | None = None, options: BlockcheckOption
     logs_root = state_root / "logs"
     log_path = logs_root / "last-blockcheck.txt"
     askpass = _planned_askpass_script_path(layout.root)
+    worker_identity = current_blockcheck_worker_identity()
 
     env_assignments = {
         "ZAP2_GUI_PRIVILEGE_BRIDGE": "sudo-askpass",
         "ZAPRET_BASE": str(core_root),
         "ZAPRET_RW": str(rw_root),
         "ZAPRET_CONFIG": str(rw_root / "config"),
+        "WS_UID": str(worker_identity.uid),
+        "WS_GID": str(worker_identity.gid),
         **opts.to_env(),
     }
     env_argv = tuple(f"{key}={value}" for key, value in sorted(env_assignments.items()))
@@ -569,7 +634,9 @@ def build_blockcheck_command(root: Path | None = None, options: BlockcheckOption
         argv=argv,
         cwd=layout.root,
         env_overrides={"SUDO_ASKPASS": str(askpass)},
+        script_env=env_assignments,
         log_path=log_path,
+        worker_identity=worker_identity,
     )
 
 

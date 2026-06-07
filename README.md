@@ -205,3 +205,25 @@ Stage 3 чинит следующую проблему реального зап
 есть явная кнопка `Остановить`: владелец может прервать долгий поиск, не теряя
 уже накопленный вывод. `.zap2/blockcheck/logs/last-blockcheck.txt` обновляется
 во время live-run и после завершения/остановки.
+
+## v0.3-dev Stage 4: Lua-safe Blockcheck worker UID/GID
+
+Stage 4 чинит следующий реальный запуск Blockcheck lab. После сборки binaries и
+перехода на live streaming upstream `blockcheck2.sh` смог начать scan, но каждая
+`nfqws2`-проба падала с ошибкой доступа к `core/zapret2/lua/zapret-lib.lua`.
+Причина в upstream default: `blockcheck2.sh` запускает `nfqws2` как root, а затем
+передаёт ему `--uid $WS_UID:$WS_GID`; если `WS_UID/WS_GID` не заданы, используются
+`1:3003`. Такой synthetic user часто не может пройти по приватному пути
+workspace внутри `/home/<owner>/...`, поэтому Lua-файлы существуют, но становятся
+недоступными после privilege drop.
+
+GUI/CLI wrapper теперь явно передаёт в blockcheck environment `WS_UID` и `WS_GID`
+владельца процесса, который запускает GUI. Если wrapper сам запущен из-под sudo,
+приоритет имеют `SUDO_UID/SUDO_GID`; иначе берутся текущие `uid/gid` процесса.
+Это сохраняет upstream модель «root только для firewall/NFQUEUE, worker без root»,
+но делает чтение Lua-файлов совместимым с пользовательским workspace.
+
+`Blockcheck plan` теперь показывает `blockcheck worker uid/gid` и включает
+`WS_UID/WS_GID` в список environment passed to blockcheck2.sh. Preflight также
+проверяет наличие Lua support files, чтобы отличать проблему отсутствующих файлов
+от проблемы доступа после privilege drop.
