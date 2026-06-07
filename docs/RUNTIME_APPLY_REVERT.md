@@ -78,3 +78,23 @@ Bootstrap отвечает за структуру проекта, vendored-core
 ## Использование в default workflow
 
 В Stage 14 apply/revert слой используется как child plan внутри composite default workflow. Пользователь подтверждает composite plan, после чего workflow создаёт derived confirmations для child plans только если их сохранённые hashes совпадают с composite plan. Это позволяет запускать `default-start/default-stop` одной понятной парой команд, не теряя hash-gate из Stage 10–12.
+
+## v0.3-dev Stage 16 — safer local interception
+
+Stage 16 меняет смысл default apply с «перехватить все локальные 80/443/UDP443»
+на более узкий single-owner scope:
+
+- порты берутся из активной strategy: `--filter-tcp` и `--filter-udp`;
+- если strategy не содержит `--filter-udp`, UDP/443 не добавляется неявно;
+- nftables rule получает `meta skuid <owner_uid>`, поэтому root/NetworkManager
+  connectivity checks не должны уходить в NFQUEUE вместе с браузером владельца;
+- rule получает loop guard `meta mark and 0x40000000 == 0`, а session args явно
+  передают `--fwmark=0x40000000`, чтобы сгенерированные nfqws2 пакеты не
+  переочередивались повторно;
+- перехват ограничен ранними исходящими пакетами connection через `ct original
+  packets`, а не всем TCP/UDP потоком.
+
+Это не финальная оптимальная zapret2-схема, а безопасный следующий шаг для GUI
+runtime: если соединение ломается, stop/revert по-прежнему удаляет только owned
+`inet zap2_default`, а диагностика показывает конкретный UID, mark и список
+портов, которые были поставлены в очередь.

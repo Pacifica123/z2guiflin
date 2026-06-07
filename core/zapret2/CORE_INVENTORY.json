@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "snapshotFor": "v0.3-alpha_stage_4",
-  "generatedBy": "tools/inventory_core.py",
+  "generatedBy": "tools/gui_checks/inventory_core.py",
   "coreRoot": "core/zapret2",
   "policy": {
     "mode": "read-only snapshot",

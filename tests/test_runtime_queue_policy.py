@@ -41,7 +41,11 @@ def test_apply_and_session_use_same_workspace_queue(tmp_path: Path) -> None:
     qnum = resolve_nfqueue_num(project, "default")
     apply_plan = create_runtime_apply_plan(project, action="apply", profile_id="default")
     assert apply_plan.nfqueue_num == qnum
-    assert any(f"queue num {qnum} bypass" in " ".join(cmd.argv) for cmd in apply_plan.commands)
+    all_rules = "\n".join(" ".join(cmd.argv) for cmd in apply_plan.commands)
+    assert f"queue num {qnum} bypass" in all_rules
+    assert "udp dport" not in all_rules
+    assert f"meta skuid {apply_plan.owner_uid}" in all_rules
+    assert "meta mark and 0x40000000 == 0" in all_rules
 
     binary = project / "core" / "zapret2" / "nfq2" / "nfqws2"
     binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
@@ -51,6 +55,7 @@ def test_apply_and_session_use_same_workspace_queue(tmp_path: Path) -> None:
     config = build_runtime_session_config(project, profile_id="default")
     assert config.nfqueue_num == qnum
     assert f"--qnum={qnum}" in config.runtime_args
+    assert "--fwmark=0x40000000" in config.runtime_args
 
 
 def test_find_nfqueue_processes_is_best_effort_read_only() -> None:

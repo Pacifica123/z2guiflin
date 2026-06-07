@@ -1,6 +1,6 @@
-"""Zap2 GUI Linux v0.3-beta package."""
+"""Zap2 GUI Linux v0.3-dev package."""
 
-PRODUCT_LABEL = "v0.3-beta"
-__version__ = "0.3.0b0"
+PRODUCT_LABEL = "v0.3-dev"
+__version__ = "0.3.0.dev0"
 
 __all__ = ["PRODUCT_LABEL", "__version__"]

@@ -40,8 +40,10 @@ APPLY_MARKER = "zap2-runtime-apply-v1"
 SUPPORTED_RUNTIME_APPLY_ACTIONS = ("apply", "revert")
 DEFAULT_NFT_TABLE_PREFIX = "zap2"
 DEFAULT_NFT_CHAIN = "local_out"
-DEFAULT_TCP_PORTS = (80, 443)
-DEFAULT_UDP_PORTS = (443,)
+DEFAULT_TCP_PORTS = ("80", "443")
+DEFAULT_DESYNC_MARK = "0x40000000"
+DEFAULT_TCP_ORIGINAL_PACKET_RANGE = "1-8"
+DEFAULT_UDP_ORIGINAL_PACKET_RANGE = "1-4"
 
 RuntimeApplyAction = Literal["apply", "revert"]
 CommandRunner = Callable[[tuple[str, ...]], "RuntimeCommandResult"]
@@ -80,6 +82,11 @@ class RuntimeApplyPlan:
     nft_table: str
     nft_chain: str
     nfqueue_num: int
+    queued_tcp_ports: tuple[str, ...]
+    queued_udp_ports: tuple[str, ...]
+    owner_uid: int
+    owner_uid_source: str
+    desync_mark: str
     commands: tuple[RuntimeApplyCommand, ...]
     rollback_notes: tuple[str, ...]
     binary_relative_path: str
@@ -106,6 +113,11 @@ class RuntimeApplyPlan:
             "nftTable": self.nft_table,
             "nftChain": self.nft_chain,
             "nfqueueNum": self.nfqueue_num,
+            "queuedTcpPorts": list(self.queued_tcp_ports),
+            "queuedUdpPorts": list(self.queued_udp_ports),
+            "ownerUid": self.owner_uid,
+            "ownerUidSource": self.owner_uid_source,
+            "desyncMark": self.desync_mark,
             "binaryRelativePath": self.binary_relative_path,
             "hostlists": list(self.hostlists),
             "commands": [command.to_dict() for command in self.commands],
@@ -142,6 +154,10 @@ class RuntimeApplyPlan:
                 f"nft table: inet {self.nft_table}",
                 f"nft chain: {self.nft_chain}",
                 f"nfqueue: {self.nfqueue_num}",
+                f"queued TCP ports: {', '.join(self.queued_tcp_ports) if self.queued_tcp_ports else 'нет'}",
+                f"queued UDP ports: {', '.join(self.queued_udp_ports) if self.queued_udp_ports else 'нет'}",
+                f"owner uid scope: {self.owner_uid} ({self.owner_uid_source})",
+                f"desync mark loop guard: {self.desync_mark}",
                 f"binary: {self.binary_relative_path}",
                 "commands:",
                 *(command_lines or ["  - нет"]),
@@ -230,10 +246,93 @@ def _nft_table_name(profile_id: str) -> str:
     return f"{DEFAULT_NFT_TABLE_PREFIX}_{safe_profile}"
 
 
-def _nft_apply_commands(table: str, chain: str, qnum: int) -> tuple[RuntimeApplyCommand, ...]:
-    tcp_ports = ", ".join(str(port) for port in DEFAULT_TCP_PORTS)
-    udp_ports = ", ".join(str(port) for port in DEFAULT_UDP_PORTS)
-    return (
+def _valid_port_token(value: str) -> bool:
+    """Return whether a strategy port token is safe to embed in an nft set.
+
+    Strategy files are project data, but keeping this parser narrow prevents a
+    malformed ``--filter-*`` value from becoming raw nft syntax. Supported forms
+    match the subset used by nfqws2 profiles: ``443`` and ``443-65535``.
+    """
+
+    token = value.strip()
+    if not token:
+        return False
+    if "-" in token:
+        left, right = token.split("-", 1)
+        if not left.isdigit() or not right.isdigit():
+            return False
+        low, high = int(left, 10), int(right, 10)
+        return 1 <= low <= high <= 65535
+    if not token.isdigit():
+        return False
+    port = int(token, 10)
+    return 1 <= port <= 65535
+
+
+def _ports_from_strategy_args(runtime_args: tuple[str, ...], option: str) -> tuple[str, ...]:
+    """Extract unique port/range tokens from strategy ``--filter-*`` args."""
+
+    prefix = f"{option}="
+    ports: list[str] = []
+    seen: set[str] = set()
+    for arg in runtime_args:
+        if not arg.startswith(prefix):
+            continue
+        for raw_token in arg[len(prefix) :].split(","):
+            token = raw_token.strip()
+            if not _valid_port_token(token) or token in seen:
+                continue
+            seen.add(token)
+            ports.append(token)
+    return tuple(ports)
+
+
+def _nft_port_set(ports: tuple[str, ...]) -> str:
+    return ", ".join(ports)
+
+
+def _parse_non_negative_int(value: str | None) -> int | None:
+    if value is None or not value.strip():
+        return None
+    try:
+        parsed = int(value, 10)
+    except ValueError:
+        return None
+    return parsed if parsed >= 0 else None
+
+
+def _runtime_owner_uid(root: Path) -> tuple[int, str]:
+    """Return the local owner UID whose web traffic should be intercepted.
+
+    GUI prepares plans as the desktop user and executes them through sudo -A.
+    During privileged execution ``SUDO_UID`` lets us recreate the same plan hash
+    without accidentally queueing NetworkManager/root traffic.
+    """
+
+    sudo_uid = _parse_non_negative_int(os.environ.get("SUDO_UID"))
+    if sudo_uid is not None:
+        return sudo_uid, "sudo-owner"
+    getuid = getattr(os, "getuid", None)
+    if getuid is not None:
+        uid = int(getuid())
+        if uid != 0:
+            return uid, "current-user"
+    try:
+        stat_uid = root.stat().st_uid
+    except OSError:
+        stat_uid = 0
+    if stat_uid != 0:
+        return int(stat_uid), "workspace-owner"
+    return 0, "root-fallback"
+
+
+def _nft_common_filter(owner_uid: int) -> str:
+    return f"meta skuid {owner_uid} meta mark and {DEFAULT_DESYNC_MARK} == 0"
+
+
+def _nft_apply_commands(table: str, chain: str, qnum: int, tcp_ports: tuple[str, ...], udp_ports: tuple[str, ...], owner_uid: int) -> tuple[RuntimeApplyCommand, ...]:
+    common_filter = _nft_common_filter(owner_uid)
+    commands: list[RuntimeApplyCommand] = [
         RuntimeApplyCommand(
             label="nft-add-table",
             argv=("nft", "add", "table", "inet", table),
@@ -248,21 +347,30 @@ def _nft_apply_commands(table: str, chain: str, qnum: int) -> tuple[RuntimeApply
             mutates_system=True,
             description="Создать отдельную output chain для локального трафика владельца.",
         ),
-        RuntimeApplyCommand(
-            label="nft-queue-tcp-web",
-            argv=("nft", "add", "rule", "inet", table, chain, f'tcp dport {{ {tcp_ports} }} queue num {qnum} bypass comment "zap2:{table}:tcp-out"'),
-            requires_sudo=True,
-            mutates_system=True,
-            description="Отправить локальный TCP 80/443 в NFQUEUE с queue-bypass.",
-        ),
-        RuntimeApplyCommand(
-            label="nft-queue-udp-quic",
-            argv=("nft", "add", "rule", "inet", table, chain, f'udp dport {{ {udp_ports} }} queue num {qnum} bypass comment "zap2:{table}:udp-out"'),
-            requires_sudo=True,
-            mutates_system=True,
-            description="Отправить локальный UDP/443 в NFQUEUE с queue-bypass.",
-        ),
-    )
+    ]
+    if tcp_ports:
+        tcp_set = _nft_port_set(tcp_ports)
+        commands.append(
+            RuntimeApplyCommand(
+                label="nft-queue-tcp-strategy",
+                argv=("nft", "add", "rule", "inet", table, chain, f'{common_filter} tcp dport {{ {tcp_set} }} ct original packets {DEFAULT_TCP_ORIGINAL_PACKET_RANGE} queue num {qnum} bypass comment "zap2:{table}:tcp-out"'),
+                requires_sudo=True,
+                mutates_system=True,
+                description=f"Отправить TCP владельца UID {owner_uid} ({tcp_set}) в NFQUEUE с loop-guard mark и queue-bypass.",
+            )
+        )
+    if udp_ports:
+        udp_set = _nft_port_set(udp_ports)
+        commands.append(
+            RuntimeApplyCommand(
+                label="nft-queue-udp-strategy",
+                argv=("nft", "add", "rule", "inet", table, chain, f'{common_filter} udp dport {{ {udp_set} }} ct original packets {DEFAULT_UDP_ORIGINAL_PACKET_RANGE} queue num {qnum} bypass comment "zap2:{table}:udp-out"'),
+                requires_sudo=True,
+                mutates_system=True,
+                description=f"Отправить UDP владельца UID {owner_uid} ({udp_set}) в NFQUEUE с loop-guard mark и queue-bypass.",
+            )
+        )
+    return tuple(commands)
 
 
 def _nft_revert_commands(table: str) -> tuple[RuntimeApplyCommand, ...]:
@@ -294,10 +402,14 @@ def create_runtime_apply_plan(root: Path | None = None, action: RuntimeApplyActi
         raise ValueError(f"Профиль {profile.profile_id} ссылается на неизвестную стратегию: {profile.strategy_id}")
     # Берём binary path из start plan, чтобы apply/revert не расходился с runtime plan generator.
     start_plan = create_runtime_plan(layout.root, action="start", profile_id=profile_id)
+    strategy = strategies[profile.strategy_id]
+    tcp_ports = _ports_from_strategy_args(strategy.runtime_args, "--filter-tcp") or DEFAULT_TCP_PORTS
+    udp_ports = _ports_from_strategy_args(strategy.runtime_args, "--filter-udp")
+    owner_uid, owner_uid_source = _runtime_owner_uid(layout.root)
     table = _nft_table_name(profile.profile_id)
     plan_id = f"runtime-{profile.profile_id}-{profile.strategy_id}-{action}-owner-rules-plan"
     queue = resolve_runtime_queue(layout.root, profile.profile_id)
-    commands = _nft_apply_commands(table, DEFAULT_NFT_CHAIN, queue.qnum) if action == "apply" else _nft_revert_commands(table)
+    commands = _nft_apply_commands(table, DEFAULT_NFT_CHAIN, queue.qnum, tcp_ports, udp_ports, owner_uid) if action == "apply" else _nft_revert_commands(table)
     if action == "apply":
         rollback_notes = (
             f"Откат выполняется командой revert plan для того же profile: {profile.profile_id}.",
@@ -318,6 +430,11 @@ def create_runtime_apply_plan(root: Path | None = None, action: RuntimeApplyActi
         nft_table=table,
         nft_chain=DEFAULT_NFT_CHAIN,
         nfqueue_num=queue.qnum,
+        queued_tcp_ports=tcp_ports if action == "apply" else (),
+        queued_udp_ports=udp_ports if action == "apply" else (),
+        owner_uid=owner_uid,
+        owner_uid_source=owner_uid_source,
+        desync_mark=DEFAULT_DESYNC_MARK,
         commands=commands,
         rollback_notes=rollback_notes,
         binary_relative_path=start_plan.binary_relative_path,
@@ -387,7 +504,7 @@ def prepare_runtime_owner_rules_plan(root: Path | None = None, action: RuntimeAp
             "planHash": plan_hash,
             "message": f"Prepared owner-confirmed runtime {action} rules plan for profile {profile_id}; execution disabled until explicit --runtime-{action}.",
             "createdAt": _utc_now(),
-            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": plan.nft_table, "nfqueueNum": plan.nfqueue_num},
+            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": plan.nft_table, "nfqueueNum": plan.nfqueue_num, "ownerUid": plan.owner_uid, "queuedTcpPorts": list(plan.queued_tcp_ports), "queuedUdpPorts": list(plan.queued_udp_ports)},
             "executesNow": False,
             "mutatesFirewallOrServicesNow": False,
             "managesServiceNow": False,
@@ -499,6 +616,11 @@ def execute_runtime_owner_rules(
         "engine": "nftables",
         "nftTable": plan.nft_table,
         "nfqueueNum": plan.nfqueue_num,
+        "queuedTcpPorts": list(plan.queued_tcp_ports),
+        "queuedUdpPorts": list(plan.queued_udp_ports),
+        "ownerUid": plan.owner_uid,
+        "ownerUidSource": plan.owner_uid_source,
+        "desyncMark": plan.desync_mark,
         "updatedAt": _utc_now(),
         "commands": [
             {"argv": list(item.argv), "returncode": item.returncode, "stdout": item.stdout, "stderr": item.stderr}
@@ -521,7 +643,7 @@ def execute_runtime_owner_rules(
             "planHash": plan_hash,
             "message": message,
             "createdAt": _utc_now(),
-            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": plan.nft_table, "statePath": str(state_path.relative_to(paths.root))},
+            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": plan.nft_table, "ownerUid": plan.owner_uid, "statePath": str(state_path.relative_to(paths.root))},
             "executesNow": True,
             "mutatesFirewallOrServicesNow": True,
             "managesServiceNow": False,

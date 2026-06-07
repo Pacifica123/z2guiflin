@@ -2,7 +2,7 @@
 
 Этот документ фиксирует первый read-only снимок vendored-ядра `core/zapret2/`. Он нужен не для запуска ядра, а для того, чтобы GUI и будущие адаптеры понимали фактическое устройство исходного дерева: где находятся Makefile, C-исходники, Lua-сценарии, конфигурационные заготовки, service templates и зоны, требующие ручного контроля владельца.
 
-Машиночитаемая версия снимка находится в `core/zapret2/CORE_INVENTORY.json`. Она генерируется и проверяется скриптом `tools/inventory_core.py`, который только читает файлы и не запускает upstream-сценарии.
+Машиночитаемая версия снимка находится в `core/zapret2/CORE_INVENTORY.json`. Она генерируется и проверяется скриптом `tools/gui_checks/inventory_core.py`, который только читает файлы и не запускает upstream-сценарии.
 
 ## Граница Stage 4
 
@@ -90,8 +90,8 @@ Stage 4 делает только инвентаризацию:
 Для разработчика допустима ручная перегенерация snapshot-файлов после осознанного изменения ядра:
 
 ```bash
-python tools/inventory_core.py --write
-python tools/inventory_core.py --check
+python tools/gui_checks/inventory_core.py --write
+python tools/gui_checks/inventory_core.py --check
 ```
 
 Автоматические проверки патча используют только `--check`. Они не компилируют и не запускают upstream-код.

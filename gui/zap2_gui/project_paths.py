@@ -28,7 +28,7 @@ class ProjectLayout:
             self.gui_dir / "zap2_gui" / "__init__.py",
             self.docs_dir / "DEVELOPMENT_STRATEGY.md",
             self.docs_dir / "VERSIONING.md",
-            self.tools_dir / "check_project_tree.py",
+            self.tools_dir / "gui_checks" / "check_project_tree.py",
             self.profiles_dir / "default.json",
             self.strategies_dir / "catalog.json",
             self.runtime_dir / "README.md",

@@ -59,7 +59,7 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-contracts
 
 ```bash
 PYTHONPATH=gui python -m zap2_gui.app --validate-runtime-contracts
-python tools/check_runtime_lifecycle.py
+python tools/gui_checks/check_runtime_lifecycle.py
 ```
 
 Эти команды читают файлы и проверяют инварианты. Они не выполняют планы.

@@ -83,12 +83,26 @@ docs/
     legacy_project_digest.md
 
 tools/
-  check_project_tree.py
-  inventory_core.py
-  check_local_build_adapter.py
-  check_workspace_profiles.py
-  check_runtime_lifecycle.py
-  check_runtime_plan_generator.py
+  README.md
+  gui_checks/
+    check_project_tree.py
+    inventory_core.py
+    check_local_build_adapter.py
+    check_workspace_profiles.py
+    check_runtime_lifecycle.py
+    check_runtime_plan_generator.py
+  experimental/
+    README.md
+  lowlevel/
+    README.md
+
+meta_tools/
+  README.md
+  devctl/
+    devctl.py
+    install.sh
+    docs/
+      patch-manifest.example.json
 
 tests/
   test_bootstrap_structure.py
@@ -138,13 +152,13 @@ Stage 4 добавляет два snapshot-файла рядом с vendored-я�
 - `core/zapret2/CORE_INVENTORY.json` — машинная инвентаризация файлов, расширений, Makefile, Lua-сценариев, service templates и зон, которые потенциально связаны с привилегиями;
 - `core/zapret2/BUILD_MAP.json` — машинная карта корневого Makefile, дочерних Makefile и build units `nfqws2`, `ip2net`, `mdig`.
 
-Эти файлы являются нашим слоем описания, а не upstream-исходниками. Они должны обновляться только явным патчем или ручной командой разработчика `python tools/inventory_core.py --write` после осознанного изменения `core/zapret2/`. Автоматические проверки используют `--check` и не запускают сборку.
+Эти файлы являются нашим слоем описания, а не upstream-исходниками. Они должны обновляться только явным патчем или ручной командой разработчика `python tools/gui_checks/inventory_core.py --write` после осознанного изменения `core/zapret2/`. Автоматические проверки используют `--check` и не запускают сборку.
 
 ## Local build adapter
 
 Stage 6 добавляет `gui/zap2_gui/adapters/local_build.py`. Это наш первый adapter между build map и будущим GUI workflow сборки. Он создаёт структурированный план локальной команды `make`, но не выполняет её в автоматических проверках.
 
-Слой считается частью `gui/`, потому что он обслуживает application workflow, а не меняет upstream-ядро. Его проверки находятся в `tools/check_local_build_adapter.py` и `tests/test_local_build_adapter.py`.
+Слой считается частью `gui/`, потому что он обслуживает application workflow, а не меняет upstream-ядро. Его проверки находятся в `tools/gui_checks/check_local_build_adapter.py` и `tests/test_local_build_adapter.py`.
 
 
 ## Workspace-профили и стратегии
@@ -183,7 +197,7 @@ Stage 10 добавляет локальный workspace state store `.zap2/runt
 .zap2/runtime/rollback/
 ```
 
-В исходном дереве Stage 10 добавляет `gui/zap2_gui/adapters/runtime_state.py`, `docs/RUNTIME_STATE_AND_CONFIRMATION.md`, `tools/check_runtime_state.py` и тесты. Системные директории, `/opt`, service units и firewall state этим этапом не создаются.
+В исходном дереве Stage 10 добавляет `gui/zap2_gui/adapters/runtime_state.py`, `docs/RUNTIME_STATE_AND_CONFIRMATION.md`, `tools/gui_checks/check_runtime_state.py` и тесты. Системные директории, `/opt`, service units и firewall state этим этапом не создаются.
 
 
 ## Runtime session runner
@@ -202,7 +216,7 @@ Session state остаётся в `.zap2/runtime/sessions/`, а логи — в 
 
 Начиная со Stage 13 в GUI-слое есть adapter `gui/zap2_gui/adapters/runtime_service.py`. Он не относится к bootstrap и не заменяет session runner. Его задача — описывать service mode как отдельный systemd-oriented план, сохраняемый в `.zap2/runtime`.
 
-Документация решения находится в `docs/RUNTIME_SERVICE_PLANS.md`, а проверка — в `tools/check_runtime_service.py`.
+Документация решения находится в `docs/RUNTIME_SERVICE_PLANS.md`, а проверка — в `tools/gui_checks/check_runtime_service.py`.
 
 ## Дополнение Stage 14
 
@@ -211,8 +225,8 @@ gui/zap2_gui/adapters/runtime_default.py         composite default start/stop wo
 gui/zap2_gui/adapters/runtime_default_build.py   owner-confirmed local build workflow для nfqws2
 docs/DEFAULT_WORKFLOW.md                         документация запуска/отключения default strategy
 docs/DEFAULT_BUILD_WORKFLOW.md                   документация build prerequisite перед первым start
-tools/check_runtime_default.py                   fake-проверка default workflow без root/nft/systemctl
-tools/check_default_build_workflow.py            fake-проверка default build workflow без настоящего make
+tools/gui_checks/check_runtime_default.py                   fake-проверка default workflow без root/nft/systemctl
+tools/gui_checks/check_default_build_workflow.py            fake-проверка default build workflow без настоящего make
 tests/test_default_workflow.py                   unit-тесты composite workflow
 tests/test_default_build_workflow.py             unit-тесты default build workflow
 ```
@@ -232,3 +246,15 @@ Stage 4 переносит первую базовую стратегию из W
 ### GUI privileged bridge
 
 `gui/zap2_gui/adapters/gui_privilege.py` строит и выполняет `sudo -A`-команды для GUI start/stop. Документ `docs/GUI_POLKIT_PRIVILEGE.md` описывает границу ответственности: пароль не хранится в приложении, запрос прав отдаётся sudo askpass authentication agent.
+
+## Tools и meta_tools
+
+Начиная с `v0.3-dev` обычный каталог `tools/` больше не является общей свалкой.
+Стабильные read-only проверки проекта живут в `tools/gui_checks/`; будущие
+прототипы — в `tools/experimental/`; низкоуровневые packet/parser утилиты — в
+`tools/lowlevel/`.
+
+`meta_tools/` отделён от runtime и GUI. Туда помещаются инструменты, которые
+обслуживают процесс разработки, рабочие области и формат патчей. Первый такой
+снимок — `meta_tools/devctl/`, чтобы правила devctl-compatible patch zip были
+видны прямо из репозитория.

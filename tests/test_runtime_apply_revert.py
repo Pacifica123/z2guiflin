@@ -40,9 +40,17 @@ def test_runtime_apply_plan_is_owner_confirmed_nft_plan():
     assert payload["safety"]["containsUpstreamInstallerScript"] is False
     assert payload["safety"]["automaticChecksMayExecute"] is False
     assert payload["execution"]["executesNow"] is False
+    assert plan.queued_tcp_ports == ("80", "443")
+    assert plan.queued_udp_ports == ()
+    assert plan.desync_mark == "0x40000000"
+    assert plan.owner_uid >= 0
     all_argv = "\n".join(" ".join(command.argv) for command in plan.commands)
     assert "nft add table inet zap2_default" in all_argv
     assert f"queue num {plan.nfqueue_num} bypass" in all_argv
+    assert "udp dport" not in all_argv
+    assert f"meta skuid {plan.owner_uid}" in all_argv
+    assert "meta mark and 0x40000000 == 0" in all_argv
+    assert "ct original packets 1-8" in all_argv
     assert "curl" not in all_argv
     assert "wget" not in all_argv
     assert "install_easy" not in all_argv
@@ -91,12 +99,15 @@ def test_prepare_confirm_and_execute_apply_with_fake_runner(tmp_path):
     )
 
     assert result.state == "applied"
-    assert len(calls) == 4
+    assert len(calls) == 3
     assert result.state_path.exists()
     state = json.loads(result.state_path.read_text(encoding="utf-8"))
     assert state["marker"] == "zap2-runtime-apply-v1"
     assert state["state"] == "applied"
     assert state["nftTable"] == "zap2_default"
+    assert state["queuedTcpPorts"] == ["80", "443"]
+    assert state["queuedUdpPorts"] == []
+    assert state["desyncMark"] == "0x40000000"
     assert state["managesServiceNow"] is False
     assert state["containsRemoteBootstrap"] is False
     assert "owner-rules-apply-applied" in result.log_path.read_text(encoding="utf-8")

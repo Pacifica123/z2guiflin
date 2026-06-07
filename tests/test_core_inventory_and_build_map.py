@@ -14,7 +14,7 @@ def _load_json(rel_path: str) -> dict:
 
 
 def _load_inventory_tool():
-    spec = importlib.util.spec_from_file_location("inventory_core", ROOT / "tools/inventory_core.py")
+    spec = importlib.util.spec_from_file_location("inventory_core", ROOT / "tools/gui_checks/inventory_core.py")
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None

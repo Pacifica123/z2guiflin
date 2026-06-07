@@ -1,8 +1,8 @@
-# Zap2 GUI Linux — v0.3-beta: controlled runtime baseline
+# Zap2 GUI Linux — v0.3-dev: controlled runtime hardening
 
 Этот репозиторий — новая продуктовая линия Linux GUI вокруг vendored-копии `zapret2` от bol-van. Предыдущий проект Zapret2GUIfLin больше не считается активной архитектурной базой: он используется только как тетрадь черновиков, тестов, UX-экспериментов и продуктовых заметок.
 
-## Что изменилось в v0.3-alpha и почему теперь v0.3-beta
+## Что изменилось в v0.3-alpha/v0.3-beta и почему теперь v0.3-dev
 
 `v0.3-alpha` начинается с чистой структуры:
 
@@ -21,11 +21,11 @@ tests/     небольшие структурные тесты для ново�
 
 ## Текущий статус
 
-Это ранняя `v0.3-beta` база после закрытия alpha-цепочки Stage 14, а не готовое приложение для конечного пользователя. Она импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк, русифицирует проектную документацию, добавляет read-only инвентаризацию ядра с build map, вводит первый скелет PyQt GUI shell, добавляет local build adapter для явных планов локальной сборки и вводит workspace-профили/стратегии как read-only project data, добавляет runtime lifecycle contracts как plan-only фундамент будущего запуска/отключения, генерирует default strategy runtime plans для `start`, `stop`, `status`, вводит runtime state/confirmation gate, добавляет guarded session runner для процесса `nfqws2`, вводит owner-confirmed apply/revert plan для nftables-правил, service plans, composite default start/stop workflow, beta-stage default build workflow для локальной сборки `nfqws2` перед первым запуском и beta-stage fix для запуска `nfqws2` под sudo-owner UID/GID.
+Это ранняя `v0.3-dev` база после закрытия alpha-цепочки Stage 14, а не готовое приложение для конечного пользователя. Она импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк, русифицирует проектную документацию, добавляет read-only инвентаризацию ядра с build map, вводит первый скелет PyQt GUI shell, добавляет local build adapter для явных планов локальной сборки и вводит workspace-профили/стратегии как read-only project data, добавляет runtime lifecycle contracts как plan-only фундамент будущего запуска/отключения, генерирует default strategy runtime plans для `start`, `stop`, `status`, вводит runtime state/confirmation gate, добавляет guarded session runner для процесса `nfqws2`, вводит owner-confirmed apply/revert plan для nftables-правил, service plans, composite default start/stop workflow, beta-stage default build workflow для локальной сборки `nfqws2` перед первым запуском и beta-stage fix для запуска `nfqws2` под sudo-owner UID/GID.
 
 ```bash
-python tools/check_project_tree.py
-python tools/inventory_core.py --check
+python tools/gui_checks/check_project_tree.py
+python tools/gui_checks/inventory_core.py --check
 python -m compileall -q gui tools tests
 python -m zap2_gui.app
 python -m zap2_gui.app --build-plan
@@ -135,3 +135,8 @@ Stage 4 переносит первую базовую стратегию из W
 ## v0.3-beta Stage 5: GUI polkit bridge
 
 Privileged включение и отключение default workflow теперь доступны из PyQt GUI через `pkexec`/polkit. GUI не хранит пароль, не просит терминальный `sudo` после нажатия кнопки и не обходит runtime confirmation gate.
+
+
+## v0.3-dev Stage 16: meta tools, tools layout и safer NFQUEUE scope
+
+Stage 16 переводит ветку в `v0.3-dev`, добавляет `meta_tools/devctl/` как локальный снимок инструмента devctl, разделяет `tools/` на `gui_checks/`, `experimental/` и `lowlevel/`, а также ужесточает default nftables interception. Теперь apply-plan строит правила из активной strategy, не добавляет UDP/443 без `--filter-udp`, ограничивает очередь UID владельца и добавляет loop guard по `--fwmark=0x40000000`, чтобы не ловить root/NetworkManager traffic и не переочередить пакеты, сгенерированные nfqws2.

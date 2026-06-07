@@ -25,3 +25,17 @@ Override должен использоваться только локально
 ## Ограничения
 
 Это не заменяет stop/revert. Если где-то остался старый процесс `nfqws2`, его всё равно нужно обнаружить и корректно остановить. Но новый workspace больше не обязан конфликтовать с историческим номером `200`.
+
+## v0.3-dev Stage 16 — queue scope и loop guard
+
+NFQUEUE теперь используется не только с workspace-specific номером, но и с более
+осторожным nftables фильтром. Apply-plan записывает UID владельца, выбранный из
+`SUDO_UID`, текущего пользователя или владельца workspace, и добавляет
+`meta skuid <uid>` в queue rule. Это важно для desktop-сценария: системные
+процессы и NetworkManager connectivity checks не должны ломаться из-за
+экспериментальной пользовательской strategy.
+
+Вторая граница — `--fwmark=0x40000000`. Такой же mark используется в nft rule как
+loop guard: пакеты, которые nfqws2 сгенерировал сам, не должны снова попадать в
+ту же NFQUEUE. Это приближает минимальный GUI apply к upstream-рекомендации
+«mark filter first, queue only what is needed».

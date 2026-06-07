@@ -124,7 +124,7 @@ def test_default_start_executes_apply_then_session_with_fake_runner(tmp_path):
         assert result.session_result.state == "running"
         assert result.apply_result is not None
         assert result.apply_result.state == "applied"
-        assert len(calls) == 4
+        assert len(calls) == 3
         state = json.loads(result.workflow_state_path.read_text(encoding="utf-8"))
         assert state["marker"] == DEFAULT_WORKFLOW_MARKER
         assert state["state"] == "started"
@@ -169,7 +169,7 @@ def test_default_start_rolls_back_owner_rules_when_session_fails(tmp_path):
     assert result.state == "failed-rolled-back"
     assert result.rollback_result is not None
     assert result.rollback_result.state == "reverted"
-    assert len(calls) == 5
+    assert len(calls) == 4
     assert calls[-1] == ("nft", "delete", "table", "inet", "zap2_default")
     state = json.loads(result.workflow_state_path.read_text(encoding="utf-8"))
     assert state["state"] == "failed-rolled-back"

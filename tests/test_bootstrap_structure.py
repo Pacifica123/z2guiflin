@@ -9,8 +9,8 @@ from zap2_gui.project_paths import discover_layout
 
 
 def test_product_label() -> None:
-    assert PRODUCT_LABEL == "v0.3-beta"
-    assert __version__ == "0.3.0b0"
+    assert PRODUCT_LABEL == "v0.3-dev"
+    assert __version__ == "0.3.0.dev0"
 
 
 def test_layout_required_paths_exist() -> None:
@@ -33,3 +33,12 @@ def test_core_import_excludes_compiled_artifacts() -> None:
     excluded = set(data["excludedFiles"])
     assert "nfq2/windows/res/winws_res32.o" in excluded
     assert "nfq2/windows/windivert/libwindivert64.a" in excluded
+
+
+def test_tools_and_meta_tools_layout() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (root / "tools/gui_checks/check_project_tree.py").exists()
+    assert (root / "tools/experimental/README.md").exists()
+    assert (root / "tools/lowlevel/README.md").exists()
+    assert (root / "meta_tools/devctl/devctl.py").exists()
+    assert not (root / "tools/check_project_tree.py").exists()

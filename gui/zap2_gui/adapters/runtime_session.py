@@ -38,6 +38,7 @@ SESSION_MARKER = "zap2-runtime-session-v1"
 PROCESS_START_GRACE_SECONDS = 0.25
 PROCESS_STOP_TIMEOUT_SECONDS = 5.0
 PUBLIC_SESSION_INPUTS_BASE = "zap2-runtime-inputs"
+DEFAULT_DESYNC_MARK = "0x40000000"
 
 
 @dataclass(frozen=True)
@@ -515,6 +516,7 @@ def _runtime_args_for_plan(
     args: list[str] = [
         f"--qnum={nfqueue_num}",
         f"--pidfile={pidfile_path}",
+        f"--fwmark={DEFAULT_DESYNC_MARK}",
     ]
     if _runtime_debug_enabled():
         args.append(f"--debug=@{debug_log_path}")

@@ -39,7 +39,7 @@ Stage 4 не меняет импортированные upstream-исходни
 - `core/zapret2/CORE_INVENTORY.json` описывает фактический состав vendored-ядра;
 - `core/zapret2/BUILD_MAP.json` описывает Makefile, targets и будущие build units;
 - `docs/CORE_INVENTORY.md` и `docs/CORE_BUILD_MAP.md` дают русскоязычное объяснение этих snapshot-файлов;
-- `tools/inventory_core.py` умеет сверять snapshot с текущим деревом без запуска upstream-кода.
+- `tools/gui_checks/inventory_core.py` умеет сверять snapshot с текущим деревом без запуска upstream-кода.
 
 Сборка ядра, установка зависимостей, service integration и привилегированные действия остаются не-целями этого этапа.
 
@@ -61,7 +61,7 @@ Stage 6 не меняет импортированные upstream-исходни
 
 - `gui/zap2_gui/adapters/local_build.py` формирует планы локальной сборки для `all`, `nfqws2`, `ip2net`, `mdig` и `clean`;
 - `docs/LOCAL_BUILD_ADAPTER.md` описывает назначение adapter-слоя и его границы;
-- `tools/check_local_build_adapter.py` и `tests/test_local_build_adapter.py` проверяют, что план не требует `sudo`, не меняет services/firewall и не запускается автоматически;
+- `tools/gui_checks/check_local_build_adapter.py` и `tests/test_local_build_adapter.py` проверяют, что план не требует `sudo`, не меняет services/firewall и не запускается автоматически;
 - `python -m zap2_gui.app --build-plan` показывает план в headless-режиме без выполнения `make`.
 
 Сборка ядра, установка зависимостей и privileged runtime integration по-прежнему не выполняются автоматическими проверками.
@@ -138,3 +138,8 @@ Stage 4 переносит первую базовую стратегию из W
 ## GUI privileged start/stop
 
 После переноса Default workflow в GUI privileged включение и отключение выполняются через Linux-native `sudo -A`/SUDO_ASKPASS. Это не перенос Windows UAC-механики, а локальная Linux-адаптация той же идеи: пользователь нажимает кнопку в GUI и видит системный графический запрос прав.
+
+
+## Meta-tooling alignment
+
+`meta_tools/devctl/` фиксирует локальный снимок инструмента devctl и его документации. Это не runtime dependency и не часть GUI-пакета: каталог нужен, чтобы формат `manifest.json`, `files/` и проверок патча оставался проверяемым вместе с исходниками проекта.

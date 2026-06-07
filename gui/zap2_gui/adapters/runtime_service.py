@@ -37,6 +37,7 @@ SERVICE_MARKER = "zap2-runtime-service-v1"
 SUPPORTED_SERVICE_PLAN_ACTIONS = ("install", "start", "stop", "remove")
 SUPPORTED_SERVICE_EXECUTION_ACTIONS = ("install", "remove")
 DEFAULT_SERVICE_DIR = Path("/etc/systemd/system")
+DEFAULT_DESYNC_MARK = "0x40000000"
 
 ServicePlanAction = Literal["install", "start", "stop", "remove"]
 ServiceExecutionAction = Literal["install", "remove"]
@@ -258,6 +259,7 @@ def _args_content(pidfile_path: Path, debug_log_path: Path, hostlists: tuple[Pat
     lines = [
         f"--qnum={qnum}",
         f"--pidfile={pidfile_path}",
+        f"--fwmark={DEFAULT_DESYNC_MARK}",
         f"--debug=@{debug_log_path}",
     ]
     if hostlists:

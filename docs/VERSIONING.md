@@ -51,3 +51,11 @@ v0.3-alpha_stage_3
 После `v0.3-alpha_stage_14` продуктовая метка становится `v0.3-beta`, потому что alpha-цепочка controlled runtime lifecycle закрыта: есть профили/стратегии, runtime contracts, plan generator, state/log/confirmation gate, session runner, owner-confirmed apply/revert, service plans и default start/stop workflow.
 
 Дальнейшие патчи должны именоваться от `v0.3-beta`, если они не являются срочными hotfix-патчами к уже выпущенному Stage 14.
+
+## Переход v0.3-beta → v0.3-dev
+
+`v0.3-beta` зафиксировала контролируемую runtime baseline: build, plan,
+confirmation, apply/revert, session и GUI toggle. `v0.3-dev` — следующий
+разработческий цикл поверх этой базы. Его первая цель — не расширять поверхность,
+а стабилизировать запуск: корректный devctl patch format, чистое дерево
+инструментов и более безопасный NFQUEUE scope.

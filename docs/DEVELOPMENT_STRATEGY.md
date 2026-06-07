@@ -91,3 +91,19 @@ Bootstrap отвечает за структуру проекта, vendored-core
 ## v0.3-beta_stage_14 — workspace-specific NFQUEUE
 
 Stage 14 исправляет следующий слой GUI-runtime падений: после успешной сборки, public hostlist/Lua inputs и компактного GUI процесс всё ещё мог завершаться на `nfq_create_queue(): Operation not permitted`. Практическая гипотеза для single-user dev-loop: fixed queue `200` может быть занята старым `nfqws2` из другого workspace или ручного запуска, а текущий workspace state этого не видит. Поэтому `runtime_queue.py` вводит стабильный номер NFQUEUE для каждой пары workspace/profile и поддерживает диагностический override `ZAP2_NFQUEUE_NUM`. Apply plan и session args теперь получают один и тот же номер через общий resolver.
+
+## v0.3-dev Stage 16 — dev-loop после beta baseline
+
+После Stage 15 стало видно, что GUI действительно умеет поднимать `nfqws2`, но
+сырой apply может ломать обычную связность до состояния «ограниченное
+подключение». Поэтому `v0.3-dev` начинается не с новых больших фич, а с
+ужесточения границ:
+
+- devctl snapshot вынесен в `meta_tools/devctl/`, чтобы формат патча был частью
+  проектного reference;
+- `tools/` разделён на стабильные `gui_checks/`, будущие `experimental/` и
+  будущие `lowlevel/` утилиты;
+- default interception теперь строится из strategy, scoped по UID владельца и
+  защищён fwmark loop guard;
+- старые случайно вложенные `z2guiflin/` patch-artifacts считаются мусором и не
+  должны жить в проектном дереве.

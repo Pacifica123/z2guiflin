@@ -94,12 +94,12 @@ def describe_project() -> str:
             f"runtime session runner: Stage 11 ({runtime_state_summary})",
             "runtime apply/revert: Stage 12 owner-confirmed nftables plans",
             "runtime service plans: Stage 13 systemd service mode (not default)",
-            "default build workflow: v0.3-beta Stage 1 owner-confirmed local make",
+            "default build workflow: v0.3-dev over beta baseline owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
-            "GUI privileged start/stop: v0.3-beta via graphical sudo askpass",
+            "GUI privileged start/stop: v0.3-dev via graphical sudo askpass",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
-            "status: bootstrap/read-only baseline with optional GUI launch",
+            "status: v0.3-dev controlled runtime baseline with optional GUI launch",
         ]
     )
 
