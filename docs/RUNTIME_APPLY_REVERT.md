@@ -88,7 +88,7 @@ Stage 16 меняет смысл default apply с «перехватить вс�
 - если strategy не содержит `--filter-udp`, UDP/443 не добавляется неявно;
 - nftables rule получает `meta skuid <owner_uid>`, поэтому root/NetworkManager
   connectivity checks не должны уходить в NFQUEUE вместе с браузером владельца;
-- rule получает loop guard `meta mark and 0x40000000 == 0`, а session args явно
+- rule получает loop guard `meta mark & 0x40000000 == 0`, а session args явно
   передают `--fwmark=0x40000000`, чтобы сгенерированные nfqws2 пакеты не
   переочередивались повторно;
 - перехват ограничен ранними исходящими пакетами connection через `ct original
@@ -98,3 +98,19 @@ Stage 16 меняет смысл default apply с «перехватить вс�
 runtime: если соединение ломается, stop/revert по-прежнему удаляет только owned
 `inet zap2_default`, а диагностика показывает конкретный UID, mark и список
 портов, которые были поставлены в очередь.
+
+
+## v0.3-dev Stage 17 — saved-plan execution under sudo
+
+Stage 17 исправляет регрессию GUI start, где privileged `sudo -A` execution
+мог заново собрать owner-rules plan с другой runtime identity и получить ошибку:
+
+```text
+Prepared owner-rules plan устарел: текущий planHash не совпадает с сохранённым
+```
+
+Executor теперь валидирует hash сохранённого owner-confirmed plan и confirmation,
+а затем исполняет именно сохранённые команды из этого plan. Это сохраняет
+согласованный `ownerUid`, `nfqueueNum`, strategy-derived port set и nft syntax
+между шагами `plan -> confirm -> sudo execute`. Дополнительно loop guard syntax
+исправлен на nftables-совместимое выражение `meta mark & 0x40000000 == 0`.

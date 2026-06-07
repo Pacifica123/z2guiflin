@@ -45,7 +45,7 @@ def test_apply_and_session_use_same_workspace_queue(tmp_path: Path) -> None:
     assert f"queue num {qnum} bypass" in all_rules
     assert "udp dport" not in all_rules
     assert f"meta skuid {apply_plan.owner_uid}" in all_rules
-    assert "meta mark and 0x40000000 == 0" in all_rules
+    assert "meta mark & 0x40000000 == 0" in all_rules
 
     binary = project / "core" / "zapret2" / "nfq2" / "nfqws2"
     binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")

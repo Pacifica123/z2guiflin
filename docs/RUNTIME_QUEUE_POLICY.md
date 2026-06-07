@@ -39,3 +39,12 @@ NFQUEUE теперь используется не только с workspace-spe
 loop guard: пакеты, которые nfqws2 сгенерировал сам, не должны снова попадать в
 ту же NFQUEUE. Это приближает минимальный GUI apply к upstream-рекомендации
 «mark filter first, queue only what is needed».
+
+
+## v0.3-dev Stage 17 — UID/hash stability
+
+Во время GUI privileged start owner-rules executor больше не пересобирает
+команды apply/revert из текущего root/sudo окружения. Он проверяет hash
+сохранённого plan и confirmation, после чего исполняет сохранённый plan. Поэтому
+`meta skuid <uid>` остаётся тем UID, который был показан и подтверждён на этапе
+plan, даже если `sudo -A` не передал ожидаемые переменные окружения.

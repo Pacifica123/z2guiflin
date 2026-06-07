@@ -140,3 +140,13 @@ Privileged включение и отключение default workflow тепе�
 ## v0.3-dev Stage 16: meta tools, tools layout и safer NFQUEUE scope
 
 Stage 16 переводит ветку в `v0.3-dev`, добавляет `meta_tools/devctl/` как локальный снимок инструмента devctl, разделяет `tools/` на `gui_checks/`, `experimental/` и `lowlevel/`, а также ужесточает default nftables interception. Теперь apply-plan строит правила из активной strategy, не добавляет UDP/443 без `--filter-udp`, ограничивает очередь UID владельца и добавляет loop guard по `--fwmark=0x40000000`, чтобы не ловить root/NetworkManager traffic и не переочередить пакеты, сгенерированные nfqws2.
+
+
+## v0.3-dev Stage 17: saved owner-rules execution
+
+Stage 17 чинит отказ запуска после Stage 16: GUI мог показать новый start-plan,
+подтвердить его, но privileged `sudo -A` path падал на child apply с ошибкой
+`Prepared owner-rules plan устарел`. Теперь apply/revert executor исполняет
+сохранённый owner-confirmed plan после проверки его собственного hash, не
+пересчитывая UID/команды заново под root. Заодно nft loop guard записывается
+как `meta mark & 0x40000000 == 0`.

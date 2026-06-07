@@ -327,7 +327,7 @@ def _runtime_owner_uid(root: Path) -> tuple[int, str]:
 
 
 def _nft_common_filter(owner_uid: int) -> str:
-    return f"meta skuid {owner_uid} meta mark and {DEFAULT_DESYNC_MARK} == 0"
+    return f"meta skuid {owner_uid} meta mark & {DEFAULT_DESYNC_MARK} == 0"
 
 
 def _nft_apply_commands(table: str, chain: str, qnum: int, tcp_ports: tuple[str, ...], udp_ports: tuple[str, ...], owner_uid: int) -> tuple[RuntimeApplyCommand, ...]:
@@ -533,6 +533,45 @@ def _is_root() -> bool:
     return True if geteuid is None else geteuid() == 0
 
 
+def _payload_without_runtime_fields(saved: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in saved.items()
+        if key
+        not in {
+            "planHash",
+            "preparedAt",
+            "confirmationRequired",
+            "confirmed",
+            "expiresWhenPlanChanges",
+            "allowsAutomaticReuse",
+            "confirmationId",
+            "confirmedAt",
+        }
+    }
+
+
+def _saved_command(item: dict[str, Any]) -> RuntimeApplyCommand:
+    argv = item.get("argv")
+    if not isinstance(argv, list) or not all(isinstance(part, str) for part in argv):
+        raise ValueError("Saved owner-rules plan повреждён: command.argv должен быть списком строк")
+    return RuntimeApplyCommand(
+        label=str(item.get("label", "saved-command")),
+        argv=tuple(argv),
+        requires_sudo=bool(item.get("requiresSudo", True)),
+        mutates_system=bool(item.get("mutatesSystem", True)),
+        description=str(item.get("description", "Команда из подтверждённого owner-rules plan.")),
+        ignore_missing_on_revert=bool(item.get("ignoreMissingOnRevert", False)),
+    )
+
+
+def _saved_commands(saved: dict[str, Any]) -> tuple[RuntimeApplyCommand, ...]:
+    raw_commands = saved.get("commands")
+    if not isinstance(raw_commands, list):
+        raise ValueError("Saved owner-rules plan повреждён: commands отсутствуют")
+    return tuple(_saved_command(item) for item in raw_commands if isinstance(item, dict))
+
+
 def _load_confirmed_plan(root: Path, expected: RuntimeApplyPlan, confirm_plan_id: str) -> tuple[dict[str, Any], str]:
     paths = ensure_runtime_store(root)
     if not confirm_plan_id:
@@ -547,14 +586,19 @@ def _load_confirmed_plan(root: Path, expected: RuntimeApplyPlan, confirm_plan_id
         raise ValueError(f"Confirmation не найден для {expected.plan_id}. Сначала выполните --runtime-confirm {expected.plan_id}.")
     saved = _read_json(plan_path)
     confirmation = _read_json(confirmation_path)
-    current_hash = plan_payload_hash(expected.to_payload())
-    if saved.get("planHash") != current_hash:
-        raise ValueError("Prepared owner-rules plan устарел: текущий planHash не совпадает с сохранённым")
+    if saved.get("marker") != APPLY_MARKER:
+        raise ValueError("Prepared owner-rules plan имеет неизвестный marker")
+    if saved.get("action") != expected.action or saved.get("profileId") != expected.profile_id or saved.get("strategyId") != expected.strategy_id:
+        raise ValueError("Prepared owner-rules plan не соответствует запрошенному action/profile/strategy")
+    saved_hash = plan_payload_hash(_payload_without_runtime_fields(saved))
+    if saved.get("planHash") != saved_hash:
+        raise ValueError("Saved owner-rules plan hash не совпадает с содержимым плана")
     if saved.get("confirmed") is not True:
         raise ValueError("Prepared owner-rules plan ещё не подтверждён owner confirmation")
-    if confirmation.get("planHash") != current_hash or confirmation.get("confirmedByOwner") is not True:
-        raise ValueError("Confirmation не соответствует текущему owner-rules plan hash")
-    return saved, current_hash
+    if confirmation.get("planHash") != saved_hash or confirmation.get("confirmedByOwner") is not True:
+        raise ValueError("Confirmation не соответствует сохранённому owner-rules plan hash")
+    _saved_commands(saved)
+    return saved, saved_hash
 
 
 def _missing_table_is_ok(result: RuntimeCommandResult) -> bool:
@@ -577,8 +621,9 @@ def execute_runtime_owner_rules(
         raise ValueError(f"Неизвестное apply action: {action}")
     layout = discover_layout(root)
     paths = ensure_runtime_store(layout.root)
-    plan = create_runtime_apply_plan(paths.root, action=action, profile_id=profile_id)
-    _saved, plan_hash = _load_confirmed_plan(paths.root, plan, confirm_plan_id)
+    expected = create_runtime_apply_plan(paths.root, action=action, profile_id=profile_id)
+    saved, plan_hash = _load_confirmed_plan(paths.root, expected, confirm_plan_id)
+    commands = _saved_commands(saved)
     if runner is None:
         if shutil.which("nft") is None:
             raise ValueError("Команда nft не найдена. Установите nftables или используйте другой будущий apply backend.")
@@ -589,7 +634,7 @@ def execute_runtime_owner_rules(
     results: list[RuntimeCommandResult] = []
     state = "applied" if action == "apply" else "reverted"
     message = f"owner-confirmed {action} completed"
-    for command in plan.commands:
+    for command in commands:
         result = runner(command.argv)
         results.append(result)
         if result.ok:
@@ -610,17 +655,17 @@ def execute_runtime_owner_rules(
         "state": state,
         "action": action,
         "profileId": profile_id,
-        "strategyId": plan.strategy_id,
-        "planId": plan.plan_id,
+        "strategyId": str(saved.get("strategyId", expected.strategy_id)),
+        "planId": str(saved.get("planId", expected.plan_id)),
         "planHash": plan_hash,
         "engine": "nftables",
-        "nftTable": plan.nft_table,
-        "nfqueueNum": plan.nfqueue_num,
-        "queuedTcpPorts": list(plan.queued_tcp_ports),
-        "queuedUdpPorts": list(plan.queued_udp_ports),
-        "ownerUid": plan.owner_uid,
-        "ownerUidSource": plan.owner_uid_source,
-        "desyncMark": plan.desync_mark,
+        "nftTable": str(saved.get("nftTable", expected.nft_table)),
+        "nfqueueNum": int(saved.get("nfqueueNum", expected.nfqueue_num)),
+        "queuedTcpPorts": list(saved.get("queuedTcpPorts", list(expected.queued_tcp_ports))),
+        "queuedUdpPorts": list(saved.get("queuedUdpPorts", list(expected.queued_udp_ports))),
+        "ownerUid": int(saved.get("ownerUid", expected.owner_uid)),
+        "ownerUidSource": str(saved.get("ownerUidSource", expected.owner_uid_source)),
+        "desyncMark": str(saved.get("desyncMark", expected.desync_mark)),
         "updatedAt": _utc_now(),
         "commands": [
             {"argv": list(item.argv), "returncode": item.returncode, "stdout": item.stdout, "stderr": item.stderr}
@@ -631,19 +676,22 @@ def execute_runtime_owner_rules(
         "containsUpstreamInstallerScript": False,
     }
     _write_json(state_path, state_record)
+    saved_plan_id = str(saved.get("planId", expected.plan_id))
+    saved_nft_table = str(saved.get("nftTable", expected.nft_table))
+    saved_owner_uid = int(saved.get("ownerUid", expected.owner_uid))
     log_path = append_runtime_event(
         paths,
         {
             "schemaVersion": APPLY_SCHEMA_VERSION,
             "stage": APPLY_STAGE,
-            "eventId": f"owner-rules-{action}-{state}-{plan.plan_id}-{plan_hash[:12]}",
+            "eventId": f"owner-rules-{action}-{state}-{saved_plan_id}-{plan_hash[:12]}",
             "eventType": f"owner-rules-{action}-{state}",
             "level": "info" if state in {"applied", "reverted"} else "error",
-            "planId": plan.plan_id,
+            "planId": saved_plan_id,
             "planHash": plan_hash,
             "message": message,
             "createdAt": _utc_now(),
-            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": plan.nft_table, "ownerUid": plan.owner_uid, "statePath": str(state_path.relative_to(paths.root))},
+            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": saved_nft_table, "ownerUid": saved_owner_uid, "statePath": str(state_path.relative_to(paths.root))},
             "executesNow": True,
             "mutatesFirewallOrServicesNow": True,
             "managesServiceNow": False,
@@ -654,7 +702,7 @@ def execute_runtime_owner_rules(
         action=action,
         state=state,
         profile_id=profile_id,
-        plan_id=plan.plan_id,
+        plan_id=str(saved.get("planId", expected.plan_id)),
         plan_hash=plan_hash,
         executed_commands=tuple(results),
         state_path=state_path,

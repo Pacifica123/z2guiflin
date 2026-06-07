@@ -49,7 +49,7 @@ def test_runtime_apply_plan_is_owner_confirmed_nft_plan():
     assert f"queue num {plan.nfqueue_num} bypass" in all_argv
     assert "udp dport" not in all_argv
     assert f"meta skuid {plan.owner_uid}" in all_argv
-    assert "meta mark and 0x40000000 == 0" in all_argv
+    assert "meta mark & 0x40000000 == 0" in all_argv
     assert "ct original packets 1-8" in all_argv
     assert "curl" not in all_argv
     assert "wget" not in all_argv
@@ -111,6 +111,38 @@ def test_prepare_confirm_and_execute_apply_with_fake_runner(tmp_path):
     assert state["managesServiceNow"] is False
     assert state["containsRemoteBootstrap"] is False
     assert "owner-rules-apply-applied" in result.log_path.read_text(encoding="utf-8")
+
+
+def test_execute_apply_uses_saved_owner_rules_after_sudo_identity_drift(tmp_path, monkeypatch):
+    project = _copy_project(tmp_path)
+    monkeypatch.setenv("SUDO_UID", "1234")
+    prepared = prepare_runtime_owner_rules_plan(project, action="apply", profile_id="default")
+    confirm_runtime_plan(project, prepared.plan_id)
+    saved = json.loads(prepared.plan_path.read_text(encoding="utf-8"))
+    assert saved["ownerUid"] == 1234
+
+    monkeypatch.setenv("SUDO_UID", "0")
+    calls: list[tuple[str, ...]] = []
+
+    def fake_runner(argv: tuple[str, ...]) -> RuntimeCommandResult:
+        calls.append(argv)
+        return RuntimeCommandResult(argv=argv, returncode=0)
+
+    result = execute_runtime_owner_rules(
+        project,
+        action="apply",
+        profile_id="default",
+        confirm_plan_id=prepared.plan_id,
+        runner=fake_runner,
+        allow_without_root=True,
+    )
+
+    assert result.state == "applied"
+    all_argv = "\n".join(" ".join(call) for call in calls)
+    assert "meta skuid 1234" in all_argv
+    assert "meta skuid 0" not in all_argv
+    state = json.loads(result.state_path.read_text(encoding="utf-8"))
+    assert state["ownerUid"] == 1234
 
 
 def test_execute_apply_requires_confirmation(tmp_path):
