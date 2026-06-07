@@ -108,13 +108,13 @@ def describe_project() -> str:
             f"runtime session runner: Stage 11 ({runtime_state_summary})",
             "runtime apply/revert: Stage 12 owner-confirmed nftables plans",
             "runtime service plans: Stage 13 systemd service mode (not default)",
-            "default build workflow: v0.3-dev over beta baseline owner-confirmed local make",
+            "default build workflow: v0.4-alpha over v0.3-stable baseline owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
-            "GUI privileged start/stop: v0.3-dev via graphical sudo askpass",
-            "blockcheck lab: v0.3-dev stage 7 sequential dead-target guard and safe successful export",
+            "GUI privileged start/stop: v0.4-alpha via graphical sudo askpass",
+            "blockcheck lab: v0.3-stable YouTube path; v0.4-alpha target expansion toward Discord desktop",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
-            "status: v0.3-dev controlled runtime baseline with optional GUI launch",
+            "status: v0.4-alpha documentation baseline; next cycle targets desktop Discord",
         ]
     )
 

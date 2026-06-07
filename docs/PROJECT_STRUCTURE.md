@@ -258,3 +258,17 @@ Stage 4 переносит первую базовую стратегию из W
 обслуживают процесс разработки, рабочие области и формат патчей. Первый такой
 снимок — `meta_tools/devctl/`, чтобы правила devctl-compatible patch zip были
 видны прямо из репозитория.
+
+## v0.4-alpha документационный baseline
+
+После owner-declared `v0.3-stable` структура проекта не меняется радикально. Новый цикл использует уже существующие каталоги:
+
+```text
+docs/                         документация v0.4 Discord desktop cycle
+strategies/generated/          будущие Blockcheck-generated стратегии для Discord
+.zap2/blockcheck/logs/         last/successful логи локального владельца, не часть git/patch
+.zap2/strategies/              локальный выбор active strategy, не часть git/patch
+```
+
+Если для Discord появятся специализированные presets или service profiles, они должны добавляться в существующие `profiles/` и `strategies/`, а не в `.zap2/`, потому что `.zap2/` является локальным runtime state владельца.
+

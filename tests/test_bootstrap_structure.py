@@ -9,8 +9,8 @@ from zap2_gui.project_paths import discover_layout
 
 
 def test_product_label() -> None:
-    assert PRODUCT_LABEL == "v0.3-dev"
-    assert __version__ == "0.3.0.dev0"
+    assert PRODUCT_LABEL == "v0.4-alpha"
+    assert __version__ == "0.4.0a0"
 
 
 def test_layout_required_paths_exist() -> None:

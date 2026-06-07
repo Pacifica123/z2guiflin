@@ -275,3 +275,18 @@ verdict: port-precheck-dead-target: strategy scan skipped/should be skipped
 ```
 
 Также Stage 7 разделяет «последний запуск» и «последний успешный источник для экспорта». `last-blockcheck.txt` остаётся live/diagnostic логом. `latest-successful-blockcheck.txt` обновляется только когда parser увидел хотя бы одну настоящую `AVAILABLE` nfqws2 strategy attempt. Кнопка «Создать стратегии» сначала читает successful log, поэтому неудачный последний run не уничтожает возможность экспортировать предыдущие найденные стратегии.
+
+## v0.3-stable итог и роль в v0.4-alpha
+
+После Stage 7 владелец подтвердил `v0.3-stable`: текущая Blockcheck/Strategies/Default цепочка уже умеет найти стратегии для базовых доменных имён, экспортировать их, выбрать одну и запустить `nfqws2` так, что это работает как минимум для YouTube. Это важная граница: Blockcheck lab больше не только диагностика, а практический вход в runtime workflow.
+
+В `v0.4-alpha` тот же lab становится основным инструментом исследования desktop Discord. Ближайшие изменения должны быть service-aware, но без преждевременной магии:
+
+- добавить удобные candidate targets для Discord desktop;
+- не считать один неудачный target провалом всего сервиса;
+- сохранять successful source отдельно для Discord так же аккуратно, как сейчас для YouTube;
+- экспортировать generated strategies с понятным target/service именем;
+- позволить владельцу выбрать Discord-стратегию и запустить её через существующий Default workflow.
+
+Ограничение `v0.4-*`: Blockcheck lab не обязан автоматически объединять YouTube и Discord в одну strategy. На этом цикле достаточно корректного выбора одной целевой стратегии за раз.
+

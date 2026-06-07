@@ -1,8 +1,8 @@
-# Zap2 GUI Linux — v0.3-dev: controlled runtime hardening
+# Zap2 GUI Linux — v0.4-alpha: Discord desktop cycle
 
 Этот репозиторий — новая продуктовая линия Linux GUI вокруг vendored-копии `zapret2` от bol-van. Предыдущий проект Zapret2GUIfLin больше не считается активной архитектурной базой: он используется только как тетрадь черновиков, тестов, UX-экспериментов и продуктовых заметок.
 
-## Что изменилось в v0.3-alpha/v0.3-beta и почему теперь v0.3-dev
+## Что изменилось в v0.3-alpha/v0.3-beta/v0.3-stable и почему теперь v0.4-alpha
 
 `v0.3-alpha` начинается с чистой структуры:
 
@@ -21,7 +21,9 @@ tests/     небольшие структурные тесты для ново�
 
 ## Текущий статус
 
-Это ранняя `v0.3-dev` база после закрытия alpha-цепочки Stage 14, а не готовое приложение для конечного пользователя. Она импортирует upstream-исходники в `core/zapret2/`, создаёт минимальный GUI-пакет в `gui/zap2_gui/`, фиксирует PyQt как выбранный GUI-фреймворк, русифицирует проектную документацию, добавляет read-only инвентаризацию ядра с build map, вводит первый скелет PyQt GUI shell, добавляет local build adapter для явных планов локальной сборки и вводит workspace-профили/стратегии как read-only project data, добавляет runtime lifecycle contracts как plan-only фундамент будущего запуска/отключения, генерирует default strategy runtime plans для `start`, `stop`, `status`, вводит runtime state/confirmation gate, добавляет guarded session runner для процесса `nfqws2`, вводит owner-confirmed apply/revert plan для nftables-правил, service plans, composite default start/stop workflow, beta-stage default build workflow для локальной сборки `nfqws2` перед первым запуском и beta-stage fix для запуска `nfqws2` под sudo-owner UID/GID.
+`v0.3-stable` зафиксирована владельцем как первая практически полезная пользовательская цепочка: GUI умеет собрать prerequisites для vendored `zapret2`, реально прогнать Blockcheck lab по базовым доменным именам, найти `AVAILABLE` стратегии, экспортировать их в `strategies/generated/`, выбрать одну из них во вкладке `Стратегии`, подготовить/подтвердить Default workflow и запустить `nfqws2` так, что это уже срабатывает как минимум для YouTube в целевом окружении владельца.
+
+Текущая ветка открывает `v0.4-alpha`. Цель нового цикла — применить ту же цепочку к desktop-версии Discord: подобрать рабочие target domains/probes, научиться получать generated strategy, выбирать её и запускать Default workflow для оживления Discord. На протяжении `v0.4-*` осознанно игнорируется более сложная задача композиции «YouTube + Discord одновременно»: достаточно научиться выбирать и запускать стратегию под один целевой сервис за раз.
 
 ```bash
 python tools/gui_checks/check_project_tree.py
@@ -270,3 +272,28 @@ PYTHONPATH=gui python -m zap2_gui.app --show-strategy <strategy-id>
 Stage 7 делает Blockcheck lab более пригодным для реального подбора стратегии. GUI больше не обязан тратить сотни проверок на target, который уже провалил базовый TCP/443 port precheck: если upstream-лог показывает `0 connects / N failed`, текущий candidate автоматически останавливается с verdict `port-precheck-dead-target`, а следующий домен из списка запускается отдельно. Это не wall-clock timeout, а evidence-based остановка по фактам из самого blockcheck output.
 
 Экспорт стратегий теперь берёт источник из `latest-successful-blockcheck.txt`, который обновляется только когда в run были реальные `AVAILABLE` strategy attempts. Поэтому неудачный последний запуск, например с мёртвым `youtube.com:443`, не затирает предыдущий пригодный результат для кнопки «Создать стратегии».
+
+## v0.3-stable: первая подтверждённая end-to-end цепочка
+
+Владелец проекта забэкапировал состояние после `v0.3-dev_stage_7` как `v0.3-stable`. Практически значимый результат этой точки:
+
+```text
+Blockcheck lab -> AVAILABLE стратегии -> generated strategy files -> выбор стратегии -> Default workflow start -> работающий YouTube
+```
+
+Это не означает универсальную готовность для всех сервисов и сетей. Но это меняет статус проекта: GUI больше не является только plan-only оболочкой. В рамках контролируемой owner-confirmed модели он умеет довести пользователя от диагностики до реально работающего `nfqws2` runtime для конкретного сервиса.
+
+## v0.4-alpha Stage 0: открытие Discord desktop cycle
+
+Этот документационный baseline переводит продуктовую метку в `v0.4-alpha` и сбрасывает нумерацию stage внутри новой вехи. Следующие реализационные патчи должны начинаться с `v0.4-alpha_stage_1`.
+
+Фокус `v0.4-*` — desktop Discord. Ближайшие задачи:
+
+- понять, какие домены/протоколы реально важны для desktop-клиента в окружении владельца;
+- прогнать Blockcheck lab по этим candidate targets без возврата к заморозке GUI и бессмысленным scan-циклам;
+- экспортировать найденные Discord-стратегии в `strategies/generated/`;
+- выбрать одну Discord-стратегию во вкладке `Стратегии`;
+- запустить Default workflow и проверить, что desktop Discord оживает.
+
+Нефокус для `v0.4-*`: автоматическое объединение стратегий YouTube и Discord в одну без конфликтов. Пока достаточно сценария «выбрать стратегию под YouTube» или «выбрать стратегию под Discord».
+

@@ -89,3 +89,16 @@ PYTHONPATH=gui python -m zap2_gui.app --select-strategy <strategy-id>
 Stage 7 меняет источник экспорта generated strategies. `strategies/generated/*.json` теперь создаются не из любого последнего Blockcheck лога, а из последнего лога, где были обнаружены реальные `AVAILABLE` nfqws2 strategy attempts. Такой лог сохраняется как `.zap2/blockcheck/logs/latest-successful-blockcheck.txt`.
 
 Это защищает пользовательскую цепочку от ситуации, когда после удачного поиска стратегий пользователь запускает новый candidate с мёртвым TCP/443 port precheck. `last-blockcheck.txt` может стать диагностически неудачным, но кнопка «Создать стратегии» не потеряет предыдущий успешный источник.
+
+## v0.3-stable и v0.4-alpha: service-specific generated strategies
+
+`v0.3-stable` подтверждает, что generated strategies — не только тестовые JSON-файлы. В рабочем сценарии владелец может получить `AVAILABLE` строки из Blockcheck, экспортировать их, выбрать одну стратегию и затем запустить Default workflow так, что выбранная стратегия реально применяется к runtime.
+
+Для `v0.4-alpha` каталог стратегий должен оставаться удобным при появлении Discord-целей. Желательное правило именования generated files:
+
+```text
+strategies/generated/blockcheck-<service-or-target>-<timestamp>-NN.json
+```
+
+Например, YouTube и Discord generated strategies должны быть различимы в списке без открытия JSON. Пока не нужно автоматически склеивать стратегии разных сервисов. Если для YouTube и Discord нужны разные `nfqws2` args, владелец выбирает одну активную strategy для Default profile и заново проходит plan/confirmation/start.
+

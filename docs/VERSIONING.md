@@ -3,10 +3,10 @@
 ## Текущая метка продукта
 
 ```text
-v0.3-alpha
+v0.4-alpha
 ```
 
-Проект начинается с `v0.3-alpha`, хотя кодовое дерево перезапущено. Метка продолжает историю продукта и одновременно признаёт новую implementation baseline.
+`v0.4-alpha` открывает новый цикл после owner-declared `v0.3-stable`. Предыдущая stable-точка доказала end-to-end цепочку для YouTube: Blockcheck lab нашёл `AVAILABLE` стратегии, GUI экспортировал их в `strategies/generated/`, пользователь выбрал strategy во вкладке `Стратегии`, затем Default workflow запустил `nfqws2` и это реально сработало в целевом окружении.
 
 ## Форма
 
@@ -114,3 +114,47 @@ privileged boundary; он только сохраняет краткую ста�
 ## v0.3-dev Stage 7
 
 `v0.3-dev_stage_7` продолжает Blockcheck lab без изменения продуктовой метки. Основной смысл stage — evidence-based управление долгими blockcheck-запусками: sequential candidates, автоматический skip target с мёртвым TCP/443 port precheck и экспорт только из последнего successful blockcheck source.
+
+## Переход v0.3-dev → v0.3-stable
+
+После `v0.3-dev_stage_7` владелец проекта забэкапировал состояние как `v0.3-stable`. Это решение принимает владелец, а не ассистент. Смысл stable-точки:
+
+- Blockcheck lab умеет реально прогонять upstream `blockcheck2.sh` без заморозки GUI;
+- prerequisites для `nfqws2`/`mdig` собираются локально и явно;
+- долгие прогоны имеют live log, Stop и краткую статистику;
+- sequential candidates не тратят scan на target с мёртвым TCP/443 precheck;
+- найденные `AVAILABLE` стратегии экспортируются в `strategies/generated/`;
+- стратегия выбирается во вкладке `Стратегии`;
+- Default workflow строится по выбранной strategy id и запускается через owner-confirmed sudo-askpass путь;
+- в целевом окружении владельца это уже сработало как минимум для YouTube.
+
+## Переход v0.3-stable → v0.4-alpha
+
+`v0.4-alpha` начинается не с переписывания runtime, а с расширения доказанной цепочки на новый сервис: desktop Discord. Цель цикла — подобрать рабочий набор target domains/probes для desktop Discord, получить generated strategy, выбрать её и проверить запуск через существующий Default workflow.
+
+В рамках `v0.4-*` сознательно не решается задача автоматической композиции нескольких сервисов в одну универсальную стратегию. Допустимый UX для этого цикла:
+
+```text
+выбрать стратегию YouTube
+или
+выбрать стратегию Discord
+```
+
+но не обязательно:
+
+```text
+автоматически совместить YouTube + Discord без конфликтов
+```
+
+## Сброс нумерации внутри v0.4-alpha
+
+Переход на `v0.4-alpha` снова сбрасывает stage-нумерацию. Этот документационный baseline считается `v0.4-alpha_stage_0`, чтобы зафиксировать новую цель и не смешивать её с закрытым `v0.3-dev` loop. Следующие реализационные патчи должны начинаться с:
+
+```text
+v0.4-alpha_stage_1
+v0.4-alpha_stage_2
+v0.4-alpha_stage_3
+```
+
+Stage id должен описывать конкретный шаг Discord desktop cycle, например candidate discovery, Discord Blockcheck preset, strategy export UX или runtime verification.
+
