@@ -89,6 +89,11 @@ from .adapters.discord_endpoint_discovery import (
     discord_endpoint_watch_to_text,
     discord_netlog_plan_to_text,
 )
+from .adapters.discord_dns_edge_diagnostics import (
+    DEFAULT_DNS_EDGE_RESOLVERS,
+    discord_dns_edge_check_to_text,
+    discord_dns_edge_plan_to_text,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -414,6 +419,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="длительность --discord-endpoint-watch в секундах: 1..600",
     )
     parser.add_argument(
+        "--discord-dns-edge-plan",
+        action="store_true",
+        help="показать read-only план проверки DNS edge для Discord; без запуска",
+    )
+    parser.add_argument(
+        "--discord-dns-edge-check",
+        action="store_true",
+        help="read-only диагностика: сравнить DNS resolvers и TCP/443 доступность Discord edge IP",
+    )
+    parser.add_argument(
+        "--discord-dns-edge-resolvers",
+        default=",".join(DEFAULT_DNS_EDGE_RESOLVERS),
+        help="resolver ids для --discord-dns-edge-check через запятую: system,cloudflare,google,quad9,adguard,opendns",
+    )
+    parser.add_argument(
+        "--discord-dns-edge-hosts",
+        default=None,
+        help="host override для DNS edge check; по умолчанию Discord updater/app/gateway/CDN hosts",
+    )
+    parser.add_argument(
+        "--discord-dns-edge-timeout",
+        type=float,
+        default=3.0,
+        help="TCP connect timeout для каждого edge IP: 0.5..15 секунд",
+    )
+
+    parser.add_argument(
         "--blockcheck-target-preset",
         choices=tuple(item.preset_id for item in list_service_target_presets()),
         default=DEFAULT_SERVICE_TARGET_PRESET_ID,
@@ -609,6 +641,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.discord_netlog_plan:
         print(discord_netlog_plan_to_text())
+        return 0
+
+    if args.discord_dns_edge_plan:
+        print(discord_dns_edge_plan_to_text(hosts=args.discord_dns_edge_hosts, resolvers=args.discord_dns_edge_resolvers, timeout_seconds=args.discord_dns_edge_timeout))
+        return 0
+
+    if args.discord_dns_edge_check:
+        print(discord_dns_edge_check_to_text(hosts=args.discord_dns_edge_hosts, resolvers=args.discord_dns_edge_resolvers, timeout_seconds=args.discord_dns_edge_timeout))
         return 0
 
     if args.runtime_contracts:

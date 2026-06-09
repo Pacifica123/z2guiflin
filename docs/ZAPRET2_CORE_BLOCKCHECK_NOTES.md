@@ -60,3 +60,7 @@ PYTHONPATH=gui python -m zap2_gui.app --discord-netlog-plan
 ```
 
 The watcher remains read-only: it samples `ss`, `pgrep` and DNS metadata, does not use sudo, does not mutate firewall/services and does not capture packet payloads. The optional netlog plan is not executed automatically because Chromium netlogs can contain privacy-sensitive URLs, headers or token-like values.
+
+### v0.4-alpha Stage 7i — Discord DNS edge diagnosis
+
+Stage 7i переносит идею Windows GUI DNS-проверок в read-only Linux diagnostic. Команды `--discord-dns-edge-plan` и `--discord-dns-edge-check` сравнивают system/Cloudflare/Google/Quad9/AdGuard/OpenDNS resolvers и проверяют TCP/443 для возвращённых Discord edge IP. Это не меняет DNS и не требует sudo. Если найден `connect-ok` edge, DNS/hosts steering можно рассматривать как owner-confirmed эксперимент. Если все edge IP timeout, то текущий Discord updater blocker шире, чем DNS-подмена, и обычные TLS Blockcheck-стратегии всё ещё не упражняются на SYN-SENT socket.

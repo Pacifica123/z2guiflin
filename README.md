@@ -534,3 +534,7 @@ This does not require sudo, does not mutate firewall/services and does not captu
 ### v0.4-alpha Stage 7h — Discord updater endpoint deep discovery
 
 Stage 7h adds TCP state/timer and DNS matching to the Discord endpoint watcher. If the Discord splash shows `Checking for updates` while the watcher reports `SYN-SENT` for a `updates.discord.com` edge IP, the current blocker is before a completed TLS/HTTP exchange on that socket. Use `--discord-netlog-plan` only as an owner-run, privacy-aware follow-up; raw Chromium netlogs should be reviewed and redacted before sharing.
+
+### v0.4-alpha Stage 7i — Discord DNS edge diagnosis
+
+Stage 7i переносит идею Windows GUI DNS-проверок в read-only Linux diagnostic. Команды `--discord-dns-edge-plan` и `--discord-dns-edge-check` сравнивают system/Cloudflare/Google/Quad9/AdGuard/OpenDNS resolvers и проверяют TCP/443 для возвращённых Discord edge IP. Это не меняет DNS и не требует sudo. Если найден `connect-ok` edge, DNS/hosts steering можно рассматривать как owner-confirmed эксперимент. Если все edge IP timeout, то текущий Discord updater blocker шире, чем DNS-подмена, и обычные TLS Blockcheck-стратегии всё ещё не упражняются на SYN-SENT socket.

@@ -50,7 +50,7 @@ def test_discord_desktop_preset_contains_non_voice_seed_targets() -> None:
     assert "media.discordapp.net" in preset.targets
     assert "updates.discord.com" in preset.targets
     assert "discord.gg" in preset.targets
-    assert service_target_string(SERVICE_TARGET_DISCORD_DESKTOP).startswith("stable.dl2.discordapp.net updates.discord.com")
+    assert service_target_string(SERVICE_TARGET_DISCORD_DESKTOP).startswith("updates.discord.com stable.dl2.discordapp.net")
     assert preset.policy.mode == "ordered-target-chain"
     assert preset.policy.order_mode == "order-important"
 
