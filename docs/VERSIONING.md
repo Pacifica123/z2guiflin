@@ -404,3 +404,10 @@ Stage 7k records an owner-observed split from Stage 7j: `community-discord-youtu
 This is not a final Discord fix and is not selected automatically. If the Discord updater remains in `SYN-SENT`, the next investigation should focus on whether Linux nfqws2 sees and can alter the Discord SYN packets with the current nft hook/queue rules, rather than on more TLS-only Blockcheck scans.
 
 The diagnostics page now uses a scrollable content area and smaller fixed-width controls. This is a UI repair stage: the Blockcheck Lab should no longer crop the description at the top, overlap labels with controls, or push the output pane below the window.
+
+## v0.4-alpha Stage 7l.1 — runtime args-file quoting retry
+
+Stage 7l.1 fixes the failed Stage 7l devctl check. The Stage 7l quoting idea was correct, but the test bundle also exercised runtime session setup and exposed a stale-permission hazard in the default public runtime input directory under `/tmp`. The default path is now uid-scoped, while explicit `ZAP2_PUBLIC_RUNTIME_INPUTS_DIR` keeps the existing `<base>/zap2-runtime-inputs` layout used by tests and owner overrides.
+
+The functional fix remains: runtime `*.nfqws2.args` files are generated with shell-safe quoting, so shell-sensitive values such as `--out-range=<s1` and paths with spaces survive upstream `wordexp(3)` parsing. This patch does not claim Discord success; it only lets the community v2 experiment start cleanly for the next owner observation.
+

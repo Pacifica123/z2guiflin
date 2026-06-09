@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import shutil
+import shlex
 import signal
 import subprocess
 import tempfile
@@ -388,6 +389,21 @@ def _ensure_public_dir(path: Path) -> Path:
     return path
 
 
+def _public_session_inputs_base() -> Path:
+    """Return the writable public runtime-input base directory.
+
+    If ZAP2_PUBLIC_RUNTIME_INPUTS_DIR is supplied by tests or an owner, keep the
+    historical layout `<base>/zap2-runtime-inputs`.  Otherwise use a uid-scoped
+    directory under the system temp dir so one root-owned stale directory cannot
+    break unprivileged devctl/pytest runs for another user.
+    """
+
+    configured = os.environ.get("ZAP2_PUBLIC_RUNTIME_INPUTS_DIR")
+    if configured:
+        return Path(configured) / PUBLIC_SESSION_INPUTS_BASE
+    return Path(tempfile.gettempdir()) / f"{PUBLIC_SESSION_INPUTS_BASE}-{os.getuid()}"
+
+
 def _public_session_inputs_dir(paths_root: Path, profile_id: str, plan_id: str, plan_hash: str) -> Path:
     """Return deterministic public input dir under /tmp for one plan hash.
 
@@ -396,7 +412,7 @@ def _public_session_inputs_dir(paths_root: Path, profile_id: str, plan_id: str, 
     """
 
     digest = hashlib.sha256(f"{paths_root.resolve()}|{profile_id}|{plan_id}|{plan_hash}".encode("utf-8")).hexdigest()[:16]
-    base = Path(os.environ.get("ZAP2_PUBLIC_RUNTIME_INPUTS_DIR", tempfile.gettempdir())) / PUBLIC_SESSION_INPUTS_BASE
+    base = _public_session_inputs_base()
     _ensure_public_dir(base)
     return _ensure_public_dir(base / f"{profile_id}-{digest}")
 
@@ -588,8 +604,25 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
     )
 
 
+def _quote_nfqws_args_file_arg(arg: str) -> str:
+    """Return one shell-safe token for nfqws2 @args files.
+
+    Upstream nfqws2 reads @file content through wordexp(3), not by simply
+    splitting one line per argument.  Values such as ``--out-range=<s1`` or
+    paths with spaces are therefore shell-sensitive unless quoted.
+    """
+
+    if "\x00" in arg or "\n" in arg or "\r" in arg:
+        raise ValueError(f"nfqws2 argument cannot contain NUL/newline: {arg!r}")
+    return shlex.quote(arg)
+
+
+def _nfqws_args_file_text(args: tuple[str, ...]) -> str:
+    return "\n".join(_quote_nfqws_args_file_arg(arg) for arg in args) + "\n"
+
+
 def _write_args_file(config: RuntimeSessionConfig) -> None:
-    config.args_path.write_text("\n".join(config.runtime_args) + "\n", encoding="utf-8")
+    config.args_path.write_text(_nfqws_args_file_text(config.runtime_args), encoding="utf-8")
 
 
 def _pid_alive(pid: int) -> bool:

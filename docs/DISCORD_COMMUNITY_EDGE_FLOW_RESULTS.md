@@ -41,3 +41,8 @@ SYN-SENT remains on the same 162.159.* edge IPs.
 ```
 
 If the bad sign persists, the next investigation should focus on nft hook scope/priority, whether nfqws2 sees the Discord SYN packets at all, and which exact Windows early-flow primitive is missing from the Linux bridge.
+
+## Stage 7l.1 runtime args-file startup fix
+
+`community-discord-syndata-edge-flow-v2` uses early-flow arguments containing `<`, for example `--out-range=<s1`. Upstream `nfqws2` parses `@args` files through shell-like expansion, so these tokens must be quoted in the generated args file. Stage 7l.1 makes that writer shell-safe and changes the default public runtime input base to a uid-scoped temp directory so devctl checks are not affected by stale root-owned `/tmp/zap2-runtime-inputs` directories.
+

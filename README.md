@@ -550,3 +550,8 @@ Owner testing of Stage 7j split the result: the community Windows-derived bridge
 Stage 7k adds a second owner-selectable experiment, `community-discord-syndata-edge-flow-v2`, which makes the Discord Cloudflare edge phase-zero branch explicit with `payload=empty`, `send` and `syndata` profiles before the host-based Discord profiles. It remains experimental and is not selected automatically.
 
 The Blockcheck Lab page is also placed inside a scroll area and its fixed-width controls are reduced so the diagnostics tab no longer clips the top text, overlays labels, or pushes the output past the visible window.
+
+### v0.4-alpha Stage 7l.1 — runtime args-file quoting retry
+
+Stage 7l.1 retries the Stage 7l fix with an additional devctl/pytest guard: public runtime inputs now use a uid-scoped default temp directory, so stale root-owned `/tmp/zap2-runtime-inputs` directories cannot break unprivileged checks. The runtime args file writer still shell-quotes every `nfqws2 @file` token, which is required for values such as `--out-range=<s1` used by the community Discord v2 seed.
+
