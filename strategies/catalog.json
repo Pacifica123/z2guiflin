@@ -9,6 +9,7 @@
   "strategyFiles": [
     "strategies/manual-local.json",
     "strategies/read-only-diagnostics.json",
-    "strategies/community-discord-youtube-edge-flow.json"
+    "strategies/community-discord-youtube-edge-flow.json",
+    "strategies/community-discord-syndata-edge-flow-v2.json"
   ]
 }

@@ -542,3 +542,11 @@ Stage 7i переносит идею Windows GUI DNS-проверок в read-on
 ### v0.4-alpha Stage 7j note
 
 After DNS and endpoint diagnostics showed Discord stuck before TLS, Stage 7j adds an experimental `community-discord-youtube-edge-flow` strategy based on the owner-provided Windows community preset. It must be selected manually in the Strategies tab and run through the usual owner-confirmed Default workflow.
+
+### v0.4-alpha Stage 7k — community v2 seed and diagnostics layout fix
+
+Owner testing of Stage 7j split the result: the community Windows-derived bridge made YouTube work through the Linux runtime, but Discord desktop still stayed on `Checking for updates`. This proves the selected strategy/runtime path is not entirely broken, but the Discord Linux newUpdater path is still stuck in the pre-TLS `SYN-SENT` class.
+
+Stage 7k adds a second owner-selectable experiment, `community-discord-syndata-edge-flow-v2`, which makes the Discord Cloudflare edge phase-zero branch explicit with `payload=empty`, `send` and `syndata` profiles before the host-based Discord profiles. It remains experimental and is not selected automatically.
+
+The Blockcheck Lab page is also placed inside a scroll area and its fixed-width controls are reduced so the diagnostics tab no longer clips the top text, overlays labels, or pushes the output past the visible window.

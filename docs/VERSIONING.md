@@ -396,3 +396,11 @@ Stage 7i переносит идею Windows GUI DNS-проверок в read-on
 ## v0.4-alpha Stage 7j
 
 Stage 7j is an experimental Discord/YouTube strategy bridge, not a version milestone reset. It imports the concept of an owner-provided community Windows preset into a Linux-selectable strategy while preserving the rule that strategies do not execute automatically and runtime changes require owner confirmation.
+
+## v0.4-alpha Stage 7k — community v2 seed and scrollable diagnostics UI
+
+Stage 7k records an owner-observed split from Stage 7j: `community-discord-youtube-edge-flow` helped YouTube, but did not move Discord desktop beyond `Checking for updates`. The new `community-discord-syndata-edge-flow-v2` strategy is an explicit phase-zero experiment for the Discord updater `SYN-SENT` path: it tests `payload=empty`/`send` and `syndata` branches against the observed Discord Cloudflare edge IPs before falling back to the host-based Discord and YouTube profiles.
+
+This is not a final Discord fix and is not selected automatically. If the Discord updater remains in `SYN-SENT`, the next investigation should focus on whether Linux nfqws2 sees and can alter the Discord SYN packets with the current nft hook/queue rules, rather than on more TLS-only Blockcheck scans.
+
+The diagnostics page now uses a scrollable content area and smaller fixed-width controls. This is a UI repair stage: the Blockcheck Lab should no longer crop the description at the top, overlap labels with controls, or push the output pane below the window.

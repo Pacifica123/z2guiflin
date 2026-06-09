@@ -32,3 +32,8 @@ PYTHONPATH=gui python -m zap2_gui.app --default-start-plan
 ```
 
 Then continue through the normal owner-confirmed Default workflow. This strategy is not selected automatically and is not used by tests to mutate firewall/services.
+
+
+## v0.4-alpha Stage 7k community v2 seed
+
+`community-discord-syndata-edge-flow-v2` is an owner-selectable experiment for the Discord Linux newUpdater SYN-SENT case. It keeps the YouTube fallback from the Stage 7j community bridge but adds explicit phase-zero `send`/`syndata` branches for observed Discord Cloudflare edge IPs. It is not selected automatically.
