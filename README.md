@@ -504,3 +504,13 @@ Stage 7d фиксирует два наблюдения owner-run после Sta
 Второе: экран Blockcheck Lab стал слишком плотным после добавления service policy/tournament controls. Stage 7d расширяет дефолтное окно, делит действия на две строки, укорачивает подписи кнопок и добавляет явный переключатель `Auto-skip dead target`, чтобы владелец видел, когда включён риск раннего пропуска candidate.
 
 Граница Stage 7d: патч не портирует Flowseal/Windows presets в исполняемый Linux runtime автоматически. Он фиксирует источник ложного `dead-target`, улучшает управляемость GUI и документирует, какие идеи Flowseal/Windows стоит переносить осторожно.
+
+## v0.4-alpha Stage 7f — bounded phase alternatives and core notes
+
+Stage 7f fixes the owner-observed case where the phase-gated runner stayed on the first updater alternative (`stable.dl2.discordapp.net`) until manual Stop. The runner still follows the owner model — phases are `AND`, alternatives inside a phase are `OR`, and later phases are not checked until the current required phase is satisfied — but each phase alternative now has an owner-visible `Alt check cap`.
+
+For `discord-desktop` the default cap is 160 strategy checks per alternative. If an `AVAILABLE` strategy appears first, the GUI stops that upstream candidate and advances to the next phase. If the cap is reached with no `AVAILABLE`, the GUI stops only that candidate and tries the next alternative in the same phase. Setting the cap to `off` restores the previous unbounded behavior for deep single-target scans.
+
+Stage 7f also records core reference notes from `core/zapret2`: upstream custom blockcheck lists can be supplied via `LIST_HTTP`, `LIST_HTTPS_TLS12`, `LIST_HTTPS_TLS13` and `LIST_QUIC`, and `nfqws2` profile ordering is first-match-wins. These notes are captured in `docs/ZAPRET2_CORE_BLOCKCHECK_NOTES.md` for the future real one-strategy validator and possible multi-profile Discord runtime work.
+
+The Blockcheck Lab layout is widened again and key controls now have maximum widths plus a reserved two-line preset description area, so the diagnostics screen is less edge-stretched and less vertically overlapped.

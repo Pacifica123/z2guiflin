@@ -1,25 +1,23 @@
-# v0.4-alpha Stage 7e — Blockcheck Lab human tournament log and UI cleanup
+# v0.4-alpha Stage 7f — bounded phase alternatives and core docs
 
-This patch addresses the owner feedback that Blockcheck Lab still looked cramped and that Discord-like phase runs were hard to follow because the main screen streamed raw `blockcheck2.sh` output instead of explaining the GUI's own tournament state.
+This patch continues the Discord desktop non-voice investigation after Stage 7e.
 
-## Changed
+## What changed
 
-- Phase-gated `ordered-target-chain` runs now show a human GUI tournament log in the main output area:
-  - current phase and alternative;
-  - when an AVAILABLE strategy is observed;
-  - record-holder updates;
-  - failed alternatives/phases;
-  - manual stop or completed phase chain;
-  - a short top-record list.
-- Raw upstream blockcheck stdout/stderr are still written to `last-blockcheck.txt` and candidate logs; the button is renamed to `Raw log` to make that role explicit.
-- The Blockcheck Lab form is less vertically cramped:
-  - combo boxes and spin boxes get minimum heights;
-  - action buttons get minimum heights/widths;
-  - form columns get stable minimum widths;
-  - the parameters group gets a safer minimum height.
+- Adds an owner-visible `Alt check cap` to Blockcheck Lab.
+- Defaults Discord ordered phase runs to 160 strategy checks per phase alternative.
+- If an ordered phase alternative reaches the cap without `AVAILABLE`, the GUI stops only that candidate and moves to the next OR alternative.
+- If `AVAILABLE` appears first, the existing early-stop path still advances to the next required phase.
+- Improves the diagnostics layout with wider default window geometry, max widths on long controls, larger row spacing and a reserved hint area.
+- Adds `docs/ZAPRET2_CORE_BLOCKCHECK_NOTES.md` after reviewing the bundled zapret2 documentation and Flowseal/Windows references.
 
-## Not changed
+## Why
 
-- Stage 7e does not yet implement the full automatic one-strategy validator across every phase.
-- It does not change runtime firewall/service behavior.
-- Discord voice/UDP remains outside this non-voice loop.
+Owner testing showed that the phase-gated Discord run could stay on `stable.dl2.discordapp.net` indefinitely or until manual Stop. That blocks the intended tournament loop from reaching `updates.discord.com`, `discord.com`, gateway and CDN/media phases. Stage 7f keeps the owner-sketched AND/OR phase semantics but adds a practical budget so one moving CDN/updater target cannot consume the whole run.
+
+## Boundaries
+
+- This does not yet implement a full automatic one-strategy validator across every phase.
+- This does not port Flowseal/Windows presets into an executable Linux runtime preset.
+- This does not touch Discord voice/UDP/STUN, which remains reserved for Stage 8.
+- Raw upstream blockcheck logs remain available in `.zap2/blockcheck/logs/`.

@@ -320,3 +320,11 @@ The human log is intentionally closer to the owner mental model:
 This does not delete upstream evidence. It only keeps the main GUI screen readable while the raw log remains in `.zap2/blockcheck/logs/` for debugging and export.
 
 Stage 7e also raises minimum heights for combo boxes, spin boxes and action buttons, sets safer form column widths, keeps actions in two rows, and renames `Last log` to `Raw log` so the owner understands that the button is the escape hatch to the unfiltered upstream transcript.
+
+## v0.4-alpha Stage 7f: bounded tournament progress and less cramped UI
+
+Stage 7f fixes the owner-observed case where an ordered Discord phase run stayed on `stable.dl2.discordapp.net` until manual Stop. For `ordered-target-chain` presets the GUI now exposes an `Alt check cap`: once a phase alternative has produced that many strategy checks without any `AVAILABLE`, the GUI terminates only that upstream candidate and moves to the next OR alternative in the same phase. If an `AVAILABLE` appears first, the existing early-stop path still advances to the next required phase immediately.
+
+The default cap for `discord-desktop` is 160 checks. Owners can set it to `off` when they want a full upstream search on one target, or raise it when a target is known to produce late successes.
+
+The Blockcheck Lab layout was also widened and de-stretched: key controls now have maximum widths, the preset hint has a reserved two-line area, and the main window default size is roomier. This does not change runtime behavior; it only makes the diagnostics page more readable while the tournament log is being watched.

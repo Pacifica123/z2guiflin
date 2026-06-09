@@ -51,7 +51,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     page = QtWidgets.QWidget()
     layout = QtWidgets.QVBoxLayout(page)
     layout.setContentsMargins(10, 10, 10, 10)
-    layout.setSpacing(8)
+    layout.setSpacing(10)
 
     title = QtWidgets.QLabel("Диагностика: Blockcheck lab")
     title.setObjectName("pageTitle")
@@ -64,12 +64,14 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
     form_box = QtWidgets.QGroupBox("Параметры scan")
     form = QtWidgets.QGridLayout(form_box)
-    form.setHorizontalSpacing(8)
-    form.setVerticalSpacing(8)
+    form.setHorizontalSpacing(12)
+    form.setVerticalSpacing(10)
 
     target_preset_combo = QtWidgets.QComboBox()
     target_preset_combo.setObjectName("blockcheckServiceTargetPreset")
-    target_preset_combo.setMinimumHeight(30)
+    target_preset_combo.setMinimumHeight(34)
+    target_preset_combo.setMinimumWidth(360)
+    target_preset_combo.setMaximumWidth(680)
     target_preset_combo.setMinimumContentsLength(24)
     try:
         target_preset_combo.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
@@ -81,16 +83,22 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     target_preset_hint = QtWidgets.QLabel("")
     target_preset_hint.setObjectName("mutedText")
     target_preset_hint.setWordWrap(True)
+    target_preset_hint.setMinimumHeight(42)
+    target_preset_hint.setMaximumWidth(760)
 
     domains_edit = QtWidgets.QLineEdit(DEFAULT_BLOCKCHECK_TARGET_STRING)
     domains_edit.setObjectName("blockcheckDomainsEdit")
     domains_edit.setPlaceholderText(DEFAULT_BLOCKCHECK_TARGET_STRING)
-    domains_edit.setMinimumHeight(30)
+    domains_edit.setMinimumHeight(34)
+    domains_edit.setMinimumWidth(360)
+    domains_edit.setMaximumWidth(760)
     domains_edit.setToolTip("Registry-owned presets keep this field read-only; Custom manual targets makes it editable.")
 
     scan_mode_combo = QtWidgets.QComboBox()
     scan_mode_combo.setObjectName("blockcheckCandidateScanMode")
-    scan_mode_combo.setMinimumHeight(30)
+    scan_mode_combo.setMinimumHeight(34)
+    scan_mode_combo.setMinimumWidth(360)
+    scan_mode_combo.setMaximumWidth(760)
     scan_mode_combo.addItem("Stop after first AVAILABLE", BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE)
     scan_mode_combo.addItem("Scan all preset targets", BLOCKCHECK_SCAN_ALL_TARGETS)
     scan_mode_combo.addItem("Skip only dead targets", BLOCKCHECK_SCAN_SKIP_DEAD_ONLY)
@@ -105,20 +113,27 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     ip_combo.addItems(["4", "6", "46"])
 
     for compact_combo in (test_combo, scan_combo, ip_combo):
-        compact_combo.setMinimumHeight(30)
-        compact_combo.setMinimumWidth(140)
+        compact_combo.setMinimumHeight(32)
+        compact_combo.setMinimumWidth(160)
+        compact_combo.setMaximumWidth(260)
 
     repeats_spin = QtWidgets.QSpinBox()
     repeats_spin.setRange(1, 5)
     repeats_spin.setValue(1)
 
+    phase_budget_spin = QtWidgets.QSpinBox()
+    phase_budget_spin.setRange(0, 999)
+    phase_budget_spin.setValue(0)
+    phase_budget_spin.setSpecialValueText("off")
+    phase_budget_spin.setToolTip("For ordered phase runs: stop a phase alternative after this many strategy checks if no AVAILABLE appeared yet. 0 = no check budget.")
+
     timeout_spin = QtWidgets.QSpinBox()
     timeout_spin.setRange(1, 15)
     timeout_spin.setValue(3)
     timeout_spin.setSuffix(" сек")
-    for compact_spin in (repeats_spin, timeout_spin):
-        compact_spin.setMinimumHeight(30)
-        compact_spin.setMinimumWidth(120)
+    for compact_spin in (repeats_spin, timeout_spin, phase_budget_spin):
+        compact_spin.setMinimumHeight(32)
+        compact_spin.setMinimumWidth(130)
 
     http_check = QtWidgets.QCheckBox("HTTP")
     https12_check = QtWidgets.QCheckBox("HTTPS TLS1.2")
@@ -151,21 +166,23 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     form.addWidget(repeats_spin, 5, 3)
     form.addWidget(QtWidgets.QLabel("Curl timeout"), 6, 0)
     form.addWidget(timeout_spin, 6, 1)
+    form.addWidget(QtWidgets.QLabel("Alt check cap"), 6, 2)
+    form.addWidget(phase_budget_spin, 6, 3)
     form.addWidget(http_check, 7, 0)
     form.addWidget(https12_check, 7, 1)
     form.addWidget(https13_check, 7, 2)
     form.addWidget(http3_check, 7, 3)
     form.addWidget(dns_check, 8, 0, 1, 2)
     form.addWidget(dead_guard_check, 8, 2, 1, 2)
-    form.setColumnMinimumWidth(0, 110)
-    form.setColumnMinimumWidth(1, 220)
-    form.setColumnMinimumWidth(2, 95)
-    form.setColumnMinimumWidth(3, 220)
+    form.setColumnMinimumWidth(0, 120)
+    form.setColumnMinimumWidth(1, 280)
+    form.setColumnMinimumWidth(2, 120)
+    form.setColumnMinimumWidth(3, 280)
     form.setColumnStretch(0, 0)
     form.setColumnStretch(1, 2)
     form.setColumnStretch(2, 0)
     form.setColumnStretch(3, 2)
-    form_box.setMinimumHeight(205)
+    form_box.setMinimumHeight(265)
 
     actions_box = QtWidgets.QGroupBox("Actions")
     actions_layout = QtWidgets.QVBoxLayout(actions_box)
@@ -190,8 +207,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         preflight_button, build_plan_button, build_button, plan_button, run_button, stop_button,
         export_button, coverage_button, policy_button, tournament_button, verify_button, log_button,
     ):
-        action_button.setMinimumHeight(34)
-        action_button.setMinimumWidth(88)
+        action_button.setMinimumHeight(36)
+        action_button.setMinimumWidth(96)
     export_button.setMinimumWidth(128)
     buttons.addWidget(preflight_button)
     buttons.addWidget(plan_button)
@@ -215,7 +232,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
     output = QtWidgets.QPlainTextEdit()
     output.setReadOnly(True)
-    output.setMinimumHeight(280)
+    output.setMinimumHeight(300)
     try:
         output.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.WidgetWidth)
     except Exception:  # pragma: no cover - compatibility with older Qt bindings
@@ -239,6 +256,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         "candidate_phase_groups": [],
         "candidate_phase_index": 0,
         "candidate_phase_had_available": False,
+        "candidate_budget_stop": False,
         "active_target_preset": str(target_preset_combo.currentData()),
         "custom_targets": "",
         "syncing_target_preset": False,
@@ -265,8 +283,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 scan_mode_combo.setCurrentIndex(index)
             if preset.preset_id == SERVICE_TARGET_DISCORD_DESKTOP:
                 dead_guard_check.setChecked(False)
+                phase_budget_spin.setValue(160)
             elif preset.preset_id != SERVICE_TARGET_CUSTOM:
                 dead_guard_check.setChecked(True)
+                phase_budget_spin.setValue(0)
             if preset.is_custom:
                 domains_edit.setReadOnly(False)
                 domains_edit.setPlaceholderText("example.com api.example.com")
@@ -364,6 +384,22 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             )
         return "\n".join(lines)
 
+    def phase_alt_budget() -> int:
+        try:
+            return int(phase_budget_spin.value())
+        except Exception:
+            return 0
+
+    def should_budget_stop_phase_alternative(stats: Any) -> bool:
+        if not state.get("phase_gated_run"):
+            return False
+        if getattr(stats, "available", 0) > 0:
+            return False
+        budget = phase_alt_budget()
+        if budget <= 0:
+            return False
+        return int(getattr(stats, "strategy_attempts", 0) or 0) >= budget
+
     def current_prepared() -> PreparedBlockcheckExecution | None:
         prepared = state.get("prepared")
         return prepared if isinstance(prepared, PreparedBlockcheckExecution) else None
@@ -383,6 +419,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         scan_mode_combo.setEnabled(not running)
         domains_edit.setEnabled(not running)
         dead_guard_check.setEnabled(not running)
+        phase_budget_spin.setEnabled(not running)
         for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, coverage_button, policy_button, tournament_button, verify_button, log_button):
             button.setEnabled(not running)
         stop_button.setEnabled(running)
@@ -444,10 +481,12 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             state["candidate_phase_groups"] = []
             state["candidate_phase_index"] = 0
             state["candidate_phase_had_available"] = False
+            state["candidate_budget_stop"] = False
             set_running(False)
             return
 
         target = str(targets[index])
+        state["candidate_budget_stop"] = False
         base_options = collect_options()
         try:
             prepared = prepare_blockcheck_execution(root=root, options=base_options.for_single_domain(target))
@@ -522,6 +561,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         if state.get("phase_gated_run"):
             phase_index = int(state.get("candidate_phase_index") or 0)
             phase_label = phase_group_title(phase_index)
+            budget_stopped = bool(state.get("candidate_budget_stop"))
             if stopped:
                 append_output(
                     "\n[GUI tournament] Блокчек остановлен вручную; "
@@ -536,6 +576,13 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                     f"{phase_index + 1} {phase_label}: target={target}; available={stats.available}; checks={stats.strategy_attempts}"
                 )
                 append_output(f"[GUI tournament] стратегия-рекордсмен: {strategy_label(stats)}")
+            elif budget_stopped:
+                append_output(
+                    "\n[GUI tournament] Alternative достигла лимита проверок без AVAILABLE "
+                    f"для фазы {phase_index + 1} {phase_label}: target={target}; "
+                    f"checks={stats.strategy_attempts}; cap={phase_alt_budget()}. "
+                    + tournament_record_text()
+                )
             else:
                 append_output(
                     "\n[GUI tournament] Стратегия/alternative не прошла фазу "
@@ -615,6 +662,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             state["candidate_phase_groups"] = []
             state["candidate_phase_index"] = 0
             state["candidate_phase_had_available"] = False
+            state["candidate_budget_stop"] = False
             set_running(False)
             return
 
@@ -675,6 +723,11 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                     "\n[GUI tournament] Достаточно evidence для текущей phase alternative; "
                     "останавливаем upstream scan и переходим дальше по tournament loop.\n"
                 )
+            elif state.get("phase_gated_run") and reason.startswith("phase-alternative-check-cap"):
+                message = (
+                    "\n[GUI tournament] Лимит проверок для текущей alternative достигнут без AVAILABLE; "
+                    "останавливаем upstream scan и пробуем следующую alternative/phase.\n"
+                )
             else:
                 message = (
                     "\n[GUI] Evidence-based early stop: "
@@ -702,6 +755,12 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                     request_auto_skip(
                         f"phase-alternative-available for {target}: available={stats.available}; "
                         "moving to next required phase"
+                    )
+                elif should_budget_stop_phase_alternative(stats):
+                    state["candidate_budget_stop"] = True
+                    request_auto_skip(
+                        f"phase-alternative-check-cap for {target}: checks={stats.strategy_attempts}; "
+                        f"cap={phase_alt_budget()}; moving to next alternative"
                     )
             flush_live_log()
 
@@ -803,6 +862,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 "phases:\n"
                 + "\n".join(phase_lines)
                 + f"\ndead-target guard: {options.dead_target_guard}; evidence-based, no wall-clock timeout"
+                + f"\nphase alternative check cap: {phase_alt_budget() or 'off'}"
             )
         else:
             state["phase_gated_run"] = False
@@ -818,6 +878,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 f"candidates: {', '.join(targets)}\n"
                 f"candidate mode: {scan_mode_combo.currentData()}\n"
                 f"dead-target guard: {options.dead_target_guard}; evidence-based, no wall-clock timeout"
+                f"\nphase alternative check cap: {phase_alt_budget() or 'off'}"
             )
         start_next_candidate()
 

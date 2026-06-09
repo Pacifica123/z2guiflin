@@ -193,3 +193,31 @@ Stage 7d фиксирует два наблюдения owner-run после Sta
 For presets with `ordered-target-chain`, the GUI presentation layer should not stream raw upstream blockcheck output as the primary owner-facing text. The owner-facing log should describe the coverage state machine: current phase, current OR alternative, AVAILABLE discovery, record-holder update, failure point, manual stop, full phase-chain completion and a small top-record list.
 
 The raw upstream transcript remains the source of evidence and is written to per-candidate log files. The GUI log is a readable projection of that evidence, not a replacement for it.
+
+## v0.4-alpha Stage 7f — bounded phase alternatives
+
+Owner testing after Stage 7e showed that a phase-gated Discord run can still get stuck inside the first updater alternative: upstream `blockcheck2.sh` may keep testing one host for a long time even when no `AVAILABLE` candidate appears. This is not useful for the phase model, where the owner needs to know whether the current phase has any viable OR alternative and then move on.
+
+Stage 7f adds a GUI-side `Alt check cap` for ordered phase runs:
+
+```text
+phase alternative check cap: 160 by default for discord-desktop
+```
+
+When a phase alternative reaches this number of strategy checks without an `AVAILABLE` result, the GUI stops only that upstream candidate and proceeds to the next alternative in the same phase. If an `AVAILABLE` result appears earlier, the GUI still stops immediately and advances to the next required phase.
+
+This preserves the owner-sketched semantics:
+
+```text
+one candidate is tested through the phase chain
+phases are AND
+alternatives inside one phase are OR
+current record-holder is the strategy/alternative that got furthest
+```
+
+The cap is deliberately GUI-side and owner-visible. It is not a claim that upstream blockcheck exhausted every possible strategy. It is a practical budget so Discord-like presets do not spend the whole run on `stable.dl2.discordapp.net` or any other single moving CDN target before reaching the rest of the ordered chain.
+
+Stage 7f also records two upstream notes from `core/zapret2` documentation that matter for later patches:
+
+- the upstream `custom` blockcheck mode can test strategy lists supplied by `LIST_HTTP`, `LIST_HTTPS_TLS12`, `LIST_HTTPS_TLS13` and `LIST_QUIC`, which is the right bridge for the future one-strategy validator;
+- `nfqws2` profiles are selected sequentially and only the first matching profile wins, so any future multi-layer Discord runtime profile must keep updater/app/gateway/CDN filters in a deliberate order instead of appending several broad hostlists randomly.

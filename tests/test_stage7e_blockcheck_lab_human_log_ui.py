@@ -8,10 +8,10 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_blockcheck_lab_has_less_cramped_control_sizing() -> None:
     source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
 
-    assert "setMinimumHeight(30)" in source
-    assert "form.setColumnMinimumWidth(1, 220)" in source
-    assert "form_box.setMinimumHeight(205)" in source
-    assert "action_button.setMinimumHeight(34)" in source
+    assert "setMinimumHeight(34)" in source
+    assert "form.setColumnMinimumWidth(1, 280)" in source
+    assert "form_box.setMinimumHeight(265)" in source
+    assert "action_button.setMinimumHeight(36)" in source
     assert "Raw log" in source
 
 
