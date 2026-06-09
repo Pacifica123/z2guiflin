@@ -12,7 +12,8 @@ def test_stage7g_blockcheck_lab_has_endpoint_button_and_centered_layout() -> Non
     assert "discord_endpoint_discovery_plan_to_text" in source
     assert "discord_endpoint_report_to_text" in source
     assert "QtCore.Qt.AlignmentFlag.AlignHCenter" in source
-    assert "form_box.setMaximumWidth(1020)" in source
+    assert "form_box.setMinimumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)" in source
+    assert "output.setMinimumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)" in source
     assert "target_preset_hint.setMinimumHeight(64)" in source
 
 

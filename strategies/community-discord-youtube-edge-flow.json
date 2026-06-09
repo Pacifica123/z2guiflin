@@ -1,0 +1,89 @@
+{
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": true,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
+  "id": "community-discord-youtube-edge-flow",
+  "intendedFor": [
+    "экспериментальная проверка Discord desktop, когда DNS edge diagnostics показывают SYN-SENT до TLS",
+    "owner-provided community preset, который на той же сети помогал Windows GUI для YouTube и Discord",
+    "ручной выбор во вкладке Стратегии; не включается автоматически"
+  ],
+  "notes": [
+    "WinDivert --wf-* switches are not passed to Linux nfqws2; nftables owner-confirmed apply still decides what reaches NFQUEUE.",
+    "Discord Cloudflare edge IPs come from Stage 7h/7i diagnostics and are used only as an experimental ipset-ip pre-TLS profile.",
+    "hostfakesplit_multi is provided by core/zapret2/lua/custom_funcs.lua as a conservative compatibility shim over built-in hostfakesplit.",
+    "Voice/UDP STUN profile from the Windows preset is intentionally not ported here; Stage 8 remains reserved for voice."
+  ],
+  "philosophy": "windows-inspired-owner-experiment",
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--lua-init=@core/zapret2/lua/zapret-auto.lua",
+    "--lua-init=@core/zapret2/lua/custom_funcs.lua",
+    "--ctrack-disable=0",
+    "--ipcache-lifetime=8400",
+    "--ipcache-hostname=1",
+    "--filter-tcp=443",
+    "--ipset-ip=162.159.128.233,162.159.135.232,162.159.136.232,162.159.137.232,162.159.138.232,162.159.129.233,162.159.130.233,162.159.133.233,162.159.134.233,162.159.135.233,162.159.130.234,162.159.133.234,162.159.134.234,162.159.135.234,162.159.136.234",
+    "--out-range=-s1",
+    "--lua-desync=wssize:wsize=1:scale=6",
+    "--lua-desync=syndata:blob=fake_default_tls",
+    "--new",
+    "--filter-tcp=443",
+    "--hostlist-domains=updates.discord.com,discord.com",
+    "--out-range=-d10",
+    "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2",
+    "--new",
+    "--filter-tcp=80,443,1080,2053,2083,2087,2096,8443",
+    "--hostlist-domains=discord.media",
+    "--out-range=-d10",
+    "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2",
+    "--new",
+    "--filter-tcp=80,443,1080,2053,2083,2087,2096,8443",
+    "--hostlist-domains=discord.com,gateway.discord.gg,cdn.discordapp.com,media.discordapp.net,discord.gg,discordapp.net,updates.discord.com,stable.dl2.discordapp.net",
+    "--out-range=-d10",
+    "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2",
+    "--new",
+    "--filter-tcp=80,443",
+    "--hostlist-domains=youtube.com,www.youtube.com,googlevideo.com,ytimg.com,youtu.be",
+    "--out-range=-d8",
+    "--lua-desync=multidisorder:pos=1,host+2,sld+2,sld+5,sniext+1,sniext+2,endhost-2:seqovl=1",
+    "--new",
+    "--filter-udp=443",
+    "--ipset-ip=142.250.0.0/15,172.217.0.0/16,172.253.0.0/16,173.194.0.0/16,74.125.0.0/16",
+    "--out-range=-n8",
+    "--payload=all",
+    "--lua-desync=fake:repeats=6:blob=fake_default_quic"
+  ],
+  "schemaVersion": 1,
+  "serviceTarget": {
+    "nonVoice": true,
+    "presetId": "discord-desktop",
+    "summary": "Windows-inspired strategy seed for Discord pre-TLS edge SYN-SENT diagnostics and ordinary app/gateway/CDN phases; YouTube TCP/QUIC fallback included from the same community preset.",
+    "title": "Discord desktop non-voice + YouTube fallback"
+  },
+  "sourcePreset": {
+    "engine": "winws2/community",
+    "id": "community-discord-youtube-edge-flow-source",
+    "metadataPath": "strategies/imported/community-discord-youtube-edge-flow.json",
+    "name": "Owner-provided community Windows preset extract",
+    "portingLevel": "experimental-linux-bridge",
+    "sourcePath": "strategies/imported/community-discord-youtube-edge-flow.txt",
+    "windowsOptionsExecuted": false
+  },
+  "summary": "Экспериментальный Linux bridge для owner-provided community Windows preset: Discord updater/app/CDN hostfakesplit seed плюс pre-TLS edge ipset wssize/syndata probe и YouTube fallback.",
+  "title": "Community Discord+YouTube edge-flow bridge",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-discord"
+  ]
+}

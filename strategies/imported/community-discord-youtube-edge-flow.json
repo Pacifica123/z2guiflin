@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "community-discord-youtube-edge-flow-source",
+  "name": "Owner-provided community Windows preset extract",
+  "engine": "winws2/community",
+  "sourcePath": "strategies/imported/community-discord-youtube-edge-flow.txt",
+  "windowsOptionsExecuted": false,
+  "portingLevel": "linux-concept-bridge",
+  "notes": [
+    "WinDivert --wf-* options are not executed on Linux.",
+    "hostfakesplit_multi is bridged through core/zapret2/lua/custom_funcs.lua as a conservative first-host compatibility shim.",
+    "The Linux strategy adds an explicit Discord Cloudflare edge-ipset phase because local diagnostics observed Discord stuck in SYN-SENT before TLS."
+  ]
+}

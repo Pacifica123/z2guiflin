@@ -392,3 +392,7 @@ The watcher remains read-only: it samples `ss`, `pgrep` and DNS metadata, does n
 ### v0.4-alpha Stage 7i — Discord DNS edge diagnosis
 
 Stage 7i переносит идею Windows GUI DNS-проверок в read-only Linux diagnostic. Команды `--discord-dns-edge-plan` и `--discord-dns-edge-check` сравнивают system/Cloudflare/Google/Quad9/AdGuard/OpenDNS resolvers и проверяют TCP/443 для возвращённых Discord edge IP. Это не меняет DNS и не требует sudo. Если найден `connect-ok` edge, DNS/hosts steering можно рассматривать как owner-confirmed эксперимент. Если все edge IP timeout, то текущий Discord updater blocker шире, чем DNS-подмена, и обычные TLS Blockcheck-стратегии всё ещё не упражняются на SYN-SENT socket.
+
+## v0.4-alpha Stage 7j
+
+Stage 7j is an experimental Discord/YouTube strategy bridge, not a version milestone reset. It imports the concept of an owner-provided community Windows preset into a Linux-selectable strategy while preserving the rule that strategies do not execute automatically and runtime changes require owner confirmation.

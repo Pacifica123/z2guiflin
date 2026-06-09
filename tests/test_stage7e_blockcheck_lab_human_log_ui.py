@@ -9,7 +9,7 @@ def test_blockcheck_lab_has_less_cramped_control_sizing() -> None:
     source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
 
     assert "setMinimumHeight(38)" in source
-    assert "form.setColumnMinimumWidth(1, 320)" in source
+    assert "form.setColumnMinimumWidth(1, 360)" in source
     assert "form_box.setMinimumHeight(320)" in source
     assert "action_button.setMinimumHeight(38)" in source
     assert "Raw log" in source

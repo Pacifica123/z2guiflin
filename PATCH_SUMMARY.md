@@ -1,32 +1,30 @@
-# v0.4-alpha Stage 7i — Discord DNS edge diagnosis
+# v0.4-alpha Stage 7j — community edge-flow bridge and diagnostics UI width fix
 
-Stage 7i answers the owner question about the Windows GUI DNS concept: DNS can help only if another resolver returns a different Discord edge IP that actually completes TCP/443. The patch adds a read-only Linux diagnostic instead of mutating DNS immediately.
+Stage 7j reacts to owner evidence that a community Windows preset can make YouTube and Discord work on the same network where the Linux Discord path is stuck before TLS. The patch adds an experimental Linux strategy bridge instead of continuing DNS-only or TLS-only diagnosis.
 
 ## Added
 
-- `gui/zap2_gui/adapters/discord_dns_edge_diagnostics.py`
-  - compares system/Cloudflare/Google/Quad9/AdGuard/OpenDNS resolver outputs;
-  - TCP-probes returned IPv4 edge addresses on port 443;
-  - writes diagnosis snapshots under `.zap2/discord-discovery/`;
-  - reports whether DNS/hosts steering is plausible or whether all tested edges timeout before TLS.
-- CLI:
-  - `--discord-dns-edge-plan`
-  - `--discord-dns-edge-check`
-  - `--discord-dns-edge-hosts`
-  - `--discord-dns-edge-resolvers`
-  - `--discord-dns-edge-timeout`
-- `docs/DISCORD_DNS_EDGE_DIAGNOSTICS.md`
-- `tests/test_stage7i_discord_dns_edge_diagnostics.py`
+- `strategies/community-discord-youtube-edge-flow.json`
+  - owner-selectable experimental strategy;
+  - Discord Cloudflare edge `ipset-ip` + `wssize/syndata` pre-TLS seed;
+  - Discord updater/app/CDN `hostfakesplit_multi` profiles;
+  - YouTube TCP/QUIC fallback profiles from the same community preset concept.
+- `strategies/imported/community-discord-youtube-edge-flow.txt`
+- `strategies/imported/community-discord-youtube-edge-flow.json`
+- `core/zapret2/lua/custom_funcs.lua`
+  - conservative `hostfakesplit_multi` compatibility shim over built-in `hostfakesplit`.
+- `docs/WINDOWS_COMMUNITY_PRESET_PORTING.md`
+- `tests/test_stage7j_community_edge_flow_strategy.py`
 
 ## Changed
 
-- Discord docs now record the Stage 7i decision branch: connect-ok DNS edge means DNS/hosts steering may be worth an owner-confirmed experiment; all-timeout edges mean the blocker is broader than DNS and ordinary TLS Blockcheck strategies are not exercised yet.
-- `tests/test_service_target_presets.py` now matches the Stage 7h updater-first order (`updates.discord.com stable.dl2.discordapp.net`).
+- `strategies/catalog.json` now lists the new experimental strategy.
+- Blockcheck Lab layout uses fixed content width/minimum widths so the diagnostics output no longer collapses into a tiny centered column.
+- Existing UI layout tests now assert the less-collapsed Stage 7j sizing.
 
 ## Boundaries
 
-- Does not change system DNS.
-- Does not edit `/etc/hosts`.
-- Does not require sudo.
-- Does not mutate firewall, services or runtime state.
-- Does not claim Discord is fixed; it classifies whether the DNS idea is relevant to the observed `SYN-SENT` updater failure.
+- The new strategy is not selected automatically.
+- No firewall/services are changed during tests.
+- WinDivert `--wf-*` options are not executed on Linux.
+- Voice/UDP STUN from the community preset is not ported; Stage 8 remains reserved for voice investigation.

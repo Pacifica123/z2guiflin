@@ -538,3 +538,7 @@ Stage 7h adds TCP state/timer and DNS matching to the Discord endpoint watcher. 
 ### v0.4-alpha Stage 7i — Discord DNS edge diagnosis
 
 Stage 7i переносит идею Windows GUI DNS-проверок в read-only Linux diagnostic. Команды `--discord-dns-edge-plan` и `--discord-dns-edge-check` сравнивают system/Cloudflare/Google/Quad9/AdGuard/OpenDNS resolvers и проверяют TCP/443 для возвращённых Discord edge IP. Это не меняет DNS и не требует sudo. Если найден `connect-ok` edge, DNS/hosts steering можно рассматривать как owner-confirmed эксперимент. Если все edge IP timeout, то текущий Discord updater blocker шире, чем DNS-подмена, и обычные TLS Blockcheck-стратегии всё ещё не упражняются на SYN-SENT socket.
+
+### v0.4-alpha Stage 7j note
+
+After DNS and endpoint diagnostics showed Discord stuck before TLS, Stage 7j adds an experimental `community-discord-youtube-edge-flow` strategy based on the owner-provided Windows community preset. It must be selected manually in the Strategies tab and run through the usual owner-confirmed Default workflow.

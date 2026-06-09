@@ -318,3 +318,9 @@ The watcher remains read-only: it samples `ss`, `pgrep` and DNS metadata, does n
 ### v0.4-alpha Stage 7i — Discord DNS edge diagnosis
 
 Stage 7i переносит идею Windows GUI DNS-проверок в read-only Linux diagnostic. Команды `--discord-dns-edge-plan` и `--discord-dns-edge-check` сравнивают system/Cloudflare/Google/Quad9/AdGuard/OpenDNS resolvers и проверяют TCP/443 для возвращённых Discord edge IP. Это не меняет DNS и не требует sudo. Если найден `connect-ok` edge, DNS/hosts steering можно рассматривать как owner-confirmed эксперимент. Если все edge IP timeout, то текущий Discord updater blocker шире, чем DNS-подмена, и обычные TLS Blockcheck-стратегии всё ещё не упражняются на SYN-SENT socket.
+
+## Stage 7j: community Windows preset bridge
+
+Owner evidence changed the Stage 7 conclusion: Windows GUI can make Discord work on the same network, so the Linux path must also test Windows-inspired early-flow runtime ideas rather than only DNS or TLS Blockcheck candidates. Stage 7j adds `community-discord-youtube-edge-flow`, an experimental owner-selected strategy derived from the community preset that helped both YouTube and Discord on Windows.
+
+The bridge is intentionally not a raw WinDivert port. It keeps the Linux owner-confirmed nftables/NFQUEUE lifecycle, adds a small `hostfakesplit_multi` Lua compatibility shim, and includes a Discord Cloudflare edge `ipset-ip` + `wssize/syndata` seed for the observed `SYN-SENT` updater blocker. Voice/STUN remains outside this Stage and is still reserved for Stage 8.
