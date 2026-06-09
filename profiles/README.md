@@ -11,3 +11,20 @@
 - только связывает выбранную стратегию, build target и локальные файлы данных.
 
 Формат намеренно простой JSON, чтобы владелец мог редактировать его вручную и видеть, что именно будет читать будущий GUI.
+
+## v0.4-alpha Stage 4: Discord hostlist alignment
+
+`profiles/hostlists/default.hosts` теперь является общим owner-maintained seed
+для двух фиксированных service target preset-ов: `youtube-basic` и
+`discord-desktop`. Это не включает скрытый runtime-switch и не гарантирует
+одновременную работу сервисов, но устраняет практический разрыв: Discord targets,
+проверенные через Blockcheck Lab, присутствуют в hostlist, который Default
+workflow передаёт локальному `nfqws2`.
+
+Минимальные Discord entries, добавленные на этой стадии:
+
+```text
+gateway.discord.gg
+cdn.discordapp.com
+media.discordapp.net
+```

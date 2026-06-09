@@ -83,3 +83,26 @@ PYTHONPATH=gui python -m zap2_gui.app --blockcheck-plan   --blockcheck-target-pr
 Stage 3 не меняет hostlist/runtime alignment. Поэтому Discord strategy, найденная
 через selector, всё ещё требует следующего stage: убедиться, что Default workflow
 применяет выбранные args к тем же Discord hostlist entries.
+
+## Stage 4: hostlist/runtime alignment
+
+`v0.4-alpha_stage_4` добавляет минимальный coverage contract между registry и
+runtime hostlist. Теперь `profiles/hostlists/default.hosts` обязан покрывать
+фиксированные targets preset-ов:
+
+- `youtube-basic`;
+- `discord-desktop`.
+
+Для Discord Stage 4 явно добавляет недостающие entries:
+
+```text
+gateway.discord.gg
+cdn.discordapp.com
+media.discordapp.net
+```
+
+Также появился небольшой parser/validator в `service_targets.py`: он нормализует
+строки hostlist, умеет сравнивать домены с URI-like targets и возвращает список
+недостающих entries. Это не runtime auto-switching и не объединение стратегий:
+цель только в том, чтобы strategy, найденная через Discord Blockcheck preset, не
+потеряла эти же targets при запуске через Default workflow hostlist.

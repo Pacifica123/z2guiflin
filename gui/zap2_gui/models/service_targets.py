@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 SERVICE_TARGET_YOUTUBE_BASIC = "youtube-basic"
 SERVICE_TARGET_DISCORD_DESKTOP = "discord-desktop"
@@ -69,6 +70,73 @@ def normalize_service_targets(targets: str | tuple[str, ...] | list[str]) -> tup
         values = tuple(str(item).strip() for item in targets if str(item).strip())
     validate_service_targets(values)
     return values
+
+
+def service_target_host_token(target: str) -> str:
+    """Return the hostlist token that should cover a service target.
+
+    Stage 4 keeps presets domain-based, but this helper accepts simple URI-like
+    targets too so future probes can be compared with hostlists without copying
+    string parsing into tests or runtime adapters.
+    """
+
+    value = target.strip()
+    if not value:
+        return ""
+    if "://" in value:
+        parsed = urlparse(value)
+        value = parsed.hostname or ""
+    else:
+        value = value.split("/", 1)[0]
+        if value.startswith("[") and "]" in value:
+            value = value[1:].split("]", 1)[0]
+        else:
+            value = value.split(":", 1)[0]
+    value = value.strip().lower().rstrip(".")
+    if value.startswith("*."):
+        value = value[2:]
+    return value
+
+
+def hostlist_entries_from_text(text: str) -> tuple[str, ...]:
+    """Parse owner-maintained hostlist text into comparable domain tokens."""
+
+    entries: list[str] = []
+    seen: set[str] = set()
+    for raw_line in text.splitlines():
+        line = raw_line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        token = service_target_host_token(line.split()[0])
+        if not token or token in seen:
+            continue
+        seen.add(token)
+        entries.append(token)
+    return tuple(entries)
+
+
+def service_targets_missing_from_hostlist(
+    targets: tuple[str, ...] | list[str],
+    hostlist_text: str,
+) -> tuple[str, ...]:
+    """Return preset targets whose host token is absent from hostlist text."""
+
+    entries = set(hostlist_entries_from_text(hostlist_text))
+    missing: list[str] = []
+    for target in targets:
+        token = service_target_host_token(str(target))
+        if token and token not in entries:
+            missing.append(str(target))
+    return tuple(missing)
+
+
+def service_target_preset_missing_from_hostlist(preset_id: str, hostlist_text: str) -> tuple[str, ...]:
+    """Return missing hostlist entries for a non-custom service target preset."""
+
+    preset = get_service_target_preset(preset_id)
+    if preset.is_custom:
+        raise ValueError("custom service target preset has no fixed hostlist coverage contract")
+    return service_targets_missing_from_hostlist(preset.targets, hostlist_text)
 
 
 def validate_service_targets(targets: tuple[str, ...] | list[str]) -> None:

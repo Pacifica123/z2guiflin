@@ -25,7 +25,7 @@ tests/     небольшие структурные тесты для ново�
 
 Текущая ветка открывает `v0.4-alpha`. Цель нового цикла — применить ту же цепочку к desktop-версии Discord: подобрать рабочие target domains/probes, научиться получать generated strategy, выбирать её и запускать Default workflow для оживления Discord. На протяжении `v0.4-*` осознанно игнорируется более сложная задача композиции «YouTube + Discord одновременно»: достаточно научиться выбирать и запускать стратегию под один целевой сервис за раз.
 
-`v0.4-alpha_stage_3` выводит registry service target presets в Blockcheck Lab и CLI: `youtube-basic` остаётся default, `discord-desktop` подставляет Discord desktop non-voice targets без ручного ввода, а `custom` сохраняет безопасный ручной режим. Runtime/hostlist alignment остаётся следующей стадией.
+`v0.4-alpha_stage_4` выравнивает Discord discovery и runtime: `discord-desktop` targets из registry теперь покрыты `profiles/hostlists/default.hosts`, а тесты ловят будущий дрейф между Blockcheck preset и Default workflow hostlist. YouTube baseline остаётся в том же hostlist; одновременная работа YouTube и Discord по-прежнему не гарантируется как цель цикла.
 
 ```bash
 python tools/gui_checks/check_project_tree.py
@@ -355,3 +355,22 @@ Stage 3 подключает registry к пользовательскому Bloc
 Этот stage всё ещё не меняет `runtime_apply` и не гарантирует, что найденная
 Discord strategy будет применена ко всем нужным hostlist entries. Следующий шаг —
 Discord hostlist/runtime alignment.
+
+## v0.4-alpha Stage 4: Discord hostlist/runtime alignment
+
+Stage 4 закрывает первый практический разрыв между Blockcheck discovery и
+Default workflow: домены, которые `discord-desktop` отдаёт в Blockcheck Lab,
+теперь присутствуют в `profiles/hostlists/default.hosts`. Особенно важные
+entries добавлены явно:
+
+```text
+gateway.discord.gg
+cdn.discordapp.com
+media.discordapp.net
+```
+
+Default hostlist при этом сохраняет YouTube baseline. Runtime apply/session не
+получают новый скрытый режим «лечить всё сразу»: выбранная strategy всё ещё одна,
+а hostlist является общим owner-maintained seed, через который Default workflow
+передаёт targets в `nfqws2`. Новые тесты проверяют, что `youtube-basic` и
+`discord-desktop` не расходятся с default hostlist.

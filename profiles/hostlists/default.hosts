@@ -11,10 +11,15 @@ youtu.be
 ytimg.com
 googlevideo.com
 
-# Discord
+# Discord / desktop non-voice
+# v0.4-alpha Stage 4: this block intentionally covers the `discord-desktop`
+# service target preset used by Blockcheck Lab before Default workflow start.
 discord.com
 www.discord.com
 discord.gg
+gateway.discord.gg
+cdn.discordapp.com
+media.discordapp.net
 discordapp.com
 discordapp.net
 discordcdn.com

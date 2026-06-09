@@ -1,17 +1,17 @@
 {
   "buildTarget": "nfqws2",
-  "description": "Базовый workspace-профиль v0.3-beta: связывает Default bridge strategy, build target и owner-maintained hostlist seed без автоматического применения настроек к системе.",
+  "description": "Базовый workspace-профиль v0.4-alpha: связывает Default bridge strategy, build target и owner-maintained hostlist seed, который теперь покрывает YouTube baseline и Discord desktop non-voice targets без автоматического применения настроек к системе.",
   "hostlists": [
     {
       "id": "owner-maintained",
       "path": "profiles/hostlists/default.hosts",
-      "purpose": "Seed-список доменов, частично перенесённый из Windows GUI Default v1 и расширяемый владельцем вручную."
+      "purpose": "Seed-список доменов: сохраняет YouTube baseline и покрывает Discord desktop non-voice service target preset; расширяется владельцем вручную."
     }
   ],
   "id": "default",
   "notes": [
-    "Default hostlist больше не пустой: он содержит минимальный seed из Windows GUI Default v1 (game filter).",
-    "Полный перенос Windows hostlists/ipsets ещё не выполнен и должен идти отдельными проверяемыми патчами.",
+    "Default hostlist больше не пустой: он содержит YouTube baseline и v0.4-alpha Discord desktop non-voice alignment seed.",
+    "Полный перенос Windows hostlists/ipsets ещё не выполнен; Stage 4 добавляет только домены, нужные для discord-desktop non-voice registry coverage.",
     "Никакие системные действия из этого профиля не выполняются автоматически."
   ],
   "safety": {

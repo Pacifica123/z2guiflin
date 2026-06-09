@@ -102,6 +102,23 @@ Discord non-voice прогон можно начать без ручного н�
 не синхронизирован с Discord seed, поэтому найденная Discord strategy не считается
 полностью готовой к owner verification до Stage 4.
 
+## Stage 4 hostlist/runtime alignment
+
+`v0.4-alpha_stage_4` делает первый Discord runtime path воспроизводимее:
+`profiles/hostlists/default.hosts` теперь покрывает тот же `discord-desktop`
+non-voice seed, который выбирается в Blockcheck Lab. Добавлены особенно важные
+entries для desktop-клиента:
+
+```text
+gateway.discord.gg
+cdn.discordapp.com
+media.discordapp.net
+```
+
+Это не включает voice/UDP и не меняет смысл Default workflow. Runtime по-прежнему
+запускает одну выбранную strategy через owner confirmation, но hostlist больше не
+расходится с Discord targets, по которым была найдена generated strategy.
+
 ## Признаки готовности к v0.4-beta
 
 `v0.4-alpha` можно считать готовой к переходу в beta, когда владелец сможет сказать:

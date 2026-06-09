@@ -191,3 +191,16 @@ Stage 3 не продвигает проект к `beta`, потому что Di
 alignment и service-aware export ещё не завершены. Следующие патчи должны
 продолжать текущую stage-нумерацию и не менять правило: YouTube baseline не
 удаляется ради Discord.
+
+## v0.4-alpha Stage 4
+
+`v0.4-alpha_stage_4` закрывает hostlist/runtime alignment для первого Discord
+non-voice прохода. Он добавляет в default hostlist недостающие Discord entries
+`gateway.discord.gg`, `cdn.discordapp.com` и `media.discordapp.net`, а также
+фиксирует тестовый contract: `youtube-basic` и `discord-desktop` preset-ы должны
+быть покрыты `profiles/hostlists/default.hosts`.
+
+Stage 4 не вводит service auto-switching, не переносит Windows presets целиком и
+не обещает одновременную работу YouTube и Discord. Это только выравнивание
+Blockcheck targets и runtime hostlist перед следующей стадией service-aware
+export/Strategy UX.

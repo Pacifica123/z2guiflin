@@ -108,18 +108,20 @@ Stage 3 всё ещё не меняет runtime apply и hostlist.
 
 ### Stage 4 — Discord hostlist/runtime alignment
 
-Синхронизировать то, что проверяется Blockcheck, с тем, к чему затем применяется
-Default workflow:
+Текущий patch синхронизирует то, что проверяется Blockcheck, с тем, к чему затем
+применяется Default workflow:
 
-- добавить недостающие Discord hostlist entries, особенно `gateway.discord.gg`,
+- добавлены недостающие Discord hostlist entries, особенно `gateway.discord.gg`,
   `cdn.discordapp.com`, `media.discordapp.net`;
-- документировать, что generated Discord strategy должна запускаться на hostlist,
-  где эти targets реально присутствуют;
-- не удалять YouTube entries из default hostlist;
-- не пытаться автоматически объединять несовместимые `nfqws2` args.
+- default hostlist теперь покрывает полный `discord-desktop` non-voice seed из
+  registry;
+- YouTube entries не удалены и остаются baseline-путём;
+- добавлен parser/validator, который проверяет drift между service target preset
+  и hostlist;
+- автоматическое объединение несовместимых `nfqws2` args не вводится.
 
 Ожидаемый результат: если Blockcheck нашёл стратегию для Discord target, runtime
-не теряет этот target на стадии применения.
+не теряет этот target на стадии применения через Default workflow hostlist.
 
 ### Stage 5 — service-aware export и Strategy UX
 
