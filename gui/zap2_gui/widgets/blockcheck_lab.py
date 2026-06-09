@@ -30,9 +30,12 @@ from ..adapters.blockcheck_gui import (
 from ..adapters.discord_verification import discord_non_voice_verification_plan_to_text
 from ..models.service_targets import (
     DEFAULT_BLOCKCHECK_TARGET_STRING,
+    SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
     SERVICE_TARGET_CUSTOM,
     SERVICE_TARGET_DISCORD_DESKTOP,
     get_service_target_preset,
+    service_target_phase_chain,
+    service_target_policy,
     service_target_recommended_scan_mode,
     list_service_target_presets,
 )
@@ -184,6 +187,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         "monitor": None,
         "candidate_targets": [],
         "candidate_index": 0,
+        "phase_gated_run": False,
+        "candidate_phase_groups": [],
+        "candidate_phase_index": 0,
+        "candidate_phase_had_available": False,
         "active_target_preset": str(target_preset_combo.currentData()),
         "custom_targets": "",
         "syncing_target_preset": False,
@@ -271,7 +278,15 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             targets = state.get("candidate_targets") or []
             index = int(state.get("candidate_index") or 0)
             if targets:
-                status.setText(f"Статус: blockcheck candidate {index + 1}/{len(targets)} выполняется…")
+                phase_groups = state.get("candidate_phase_groups") or []
+                if state.get("phase_gated_run") and phase_groups:
+                    phase_index = int(state.get("candidate_phase_index") or 0)
+                    status.setText(
+                        f"Статус: tournament phase {phase_index + 1}/{len(phase_groups)}, "
+                        f"candidate {index + 1}/{len(targets)} выполняется…"
+                    )
+                else:
+                    status.setText(f"Статус: blockcheck candidate {index + 1}/{len(targets)} выполняется…")
             else:
                 status.setText("Статус: blockcheck выполняется…")
         else:
@@ -311,6 +326,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             append_output("\n[GUI] Sequential Blockcheck candidates finished.")
             state["candidate_targets"] = []
             state["candidate_index"] = 0
+            state["phase_gated_run"] = False
+            state["candidate_phase_groups"] = []
+            state["candidate_phase_index"] = 0
+            state["candidate_phase_had_available"] = False
             set_running(False)
             return
 
@@ -354,10 +373,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             f"return code: {exit_code}",
             f"exit status: {exit_status}",
             f"stopped by owner: {'yes' if stopped else 'no'}",
-            f"auto skipped dead target: {'yes' if auto_skip_reason else 'no'}",
+            f"auto stopped candidate: {'yes' if auto_skip_reason else 'no'}",
         ]
         if auto_skip_reason:
-            footer.append(f"auto skip reason: {auto_skip_reason}")
+            footer.append(f"auto stop reason: {auto_skip_reason}")
         if prepared is not None:
             footer.append(f"log path: {prepared.command.log_path or 'не задан'}")
         if stats.has_observations:
@@ -380,6 +399,56 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         current_index = int(state.get("candidate_index") or 0)
         next_exists = current_index + 1 < len(targets)
         scan_mode = prepared.command.options.scan_mode if prepared is not None else BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE
+
+        if not stopped and state.get("phase_gated_run"):
+            phase_groups = list(state.get("candidate_phase_groups") or [])
+            phase_index = int(state.get("candidate_phase_index") or 0)
+            phase_passed = bool(state.get("candidate_phase_had_available")) or stats.available > 0
+            if phase_passed:
+                next_phase_index = phase_index + 1
+                if next_phase_index < len(phase_groups):
+                    state["candidate_phase_index"] = next_phase_index
+                    state["candidate_targets"] = list(phase_groups[next_phase_index])
+                    state["candidate_index"] = 0
+                    state["candidate_phase_had_available"] = False
+                    append_output(
+                        "\n[GUI] Tournament phase passed; moving to next required phase "
+                        f"{next_phase_index + 1}/{len(phase_groups)}."
+                    )
+                    status.setText("Статус: переход к следующей tournament phase…")
+                    QtCore.QTimer.singleShot(250, start_next_candidate)
+                    return
+                append_output("\n[GUI] Tournament phase chain finished: every required phase has at least one AVAILABLE alternative.")
+                state["candidate_targets"] = []
+                state["candidate_index"] = 0
+                state["phase_gated_run"] = False
+                state["candidate_phase_groups"] = []
+                state["candidate_phase_index"] = 0
+                state["candidate_phase_had_available"] = False
+                set_running(False)
+                return
+
+            if next_exists:
+                state["candidate_index"] = current_index + 1
+                append_output("\n[GUI] Tournament phase alternative failed; trying next alternative in the same phase.")
+                status.setText("Статус: переход к alternative внутри текущей phase…")
+                QtCore.QTimer.singleShot(250, start_next_candidate)
+                return
+
+            phase_label = f"{phase_index + 1}/{len(phase_groups)}" if phase_groups else str(phase_index + 1)
+            append_output(
+                "\n[GUI] Tournament phase blocked: no AVAILABLE alternative in required phase "
+                f"{phase_label}. Stopping before later phases to preserve the user's ordered strategy loop."
+            )
+            state["candidate_targets"] = []
+            state["candidate_index"] = 0
+            state["phase_gated_run"] = False
+            state["candidate_phase_groups"] = []
+            state["candidate_phase_index"] = 0
+            state["candidate_phase_had_available"] = False
+            set_running(False)
+            return
+
         should_continue = False
         if not stopped and next_exists:
             if scan_mode == BLOCKCHECK_SCAN_ALL_TARGETS:
@@ -396,6 +465,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
         state["candidate_targets"] = []
         state["candidate_index"] = 0
+        state["phase_gated_run"] = False
+        state["candidate_phase_groups"] = []
+        state["candidate_phase_index"] = 0
+        state["candidate_phase_had_available"] = False
         set_running(False)
 
     def handle_process_error(error: Any) -> None:
@@ -433,7 +506,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             )
             state["stderr"].append(message)
             append_output(message)
-            status.setText("Статус: dead target detected; stopping candidate…")
+            status.setText("Статус: candidate auto-stop requested…")
             process.terminate()
             QtCore.QTimer.singleShot(3000, lambda: process.kill() if state.get("process") is process else None)
 
@@ -445,6 +518,14 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             reason = monitor.feed_stdout(data)
             if reason:
                 request_auto_skip(reason)
+            elif state.get("phase_gated_run"):
+                stats = parse_blockcheck_run_stats("".join(state["stdout"]), "".join(state["stderr"]))
+                if stats.available > 0:
+                    state["candidate_phase_had_available"] = True
+                    request_auto_skip(
+                        f"phase-alternative-available for {target}: available={stats.available}; "
+                        "moving to next required phase"
+                    )
             flush_live_log()
 
         def read_stderr() -> None:
@@ -494,18 +575,62 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             output.setPlainText("Blockcheck run: отменено пользователем")
             return
         try:
-            targets = list(collect_options().ordered_domains_for_policy())
+            options = collect_options()
+            targets = list(options.ordered_domains_for_policy())
+            policy = service_target_policy(options.service_target_preset_id)
         except Exception as exc:
             output.setPlainText(f"Blockcheck run: ошибка параметров\n{exc}")
             return
-        state["candidate_targets"] = targets
-        state["candidate_index"] = 0
-        output.setPlainText(
-            "Sequential Blockcheck run\n"
-            f"candidates: {', '.join(targets)}\n"
-            f"candidate mode: {scan_mode_combo.currentData()}\n"
-            "dead-target guard: enabled; evidence-based, no wall-clock timeout"
+
+        phase_groups: list[list[str]] = []
+        phase_gated = (
+            policy.mode == SERVICE_COVERAGE_ORDERED_TARGET_CHAIN
+            and str(scan_mode_combo.currentData()) == BLOCKCHECK_SCAN_ALL_TARGETS
+            and options.service_target_preset_id != SERVICE_TARGET_CUSTOM
         )
+        if phase_gated:
+            try:
+                phase_groups = [list(phase.targets) for phase in service_target_phase_chain(options.service_target_preset_id) if phase.required]
+            except Exception as exc:
+                output.setPlainText(f"Blockcheck run: ошибка tournament phase policy\n{exc}")
+                return
+            if not phase_groups:
+                phase_gated = False
+
+        if phase_gated:
+            state["phase_gated_run"] = True
+            state["candidate_phase_groups"] = phase_groups
+            state["candidate_phase_index"] = 0
+            state["candidate_phase_had_available"] = False
+            state["candidate_targets"] = phase_groups[0]
+            state["candidate_index"] = 0
+            phase_lines = [
+                f"  {index + 1}. {' OR '.join(group)}"
+                for index, group in enumerate(phase_groups)
+            ]
+            output.setPlainText(
+                "Phase-gated Blockcheck tournament run\n"
+                "semantics: phases are AND; alternatives inside one phase are OR\n"
+                "runner rule: do not advance to later phases until the current phase has an AVAILABLE alternative\n"
+                "runner rule: when a phase alternative becomes AVAILABLE, stop that candidate and advance to the next phase\n"
+                f"candidate mode: {scan_mode_combo.currentData()}\n"
+                "phases:\n"
+                + "\n".join(phase_lines)
+                + "\ndead-target guard: enabled; evidence-based, no wall-clock timeout"
+            )
+        else:
+            state["phase_gated_run"] = False
+            state["candidate_phase_groups"] = []
+            state["candidate_phase_index"] = 0
+            state["candidate_phase_had_available"] = False
+            state["candidate_targets"] = targets
+            state["candidate_index"] = 0
+            output.setPlainText(
+                "Sequential Blockcheck run\n"
+                f"candidates: {', '.join(targets)}\n"
+                f"candidate mode: {scan_mode_combo.currentData()}\n"
+                "dead-target guard: enabled; evidence-based, no wall-clock timeout"
+            )
         start_next_candidate()
 
     def stop_blockcheck() -> None:

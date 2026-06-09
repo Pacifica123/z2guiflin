@@ -1,48 +1,19 @@
-# v0.4-alpha Stage 7b: phase-aware one-strategy tournament
+# v0.4-alpha Stage 7c — phase-gated tournament runner correction
 
-Патч исправляет модель Stage 7a по схеме владельца: стратегии должны проверяться по одной, а не пачкой `N` стратегий на одном target-е. Одна стратегия-кандидат идёт через цепочку фаз и либо становится новым record-holder, либо помечается непрошедшей.
+This patch fixes the Stage 7b owner-observed mismatch where the Blockcheck GUI still scanned later raw targets after earlier required Discord phases were blocked.
 
-## Что изменилось
+## Changed
 
-- Добавлена фазовая модель service coverage:
-  - фазы связаны через `AND`;
-  - targets внутри одной фазы связаны через `OR`.
-- `discord-desktop` теперь описан как фазы:
-  1. `updater`: `stable.dl2.discordapp.net` OR `updates.discord.com`;
-  2. `app-api`: `discord.com`;
-  3. `gateway`: `gateway.discord.gg`;
-  4. `cdn-media`: `cdn.discordapp.com` OR `media.discordapp.net` OR `discord.media` OR `discordapp.net`;
-  5. `invite`: `discord.gg`.
-- `Tournament` view теперь показывает не только target coverage, но и phase score / phase prefix / first blocker phase.
-- `updates.discord.com` больше не обнуляет ordered prefix, если updater-фаза прошла через `stable.dl2.discordapp.net`.
-- Добавлен one-strategy validation bridge через upstream `custom` lists:
-  - из generated strategy берётся одна `nfqws2`-команда;
-  - runtime scaffolding (`--lua-init`, `--filter-*`) отбрасывается;
-  - команда пишется в `.zap2/blockcheck/tournament/custom-lists/<strategy>/list_https_tls12.txt` и `list_https_tls13.txt`.
-- Добавлен CLI plan:
+- The Blockcheck Lab runner now enables a phase-gated mode for presets whose service coverage policy is `ordered-target-chain`.
+- For phase-gated runs, phases are processed in policy order and targets inside a phase are alternatives.
+- A phase must have an AVAILABLE alternative before the runner may advance to the next phase.
+- If a required phase has no AVAILABLE alternative after all its targets are tried, the runner stops before later phases.
+- If a phase alternative becomes AVAILABLE, the GUI stops that candidate and advances to the next phase instead of spending hundreds of checks on the same target.
+- Footer wording now says `auto stopped candidate` rather than `auto skipped dead target`, because Stage 7c uses auto-stop both for dead targets and for enough evidence on a passed phase.
+- Tests document that the GUI runner is phase-gated and no longer just a raw coverage scan for ordered desktop-style services.
 
-```bash
-PYTHONPATH=gui python -m zap2_gui.app --blockcheck-validate-strategy-plan <strategy-id> --blockcheck-domains discord.com
-```
+## Not changed
 
-## Граница
-
-Stage 7b не запускает автоматический полный tournament сам по себе. Он вводит общий фазовый контракт и мост one-strategy custom-list validation, чтобы следующий слой мог без переписывания GUI/ядра реализовать AFK-режим: взять стратегию, проверить фазу, продвинуть record-holder, перейти к следующей фазе или кандидату.
-
-## Проверки
-
-```bash
-PYTHONPATH=gui python -m pytest \
-  tests/test_service_coverage_policy_tournament.py \
-  tests/test_service_target_presets.py \
-  tests/test_service_target_hostlist_alignment.py \
-  tests/test_blockcheck_target_coverage.py \
-  tests/test_blockcheck_gui_lab.py \
-  tests/test_service_aware_strategy_export.py \
-  tests/test_discord_owner_verification_loop.py \
-  tests/test_workspace_profiles_and_strategies.py \
-  tests/test_v04_alpha_patch_roadmap.py \
-  tests/test_documentation_language.py -q
-
-python -m compileall -q gui tests
-```
+- YouTube remains `any-target-available`.
+- Discord voice/UDP remains reserved for the later voice stage.
+- Stage 7c does not yet implement the full automatic record-holder strategy validator across upstream custom one-strategy lists; it fixes the live GUI ordering/phase gate first.

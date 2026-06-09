@@ -290,3 +290,29 @@ PYTHONPATH=gui python -m zap2_gui.app --blockcheck-validate-strategy-plan <strat
 ```
 
 Граница Stage 7b: патч фиксирует фазовую модель, record-holder семантику и one-strategy custom-list bridge. Полный автоматический GUI-run, который сам берёт кандидата, гонит его по всем фазам и останавливается на полном покрытии, остаётся следующим реализационным слоем поверх этого контракта.
+
+## v0.4-alpha Stage 7c — phase-gated tournament runner correction
+
+Stage 7c corrects the Stage 7b runner mismatch observed during owner testing: the GUI must not continue to later Discord phases after an earlier required phase has no AVAILABLE alternative. The previous Stage 7b report described one-strategy tournament semantics, but the live `Scan all preset targets` runner still behaved like raw target coverage and could continue from blocked updater/app/gateway phases to a later CDN target.
+
+The GUI Blockcheck runner is now phase-gated for presets with `ordered-target-chain` policy:
+
+```text
+phase 1 alternatives are tested first
+if any alternative becomes AVAILABLE -> stop that candidate and advance to phase 2
+if every alternative in the current required phase fails/dead-targets -> stop before later phases
+later phases are never scanned out of order just because they appear later in the domain list
+```
+
+For Discord desktop non-voice this means:
+
+```text
+updater/bootstrap: stable.dl2.discordapp.net OR updates.discord.com
+then app-api: discord.com
+then gateway: gateway.discord.gg
+then cdn-media alternatives
+then invite
+```
+
+This patch intentionally preserves the Stage 7b one-strategy custom-list bridge. The full automatic record-holder validator is still a separate layer, but the GUI no longer produces misleading "random later domain" evidence when the ordered phase chain has already blocked.
+

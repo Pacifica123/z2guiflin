@@ -161,3 +161,13 @@ def test_one_strategy_validation_plan_writes_single_custom_lists(tmp_path: Path)
     assert "LIST_HTTPS_TLS12=" in text
     assert "TEST=custom" in text or "custom list root" in text
     assert "executes now: no" in text
+
+
+def test_ordered_tournament_gui_runner_is_phase_gated() -> None:
+    source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
+
+    assert "Phase-gated Blockcheck tournament run" in source
+    assert "do not advance to later phases until the current phase has an AVAILABLE alternative" in source
+    assert "Tournament phase blocked: no AVAILABLE alternative in required phase" in source
+    assert "phase-alternative-available" in source
+    assert "service_target_phase_chain" in source
