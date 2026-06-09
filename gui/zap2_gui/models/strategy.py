@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
@@ -44,6 +45,27 @@ class WorkspaceStrategy:
         if title and preset_id:
             return f"{title} ({preset_id})"
         return title or preset_id or "not tagged"
+
+
+    @property
+    def service_target_coverage_label(self) -> str:
+        if not self.service_target:
+            return "coverage: not tagged"
+        coverage = self.service_target.get("coverage")
+        if not isinstance(coverage, dict):
+            return "coverage: unavailable"
+        targets = coverage.get("targets")
+        if not isinstance(targets, list):
+            return "coverage: unavailable"
+        counts: Counter[str] = Counter()
+        for item in targets:
+            if isinstance(item, dict):
+                counts[str(item.get("status") or "unknown")] += 1
+        if not counts:
+            return "coverage: unavailable"
+        summary = ", ".join(f"{status}={count}" for status, count in sorted(counts.items()))
+        scope = str(coverage.get("scope") or "per-target")
+        return f"coverage: {summary}; scope: {scope}"
 
     @property
     def is_plan_only(self) -> bool:

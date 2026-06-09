@@ -9,9 +9,13 @@ from . import PRODUCT_LABEL
 from .adapters.blockcheck_gui import (
     SUPPORTED_BLOCKCHECK_IPVS,
     SUPPORTED_BLOCKCHECK_SCANLEVELS,
+    SUPPORTED_BLOCKCHECK_SCAN_MODES,
     SUPPORTED_BLOCKCHECK_TESTS,
+    BLOCKCHECK_SCAN_ALL_TARGETS,
+    BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
     BlockcheckOptions,
     blockcheck_build_plan_to_text,
+    blockcheck_coverage_to_text,
     blockcheck_plan_to_text,
     blockcheck_preflight_to_text,
     execute_blockcheck_prereq_build,
@@ -334,6 +338,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="создать strategies/generated/*.json из AVAILABLE стратегий последнего blockcheck log и обновить catalog.json",
     )
     parser.add_argument(
+        "--blockcheck-coverage",
+        action="store_true",
+        help="показать per-target coverage manifest для последнего service target preset; без исполнения",
+    )
+    parser.add_argument(
         "--select-strategy",
         metavar="STRATEGY_ID",
         help="выбрать strategy id для Default profile; только сохраняет .zap2 selection, без запуска",
@@ -358,6 +367,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--blockcheck-domains",
         default=None,
         help="ручные домены/URI для blockcheck; если задано, режим считается custom override",
+    )
+    parser.add_argument(
+        "--blockcheck-scan-mode",
+        choices=SUPPORTED_BLOCKCHECK_SCAN_MODES,
+        default=None,
+        help="candidate scan mode: для discord-desktop по умолчанию scan-all-targets, для остальных stop-after-first-available",
     )
     parser.add_argument(
         "--blockcheck-test",
@@ -455,10 +470,19 @@ def _blockcheck_service_target_preset_id_from_args(args: argparse.Namespace) -> 
     return str(args.blockcheck_target_preset)
 
 
+def _blockcheck_scan_mode_from_args(args: argparse.Namespace) -> str:
+    if args.blockcheck_scan_mode:
+        return str(args.blockcheck_scan_mode)
+    if str(args.blockcheck_target_preset) == "discord-desktop" and not (args.blockcheck_domains or "").strip():
+        return BLOCKCHECK_SCAN_ALL_TARGETS
+    return BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE
+
+
 def _blockcheck_options_from_args(args: argparse.Namespace) -> BlockcheckOptions:
     return BlockcheckOptions(
         domains=_blockcheck_domains_from_args(args),
         service_target_preset_id=_blockcheck_service_target_preset_id_from_args(args),
+        scan_mode=_blockcheck_scan_mode_from_args(args),
         test=args.blockcheck_test,
         scanlevel=args.blockcheck_scanlevel,
         ipvs=args.blockcheck_ipvs,
@@ -732,6 +756,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.blockcheck_last_log:
         print(last_blockcheck_log_to_text())
+        return 0
+
+    if args.blockcheck_coverage:
+        print(blockcheck_coverage_to_text())
         return 0
 
     if args.blockcheck_export_strategies:

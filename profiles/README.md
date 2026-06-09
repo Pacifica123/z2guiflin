@@ -28,3 +28,8 @@ gateway.discord.gg
 cdn.discordapp.com
 media.discordapp.net
 ```
+
+
+## v0.4-alpha Stage 7
+
+Default hostlist теперь также покрывает `stable.dl2.discordapp.net`, потому что первая проверка desktop Discord зависла на updater-фазе `Checking for updates`. Этот target нужен для evidence-driven проверки updater/download layer и не включает voice/UDP.

@@ -425,6 +425,8 @@ def workspace_strategies_to_text(root: Path | None = None) -> str:
         active_marker = " [selected for Default]" if strategy.strategy_id == active_id else ""
         lines.append(f"  {strategy.strategy_id}{default_marker}{active_marker}: {strategy.title}")
         lines.append(f"    service target: {strategy.service_target_label}")
+        if strategy.service_target and isinstance(strategy.service_target.get("coverage"), dict):
+            lines.append(f"    {strategy.service_target_coverage_label}")
         lines.append(f"    philosophy: {strategy.philosophy}; plan-only: yes; runtime args: {len(strategy.runtime_args)}")
     if catalog.active_selection:
         lines.append(f"active selection file: {catalog.active_selection.path}")
@@ -450,6 +452,7 @@ def workspace_strategy_to_text(strategy_id: str, root: Path | None = None) -> st
             f"title: {strategy.title}",
             f"summary: {strategy.summary}",
             f"service target: {strategy.service_target_label}",
+            strategy.service_target_coverage_label,
             f"philosophy: {strategy.philosophy}",
             f"intended for: {intended}",
             f"workflow: {workflow}",

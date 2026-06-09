@@ -32,12 +32,21 @@ from ..models.service_targets import (
     infer_service_target_preset_id,
     normalize_service_targets,
     service_target_export_slug,
+    service_target_title,
 )
 from ..project_paths import discover_layout
 
 SUPPORTED_BLOCKCHECK_TESTS = ("standard", "custom")
 SUPPORTED_BLOCKCHECK_SCANLEVELS = ("quick", "standard", "force")
 SUPPORTED_BLOCKCHECK_IPVS = ("4", "6", "46")
+BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE = "stop-after-first-available"
+BLOCKCHECK_SCAN_ALL_TARGETS = "scan-all-targets"
+BLOCKCHECK_SCAN_SKIP_DEAD_ONLY = "skip-dead-targets-only"
+SUPPORTED_BLOCKCHECK_SCAN_MODES = (
+    BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
+    BLOCKCHECK_SCAN_ALL_TARGETS,
+    BLOCKCHECK_SCAN_SKIP_DEAD_ONLY,
+)
 
 
 @dataclass(frozen=True)
@@ -92,6 +101,7 @@ class BlockcheckOptions:
 
     domains: str = DEFAULT_BLOCKCHECK_TARGET_STRING
     service_target_preset_id: str = DEFAULT_SERVICE_TARGET_PRESET_ID
+    scan_mode: str = BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE
     test: str = "standard"
     scanlevel: str = "quick"
     ipvs: str = "4"
@@ -119,6 +129,7 @@ class BlockcheckOptions:
         return BlockcheckOptions(
             domains=target,
             service_target_preset_id=self.service_target_preset_id,
+            scan_mode=self.scan_mode,
             test=self.test,
             scanlevel=self.scanlevel,
             ipvs=self.ipvs,
@@ -135,6 +146,8 @@ class BlockcheckOptions:
     def validate(self) -> None:
         self.normalized_domains()
         get_service_target_preset(self.service_target_preset_id)
+        if self.scan_mode not in SUPPORTED_BLOCKCHECK_SCAN_MODES:
+            raise ValueError(f"Неподдерживаемый scan mode: {self.scan_mode}")
         if self.test not in SUPPORTED_BLOCKCHECK_TESTS:
             raise ValueError(f"Неподдерживаемый blockcheck test: {self.test}")
         if self.scanlevel not in SUPPORTED_BLOCKCHECK_SCANLEVELS:
@@ -157,6 +170,7 @@ class BlockcheckOptions:
             "TEST": self.test,
             "DOMAINS": " ".join(self.normalized_domains()),
             "ZAP2_SERVICE_TARGET_PRESET": self.service_target_preset_id,
+            "ZAP2_BLOCKCHECK_SCAN_MODE": self.scan_mode,
             "IPVS": self.ipvs,
             "SCANLEVEL": self.scanlevel,
             "ENABLE_HTTP": "1" if self.enable_http else "0",
@@ -194,7 +208,8 @@ class GeneratedStrategyFile:
     source_probe: str
     source_target: str
     service_target_preset_id: str
-    runtime_args: tuple[str, ...]
+    coverage_status: str = "single-target"
+    runtime_args: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -206,6 +221,7 @@ class BlockcheckGeneratedStrategiesResult:
     service_target_preset_id: str
     generated: tuple[GeneratedStrategyFile, ...]
     catalog_path: Path
+    source_logs: tuple[Path, ...] = ()
 
     @property
     def ok(self) -> bool:
@@ -215,6 +231,7 @@ class BlockcheckGeneratedStrategiesResult:
         lines = [
             "Blockcheck generated strategies",
             f"source log: {self.source_log}",
+            f"source logs: {len(self.source_logs) if self.source_logs else 1}",
             f"target label: {self.target_label}",
             f"service target preset: {self.service_target_preset_id}",
             f"generated files: {len(self.generated)}",
@@ -226,7 +243,7 @@ class BlockcheckGeneratedStrategiesResult:
             lines.append("generated strategy files:")
             for item in self.generated:
                 lines.append(f"  - {item.strategy_id}: {item.path}")
-                lines.append(f"    probe: {item.source_probe}; target: {item.source_target}; runtime args: {len(item.runtime_args)}")
+                lines.append(f"    probe: {item.source_probe}; target: {item.source_target}; coverage: {item.coverage_status}; runtime args: {len(item.runtime_args)}")
             lines.extend(
                 [
                     "next: open the Strategies tab, select one generated strategy for Default, then run Default workflow",
@@ -292,6 +309,8 @@ class BlockcheckCommand:
     env_overrides: dict[str, str] = field(default_factory=dict)
     script_env: dict[str, str] = field(default_factory=dict)
     log_path: Path | None = None
+    candidate_log_path: Path | None = None
+    coverage_manifest_path: Path | None = None
     backend: str = "sudo-askpass"
     worker_identity: BlockcheckWorkerIdentity | None = None
 
@@ -315,11 +334,14 @@ class BlockcheckCommand:
             "Blockcheck GUI plan",
             f"domains: {', '.join(self.options.normalized_domains())}",
             f"service target preset: {self.options.service_target_preset_id} ({get_service_target_preset(self.options.service_target_preset_id).title})",
+            f"candidate scan mode: {self.options.scan_mode}",
             f"test: {self.options.test}",
             f"scanlevel: {self.options.scanlevel}",
             f"ip versions: {self.options.ipvs}",
             f"cwd: {self.cwd}",
             f"log path: {self.log_path or 'не задан'}",
+            f"candidate log path: {self.candidate_log_path or 'не задан'}",
+            f"coverage manifest: {self.coverage_manifest_path or 'не задан'}",
             worker_line,
             "uses sudo askpass: yes",
             "uses pkexec/polkit: no",
@@ -483,6 +505,7 @@ class PreparedBlockcheckExecution:
                 "mode: live QProcess streaming; GUI remains responsive",
                 "overall timeout: none; use Stop to terminate intentionally",
                 f"log path: {self.command.log_path or 'не задан'}",
+                f"candidate log path: {self.command.candidate_log_path or 'не задан'}",
                 "",
                 self.command.to_text(),
                 "",
@@ -788,6 +811,12 @@ def build_blockcheck_command(root: Path | None = None, options: BlockcheckOption
     rw_root = state_root / "rw"
     logs_root = state_root / "logs"
     log_path = logs_root / "last-blockcheck.txt"
+    coverage_manifest_path = logs_root / "candidates" / "coverage-manifest.json"
+    candidate_log_path = None
+    normalized_domains = opts.normalized_domains()
+    if len(normalized_domains) == 1:
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        candidate_log_path = logs_root / "candidates" / f"{stamp}-{_slug(opts.service_target_preset_id, max_len=32)}-{_slug(normalized_domains[0], max_len=64)}.txt"
     askpass = _planned_askpass_script_path(layout.root)
     worker_identity = current_blockcheck_worker_identity()
 
@@ -816,6 +845,8 @@ def build_blockcheck_command(root: Path | None = None, options: BlockcheckOption
         env_overrides={"SUDO_ASKPASS": str(askpass)},
         script_env=env_assignments,
         log_path=log_path,
+        candidate_log_path=candidate_log_path,
+        coverage_manifest_path=coverage_manifest_path,
         worker_identity=worker_identity,
     )
 
@@ -1161,6 +1192,223 @@ def _select_blockcheck_export_log(root: Path | None = None) -> Path:
         return last
     return successful if successful.exists() else last
 
+def _coverage_status_from_stats(stats: BlockcheckRunStats) -> str:
+    if stats.available > 0:
+        return "available"
+    if stats.port_precheck_dead:
+        return "dead-target"
+    if stats.strategy_attempts > 0 and stats.unknown == 0:
+        return "unavailable"
+    if stats.has_observations:
+        return "unknown"
+    return "not-tested"
+
+
+def _json_rel_path(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def _target_coverage_template(preset_id: str, observed_targets: tuple[str, ...]) -> dict[str, dict[str, object]]:
+    try:
+        preset = get_service_target_preset(preset_id)
+    except ValueError:
+        preset = get_service_target_preset(SERVICE_TARGET_CUSTOM)
+    targets = preset.targets if not preset.is_custom else observed_targets
+    coverage: dict[str, dict[str, object]] = {}
+    for target in targets:
+        coverage[str(target)] = {
+            "target": str(target),
+            "status": "not-tested",
+            "availableStrategies": 0,
+            "strategyChecks": 0,
+            "lastLog": "",
+            "updatedAt": "",
+        }
+    for target in observed_targets:
+        coverage.setdefault(
+            str(target),
+            {
+                "target": str(target),
+                "status": "not-tested",
+                "availableStrategies": 0,
+                "strategyChecks": 0,
+                "lastLog": "",
+                "updatedAt": "",
+            },
+        )
+    return coverage
+
+
+def _summarize_coverage_targets(targets: dict[str, dict[str, object]]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for item in targets.values():
+        counts[str(item.get("status") or "unknown")] += 1
+    return dict(sorted(counts.items()))
+
+
+def _read_coverage_manifest(path: Path) -> dict[str, object] | None:
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _update_blockcheck_coverage_manifest(command: BlockcheckCommand, stats: BlockcheckRunStats, text: str) -> None:
+    if command.coverage_manifest_path is None or command.candidate_log_path is None:
+        return
+    try:
+        targets = command.options.normalized_domains()
+    except ValueError:
+        return
+    if len(targets) != 1:
+        return
+    target = targets[0]
+    manifest_path = command.coverage_manifest_path
+    root = command.cwd
+    preset_id = command.options.service_target_preset_id
+    now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    existing = _read_coverage_manifest(manifest_path)
+    if existing and existing.get("serviceTargetPresetId") == preset_id:
+        data = dict(existing)
+        raw_targets = data.get("targets") if isinstance(data.get("targets"), dict) else {}
+        coverage = _target_coverage_template(preset_id, tuple(str(key) for key in raw_targets))
+        for key, value in raw_targets.items():
+            if isinstance(value, dict):
+                coverage[str(key)] = dict(value)
+    else:
+        data = {
+            "schemaVersion": 1,
+            "serviceTargetPresetId": preset_id,
+            "serviceTargetTitle": service_target_title(preset_id),
+            "scanMode": command.options.scan_mode,
+            "createdAt": now,
+            "targets": {},
+        }
+        coverage = _target_coverage_template(preset_id, targets)
+
+    candidate_rel = _json_rel_path(command.candidate_log_path, root)
+    coverage[target] = {
+        "target": target,
+        "status": _coverage_status_from_stats(stats),
+        "availableStrategies": stats.available,
+        "strategyChecks": stats.strategy_attempts,
+        "unavailableStrategies": stats.unavailable,
+        "unknownStrategies": stats.unknown,
+        "portConnects": stats.port_connects,
+        "portFailures": stats.port_failures,
+        "verdict": stats.verdict,
+        "lastLog": candidate_rel,
+        "updatedAt": now,
+    }
+    data["updatedAt"] = now
+    data["scanMode"] = command.options.scan_mode
+    data["targets"] = coverage
+    data["summary"] = _summarize_coverage_targets(coverage)
+    data["notes"] = [
+        "Coverage is per target candidate; one AVAILABLE target does not prove the whole service preset.",
+        "Stage 7 uses this manifest to avoid mistaking discord.com-only success for full Discord desktop readiness.",
+    ]
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def blockcheck_coverage_manifest_path(root: Path | None = None) -> Path:
+    layout = discover_layout(root)
+    return layout.root / ".zap2" / "blockcheck" / "logs" / "candidates" / "coverage-manifest.json"
+
+
+def blockcheck_coverage_to_text(root: Path | None = None) -> str:
+    path = blockcheck_coverage_manifest_path(root)
+    data = _read_coverage_manifest(path)
+    if not data:
+        return "Blockcheck target coverage\nmanifest: отсутствует\nread-only: yes\nexecutes now: no"
+    targets = data.get("targets") if isinstance(data.get("targets"), dict) else {}
+    lines = [
+        "Blockcheck target coverage",
+        f"manifest: {path}",
+        f"service target preset: {data.get('serviceTargetPresetId', 'unknown')} ({data.get('serviceTargetTitle', 'unknown')})",
+        f"scan mode: {data.get('scanMode', 'unknown')}",
+        f"updated at: {data.get('updatedAt', '')}",
+        "targets:",
+    ]
+    for target, item in targets.items():
+        if not isinstance(item, dict):
+            continue
+        lines.append(
+            "  - "
+            f"{target}: {item.get('status', 'unknown')} "
+            f"(available={item.get('availableStrategies', 0)}; checks={item.get('strategyChecks', 0)}; log={item.get('lastLog', '')})"
+        )
+    lines.extend(["read-only: yes", "executes now: no", "mutates services/firewall now: no"])
+    return "\n".join(lines)
+
+
+def _coverage_rows_for_strategy(root: Path, service_target_preset_id: str, source_target: str) -> tuple[dict[str, object], ...]:
+    manifest = _read_coverage_manifest(blockcheck_coverage_manifest_path(root))
+    if not manifest or manifest.get("serviceTargetPresetId") != service_target_preset_id:
+        return ({"target": source_target, "status": "available", "source": "single-log"},)
+    targets = manifest.get("targets") if isinstance(manifest.get("targets"), dict) else {}
+    rows: list[dict[str, object]] = []
+    for target, item in targets.items():
+        if isinstance(item, dict):
+            rows.append(
+                {
+                    "target": str(target),
+                    "status": str(item.get("status") or "unknown"),
+                    "availableStrategies": int(item.get("availableStrategies") or 0),
+                    "strategyChecks": int(item.get("strategyChecks") or 0),
+                    "lastLog": str(item.get("lastLog") or ""),
+                }
+            )
+    return tuple(rows or ({"target": source_target, "status": "available", "source": "single-log"},))
+
+
+def _coverage_status_for_target(root: Path, service_target_preset_id: str, target: str) -> str:
+    for row in _coverage_rows_for_strategy(root, service_target_preset_id, target):
+        if str(row.get("target")) == target:
+            return str(row.get("status") or "unknown")
+    return "unknown"
+
+
+def _candidate_export_logs_from_manifest(root: Path) -> tuple[Path, ...]:
+    manifest = _read_coverage_manifest(blockcheck_coverage_manifest_path(root))
+    if not manifest:
+        return ()
+    targets = manifest.get("targets") if isinstance(manifest.get("targets"), dict) else {}
+    logs: list[Path] = []
+    seen: set[Path] = set()
+    for item in targets.values():
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("status")) != "available":
+            continue
+        rel_log = str(item.get("lastLog") or "")
+        if not rel_log:
+            continue
+        path = (root / rel_log).resolve()
+        try:
+            path.relative_to(root.resolve())
+        except ValueError:
+            continue
+        if path.is_file() and path not in seen and _blockcheck_log_has_available_strategies(path):
+            logs.append(path)
+            seen.add(path)
+    return tuple(logs)
+
+
+def _select_blockcheck_export_logs(root: Path | None = None) -> tuple[Path, ...]:
+    layout = discover_layout(root)
+    candidate_logs = _candidate_export_logs_from_manifest(layout.root)
+    if candidate_logs:
+        return candidate_logs
+    return (_select_blockcheck_export_log(layout.root),)
+
 
 def _domains_from_blockcheck_log(text: str, fallback: str = "blockcheck") -> tuple[str, ...]:
     for raw_line in text.splitlines():
@@ -1234,6 +1482,7 @@ def _strategy_payload(
     root: Path,
     index: int,
     generated_at: str,
+    coverage_rows: tuple[dict[str, object], ...] = (),
 ) -> dict[str, object]:
     try:
         source_path = _catalog_relative(source_log, root)
@@ -1270,6 +1519,11 @@ def _strategy_payload(
             "nonVoice": service_preset.non_voice,
             "targets": list(target_domains),
             "exportedCandidate": available.target,
+            "coverage": {
+                "source": "blockcheck-candidate-coverage",
+                "scope": "per-target; not a full-service guarantee unless every required target is available",
+                "targets": list(coverage_rows),
+            },
         },
         "sourcePreset": {
             "engine": "nfqws2",
@@ -1291,50 +1545,71 @@ def _strategy_payload(
             "Generated from a concrete AVAILABLE line in the last Blockcheck lab log.",
             "The original nfqws2 command is preserved after base Lua init and protocol filter args.",
             "This file is catalog data only; choosing it does not start network changes until Default workflow is explicitly planned, confirmed and started.",
+            "Stage 7 records per-target coverage so a discord.com-only AVAILABLE strategy is not presented as proven coverage for the whole Discord desktop path.",
         ],
     }
 
 
 def export_blockcheck_available_strategies(root: Path | None = None, max_strategies: int = 0) -> BlockcheckGeneratedStrategiesResult:
-    """Convert AVAILABLE strategies from the last blockcheck log into catalog files."""
+    """Convert AVAILABLE strategies from recent blockcheck logs into catalog files."""
 
     layout = discover_layout(root)
-    source_log = _select_blockcheck_export_log(layout.root)
+    source_logs = _select_blockcheck_export_logs(layout.root)
+    source_log = source_logs[0]
     catalog_path = layout.root / "strategies" / "catalog.json"
     generated_dir = layout.root / "strategies" / "generated"
-    if not source_log.is_file():
-        raise ValueError(f"Успешный blockcheck log для экспорта не найден: {source_log}")
-    text = source_log.read_text(encoding="utf-8", errors="replace")
-    available = list(parse_blockcheck_available_strategies(text))
+    for item in source_logs:
+        if not item.is_file():
+            raise ValueError(f"Успешный blockcheck log для экспорта не найден: {item}")
+
+    gathered: list[tuple[Path, tuple[str, ...], str, AvailableBlockcheckStrategy]] = []
+    for log_path in source_logs:
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+        domains = _domains_from_blockcheck_log(text)
+        service_target_preset_id = _service_target_preset_from_blockcheck_log(text, domains)
+        for available in parse_blockcheck_available_strategies(text):
+            gathered.append((log_path, domains, service_target_preset_id, available))
+
     if max_strategies > 0:
-        available = available[:max_strategies]
-    domains = _domains_from_blockcheck_log(text)
-    service_target_preset_id = _service_target_preset_from_blockcheck_log(text, domains)
-    service_preset = get_service_target_preset(service_target_preset_id)
-    service_slug = service_target_export_slug(service_target_preset_id)
-    target_label = _slug(domains[0])
-    export_label = _slug(service_slug) if service_target_preset_id != SERVICE_TARGET_CUSTOM else target_label
-    if not available:
+        gathered = gathered[:max_strategies]
+
+    first_domains = gathered[0][1] if gathered else _domains_from_blockcheck_log(source_log.read_text(encoding="utf-8", errors="replace")) if source_log.is_file() else ("blockcheck",)
+    first_preset_id = gathered[0][2] if gathered else infer_service_target_preset_id(first_domains)
+    service_slug = service_target_export_slug(first_preset_id)
+    target_label = _slug(first_domains[0])
+    export_label = _slug(service_slug) if first_preset_id != SERVICE_TARGET_CUSTOM else target_label
+    if not gathered:
         return BlockcheckGeneratedStrategiesResult(
             source_log=source_log,
             target_label=target_label,
-            service_target_preset_id=service_target_preset_id,
+            service_target_preset_id=first_preset_id,
             generated=(),
             catalog_path=catalog_path,
+            source_logs=source_logs,
         )
+
     generated_dir.mkdir(parents=True, exist_ok=True)
     generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    stamp = datetime.fromtimestamp(source_log.stat().st_mtime, timezone.utc).strftime("%Y%m%d-%H%M%S")
     files: list[GeneratedStrategyFile] = []
-    for index, item in enumerate(available, 1):
+    for index, (log_path, domains, service_target_preset_id, item) in enumerate(gathered, 1):
+        service_preset = get_service_target_preset(service_target_preset_id)
+        service_slug = service_target_export_slug(service_target_preset_id)
+        export_label = _slug(service_slug) if service_target_preset_id != SERVICE_TARGET_CUSTOM else _slug(domains[0])
+        stamp = datetime.fromtimestamp(log_path.stat().st_mtime, timezone.utc).strftime("%Y%m%d-%H%M%S")
         candidate_label = _slug(item.target or domains[0], max_len=32)
         strategy_id = f"blockcheck-{export_label}-{candidate_label}-{stamp}-{index:02d}"
         filename = f"{strategy_id}.json"
         path = generated_dir / filename
+        coverage_rows = _coverage_rows_for_strategy(layout.root, service_target_preset_id, item.target or domains[0])
+        target_status = _coverage_status_for_target(layout.root, service_target_preset_id, item.target or domains[0])
+        coverage_summary = ", ".join(
+            f"{row.get('target')}={row.get('status')}" for row in coverage_rows
+        )
         title = f"Blockcheck {service_preset.title} / {item.target or domains[0]} #{index:02d}"
         summary = (
             f"Generated AVAILABLE strategy for {service_preset.title} "
-            f"candidate {item.target or domains[0]} from {item.probe} ({item.script})."
+            f"candidate {item.target or domains[0]} from {item.probe} ({item.script}). "
+            f"Coverage status for this candidate: {target_status}."
         )
         payload = _strategy_payload(
             strategy_id=strategy_id,
@@ -1343,11 +1618,13 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
             target_domains=domains,
             service_target_preset_id=service_target_preset_id,
             available=item,
-            source_log=source_log,
+            source_log=log_path,
             root=layout.root,
             index=index,
             generated_at=generated_at,
+            coverage_rows=coverage_rows,
         )
+        payload.setdefault("notes", []).append(f"Coverage snapshot: {coverage_summary}")
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         files.append(
             GeneratedStrategyFile(
@@ -1356,6 +1633,7 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
                 source_probe=item.probe,
                 source_target=item.target,
                 service_target_preset_id=service_target_preset_id,
+                coverage_status=target_status,
                 runtime_args=item.runtime_args,
             )
         )
@@ -1363,9 +1641,10 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
     return BlockcheckGeneratedStrategiesResult(
         source_log=source_log,
         target_label=target_label,
-        service_target_preset_id=service_target_preset_id,
+        service_target_preset_id=first_preset_id,
         generated=tuple(files),
         catalog_path=catalog_path,
+        source_logs=source_logs,
     )
 
 
@@ -1414,6 +1693,10 @@ def write_blockcheck_last_log(command: BlockcheckCommand, stdout: str, stderr: s
         parts.extend(["\n===== GUI FINISH =====\n", footer.rstrip(), "\n"])
     text = "".join(parts)
     command.log_path.write_text(text, encoding="utf-8")
+    if command.candidate_log_path is not None:
+        command.candidate_log_path.parent.mkdir(parents=True, exist_ok=True)
+        command.candidate_log_path.write_text(text, encoding="utf-8")
+        _update_blockcheck_coverage_manifest(command, stats, text)
 
     # Keep a durable export source that is not overwritten by a later dead-target
     # or owner-stopped failed run. This turns Blockcheck lab into a safe pipeline:

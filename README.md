@@ -27,6 +27,9 @@ tests/     небольшие структурные тесты для ново�
 
 `v0.4-alpha_stage_4` выравнивает Discord discovery и runtime: `discord-desktop` targets из registry теперь покрыты `profiles/hostlists/default.hosts`, а тесты ловят будущий дрейф между Blockcheck preset и Default workflow hostlist. YouTube baseline остаётся в том же hostlist; одновременная работа YouTube и Discord по-прежнему не гарантируется как цель цикла.
 
+`v0.4-alpha_stage_7` добавляет failure-driven coverage loop для Discord desktop: preset расширен updater/download target-ом `stable.dl2.discordapp.net`, Blockcheck Lab умеет `scan-all-targets`, candidate logs сохраняются per-target, а generated strategies получают coverage snapshot. Это исправляет главный вывод первой проверки: успех на `discord.com` больше не считается доказательством, что desktop updater прошёл `Checking for updates`.
+
+
 ```bash
 python tools/gui_checks/check_project_tree.py
 python tools/gui_checks/inventory_core.py --check

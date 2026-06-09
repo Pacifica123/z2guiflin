@@ -239,3 +239,33 @@ CDN/media. Шаблон создаётся в `.zap2/verification/discord-non-vo
 Stage 6 не запускает проверки автоматически, не меняет firewall/services и не
 считает voice/UDP частью успеха. Его задача — собрать evidence для Stage 7: что
 именно сломалось или подтвердилось в окружении владельца.
+## v0.4-alpha Stage 7: failure-driven target coverage
+
+`v0.4-alpha_stage_7` меняет акцент после первой личной проверки владельца: найденные `AVAILABLE` стратегии для `discord.com` оказались полезным сигналом, но не доказали прохождение desktop Discord updater. Поэтому Stage 7 добавляет evidence-first coverage loop.
+
+Главные изменения:
+
+- `discord-desktop` preset расширен target-ом `stable.dl2.discordapp.net`, который относится к updater/download layer.
+- Blockcheck options получили candidate scan mode:
+  - `stop-after-first-available` — удобен для уже подтверждённого YouTube baseline;
+  - `scan-all-targets` — default для `discord-desktop`, потому что desktop Discord состоит из updater, app/API/gateway и CDN/media слоёв;
+  - `skip-dead-targets-only` — сохраняет старую осторожную модель перехода только после dead-target evidence.
+- GUI Blockcheck Lab получил selector `Candidate mode` и кнопку `Coverage`.
+- Каждый single-candidate run сохраняется в `.zap2/blockcheck/logs/candidates/`.
+- Per-target manifest `.zap2/blockcheck/logs/candidates/coverage-manifest.json` показывает status для каждого target: `available`, `unavailable`, `dead-target`, `unknown` или `not-tested`.
+- Export generated strategies теперь берёт AVAILABLE candidate logs из coverage manifest и кладёт coverage snapshot прямо в strategy JSON.
+- Strategy UX показывает coverage summary, чтобы `discord.com`-only успех больше не выглядел как подтверждение всего Discord desktop path.
+
+Новый owner-facing диагностический контур:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-plan \
+  --blockcheck-target-preset discord-desktop \
+  --blockcheck-scan-mode scan-all-targets
+
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-coverage
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-export-strategies
+```
+
+Ключевой критерий после Stage 7: если desktop Discord зависает на `Checking for updates`, сначала смотреть coverage по `updates.discord.com` и `stable.dl2.discordapp.net`, а не считать любую стратегию для `discord.com` достаточной.
+

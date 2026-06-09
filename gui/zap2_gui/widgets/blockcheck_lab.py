@@ -6,11 +6,15 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ..adapters.blockcheck_gui import (
+    BLOCKCHECK_SCAN_ALL_TARGETS,
+    BLOCKCHECK_SCAN_SKIP_DEAD_ONLY,
+    BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
     BlockcheckOptions,
     BlockcheckPortPrecheckMonitor,
     BlockcheckPreparationError,
     PreparedBlockcheckExecution,
     blockcheck_build_plan_to_text,
+    blockcheck_coverage_to_text,
     blockcheck_plan_to_text,
     blockcheck_preflight_to_text,
     execute_blockcheck_prereq_build,
@@ -25,6 +29,7 @@ from ..adapters.discord_verification import discord_non_voice_verification_plan_
 from ..models.service_targets import (
     DEFAULT_BLOCKCHECK_TARGET_STRING,
     SERVICE_TARGET_CUSTOM,
+    SERVICE_TARGET_DISCORD_DESKTOP,
     get_service_target_preset,
     list_service_target_presets,
 )
@@ -68,6 +73,12 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     domains_edit.setObjectName("blockcheckDomainsEdit")
     domains_edit.setPlaceholderText(DEFAULT_BLOCKCHECK_TARGET_STRING)
 
+    scan_mode_combo = QtWidgets.QComboBox()
+    scan_mode_combo.setObjectName("blockcheckCandidateScanMode")
+    scan_mode_combo.addItem("Stop after first AVAILABLE", BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE)
+    scan_mode_combo.addItem("Scan all preset targets", BLOCKCHECK_SCAN_ALL_TARGETS)
+    scan_mode_combo.addItem("Skip only dead targets", BLOCKCHECK_SCAN_SKIP_DEAD_ONLY)
+
     test_combo = QtWidgets.QComboBox()
     test_combo.addItems(["standard", "custom"])
 
@@ -102,21 +113,23 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     form.addWidget(target_preset_hint, 1, 1, 1, 3)
     form.addWidget(QtWidgets.QLabel("Домены/URI"), 2, 0)
     form.addWidget(domains_edit, 2, 1, 1, 3)
-    form.addWidget(QtWidgets.QLabel("Набор"), 3, 0)
-    form.addWidget(test_combo, 3, 1)
-    form.addWidget(QtWidgets.QLabel("Scanlevel"), 3, 2)
-    form.addWidget(scan_combo, 3, 3)
-    form.addWidget(QtWidgets.QLabel("IP"), 4, 0)
-    form.addWidget(ip_combo, 4, 1)
-    form.addWidget(QtWidgets.QLabel("Repeats"), 4, 2)
-    form.addWidget(repeats_spin, 4, 3)
-    form.addWidget(QtWidgets.QLabel("Curl timeout"), 5, 0)
-    form.addWidget(timeout_spin, 5, 1)
-    form.addWidget(http_check, 6, 0)
-    form.addWidget(https12_check, 6, 1)
-    form.addWidget(https13_check, 6, 2)
-    form.addWidget(http3_check, 6, 3)
-    form.addWidget(dns_check, 7, 0, 1, 2)
+    form.addWidget(QtWidgets.QLabel("Candidate mode"), 3, 0)
+    form.addWidget(scan_mode_combo, 3, 1, 1, 3)
+    form.addWidget(QtWidgets.QLabel("Набор"), 4, 0)
+    form.addWidget(test_combo, 4, 1)
+    form.addWidget(QtWidgets.QLabel("Scanlevel"), 4, 2)
+    form.addWidget(scan_combo, 4, 3)
+    form.addWidget(QtWidgets.QLabel("IP"), 5, 0)
+    form.addWidget(ip_combo, 5, 1)
+    form.addWidget(QtWidgets.QLabel("Repeats"), 5, 2)
+    form.addWidget(repeats_spin, 5, 3)
+    form.addWidget(QtWidgets.QLabel("Curl timeout"), 6, 0)
+    form.addWidget(timeout_spin, 6, 1)
+    form.addWidget(http_check, 7, 0)
+    form.addWidget(https12_check, 7, 1)
+    form.addWidget(https13_check, 7, 2)
+    form.addWidget(http3_check, 7, 3)
+    form.addWidget(dns_check, 8, 0, 1, 2)
 
     buttons = QtWidgets.QHBoxLayout()
     preflight_button = QtWidgets.QPushButton("Preflight")
@@ -126,6 +139,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     run_button = QtWidgets.QPushButton("Запустить blockcheck")
     stop_button = QtWidgets.QPushButton("Остановить")
     export_button = QtWidgets.QPushButton("Создать стратегии")
+    coverage_button = QtWidgets.QPushButton("Coverage")
     verify_button = QtWidgets.QPushButton("Discord checklist")
     log_button = QtWidgets.QPushButton("Последний лог")
     stop_button.setEnabled(False)
@@ -136,6 +150,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     buttons.addWidget(run_button)
     buttons.addWidget(stop_button)
     buttons.addWidget(export_button)
+    buttons.addWidget(coverage_button)
     buttons.addWidget(verify_button)
     buttons.addWidget(log_button)
     buttons.addStretch(1)
@@ -182,6 +197,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         try:
             state["active_target_preset"] = preset.preset_id
             target_preset_hint.setText(f"{preset.preset_id}: {preset.summary}")
+            if preset.preset_id == SERVICE_TARGET_DISCORD_DESKTOP:
+                scan_mode_combo.setCurrentIndex(scan_mode_combo.findData(BLOCKCHECK_SCAN_ALL_TARGETS))
+            elif preset.preset_id != SERVICE_TARGET_CUSTOM and scan_mode_combo.currentData() == BLOCKCHECK_SCAN_ALL_TARGETS:
+                scan_mode_combo.setCurrentIndex(scan_mode_combo.findData(BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE))
             if preset.is_custom:
                 domains_edit.setReadOnly(False)
                 domains_edit.setPlaceholderText("example.com api.example.com")
@@ -199,6 +218,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         return BlockcheckOptions(
             domains=domains_edit.text().strip(),
             service_target_preset_id=selected_target_preset_id(),
+            scan_mode=str(scan_mode_combo.currentData() or BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE),
             test=str(test_combo.currentText()),
             scanlevel=str(scan_combo.currentText()),
             ipvs=str(ip_combo.currentText()),
@@ -235,8 +255,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
     def set_running(running: bool) -> None:
         target_preset_combo.setEnabled(not running)
+        scan_mode_combo.setEnabled(not running)
         domains_edit.setEnabled(not running)
-        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, verify_button, log_button):
+        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, coverage_button, verify_button, log_button):
             button.setEnabled(not running)
         stop_button.setEnabled(running)
         if running:
@@ -349,8 +370,19 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         state["auto_skip_reason"] = ""
 
         targets = list(state.get("candidate_targets") or [])
-        if auto_skip_reason and not stopped and int(state.get("candidate_index") or 0) + 1 < len(targets):
-            state["candidate_index"] = int(state.get("candidate_index") or 0) + 1
+        current_index = int(state.get("candidate_index") or 0)
+        next_exists = current_index + 1 < len(targets)
+        scan_mode = prepared.command.options.scan_mode if prepared is not None else BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE
+        should_continue = False
+        if not stopped and next_exists:
+            if scan_mode == BLOCKCHECK_SCAN_ALL_TARGETS:
+                should_continue = True
+            elif scan_mode == BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE:
+                should_continue = stats.available == 0
+            elif scan_mode == BLOCKCHECK_SCAN_SKIP_DEAD_ONLY:
+                should_continue = bool(auto_skip_reason)
+        if should_continue:
+            state["candidate_index"] = current_index + 1
             status.setText("Статус: переход к следующему candidate…")
             QtCore.QTimer.singleShot(250, start_next_candidate)
             return
@@ -464,6 +496,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         output.setPlainText(
             "Sequential Blockcheck run\n"
             f"candidates: {', '.join(targets)}\n"
+            f"candidate mode: {scan_mode_combo.currentData()}\n"
             "dead-target guard: enabled; evidence-based, no wall-clock timeout"
         )
         start_next_candidate()
@@ -490,6 +523,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     run_button.clicked.connect(lambda _checked=False: run_blockcheck())
     stop_button.clicked.connect(lambda _checked=False: stop_blockcheck())
     export_button.clicked.connect(lambda _checked=False: run_action("Создать стратегии", lambda: export_blockcheck_available_strategies(root=root).to_text()))
+    coverage_button.clicked.connect(lambda _checked=False: run_action("Coverage", lambda: blockcheck_coverage_to_text(root=root)))
     verify_button.clicked.connect(lambda _checked=False: run_action("Discord checklist", lambda: discord_non_voice_verification_plan_to_text(root=root)))
     log_button.clicked.connect(lambda _checked=False: run_action("Последний лог", lambda: last_blockcheck_log_to_text(root=root)))
 

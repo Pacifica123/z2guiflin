@@ -28,6 +28,7 @@ class ServiceTargetPreset:
     title: str
     summary: str
     targets: tuple[str, ...]
+    layers: dict[str, tuple[str, ...]] | None = None
     mode: str = "preset"
     non_voice: bool = True
 
@@ -50,6 +51,15 @@ class ServiceTargetPreset:
                 raise ValueError("custom service target preset must not carry fixed targets")
             return
         validate_service_targets(self.targets)
+        if self.layers is not None:
+            layer_targets: list[str] = []
+            for layer_name, targets in self.layers.items():
+                if not layer_name.strip():
+                    raise ValueError(f"service target preset {self.preset_id!r} has an empty layer name")
+                validate_service_targets(tuple(targets))
+                layer_targets.extend(targets)
+            if tuple(layer_targets) != self.targets:
+                raise ValueError(f"service target preset {self.preset_id!r} layers must match targets order exactly")
 
 
 def validate_preset_id(preset_id: str) -> None:
@@ -178,8 +188,15 @@ _SERVICE_TARGET_PRESETS = (
             "discord.media",
             "media.discordapp.net",
             "updates.discord.com",
+            "stable.dl2.discordapp.net",
             "discord.gg",
         ),
+        layers={
+            "app-api-gateway": ("discord.com", "gateway.discord.gg"),
+            "cdn-media": ("cdn.discordapp.com", "discordapp.net", "discord.media", "media.discordapp.net"),
+            "updater": ("updates.discord.com", "stable.dl2.discordapp.net"),
+            "invite": ("discord.gg",),
+        },
         non_voice=True,
     ),
     ServiceTargetPreset(
@@ -273,3 +290,15 @@ def service_target_title(preset_id: str) -> str:
 
     return get_service_target_preset(preset_id).title
 
+
+
+def service_target_layer_for_target(preset_id: str, target: str) -> str:
+    """Return the owner-facing service layer name for a target in a preset."""
+
+    preset = get_service_target_preset(preset_id)
+    token = service_target_host_token(target)
+    if preset.layers:
+        for layer_name, layer_targets in preset.layers.items():
+            if token in {service_target_host_token(item) for item in layer_targets}:
+                return layer_name
+    return "custom" if preset.is_custom else "uncategorized"

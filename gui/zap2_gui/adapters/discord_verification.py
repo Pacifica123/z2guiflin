@@ -92,15 +92,17 @@ def create_discord_non_voice_verification_loop() -> DiscordVerificationLoop:
             "Остановить Default workflow, VPN и другие DPI-bypass процессы, чтобы Blockcheck не смешивал эффекты.",
             "Во вкладке Blockcheck lab выбрать Service target: Discord desktop non-voice.",
             "Оставить HTTPS TLS1.2, HTTPS TLS1.3 и HTTP/3 QUIC включёнными; HTTP можно включать только как дополнительную пробу.",
-            "Запустить sequential Blockcheck и дождаться хотя бы одного AVAILABLE либо явного dead-target/no-available результата.",
-            "Нажать «Создать стратегии» и убедиться, что generated strategy помечена service target discord-desktop.",
+            "Запустить sequential Blockcheck в режиме Scan all preset targets и дождаться coverage по updater/app/gateway/CDN candidates.",
+            "Нажать Coverage и убедиться, что reports отдельно показывают updates.discord.com, stable.dl2.discordapp.net, gateway и CDN/media targets.",
+            "Нажать «Создать стратегии» и убедиться, что generated strategy помечена service target discord-desktop и содержит coverage snapshot.",
             "Во вкладке «Стратегии» выбрать generated Discord strategy для Default profile.",
             "Через «Обзор» подготовить/подтвердить/запустить Default workflow обычным owner-confirmed путём.",
             "Полностью закрыть desktop Discord, запустить его заново и проверить non-voice признаки ниже.",
         ),
         cli_steps=(
-            f"PYTHONPATH=gui python -m zap2_gui.app --blockcheck-plan --blockcheck-target-preset {preset.preset_id}",
-            f"PYTHONPATH=gui python -m zap2_gui.app --blockcheck-run --blockcheck-target-preset {preset.preset_id}",
+            f"PYTHONPATH=gui python -m zap2_gui.app --blockcheck-plan --blockcheck-target-preset {preset.preset_id} --blockcheck-scan-mode scan-all-targets",
+            f"PYTHONPATH=gui python -m zap2_gui.app --blockcheck-run --blockcheck-target-preset {preset.preset_id} --blockcheck-scan-mode scan-all-targets",
+            "PYTHONPATH=gui python -m zap2_gui.app --blockcheck-coverage",
             "PYTHONPATH=gui python -m zap2_gui.app --blockcheck-export-strategies",
             "PYTHONPATH=gui python -m zap2_gui.app --list-strategies",
             "PYTHONPATH=gui python -m zap2_gui.app --select-strategy <blockcheck-discord-desktop-...>",
@@ -110,6 +112,7 @@ def create_discord_non_voice_verification_loop() -> DiscordVerificationLoop:
             "Полностью перезапустить desktop Discord и заполнить owner report template.",
         ),
         success_checks=(
+            "Updater проходит фазу Checking for updates и не зависает на крутящемся логотипе.",
             "Discord desktop открывается после полного перезапуска приложения.",
             "Login/session проходит или существующая сессия переподключается без бесконечного Connecting.",
             "Gateway работает: список серверов/каналов появляется, статус подключения стабилен несколько минут.",
@@ -118,9 +121,10 @@ def create_discord_non_voice_verification_loop() -> DiscordVerificationLoop:
             "Обновления/asset endpoints не блокируют запуск клиента в этом окружении.",
         ),
         failure_buckets=(
+            "updater-checking-for-updates-loop: клиент зависает до app shell; первым делом смотреть updates.discord.com/stable.dl2.discordapp.net coverage.",
             "blockcheck-no-available: ни один Discord target не дал AVAILABLE strategy.",
             "dead-target: конкретный target не проходит port precheck и должен быть заменён/исключён.",
-            "strategy-export-mismatch: strategy создана, но service target label не discord-desktop.",
+            "strategy-export-mismatch: strategy создана, но service target label не discord-desktop или отсутствует coverage snapshot.",
             "runtime-selected-wrong-strategy: Default profile запускает YouTube/custom strategy вместо Discord-generated strategy.",
             "gateway-only-failure: UI открылся, но gateway.discord.gg не подключается или висит Connecting.",
             "cdn-media-failure: чаты работают, но cdn/media/avatars/attachments не грузятся.",
@@ -220,9 +224,11 @@ Voice/UDP: excluded from this report.
 
 Какой generated strategy id был выбран:
 
+Содержимое `--blockcheck-coverage`:
+
 Какие targets дали AVAILABLE в Blockcheck:
 
-Какие targets были dead/no-available:
+Какие targets были dead/no-available/not-tested:
 
 Содержимое `--default-status` после запуска:
 
