@@ -240,6 +240,7 @@ def _parse_strategy(path: Path) -> WorkspaceStrategy:
         runtime_args=tuple(str(item) for item in data.get("runtimeArgs", [])),
         source_preset=dict(data["sourcePreset"]) if isinstance(data.get("sourcePreset"), dict) else None,
         service_target=dict(data["serviceTarget"]) if isinstance(data.get("serviceTarget"), dict) else None,
+        capture_policy=dict(data["capturePolicy"]) if isinstance(data.get("capturePolicy"), dict) else None,
     )
 
 
@@ -427,6 +428,7 @@ def workspace_strategies_to_text(root: Path | None = None) -> str:
         lines.append(f"    service target: {strategy.service_target_label}")
         if strategy.service_target and isinstance(strategy.service_target.get("coverage"), dict):
             lines.append(f"    {strategy.service_target_coverage_label}")
+        lines.append(f"    {strategy.capture_policy_label}")
         lines.append(f"    philosophy: {strategy.philosophy}; plan-only: yes; runtime args: {len(strategy.runtime_args)}")
     if catalog.active_selection:
         lines.append(f"active selection file: {catalog.active_selection.path}")
@@ -453,6 +455,7 @@ def workspace_strategy_to_text(strategy_id: str, root: Path | None = None) -> st
             f"summary: {strategy.summary}",
             f"service target: {strategy.service_target_label}",
             strategy.service_target_coverage_label,
+            strategy.capture_policy_label,
             f"philosophy: {strategy.philosophy}",
             f"intended for: {intended}",
             f"workflow: {workflow}",

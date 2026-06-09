@@ -35,6 +35,18 @@ class WorkspaceStrategy:
     runtime_args: tuple[str, ...] = ()
     source_preset: dict[str, Any] | None = None
     service_target: dict[str, Any] | None = None
+    capture_policy: dict[str, Any] | None = None
+
+    @property
+    def capture_policy_label(self) -> str:
+        if not self.capture_policy:
+            return "capture policy: default runtime-derived"
+        kind = str(self.capture_policy.get("kind") or "custom")
+        tcp_ports = self.capture_policy.get("tcpOutPorts")
+        edge_ips = self.capture_policy.get("edgeIps")
+        tcp_count = len(tcp_ports) if isinstance(tcp_ports, list) else 0
+        edge_count = len(edge_ips) if isinstance(edge_ips, list) else 0
+        return f"capture policy: {kind}; tcp ports={tcp_count}; edge IPs={edge_count}"
 
     @property
     def service_target_label(self) -> str:

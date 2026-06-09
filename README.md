@@ -559,3 +559,11 @@ Stage 7l.1 retries the Stage 7l fix with an additional devctl/pytest guard: publ
 
 Stage 7m adds `community-discord-hostfakesplit-5222-minimal`, a Discord-only owner-selectable seed derived from an additional community Windows GUI preset. The patch makes TCP `5222` explicit in the Linux `--filter-tcp`/nft queue scope because the Windows preset exposed it in `--wf-tcp-out`. It does not auto-select the strategy and does not include the voice/STUN branch; Stage 8 remains reserved for voice/UDP.
 
+
+### v0.4-alpha Stage 7n — Discord pre-TLS observability
+
+Stage 7n adds a diagnostic early-flow branch for the Discord desktop updater
+`SYN-SENT` problem. Strategies may now declare an explicit `capturePolicy` so
+the nft/NFQUEUE capture envelope can be inspected separately from nfqws2
+`runtimeArgs`. Use `--runtime-nft-state` to review the generated capture plan
+and manual nft counter command without mutating the system.

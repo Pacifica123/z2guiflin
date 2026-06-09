@@ -42,3 +42,7 @@ Then continue through the normal owner-confirmed Default workflow. This strategy
 
 `community-discord-hostfakesplit-5222-minimal` is a clean Discord-only import of an owner-provided community Windows preset. It differs from the earlier mixed Discord+YouTube bridge by removing the YouTube fallback and making TCP `5222` explicit in the Linux runtime filter list. This is a diagnostic port-envelope test, not a guarantee that the Discord Linux updater `SYN-SENT` blocker is fixed.
 
+
+## v0.4-alpha Stage 7n pre-TLS observability seed
+
+`community-discord-pretls-diagnostic-pktdebug` is a diagnostic-only strategy for the Discord Linux updater `SYN-SENT` case. It introduces an explicit `capturePolicy` so the owner-confirmed nft/NFQUEUE capture envelope can be inspected independently from `runtimeArgs`. Its goal is to prove visibility through nft counters and nfqws2 debug before adding more bypass strategies.

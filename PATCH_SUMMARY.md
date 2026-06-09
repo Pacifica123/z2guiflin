@@ -1,13 +1,19 @@
-# v0.4-alpha Stage 7m — Discord community 5222 seed
+# Patch summary — v0.4-alpha Stage 7n
 
-This patch imports the additional owner-provided Discord-only Windows GUI community preset as a Linux diagnostic strategy.
+Stage 7n adds Discord pre-TLS observability groundwork after the RA methodology review.
 
-Added:
+## Added
 
-- `strategies/community-discord-hostfakesplit-5222-minimal.json`
-- `strategies/imported/community-discord-hostfakesplit-5222.txt`
-- `strategies/imported/community-discord-hostfakesplit-5222.json`
-- `docs/DISCORD_COMMUNITY_5222_NOTES.md`
-- `tests/test_stage7m_discord_5222_seed.py`
+- `capturePolicy` metadata on workspace strategies.
+- owner-confirmed nft rules now include counters.
+- early-flow capture policy support for explicit Discord edge IPs and TCP ports.
+- optional diagnostic input SYN+ACK / FIN/RST queue rules for capture policies.
+- `community-discord-pretls-diagnostic-pktdebug` strategy.
+- `--runtime-nft-state` read-only CLI snapshot.
+- `docs/DISCORD_PRETLS_OBSERVABILITY.md`.
 
-The new strategy makes TCP `5222` explicit in the Linux `--filter-tcp`/nft queue scope because the Windows source preset lists it in `--wf-tcp-out`. It is not selected automatically, does not include the voice/STUN branch, and does not claim to fix the current Discord updater SYN-SENT blocker by itself.
+## Not changed
+
+- YouTube baseline remains the default strategy path.
+- No automatic firewall/service mutation is introduced.
+- Voice/UDP remains reserved for Stage 8.

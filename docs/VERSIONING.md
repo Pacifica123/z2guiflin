@@ -415,3 +415,10 @@ The functional fix remains: runtime `*.nfqws2.args` files are generated with she
 
 Stage 7m adds a narrow owner-selectable Discord strategy, `community-discord-hostfakesplit-5222-minimal`, based on the additional Discord-only community Windows GUI preset. The stage does not reset the v0.4 plan and does not claim Discord success. It records TCP `5222` as a Discord-like capture hint from the Windows preset and tests it by making `5222` explicit in Linux `--filter-tcp`/nft queue scope. Voice/STUN remains excluded until Stage 8.
 
+
+## v0.4-alpha Stage 7n
+
+Stage 7n introduces Discord pre-TLS observability: nft counters, explicit
+strategy `capturePolicy`, a read-only runtime nft snapshot, and a diagnostic
+`pktdebug` strategy for proving whether Discord updater SYN/early-flow packets
+enter the Linux NFQUEUE path.

@@ -13,6 +13,7 @@ firewall. Тесты используют fake runner.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import shutil
@@ -40,6 +41,7 @@ APPLY_MARKER = "zap2-runtime-apply-v1"
 SUPPORTED_RUNTIME_APPLY_ACTIONS = ("apply", "revert")
 DEFAULT_NFT_TABLE_PREFIX = "zap2"
 DEFAULT_NFT_CHAIN = "local_out"
+DEFAULT_NFT_INPUT_CHAIN = "local_in"
 DEFAULT_TCP_PORTS = ("80", "443")
 DEFAULT_DESYNC_MARK = "0x40000000"
 DEFAULT_TCP_ORIGINAL_PACKET_RANGE = "1-8"
@@ -84,6 +86,10 @@ class RuntimeApplyPlan:
     nfqueue_num: int
     queued_tcp_ports: tuple[str, ...]
     queued_udp_ports: tuple[str, ...]
+    queued_edge_ips: tuple[str, ...]
+    capture_policy: dict[str, Any] | None
+    queue_input_syn_ack: bool
+    queue_input_fin_rst: bool
     owner_uid: int
     owner_uid_source: str
     desync_mark: str
@@ -115,6 +121,11 @@ class RuntimeApplyPlan:
             "nfqueueNum": self.nfqueue_num,
             "queuedTcpPorts": list(self.queued_tcp_ports),
             "queuedUdpPorts": list(self.queued_udp_ports),
+            "queuedEdgeIps": list(self.queued_edge_ips),
+            "capturePolicy": self.capture_policy or {},
+            "queueInputSynAck": self.queue_input_syn_ack,
+            "queueInputFinRst": self.queue_input_fin_rst,
+            "nftCountersEnabled": True,
             "ownerUid": self.owner_uid,
             "ownerUidSource": self.owner_uid_source,
             "desyncMark": self.desync_mark,
@@ -156,6 +167,11 @@ class RuntimeApplyPlan:
                 f"nfqueue: {self.nfqueue_num}",
                 f"queued TCP ports: {', '.join(self.queued_tcp_ports) if self.queued_tcp_ports else 'нет'}",
                 f"queued UDP ports: {', '.join(self.queued_udp_ports) if self.queued_udp_ports else 'нет'}",
+                f"queued edge IPs: {', '.join(self.queued_edge_ips) if self.queued_edge_ips else 'нет / runtime-derived hostlist'}",
+                f"capture policy: {str((self.capture_policy or {}).get('kind') or 'runtime-derived')}",
+                f"input SYN+ACK queue: {'yes' if self.queue_input_syn_ack else 'no'}",
+                f"input FIN/RST queue: {'yes' if self.queue_input_fin_rst else 'no'}",
+                "nft counters: yes",
                 f"owner uid scope: {self.owner_uid} ({self.owner_uid_source})",
                 f"desync mark loop guard: {self.desync_mark}",
                 f"binary: {self.binary_relative_path}",
@@ -287,6 +303,59 @@ def _ports_from_strategy_args(runtime_args: tuple[str, ...], option: str) -> tup
     return tuple(ports)
 
 
+
+def _valid_ip_token(value: str) -> bool:
+    """Return whether a capture-policy edge token is safe for nft IP sets."""
+
+    token = value.strip()
+    if not token:
+        return False
+    try:
+        ipaddress.ip_network(token, strict=False)
+    except ValueError:
+        return False
+    return True
+
+
+def _string_list(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        token = str(item).strip()
+        if not token or token in seen:
+            continue
+        seen.add(token)
+        result.append(token)
+    return tuple(result)
+
+
+def _capture_policy_ports(policy: dict[str, Any] | None, key: str) -> tuple[str, ...]:
+    ports: list[str] = []
+    seen: set[str] = set()
+    for token in _string_list((policy or {}).get(key)):
+        if not _valid_port_token(token) or token in seen:
+            continue
+        seen.add(token)
+        ports.append(token)
+    return tuple(ports)
+
+
+def _capture_policy_edge_ips(policy: dict[str, Any] | None) -> tuple[str, ...]:
+    edge_ips: list[str] = []
+    seen: set[str] = set()
+    for token in _string_list((policy or {}).get("edgeIps")):
+        if not _valid_ip_token(token) or token in seen:
+            continue
+        seen.add(token)
+        edge_ips.append(token)
+    return tuple(edge_ips)
+
+
+def _nft_ip_set(values: tuple[str, ...]) -> str:
+    return ", ".join(values)
+
 def _nft_port_set(ports: tuple[str, ...]) -> str:
     return ", ".join(ports)
 
@@ -330,8 +399,21 @@ def _nft_common_filter(owner_uid: int) -> str:
     return f"meta skuid {owner_uid} meta mark & {DEFAULT_DESYNC_MARK} == 0"
 
 
-def _nft_apply_commands(table: str, chain: str, qnum: int, tcp_ports: tuple[str, ...], udp_ports: tuple[str, ...], owner_uid: int) -> tuple[RuntimeApplyCommand, ...]:
+def _nft_apply_commands(
+    table: str,
+    chain: str,
+    qnum: int,
+    tcp_ports: tuple[str, ...],
+    udp_ports: tuple[str, ...],
+    owner_uid: int,
+    *,
+    edge_ips: tuple[str, ...] = (),
+    queue_input_syn_ack: bool = False,
+    queue_input_fin_rst: bool = False,
+) -> tuple[RuntimeApplyCommand, ...]:
     common_filter = _nft_common_filter(owner_uid)
+    edge_out_filter = f" ip daddr {{ {_nft_ip_set(edge_ips)} }}" if edge_ips else ""
+    edge_in_filter = f" ip saddr {{ {_nft_ip_set(edge_ips)} }}" if edge_ips else ""
     commands: list[RuntimeApplyCommand] = [
         RuntimeApplyCommand(
             label="nft-add-table",
@@ -345,33 +427,62 @@ def _nft_apply_commands(table: str, chain: str, qnum: int, tcp_ports: tuple[str,
             argv=("nft", "add", "chain", "inet", table, chain, "{ type filter hook output priority filter; policy accept; }"),
             requires_sudo=True,
             mutates_system=True,
-            description="Создать отдельную output chain для локального трафика владельца.",
+            description="Создать OUTPUT chain только внутри нашей table для owner-scoped NFQUEUE правил.",
         ),
     ]
+    if queue_input_syn_ack or queue_input_fin_rst:
+        commands.append(
+            RuntimeApplyCommand(
+                label="nft-add-local-in-chain",
+                argv=("nft", "add", "chain", "inet", table, DEFAULT_NFT_INPUT_CHAIN, "{ type filter hook input priority filter; policy accept; }"),
+                requires_sudo=True,
+                mutates_system=True,
+                description="Создать INPUT chain для opt-in early-flow диагностики reverse-direction TCP ответов.",
+            )
+        )
     if tcp_ports:
         tcp_set = _nft_port_set(tcp_ports)
         commands.append(
             RuntimeApplyCommand(
                 label="nft-queue-tcp-strategy",
-                argv=("nft", "add", "rule", "inet", table, chain, f'{common_filter} tcp dport {{ {tcp_set} }} ct original packets {DEFAULT_TCP_ORIGINAL_PACKET_RANGE} queue num {qnum} bypass comment "zap2:{table}:tcp-out"'),
+                argv=("nft", "add", "rule", "inet", table, chain, f'{common_filter}{edge_out_filter} tcp dport {{ {tcp_set} }} ct original packets {DEFAULT_TCP_ORIGINAL_PACKET_RANGE} counter queue num {qnum} bypass comment "zap2:{table}:tcp-out"'),
                 requires_sudo=True,
                 mutates_system=True,
-                description=f"Отправить TCP владельца UID {owner_uid} ({tcp_set}) в NFQUEUE с loop-guard mark и queue-bypass.",
+                description=f"Отправить TCP владельца UID {owner_uid} ({tcp_set}) в NFQUEUE с loop-guard mark, counters и queue-bypass.",
             )
         )
+        if queue_input_syn_ack:
+            commands.append(
+                RuntimeApplyCommand(
+                    label="nft-queue-input-synack-diagnostic",
+                    argv=("nft", "add", "rule", "inet", table, DEFAULT_NFT_INPUT_CHAIN, f'{edge_in_filter} tcp sport {{ {tcp_set} }} tcp flags & (syn|ack) == (syn|ack) counter queue num {qnum} bypass comment "zap2:{table}:tcp-in-synack"'),
+                    requires_sudo=True,
+                    mutates_system=True,
+                    description="Opt-in diagnostic queue for inbound SYN+ACK packets from early-flow edge IPs.",
+                )
+            )
+        if queue_input_fin_rst:
+            commands.append(
+                RuntimeApplyCommand(
+                    label="nft-queue-input-fin-rst-diagnostic",
+                    argv=("nft", "add", "rule", "inet", table, DEFAULT_NFT_INPUT_CHAIN, f'{edge_in_filter} tcp sport {{ {tcp_set} }} tcp flags & (fin|rst) != 0 counter queue num {qnum} bypass comment "zap2:{table}:tcp-in-fin-rst"'),
+                    requires_sudo=True,
+                    mutates_system=True,
+                    description="Opt-in diagnostic queue for inbound FIN/RST packets from early-flow edge IPs.",
+                )
+            )
     if udp_ports:
         udp_set = _nft_port_set(udp_ports)
         commands.append(
             RuntimeApplyCommand(
                 label="nft-queue-udp-strategy",
-                argv=("nft", "add", "rule", "inet", table, chain, f'{common_filter} udp dport {{ {udp_set} }} ct original packets {DEFAULT_UDP_ORIGINAL_PACKET_RANGE} queue num {qnum} bypass comment "zap2:{table}:udp-out"'),
+                argv=("nft", "add", "rule", "inet", table, chain, f'{common_filter}{edge_out_filter} udp dport {{ {udp_set} }} ct original packets {DEFAULT_UDP_ORIGINAL_PACKET_RANGE} counter queue num {qnum} bypass comment "zap2:{table}:udp-out"'),
                 requires_sudo=True,
                 mutates_system=True,
-                description=f"Отправить UDP владельца UID {owner_uid} ({udp_set}) в NFQUEUE с loop-guard mark и queue-bypass.",
+                description=f"Отправить UDP владельца UID {owner_uid} ({udp_set}) в NFQUEUE с loop-guard mark, counters и queue-bypass.",
             )
         )
     return tuple(commands)
-
 
 def _nft_revert_commands(table: str) -> tuple[RuntimeApplyCommand, ...]:
     return (
@@ -403,13 +514,31 @@ def create_runtime_apply_plan(root: Path | None = None, action: RuntimeApplyActi
     # Берём binary path из start plan, чтобы apply/revert не расходился с runtime plan generator.
     start_plan = create_runtime_plan(layout.root, action="start", profile_id=profile_id)
     strategy = strategies[profile.strategy_id]
-    tcp_ports = _ports_from_strategy_args(strategy.runtime_args, "--filter-tcp") or DEFAULT_TCP_PORTS
-    udp_ports = _ports_from_strategy_args(strategy.runtime_args, "--filter-udp")
+    capture_policy = strategy.capture_policy or None
+    tcp_ports = _capture_policy_ports(capture_policy, "tcpOutPorts") or _ports_from_strategy_args(strategy.runtime_args, "--filter-tcp") or DEFAULT_TCP_PORTS
+    udp_ports = _capture_policy_ports(capture_policy, "udpOutPorts") or _ports_from_strategy_args(strategy.runtime_args, "--filter-udp")
+    edge_ips = _capture_policy_edge_ips(capture_policy)
+    queue_input_syn_ack = bool((capture_policy or {}).get("queueInputSynAck", False))
+    queue_input_fin_rst = bool((capture_policy or {}).get("queueInputFinRst", False))
     owner_uid, owner_uid_source = _runtime_owner_uid(layout.root)
     table = _nft_table_name(profile.profile_id)
     plan_id = f"runtime-{profile.profile_id}-{profile.strategy_id}-{action}-owner-rules-plan"
     queue = resolve_runtime_queue(layout.root, profile.profile_id)
-    commands = _nft_apply_commands(table, DEFAULT_NFT_CHAIN, queue.qnum, tcp_ports, udp_ports, owner_uid) if action == "apply" else _nft_revert_commands(table)
+    commands = (
+        _nft_apply_commands(
+            table,
+            DEFAULT_NFT_CHAIN,
+            queue.qnum,
+            tcp_ports,
+            udp_ports,
+            owner_uid,
+            edge_ips=edge_ips,
+            queue_input_syn_ack=queue_input_syn_ack,
+            queue_input_fin_rst=queue_input_fin_rst,
+        )
+        if action == "apply"
+        else _nft_revert_commands(table)
+    )
     if action == "apply":
         rollback_notes = (
             f"Откат выполняется командой revert plan для того же profile: {profile.profile_id}.",
@@ -432,6 +561,10 @@ def create_runtime_apply_plan(root: Path | None = None, action: RuntimeApplyActi
         nfqueue_num=queue.qnum,
         queued_tcp_ports=tcp_ports if action == "apply" else (),
         queued_udp_ports=udp_ports if action == "apply" else (),
+        queued_edge_ips=edge_ips if action == "apply" else (),
+        capture_policy=capture_policy if action == "apply" else None,
+        queue_input_syn_ack=queue_input_syn_ack if action == "apply" else False,
+        queue_input_fin_rst=queue_input_fin_rst if action == "apply" else False,
         owner_uid=owner_uid,
         owner_uid_source=owner_uid_source,
         desync_mark=DEFAULT_DESYNC_MARK,
@@ -504,7 +637,7 @@ def prepare_runtime_owner_rules_plan(root: Path | None = None, action: RuntimeAp
             "planHash": plan_hash,
             "message": f"Prepared owner-confirmed runtime {action} rules plan for profile {profile_id}; execution disabled until explicit --runtime-{action}.",
             "createdAt": _utc_now(),
-            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": plan.nft_table, "nfqueueNum": plan.nfqueue_num, "ownerUid": plan.owner_uid, "queuedTcpPorts": list(plan.queued_tcp_ports), "queuedUdpPorts": list(plan.queued_udp_ports)},
+            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": plan.nft_table, "nfqueueNum": plan.nfqueue_num, "ownerUid": plan.owner_uid, "queuedTcpPorts": list(plan.queued_tcp_ports), "queuedUdpPorts": list(plan.queued_udp_ports), "queuedEdgeIps": list(plan.queued_edge_ips), "capturePolicy": plan.capture_policy or {}, "nftCountersEnabled": True},
             "executesNow": False,
             "mutatesFirewallOrServicesNow": False,
             "managesServiceNow": False,
@@ -663,6 +796,11 @@ def execute_runtime_owner_rules(
         "nfqueueNum": int(saved.get("nfqueueNum", expected.nfqueue_num)),
         "queuedTcpPorts": list(saved.get("queuedTcpPorts", list(expected.queued_tcp_ports))),
         "queuedUdpPorts": list(saved.get("queuedUdpPorts", list(expected.queued_udp_ports))),
+        "queuedEdgeIps": list(saved.get("queuedEdgeIps", list(expected.queued_edge_ips))),
+        "capturePolicy": dict(saved.get("capturePolicy", expected.capture_policy or {})),
+        "queueInputSynAck": bool(saved.get("queueInputSynAck", expected.queue_input_syn_ack)),
+        "queueInputFinRst": bool(saved.get("queueInputFinRst", expected.queue_input_fin_rst)),
+        "nftCountersEnabled": bool(saved.get("nftCountersEnabled", True)),
         "ownerUid": int(saved.get("ownerUid", expected.owner_uid)),
         "ownerUidSource": str(saved.get("ownerUidSource", expected.owner_uid_source)),
         "desyncMark": str(saved.get("desyncMark", expected.desync_mark)),
