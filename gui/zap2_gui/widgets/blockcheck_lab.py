@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ..adapters.blockcheck_gui import (
+    BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP,
+    BLOCKCHECK_DEAD_TARGET_GUARD_OBSERVE_ONLY,
     BLOCKCHECK_SCAN_ALL_TARGETS,
     BLOCKCHECK_SCAN_SKIP_DEAD_ONLY,
     BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
@@ -48,16 +50,15 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     QtCore, QtWidgets = require_pyqt()
     page = QtWidgets.QWidget()
     layout = QtWidgets.QVBoxLayout(page)
-    layout.setContentsMargins(14, 14, 14, 14)
-    layout.setSpacing(10)
+    layout.setContentsMargins(10, 10, 10, 10)
+    layout.setSpacing(8)
 
     title = QtWidgets.QLabel("Диагностика: Blockcheck lab")
     title.setObjectName("pageTitle")
     intro = QtWidgets.QLabel(
-        "Здесь можно вручную прогнать upstream blockcheck2.sh для домена YouTube или другого target, "
-        "посмотреть найденные стратегии и затем одной кнопкой сгенерировать strategy-файлы в strategies/generated. "
-        "Запуск требует sudo, временно меняет firewall redirect внутри blockcheck и должен выполняться при выключенном Default workflow/VPN. "
-        "Долгий run идёт в фоне: окно остаётся живым, лог дописывается потоком, остановка выполняется отдельной кнопкой."
+        "Blockcheck lab: прогон upstream blockcheck2.sh по service target preset, экспорт найденных AVAILABLE стратегий "
+        "и coverage/tournament диагностика. Запуск требует sudo и временно меняет firewall redirect внутри blockcheck; "
+        "перед запуском выключите Default workflow/VPN. Долгий run идёт в фоне, остановка — отдельной кнопкой."
     )
     intro.setWordWrap(True)
 
@@ -108,11 +109,14 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     https13_check = QtWidgets.QCheckBox("HTTPS TLS1.3")
     http3_check = QtWidgets.QCheckBox("HTTP/3 QUIC")
     dns_check = QtWidgets.QCheckBox("DNS precheck")
+    dead_guard_check = QtWidgets.QCheckBox("Auto-skip dead target")
+    dead_guard_check.setToolTip("For simple targets this can skip obvious dead TCP/443 candidates. For Discord ordered phases it is disabled by default because CDN/updater port precheck can be a false negative.")
     http_check.setChecked(False)
     https12_check.setChecked(True)
     https13_check.setChecked(True)
     http3_check.setChecked(True)
     dns_check.setChecked(False)
+    dead_guard_check.setChecked(True)
 
     form.addWidget(QtWidgets.QLabel("Service target"), 0, 0)
     form.addWidget(target_preset_combo, 0, 1, 1, 3)
@@ -136,34 +140,43 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     form.addWidget(https13_check, 7, 2)
     form.addWidget(http3_check, 7, 3)
     form.addWidget(dns_check, 8, 0, 1, 2)
+    form.addWidget(dead_guard_check, 8, 2, 1, 2)
 
+    actions_box = QtWidgets.QGroupBox("Actions")
+    actions_layout = QtWidgets.QVBoxLayout(actions_box)
+    actions_layout.setContentsMargins(8, 8, 8, 8)
+    actions_layout.setSpacing(6)
     buttons = QtWidgets.QHBoxLayout()
+    secondary_buttons = QtWidgets.QHBoxLayout()
     preflight_button = QtWidgets.QPushButton("Preflight")
-    build_plan_button = QtWidgets.QPushButton("План binaries")
-    build_button = QtWidgets.QPushButton("Собрать binaries")
-    plan_button = QtWidgets.QPushButton("План run")
-    run_button = QtWidgets.QPushButton("Запустить blockcheck")
-    stop_button = QtWidgets.QPushButton("Остановить")
-    export_button = QtWidgets.QPushButton("Создать стратегии")
+    build_plan_button = QtWidgets.QPushButton("Binaries plan")
+    build_button = QtWidgets.QPushButton("Build binaries")
+    plan_button = QtWidgets.QPushButton("Run plan")
+    run_button = QtWidgets.QPushButton("▶ Run")
+    stop_button = QtWidgets.QPushButton("■ Stop")
+    export_button = QtWidgets.QPushButton("Export strategies")
     coverage_button = QtWidgets.QPushButton("Coverage")
     policy_button = QtWidgets.QPushButton("Policy")
     tournament_button = QtWidgets.QPushButton("Tournament")
-    verify_button = QtWidgets.QPushButton("Discord checklist")
-    log_button = QtWidgets.QPushButton("Последний лог")
+    verify_button = QtWidgets.QPushButton("Checklist")
+    log_button = QtWidgets.QPushButton("Last log")
     stop_button.setEnabled(False)
     buttons.addWidget(preflight_button)
-    buttons.addWidget(build_plan_button)
-    buttons.addWidget(build_button)
     buttons.addWidget(plan_button)
     buttons.addWidget(run_button)
     buttons.addWidget(stop_button)
     buttons.addWidget(export_button)
     buttons.addWidget(coverage_button)
-    buttons.addWidget(policy_button)
-    buttons.addWidget(tournament_button)
-    buttons.addWidget(verify_button)
-    buttons.addWidget(log_button)
     buttons.addStretch(1)
+    secondary_buttons.addWidget(build_plan_button)
+    secondary_buttons.addWidget(build_button)
+    secondary_buttons.addWidget(policy_button)
+    secondary_buttons.addWidget(tournament_button)
+    secondary_buttons.addWidget(verify_button)
+    secondary_buttons.addWidget(log_button)
+    secondary_buttons.addStretch(1)
+    actions_layout.addLayout(buttons)
+    actions_layout.addLayout(secondary_buttons)
 
     status = QtWidgets.QLabel("Статус: idle")
     status.setObjectName("mutedText")
@@ -215,6 +228,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             index = scan_mode_combo.findData(recommended_scan_mode)
             if index >= 0 and preset.preset_id != SERVICE_TARGET_CUSTOM:
                 scan_mode_combo.setCurrentIndex(index)
+            if preset.preset_id == SERVICE_TARGET_DISCORD_DESKTOP:
+                dead_guard_check.setChecked(False)
+            elif preset.preset_id != SERVICE_TARGET_CUSTOM:
+                dead_guard_check.setChecked(True)
             if preset.is_custom:
                 domains_edit.setReadOnly(False)
                 domains_edit.setPlaceholderText("example.com api.example.com")
@@ -244,6 +261,11 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             repeats=int(repeats_spin.value()),
             curl_max_time=int(timeout_spin.value()),
             timeout_seconds=0,
+            dead_target_guard=(
+                BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP
+                if dead_guard_check.isChecked()
+                else BLOCKCHECK_DEAD_TARGET_GUARD_OBSERVE_ONLY
+            ),
         )
 
     def append_output(text: str) -> None:
@@ -271,6 +293,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         target_preset_combo.setEnabled(not running)
         scan_mode_combo.setEnabled(not running)
         domains_edit.setEnabled(not running)
+        dead_guard_check.setEnabled(not running)
         for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, coverage_button, policy_button, tournament_button, verify_button, log_button):
             button.setEnabled(not running)
         stop_button.setEnabled(running)
@@ -494,7 +517,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         process.setProcessEnvironment(process_env)
 
         target = prepared.command.options.normalized_domains()[0]
-        monitor = BlockcheckPortPrecheckMonitor(target=target)
+        dead_guard_enabled = prepared.command.options.dead_target_guard == BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP
+        monitor = BlockcheckPortPrecheckMonitor(target=target) if dead_guard_enabled else None
 
         def request_auto_skip(reason: str) -> None:
             if state.get("auto_skip_reason") or state.get("stopped_by_user"):
@@ -515,7 +539,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             state["stdout"].append(data)
             append_output(data)
             status.setText(f"Статус: running; stdout {len(''.join(state['stdout'])) // 1024} KiB")
-            reason = monitor.feed_stdout(data)
+            reason = monitor.feed_stdout(data) if monitor is not None else ""
             if reason:
                 request_auto_skip(reason)
             elif state.get("phase_gated_run"):
@@ -563,8 +587,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             "Blockcheck lab",
             (
                 "Запустить upstream blockcheck2.sh через графический sudo prompt?\n\n"
-                "Targets будут проверяться последовательно. Если port precheck текущего target даст 0 connects / N failed, "
-                "GUI остановит только этот candidate и перейдёт к следующему, не сжигая сотни strategy checks впустую. "
+                "Targets будут проверяться последовательно. Auto-skip dead target можно включать для простых проверок; "
+                "для Discord ordered phases он выключен по умолчанию, чтобы port precheck не дал ложный dead-target на CDN/updater. "
                 "Рекомендуется сначала выключить Default workflow, VPN и другие DPI-bypass процессы. "
                 "Blockcheck временно меняет firewall redirect и затем очищает его через свой cleanup. "
                 "Пароль не сохраняется приложением. Общий таймер не ставится: лог будет идти в окно, "
@@ -616,7 +640,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 f"candidate mode: {scan_mode_combo.currentData()}\n"
                 "phases:\n"
                 + "\n".join(phase_lines)
-                + "\ndead-target guard: enabled; evidence-based, no wall-clock timeout"
+                + f"\ndead-target guard: {options.dead_target_guard}; evidence-based, no wall-clock timeout"
             )
         else:
             state["phase_gated_run"] = False
@@ -629,7 +653,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 "Sequential Blockcheck run\n"
                 f"candidates: {', '.join(targets)}\n"
                 f"candidate mode: {scan_mode_combo.currentData()}\n"
-                "dead-target guard: enabled; evidence-based, no wall-clock timeout"
+                f"dead-target guard: {options.dead_target_guard}; evidence-based, no wall-clock timeout"
             )
         start_next_candidate()
 
@@ -664,7 +688,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     layout.addWidget(title)
     layout.addWidget(intro)
     layout.addWidget(form_box)
-    layout.addLayout(buttons)
+    layout.addWidget(actions_box)
     layout.addWidget(status)
     layout.addWidget(output, 1)
     return page

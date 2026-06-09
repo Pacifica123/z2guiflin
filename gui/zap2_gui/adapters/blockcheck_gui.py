@@ -51,6 +51,12 @@ SUPPORTED_BLOCKCHECK_IPVS = ("4", "6", "46")
 BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE = "stop-after-first-available"
 BLOCKCHECK_SCAN_ALL_TARGETS = "scan-all-targets"
 BLOCKCHECK_SCAN_SKIP_DEAD_ONLY = "skip-dead-targets-only"
+BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP = "auto-stop"
+BLOCKCHECK_DEAD_TARGET_GUARD_OBSERVE_ONLY = "observe-only"
+SUPPORTED_BLOCKCHECK_DEAD_TARGET_GUARDS = (
+    BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP,
+    BLOCKCHECK_DEAD_TARGET_GUARD_OBSERVE_ONLY,
+)
 SUPPORTED_BLOCKCHECK_SCAN_MODES = (
     BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
     BLOCKCHECK_SCAN_ALL_TARGETS,
@@ -122,6 +128,7 @@ class BlockcheckOptions:
     repeats: int = 1
     curl_max_time: int = 3
     timeout_seconds: int = 0
+    dead_target_guard: str = BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP
     custom_list_env: tuple[tuple[str, str], ...] = ()
 
     def normalized_domains(self) -> tuple[str, ...]:
@@ -169,6 +176,7 @@ class BlockcheckOptions:
             repeats=self.repeats,
             curl_max_time=self.curl_max_time,
             timeout_seconds=self.timeout_seconds,
+            dead_target_guard=self.dead_target_guard,
             custom_list_env=self.custom_list_env,
         )
 
@@ -191,6 +199,8 @@ class BlockcheckOptions:
             raise ValueError("curl timeout должен быть в диапазоне 1..15 секунд")
         if self.timeout_seconds != 0 and not 30 <= self.timeout_seconds <= 3600:
             raise ValueError("overall timeout должен быть 0 (без общего лимита) или в диапазоне 30..3600 секунд")
+        if self.dead_target_guard not in SUPPORTED_BLOCKCHECK_DEAD_TARGET_GUARDS:
+            raise ValueError(f"Неподдерживаемый dead-target guard: {self.dead_target_guard}")
         allowed_custom_keys = {"LIST_HTTP", "LIST_HTTPS_TLS12", "LIST_HTTPS_TLS13", "LIST_QUIC", "ZAP2_TOURNAMENT_STRATEGY_ID"}
         for key, value in self.custom_list_env:
             if key not in allowed_custom_keys:
@@ -209,6 +219,7 @@ class BlockcheckOptions:
             "ZAP2_SERVICE_COVERAGE_POLICY": policy.mode,
             "ZAP2_SERVICE_COVERAGE_ORDER_MODE": policy.order_mode,
             "ZAP2_BLOCKCHECK_SCAN_MODE": self.scan_mode,
+            "ZAP2_DEAD_TARGET_GUARD": self.dead_target_guard,
             "IPVS": self.ipvs,
             "SCANLEVEL": self.scanlevel,
             "ENABLE_HTTP": "1" if self.enable_http else "0",
@@ -405,6 +416,7 @@ class BlockcheckCommand:
             f"service target preset: {self.options.service_target_preset_id} ({get_service_target_preset(self.options.service_target_preset_id).title})",
             f"service coverage policy: {policy.mode}; order: {policy.order_mode}",
             f"candidate scan mode: {self.options.scan_mode}",
+            f"dead-target guard: {self.options.dead_target_guard}",
             f"test: {self.options.test}",
             f"scanlevel: {self.options.scanlevel}",
             f"ip versions: {self.options.ipvs}",

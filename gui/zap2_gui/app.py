@@ -7,10 +7,13 @@ import sys
 
 from . import PRODUCT_LABEL
 from .adapters.blockcheck_gui import (
+    SUPPORTED_BLOCKCHECK_DEAD_TARGET_GUARDS,
     SUPPORTED_BLOCKCHECK_IPVS,
     SUPPORTED_BLOCKCHECK_SCANLEVELS,
     SUPPORTED_BLOCKCHECK_SCAN_MODES,
     SUPPORTED_BLOCKCHECK_TESTS,
+    BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP,
+    BLOCKCHECK_DEAD_TARGET_GUARD_OBSERVE_ONLY,
     BLOCKCHECK_SCAN_ALL_TARGETS,
     BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
     BlockcheckOptions,
@@ -92,6 +95,7 @@ from .models.navigation import default_navigation_sections
 from .models.service_targets import (
     DEFAULT_SERVICE_TARGET_PRESET_ID,
     SERVICE_TARGET_CUSTOM,
+    SERVICE_TARGET_DISCORD_DESKTOP,
     get_service_target_preset,
     list_service_target_presets,
     service_target_recommended_scan_mode,
@@ -394,6 +398,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="candidate scan mode: для discord-desktop по умолчанию scan-all-targets, для остальных stop-after-first-available",
     )
     parser.add_argument(
+        "--blockcheck-dead-target-guard",
+        choices=SUPPORTED_BLOCKCHECK_DEAD_TARGET_GUARDS,
+        default=None,
+        help="dead-target precheck mode: auto-stop или observe-only; для discord-desktop по умолчанию observe-only",
+    )
+    parser.add_argument(
         "--blockcheck-test",
         choices=SUPPORTED_BLOCKCHECK_TESTS,
         default="standard",
@@ -497,6 +507,14 @@ def _blockcheck_scan_mode_from_args(args: argparse.Namespace) -> str:
     return BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE
 
 
+def _blockcheck_dead_target_guard_from_args(args: argparse.Namespace) -> str:
+    if args.blockcheck_dead_target_guard:
+        return str(args.blockcheck_dead_target_guard)
+    if not (args.blockcheck_domains or "").strip() and str(args.blockcheck_target_preset) == SERVICE_TARGET_DISCORD_DESKTOP:
+        return BLOCKCHECK_DEAD_TARGET_GUARD_OBSERVE_ONLY
+    return BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP
+
+
 def _blockcheck_options_from_args(args: argparse.Namespace) -> BlockcheckOptions:
     return BlockcheckOptions(
         domains=_blockcheck_domains_from_args(args),
@@ -512,6 +530,7 @@ def _blockcheck_options_from_args(args: argparse.Namespace) -> BlockcheckOptions
         skip_dnscheck=not args.blockcheck_dnscheck,
         repeats=args.blockcheck_repeats,
         curl_max_time=args.blockcheck_curl_timeout,
+        dead_target_guard=_blockcheck_dead_target_guard_from_args(args),
     )
 
 

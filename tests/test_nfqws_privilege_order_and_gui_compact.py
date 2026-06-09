@@ -27,7 +27,7 @@ def test_runtime_overview_uses_compact_primary_button() -> None:
     assert "LineWrapMode.WidgetWidth" in widget
 
 
-def test_main_window_default_width_is_not_wide() -> None:
+def test_main_window_default_width_is_blockcheck_friendly_but_bounded() -> None:
     source = (ROOT / "gui" / "zap2_gui" / "windows" / "main_window.py").read_text(encoding="utf-8")
-    assert "self.resize(860, 640)" in source
-    assert "self.setMinimumSize(720, 520)" in source
+    assert "self.resize(1040, 720)" in source
+    assert "self.setMinimumSize(860, 560)" in source

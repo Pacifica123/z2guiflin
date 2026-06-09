@@ -21,6 +21,8 @@ from zap2_gui.adapters.blockcheck_gui import (
     export_blockcheck_available_strategies,
     parse_blockcheck_available_strategies,
     BlockcheckPortPrecheckMonitor,
+    BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP,
+    BLOCKCHECK_DEAD_TARGET_GUARD_OBSERVE_ONLY,
 )
 from zap2_gui.app import main
 from zap2_gui.models.navigation import default_navigation_sections
@@ -40,6 +42,15 @@ def test_blockcheck_options_are_batch_and_youtube_oriented() -> None:
     assert env["ENABLE_HTTP3"] == "1"
     assert env["SKIP_DNSCHECK"] == "1"
     assert env["SCANLEVEL"] == "quick"
+
+
+def test_blockcheck_options_emit_dead_target_guard_env() -> None:
+    opts = BlockcheckOptions(domains="youtube.com", dead_target_guard=BLOCKCHECK_DEAD_TARGET_GUARD_OBSERVE_ONLY)
+    env = opts.to_env()
+
+    assert env["ZAP2_DEAD_TARGET_GUARD"] == BLOCKCHECK_DEAD_TARGET_GUARD_OBSERVE_ONLY
+    assert "dead-target guard: observe-only" in build_blockcheck_command(root=ROOT, options=opts).to_text()
+    assert BlockcheckOptions(domains="youtube.com").dead_target_guard == BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP
 
 
 def test_blockcheck_options_reject_shell_like_targets() -> None:
@@ -256,8 +267,10 @@ def test_blockcheck_lab_widget_uses_qprocess_live_streaming() -> None:
 
     assert "QtCore.QProcess" in source
     assert "readyReadStandardOutput" in source
-    assert "Остановить" in source
+    assert "■ Stop" in source
     assert "candidate_targets" in source
+    assert "Auto-skip dead target" in source
+    assert "BLOCKCHECK_DEAD_TARGET_GUARD_OBSERVE_ONLY" in source
     assert "BlockcheckPortPrecheckMonitor" in source
     assert "execute_blockcheck_with_gui_sudo" not in source
 

@@ -62,3 +62,10 @@ def test_gui_shell_documentation_lists_navigation_sections() -> None:
 
     for title in ("Обзор", "Ядро", "Стратегии", "Диагностика", "Настройки", "Логи"):
         assert title in doc
+
+
+def test_main_window_default_size_is_blockcheck_friendly() -> None:
+    source = (ROOT / "gui" / "zap2_gui" / "windows" / "main_window.py").read_text(encoding="utf-8")
+
+    assert "self.resize(1040, 720)" in source
+    assert "self.setMinimumSize(860, 560)" in source
