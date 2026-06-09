@@ -1,23 +1,25 @@
-# v0.4-alpha Stage 7d — Discord precheck guard and Blockcheck Lab UX cleanup
+# v0.4-alpha Stage 7e — Blockcheck Lab human tournament log and UI cleanup
 
-This patch responds to the owner-observed Stage 7c run where `stable.dl2.discordapp.net` was marked `dead-target` from a single failed TCP/443 port precheck even though earlier runs had produced many AVAILABLE strategies for the same target.
+This patch addresses the owner feedback that Blockcheck Lab still looked cramped and that Discord-like phase runs were hard to follow because the main screen streamed raw `blockcheck2.sh` output instead of explaining the GUI's own tournament state.
 
 ## Changed
 
-- `BlockcheckOptions` now carries a `dead_target_guard` mode:
-  - `auto-stop` keeps the old evidence-based early stop behavior;
-  - `observe-only` keeps port-precheck evidence in logs/statistics but does not terminate the candidate before strategy scan.
-- GUI Discord desktop preset now defaults `Auto-skip dead target` to off (`observe-only`) because ordered Discord updater/CDN phases can produce false dead-target evidence from transient/resolved IP behavior.
-- CLI `--blockcheck-plan/--blockcheck-run --blockcheck-target-preset discord-desktop` now also defaults to `observe-only`; owners can force the old behavior with `--blockcheck-dead-target-guard auto-stop`.
-- Blockcheck Lab controls are made less cramped:
-  - default window size is increased to 1040x720 with bounded minimum size;
-  - action buttons are split into two rows inside an Actions box;
-  - long labels are shortened;
-  - the dead-target guard is visible as an explicit checkbox.
-- Added `docs/DISCORD_FLOWSEAL_WINDOWS_REFERENCE.md` with non-executable research notes from Flowseal/Windows presets.
+- Phase-gated `ordered-target-chain` runs now show a human GUI tournament log in the main output area:
+  - current phase and alternative;
+  - when an AVAILABLE strategy is observed;
+  - record-holder updates;
+  - failed alternatives/phases;
+  - manual stop or completed phase chain;
+  - a short top-record list.
+- Raw upstream blockcheck stdout/stderr are still written to `last-blockcheck.txt` and candidate logs; the button is renamed to `Raw log` to make that role explicit.
+- The Blockcheck Lab form is less vertically cramped:
+  - combo boxes and spin boxes get minimum heights;
+  - action buttons get minimum heights/widths;
+  - form columns get stable minimum widths;
+  - the parameters group gets a safer minimum height.
 
 ## Not changed
 
-- Stage 7d does not implement the full automatic record-holder validator that takes one strategy and proves it across every phase.
-- Flowseal/Windows `winws.exe`, WinDivert, `--wf-*` and `--dpi-desync-*` arguments are not executed on Linux.
-- Discord voice/UDP remains reserved for the later voice stage.
+- Stage 7e does not yet implement the full automatic one-strategy validator across every phase.
+- It does not change runtime firewall/service behavior.
+- Discord voice/UDP remains outside this non-voice loop.

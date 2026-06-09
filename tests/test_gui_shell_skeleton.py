@@ -67,5 +67,5 @@ def test_gui_shell_documentation_lists_navigation_sections() -> None:
 def test_main_window_default_size_is_blockcheck_friendly() -> None:
     source = (ROOT / "gui" / "zap2_gui" / "windows" / "main_window.py").read_text(encoding="utf-8")
 
-    assert "self.resize(1040, 720)" in source
-    assert "self.setMinimumSize(860, 560)" in source
+    assert "self.resize(1120, 760)" in source
+    assert "self.setMinimumSize(940, 620)" in source

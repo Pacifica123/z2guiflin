@@ -300,3 +300,23 @@ Stage 7d фиксирует два наблюдения owner-run после Sta
 Второе: экран Blockcheck Lab стал слишком плотным после добавления service policy/tournament controls. Stage 7d расширяет дефолтное окно, делит действия на две строки, укорачивает подписи кнопок и добавляет явный переключатель `Auto-skip dead target`, чтобы владелец видел, когда включён риск раннего пропуска candidate.
 
 Граница Stage 7d: патч не портирует Flowseal/Windows presets в исполняемый Linux runtime автоматически. Он фиксирует источник ложного `dead-target`, улучшает управляемость GUI и документирует, какие идеи Flowseal/Windows стоит переносить осторожно.
+
+## v0.4-alpha Stage 7e — human tournament log and less cramped controls
+
+Stage 7e separates two streams in Blockcheck Lab for desktop-style ordered presets. During a phase-gated Discord run, the text area now shows a GUI-level tournament log instead of continuously dumping the full upstream `blockcheck2.sh` output. Raw stdout/stderr are still collected and written to `last-blockcheck.txt` and per-candidate logs, and the `Raw log` button remains available for detailed inspection.
+
+The human log is intentionally closer to the owner mental model:
+
+```text
+[GUI tournament] Фаза 1/5 updater: проверяем alternative 1/2 — stable.dl2.discordapp.net
+[GUI tournament] Найдена AVAILABLE стратегия для фазы 1 ...
+[GUI tournament] стратегия-рекордсмен: nfqws2 ...
+[GUI tournament] Фаза пройдена; переходим к следующей обязательной фазе ...
+[GUI tournament] Стратегия/alternative не прошла фазу 2 ...
+[GUI tournament] Блокчек остановлен вручную / завершил работу ...
+топ стратегий: ...
+```
+
+This does not delete upstream evidence. It only keeps the main GUI screen readable while the raw log remains in `.zap2/blockcheck/logs/` for debugging and export.
+
+Stage 7e also raises minimum heights for combo boxes, spin boxes and action buttons, sets safer form column widths, keeps actions in two rows, and renames `Last log` to `Raw log` so the owner understands that the button is the escape hatch to the unfiltered upstream transcript.

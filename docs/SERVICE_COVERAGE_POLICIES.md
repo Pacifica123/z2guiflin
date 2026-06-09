@@ -187,3 +187,9 @@ Stage 7d фиксирует два наблюдения owner-run после Sta
 Второе: экран Blockcheck Lab стал слишком плотным после добавления service policy/tournament controls. Stage 7d расширяет дефолтное окно, делит действия на две строки, укорачивает подписи кнопок и добавляет явный переключатель `Auto-skip dead target`, чтобы владелец видел, когда включён риск раннего пропуска candidate.
 
 Граница Stage 7d: патч не портирует Flowseal/Windows presets в исполняемый Linux runtime автоматически. Он фиксирует источник ложного `dead-target`, улучшает управляемость GUI и документирует, какие идеи Flowseal/Windows стоит переносить осторожно.
+
+## Stage 7e GUI presentation rule
+
+For presets with `ordered-target-chain`, the GUI presentation layer should not stream raw upstream blockcheck output as the primary owner-facing text. The owner-facing log should describe the coverage state machine: current phase, current OR alternative, AVAILABLE discovery, record-holder update, failure point, manual stop, full phase-chain completion and a small top-record list.
+
+The raw upstream transcript remains the source of evidence and is written to per-candidate log files. The GUI log is a readable projection of that evidence, not a replacement for it.

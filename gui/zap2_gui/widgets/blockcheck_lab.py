@@ -69,6 +69,12 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
     target_preset_combo = QtWidgets.QComboBox()
     target_preset_combo.setObjectName("blockcheckServiceTargetPreset")
+    target_preset_combo.setMinimumHeight(30)
+    target_preset_combo.setMinimumContentsLength(24)
+    try:
+        target_preset_combo.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+    except Exception:  # pragma: no cover - PyQt compatibility
+        pass
     for preset in list_service_target_presets():
         target_preset_combo.addItem(preset.title, preset.preset_id)
 
@@ -79,9 +85,12 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     domains_edit = QtWidgets.QLineEdit(DEFAULT_BLOCKCHECK_TARGET_STRING)
     domains_edit.setObjectName("blockcheckDomainsEdit")
     domains_edit.setPlaceholderText(DEFAULT_BLOCKCHECK_TARGET_STRING)
+    domains_edit.setMinimumHeight(30)
+    domains_edit.setToolTip("Registry-owned presets keep this field read-only; Custom manual targets makes it editable.")
 
     scan_mode_combo = QtWidgets.QComboBox()
     scan_mode_combo.setObjectName("blockcheckCandidateScanMode")
+    scan_mode_combo.setMinimumHeight(30)
     scan_mode_combo.addItem("Stop after first AVAILABLE", BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE)
     scan_mode_combo.addItem("Scan all preset targets", BLOCKCHECK_SCAN_ALL_TARGETS)
     scan_mode_combo.addItem("Skip only dead targets", BLOCKCHECK_SCAN_SKIP_DEAD_ONLY)
@@ -95,6 +104,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     ip_combo = QtWidgets.QComboBox()
     ip_combo.addItems(["4", "6", "46"])
 
+    for compact_combo in (test_combo, scan_combo, ip_combo):
+        compact_combo.setMinimumHeight(30)
+        compact_combo.setMinimumWidth(140)
+
     repeats_spin = QtWidgets.QSpinBox()
     repeats_spin.setRange(1, 5)
     repeats_spin.setValue(1)
@@ -103,6 +116,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     timeout_spin.setRange(1, 15)
     timeout_spin.setValue(3)
     timeout_spin.setSuffix(" сек")
+    for compact_spin in (repeats_spin, timeout_spin):
+        compact_spin.setMinimumHeight(30)
+        compact_spin.setMinimumWidth(120)
 
     http_check = QtWidgets.QCheckBox("HTTP")
     https12_check = QtWidgets.QCheckBox("HTTPS TLS1.2")
@@ -141,6 +157,15 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     form.addWidget(http3_check, 7, 3)
     form.addWidget(dns_check, 8, 0, 1, 2)
     form.addWidget(dead_guard_check, 8, 2, 1, 2)
+    form.setColumnMinimumWidth(0, 110)
+    form.setColumnMinimumWidth(1, 220)
+    form.setColumnMinimumWidth(2, 95)
+    form.setColumnMinimumWidth(3, 220)
+    form.setColumnStretch(0, 0)
+    form.setColumnStretch(1, 2)
+    form.setColumnStretch(2, 0)
+    form.setColumnStretch(3, 2)
+    form_box.setMinimumHeight(205)
 
     actions_box = QtWidgets.QGroupBox("Actions")
     actions_layout = QtWidgets.QVBoxLayout(actions_box)
@@ -159,8 +184,15 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     policy_button = QtWidgets.QPushButton("Policy")
     tournament_button = QtWidgets.QPushButton("Tournament")
     verify_button = QtWidgets.QPushButton("Checklist")
-    log_button = QtWidgets.QPushButton("Last log")
+    log_button = QtWidgets.QPushButton("Raw log")
     stop_button.setEnabled(False)
+    for action_button in (
+        preflight_button, build_plan_button, build_button, plan_button, run_button, stop_button,
+        export_button, coverage_button, policy_button, tournament_button, verify_button, log_button,
+    ):
+        action_button.setMinimumHeight(34)
+        action_button.setMinimumWidth(88)
+    export_button.setMinimumWidth(128)
     buttons.addWidget(preflight_button)
     buttons.addWidget(plan_button)
     buttons.addWidget(run_button)
@@ -183,7 +215,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
     output = QtWidgets.QPlainTextEdit()
     output.setReadOnly(True)
-    output.setMinimumHeight(300)
+    output.setMinimumHeight(280)
     try:
         output.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.WidgetWidth)
     except Exception:  # pragma: no cover - compatibility with older Qt bindings
@@ -198,6 +230,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         "stopped_by_user": False,
         "auto_skip_reason": "",
         "monitor": None,
+        "gui_log_mode": False,
+        "tournament_best": None,
+        "tournament_records": [],
         "candidate_targets": [],
         "candidate_index": 0,
         "phase_gated_run": False,
@@ -275,6 +310,60 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         scrollbar = output.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
+    def phase_group_title(phase_index: int) -> str:
+        try:
+            phases = list(service_target_phase_chain(selected_target_preset_id()))
+        except Exception:
+            phases = []
+        if 0 <= phase_index < len(phases):
+            phase = phases[phase_index]
+            return f"{phase.phase_id} ({phase.title})"
+        return f"phase {phase_index + 1}"
+
+    def strategy_label(stats: Any) -> str:
+        strategies = tuple(getattr(stats, "available_strategies", ()) or ())
+        if not strategies:
+            return "<пока нет AVAILABLE strategy>"
+        first = strategies[0]
+        return first if len(first) <= 180 else first[:177] + "..."
+
+    def remember_tournament_record(target: str, phase_index: int, stats: Any) -> None:
+        record = {
+            "target": target,
+            "phase_index": phase_index,
+            "phase_title": phase_group_title(phase_index),
+            "available": int(getattr(stats, "available", 0) or 0),
+            "checks": int(getattr(stats, "strategy_attempts", 0) or 0),
+            "strategy": strategy_label(stats),
+        }
+        state["tournament_best"] = record
+        records = list(state.get("tournament_records") or [])
+        records.append(record)
+        state["tournament_records"] = records[-5:]
+
+    def tournament_record_text() -> str:
+        best = state.get("tournament_best")
+        if not isinstance(best, dict):
+            return "рекордсмен: пока нет"
+        return (
+            "рекордсмен: "
+            f"phase {int(best.get('phase_index', 0)) + 1} {best.get('phase_title')} / {best.get('target')} "
+            f"(available={best.get('available', 0)}, checks={best.get('checks', 0)})"
+        )
+
+    def tournament_top_text() -> str:
+        records = [item for item in (state.get("tournament_records") or []) if isinstance(item, dict)]
+        if not records:
+            return "топ стратегий: пока пусто"
+        lines = ["топ стратегий:"]
+        for index, record in enumerate(records[-3:], 1):
+            lines.append(
+                "  - "
+                f"#{index}: phase {int(record.get('phase_index', 0)) + 1} {record.get('phase_title')} / {record.get('target')} "
+                f"available={record.get('available', 0)}; strategy={record.get('strategy')}"
+            )
+        return "\n".join(lines)
+
     def current_prepared() -> PreparedBlockcheckExecution | None:
         prepared = state.get("prepared")
         return prepared if isinstance(prepared, PreparedBlockcheckExecution) else None
@@ -350,6 +439,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             state["candidate_targets"] = []
             state["candidate_index"] = 0
             state["phase_gated_run"] = False
+            state["tournament_best"] = None
+            state["tournament_records"] = []
             state["candidate_phase_groups"] = []
             state["candidate_phase_index"] = 0
             state["candidate_phase_had_available"] = False
@@ -373,7 +464,21 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             set_running(False)
             return
 
-        append_output(f"\n[GUI] Starting candidate {index + 1}/{len(targets)}: {target}")
+        if state.get("phase_gated_run"):
+            phase_groups = list(state.get("candidate_phase_groups") or [])
+            phase_index = int(state.get("candidate_phase_index") or 0)
+            phase_targets = list(phase_groups[phase_index]) if phase_index < len(phase_groups) else targets
+            phase_label = phase_group_title(phase_index)
+            append_output(
+                "\n[GUI tournament] "
+                f"Фаза {phase_index + 1}/{len(phase_groups)} {phase_label}: "
+                f"проверяем alternative {index + 1}/{len(phase_targets)} — {target}"
+            )
+            append_output(
+                "[GUI tournament] Сырой upstream log пишется в файл; в этом окне показывается человекочитаемый прогресс."
+            )
+        else:
+            append_output(f"\n[GUI] Starting candidate {index + 1}/{len(targets)}: {target}")
         start_prepared_process(prepared, clear_output=False)
 
     def finalize_process(exit_code: int, exit_status: Any) -> None:
@@ -390,6 +495,12 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             state["stderr"] = [stderr]
         stats = parse_blockcheck_run_stats(stdout, stderr)
         summary = parse_blockcheck_summary(stdout)
+        target = ""
+        if prepared is not None:
+            try:
+                target = prepared.command.options.normalized_domains()[0]
+            except Exception:
+                target = ""
         footer = [
             "",
             "===== FINISHED =====",
@@ -408,7 +519,31 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             footer.extend(["", "Parsed SUMMARY / working strategy hints:"])
             footer.extend(f"- {line}" for line in summary)
         footer_text = "\n".join(footer)
-        append_output(footer_text)
+        if state.get("phase_gated_run"):
+            phase_index = int(state.get("candidate_phase_index") or 0)
+            phase_label = phase_group_title(phase_index)
+            if stopped:
+                append_output(
+                    "\n[GUI tournament] Блокчек остановлен вручную; "
+                    + tournament_record_text()
+                    + "\n"
+                    + tournament_top_text()
+                )
+            elif stats.available > 0:
+                remember_tournament_record(target, phase_index, stats)
+                append_output(
+                    "\n[GUI tournament] Найдена AVAILABLE стратегия для фазы "
+                    f"{phase_index + 1} {phase_label}: target={target}; available={stats.available}; checks={stats.strategy_attempts}"
+                )
+                append_output(f"[GUI tournament] стратегия-рекордсмен: {strategy_label(stats)}")
+            else:
+                append_output(
+                    "\n[GUI tournament] Стратегия/alternative не прошла фазу "
+                    f"{phase_index + 1} {phase_label}: target={target}; verdict={stats.verdict}; checks={stats.strategy_attempts}. "
+                    + tournament_record_text()
+                )
+        else:
+            append_output(footer_text)
         if prepared is not None:
             write_blockcheck_last_log(prepared.command, stdout, stderr, footer=footer_text)
 
@@ -435,13 +570,18 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                     state["candidate_index"] = 0
                     state["candidate_phase_had_available"] = False
                     append_output(
-                        "\n[GUI] Tournament phase passed; moving to next required phase "
-                        f"{next_phase_index + 1}/{len(phase_groups)}."
+                        "\n[GUI tournament] Фаза пройдена; переходим к следующей обязательной фазе "
+                        f"{next_phase_index + 1}/{len(phase_groups)}. " + tournament_record_text()
                     )
                     status.setText("Статус: переход к следующей tournament phase…")
                     QtCore.QTimer.singleShot(250, start_next_candidate)
                     return
-                append_output("\n[GUI] Tournament phase chain finished: every required phase has at least one AVAILABLE alternative.")
+                append_output(
+                    "\n[GUI tournament] Блокчек завершил работу по прохождению всех фаз; "
+                    + tournament_record_text()
+                    + "\n"
+                    + tournament_top_text()
+                )
                 state["candidate_targets"] = []
                 state["candidate_index"] = 0
                 state["phase_gated_run"] = False
@@ -453,19 +593,25 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
             if next_exists:
                 state["candidate_index"] = current_index + 1
-                append_output("\n[GUI] Tournament phase alternative failed; trying next alternative in the same phase.")
+                append_output("\n[GUI tournament] Alternative не прошла текущую фазу; пробуем следующий target внутри этой же фазы.")
                 status.setText("Статус: переход к alternative внутри текущей phase…")
                 QtCore.QTimer.singleShot(250, start_next_candidate)
                 return
 
             phase_label = f"{phase_index + 1}/{len(phase_groups)}" if phase_groups else str(phase_index + 1)
             append_output(
-                "\n[GUI] Tournament phase blocked: no AVAILABLE alternative in required phase "
-                f"{phase_label}. Stopping before later phases to preserve the user's ordered strategy loop."
+                "\n[GUI tournament] Tournament phase blocked: no AVAILABLE alternative in required phase; "
+                "Блокчек завершил работу: обязательная фаза заблокирована "
+                f"({phase_label}), более поздние фазы не проверяются. "
+                + tournament_record_text()
+                + "\n"
+                + tournament_top_text()
             )
             state["candidate_targets"] = []
             state["candidate_index"] = 0
             state["phase_gated_run"] = False
+            state["tournament_best"] = None
+            state["tournament_records"] = []
             state["candidate_phase_groups"] = []
             state["candidate_phase_index"] = 0
             state["candidate_phase_had_available"] = False
@@ -524,10 +670,16 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             if state.get("auto_skip_reason") or state.get("stopped_by_user"):
                 return
             state["auto_skip_reason"] = reason
-            message = (
-                "\n[GUI] Evidence-based early stop: "
-                f"{reason}. Moving to the next candidate if one exists.\n"
-            )
+            if state.get("phase_gated_run") and reason.startswith("phase-alternative-available"):
+                message = (
+                    "\n[GUI tournament] Достаточно evidence для текущей phase alternative; "
+                    "останавливаем upstream scan и переходим дальше по tournament loop.\n"
+                )
+            else:
+                message = (
+                    "\n[GUI] Evidence-based early stop: "
+                    f"{reason}. Moving to the next candidate if one exists.\n"
+                )
             state["stderr"].append(message)
             append_output(message)
             status.setText("Статус: candidate auto-stop requested…")
@@ -537,8 +689,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         def read_stdout() -> None:
             data = bytes(process.readAllStandardOutput()).decode("utf-8", errors="replace")
             state["stdout"].append(data)
-            append_output(data)
-            status.setText(f"Статус: running; stdout {len(''.join(state['stdout'])) // 1024} KiB")
+            if not state.get("phase_gated_run"):
+                append_output(data)
+            status.setText(f"Статус: running; raw stdout {len(''.join(state['stdout'])) // 1024} KiB")
             reason = monitor.feed_stdout(data) if monitor is not None else ""
             if reason:
                 request_auto_skip(reason)
@@ -555,7 +708,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         def read_stderr() -> None:
             data = bytes(process.readAllStandardError()).decode("utf-8", errors="replace")
             state["stderr"].append(data)
-            append_output(data)
+            if not state.get("phase_gated_run"):
+                append_output(data)
             flush_live_log()
 
         process.readyReadStandardOutput.connect(read_stdout)
@@ -572,6 +726,11 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         state["monitor"] = monitor
         if clear_output:
             output.setPlainText(prepared.start_text())
+        elif state.get("phase_gated_run"):
+            append_output(
+                "[GUI tournament] raw log: "
+                f"{prepared.command.candidate_log_path or prepared.command.log_path or 'не задан'}"
+            )
         else:
             append_output("\n" + prepared.start_text())
         write_blockcheck_last_log(prepared.command, "", "")
@@ -623,6 +782,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
         if phase_gated:
             state["phase_gated_run"] = True
+            state["tournament_best"] = None
+            state["tournament_records"] = []
             state["candidate_phase_groups"] = phase_groups
             state["candidate_phase_index"] = 0
             state["candidate_phase_had_available"] = False
@@ -633,10 +794,11 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 for index, group in enumerate(phase_groups)
             ]
             output.setPlainText(
-                "Phase-gated Blockcheck tournament run\n"
+                "GUI tournament log (Phase-gated Blockcheck tournament run)\n"
                 "semantics: phases are AND; alternatives inside one phase are OR\n"
                 "runner rule: do not advance to later phases until the current phase has an AVAILABLE alternative\n"
                 "runner rule: when a phase alternative becomes AVAILABLE, stop that candidate and advance to the next phase\n"
+                "raw upstream blockcheck output is written to Last log / candidate log files, not streamed here during phase-gated runs\n"
                 f"candidate mode: {scan_mode_combo.currentData()}\n"
                 "phases:\n"
                 + "\n".join(phase_lines)
@@ -644,6 +806,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             )
         else:
             state["phase_gated_run"] = False
+            state["tournament_best"] = None
+            state["tournament_records"] = []
             state["candidate_phase_groups"] = []
             state["candidate_phase_index"] = 0
             state["candidate_phase_had_available"] = False
