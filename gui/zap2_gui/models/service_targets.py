@@ -1,0 +1,161 @@
+"""Service target preset registry for Blockcheck-oriented discovery.
+
+The registry is intentionally small and data-only at v0.4-alpha Stage 2. It
+provides one source of truth for the target lists that Blockcheck lab should use
+later from GUI/CLI preset selectors, while keeping runtime apply unchanged.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+
+SERVICE_TARGET_YOUTUBE_BASIC = "youtube-basic"
+SERVICE_TARGET_DISCORD_DESKTOP = "discord-desktop"
+SERVICE_TARGET_CUSTOM = "custom"
+DEFAULT_SERVICE_TARGET_PRESET_ID = SERVICE_TARGET_YOUTUBE_BASIC
+
+_SAFE_TARGET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/?=&%+~#@-]{0,250}$")
+_PRESET_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,60}[a-z0-9]$")
+
+
+@dataclass(frozen=True)
+class ServiceTargetPreset:
+    """Named service target list used as an owner-visible Blockcheck seed."""
+
+    preset_id: str
+    title: str
+    summary: str
+    targets: tuple[str, ...]
+    mode: str = "preset"
+    non_voice: bool = True
+
+    @property
+    def is_custom(self) -> bool:
+        return self.mode == SERVICE_TARGET_CUSTOM
+
+    @property
+    def target_string(self) -> str:
+        return " ".join(self.targets)
+
+    def validate(self) -> None:
+        validate_preset_id(self.preset_id)
+        if not self.title.strip():
+            raise ValueError(f"service target preset {self.preset_id!r} must have a title")
+        if self.mode not in {"preset", SERVICE_TARGET_CUSTOM}:
+            raise ValueError(f"service target preset {self.preset_id!r} has unsupported mode: {self.mode!r}")
+        if self.is_custom:
+            if self.targets:
+                raise ValueError("custom service target preset must not carry fixed targets")
+            return
+        validate_service_targets(self.targets)
+
+
+def validate_preset_id(preset_id: str) -> None:
+    if not _PRESET_ID_RE.fullmatch(preset_id):
+        raise ValueError(f"invalid service target preset id: {preset_id!r}")
+
+
+def normalize_service_targets(targets: str | tuple[str, ...] | list[str]) -> tuple[str, ...]:
+    """Normalize and validate a manual target list.
+
+    Targets are domain/URI-like tokens, separated by whitespace when passed as a
+    string. Shell control characters and spaces inside one token are rejected.
+    """
+
+    if isinstance(targets, str):
+        values = tuple(item.strip() for item in targets.split() if item.strip())
+    else:
+        values = tuple(str(item).strip() for item in targets if str(item).strip())
+    validate_service_targets(values)
+    return values
+
+
+def validate_service_targets(targets: tuple[str, ...] | list[str]) -> None:
+    values = tuple(targets)
+    if not values:
+        raise ValueError("service target preset requires at least one target")
+    seen: set[str] = set()
+    for value in values:
+        if not _SAFE_TARGET_RE.fullmatch(value):
+            raise ValueError(
+                "Недопустимый service target: "
+                f"{value!r}. Разрешены домены/URI без пробелов и shell-символов."
+            )
+        lowered = value.lower()
+        if lowered in seen:
+            raise ValueError(f"duplicate service target in preset: {value!r}")
+        seen.add(lowered)
+
+
+_SERVICE_TARGET_PRESETS = (
+    ServiceTargetPreset(
+        preset_id=SERVICE_TARGET_YOUTUBE_BASIC,
+        title="YouTube basic",
+        summary="Проверенный v0.3-stable baseline: базовые YouTube-домены для HTTPS/TLS/QUIC Blockcheck.",
+        targets=("youtube.com", "www.youtube.com"),
+    ),
+    ServiceTargetPreset(
+        preset_id=SERVICE_TARGET_DISCORD_DESKTOP,
+        title="Discord desktop non-voice",
+        summary=(
+            "Первичный v0.4-alpha seed для desktop Discord без voice/UDP: login, gateway, "
+            "updates и CDN/media targets."
+        ),
+        targets=(
+            "discord.com",
+            "gateway.discord.gg",
+            "cdn.discordapp.com",
+            "discordapp.net",
+            "discord.media",
+            "media.discordapp.net",
+            "updates.discord.com",
+            "discord.gg",
+        ),
+        non_voice=True,
+    ),
+    ServiceTargetPreset(
+        preset_id=SERVICE_TARGET_CUSTOM,
+        title="Custom manual targets",
+        summary="Безопасный ручной режим: владелец сам вводит домены/URI, а registry валидирует токены.",
+        targets=(),
+        mode=SERVICE_TARGET_CUSTOM,
+    ),
+)
+
+SERVICE_TARGET_PRESETS: dict[str, ServiceTargetPreset] = {item.preset_id: item for item in _SERVICE_TARGET_PRESETS}
+for _preset in SERVICE_TARGET_PRESETS.values():
+    _preset.validate()
+if len(SERVICE_TARGET_PRESETS) != len(_SERVICE_TARGET_PRESETS):
+    raise ValueError("duplicate service target preset ids")
+
+
+YOUTUBE_BASIC_TARGETS = SERVICE_TARGET_PRESETS[SERVICE_TARGET_YOUTUBE_BASIC].targets
+DISCORD_DESKTOP_TARGETS = SERVICE_TARGET_PRESETS[SERVICE_TARGET_DISCORD_DESKTOP].targets
+DEFAULT_BLOCKCHECK_TARGETS = YOUTUBE_BASIC_TARGETS
+DEFAULT_BLOCKCHECK_TARGET_STRING = " ".join(DEFAULT_BLOCKCHECK_TARGETS)
+
+
+def list_service_target_presets() -> tuple[ServiceTargetPreset, ...]:
+    """Return presets in stable owner-facing order."""
+
+    return _SERVICE_TARGET_PRESETS
+
+
+def get_service_target_preset(preset_id: str) -> ServiceTargetPreset:
+    """Return one preset by id or raise a user-readable error."""
+
+    try:
+        return SERVICE_TARGET_PRESETS[preset_id]
+    except KeyError as exc:
+        choices = ", ".join(SERVICE_TARGET_PRESETS)
+        raise ValueError(f"unknown service target preset: {preset_id!r}; available: {choices}") from exc
+
+
+def service_target_string(preset_id: str) -> str:
+    """Return a whitespace-separated target string for non-custom presets."""
+
+    preset = get_service_target_preset(preset_id)
+    if preset.is_custom:
+        raise ValueError("custom service target preset does not have a fixed target string")
+    return preset.target_string

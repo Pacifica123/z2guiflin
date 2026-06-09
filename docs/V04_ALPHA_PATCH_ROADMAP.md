@@ -81,15 +81,16 @@ protocol family и путь к successful blockcheck log. Это не меняе
 
 ### Stage 2 — registry service target presets
 
-Добавить кодовый registry presets без изменения runtime apply:
+Реализационный patch добавляет кодовый registry presets без изменения runtime apply:
 
 - `youtube-basic` с текущими `youtube.com www.youtube.com`;
 - `discord-desktop` с Discord target seed;
 - `custom` как безопасный ручной режим;
-- unit tests на состав доменов, имена presets и запрет shell-like targets.
+- shared validation для доменов/URI без shell-like targets;
+- unit tests на состав доменов, имена presets, default YouTube baseline и запрет опасных tokens.
 
 Ожидаемый результат: в коде появляется единый источник правды для target lists,
-но GUI ещё может оставаться минимальным.
+но GUI ещё остаётся минимальным. Selector и CLI-флаг preset — задача Stage 3.
 
 ### Stage 3 — Blockcheck Lab preset selector
 

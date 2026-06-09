@@ -26,6 +26,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
     "docs/SOURCE_ALIGNMENT.md",
     "docs/VERSIONING.md",
+    "docs/SERVICE_TARGET_PRESETS.md",
     "docs/reference/legacy_project_digest.md",
     "docs/reference/windows_gui_feature_digest.md",
 ]

@@ -78,6 +78,7 @@ from .adapters.workspace_profiles import (
 )
 from .core_inventory import load_core_build_map, load_core_inventory, load_core_inventory_snapshot
 from .models.navigation import default_navigation_sections
+from .models.service_targets import DEFAULT_BLOCKCHECK_TARGET_STRING
 from .project_paths import discover_layout
 from .qt_compat import PyQtUnavailableError, is_pyqt_available
 
@@ -329,8 +330,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--blockcheck-domains",
-        default="youtube.com www.youtube.com",
-        help="домены/URI для blockcheck; пробельный список, по умолчанию YouTube",
+        default=DEFAULT_BLOCKCHECK_TARGET_STRING,
+        help="домены/URI для blockcheck; пробельный список, по умолчанию service target youtube-basic",
     )
     parser.add_argument(
         "--blockcheck-test",

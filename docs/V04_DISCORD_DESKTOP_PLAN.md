@@ -80,6 +80,14 @@ discord.com gateway.discord.gg cdn.discordapp.com discordapp.net discord.media m
 voice/UDP в текущую веху или переносится на следующий цикл. Подробная
 последовательность патчей описана в `V04_ALPHA_PATCH_ROADMAP.md`.
 
+## Stage 2 registry уточнение
+
+`v0.4-alpha_stage_2` добавляет `gui/zap2_gui/models/service_targets.py` —
+центральный registry для service target presets. Он фиксирует `youtube-basic`,
+`discord-desktop` и `custom`, но пока не меняет runtime apply и не добавляет GUI
+selector. Default Blockcheck остаётся YouTube-oriented, а Discord seed становится
+доступен как кодовый preset для следующего stage.
+
 ## Признаки готовности к v0.4-beta
 
 `v0.4-alpha` можно считать готовой к переходу в beta, когда владелец сможет сказать:

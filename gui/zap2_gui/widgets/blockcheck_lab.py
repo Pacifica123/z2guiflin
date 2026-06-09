@@ -21,6 +21,7 @@ from ..adapters.blockcheck_gui import (
     prepare_blockcheck_execution,
     write_blockcheck_last_log,
 )
+from ..models.service_targets import DEFAULT_BLOCKCHECK_TARGET_STRING
 from ..qt_compat import require_pyqt
 
 
@@ -48,8 +49,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     form.setHorizontalSpacing(8)
     form.setVerticalSpacing(8)
 
-    domains_edit = QtWidgets.QLineEdit("youtube.com www.youtube.com")
-    domains_edit.setPlaceholderText("youtube.com www.youtube.com")
+    domains_edit = QtWidgets.QLineEdit(DEFAULT_BLOCKCHECK_TARGET_STRING)
+    domains_edit.setPlaceholderText(DEFAULT_BLOCKCHECK_TARGET_STRING)
 
     test_combo = QtWidgets.QComboBox()
     test_combo.addItems(["standard", "custom"])

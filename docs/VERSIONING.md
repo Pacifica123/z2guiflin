@@ -170,3 +170,13 @@ Stage 1 фиксирует, что финальная цель `v0.4-*` — вы
 реализационные stages должны двигаться от простого service target preset к
 hostlist/runtime alignment, service-aware export и owner verification loop.
 
+## v0.4-alpha Stage 2
+
+`v0.4-alpha_stage_2` является первым реализационным патчем после roadmap. Он
+добавляет registry service target presets: `youtube-basic`, `discord-desktop` и
+`custom`. Default Blockcheck по-прежнему использует YouTube baseline, поэтому
+рабочая `v0.3-stable` цепочка не должна измениться.
+
+Stage 2 намеренно не добавляет GUI selector, CLI-флаг preset, hostlist alignment
+или runtime switching. Эти шаги остаются следующими стадиями `v0.4-alpha`.
+

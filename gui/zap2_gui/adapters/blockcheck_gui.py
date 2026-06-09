@@ -24,12 +24,12 @@ from typing import Callable
 from .build_dependencies import BuildDependencyReport, run_build_dependency_preflight
 from .gui_privilege import _desktop_env_for_askpass, ensure_sudo_askpass_helper, is_sudo_available
 from .local_build import LocalBuildPlan, create_local_build_plan, inspect_artifacts
+from ..models.service_targets import DEFAULT_BLOCKCHECK_TARGET_STRING, normalize_service_targets
 from ..project_paths import discover_layout
 
 SUPPORTED_BLOCKCHECK_TESTS = ("standard", "custom")
 SUPPORTED_BLOCKCHECK_SCANLEVELS = ("quick", "standard", "force")
 SUPPORTED_BLOCKCHECK_IPVS = ("4", "6", "46")
-_SAFE_TARGET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/?=&%+~#@-]{0,250}$")
 
 
 @dataclass(frozen=True)
@@ -82,7 +82,7 @@ def current_blockcheck_worker_identity() -> BlockcheckWorkerIdentity:
 class BlockcheckOptions:
     """Owner-selected blockcheck2 scan parameters."""
 
-    domains: str = "youtube.com www.youtube.com"
+    domains: str = DEFAULT_BLOCKCHECK_TARGET_STRING
     test: str = "standard"
     scanlevel: str = "quick"
     ipvs: str = "4"
@@ -96,16 +96,13 @@ class BlockcheckOptions:
     timeout_seconds: int = 0
 
     def normalized_domains(self) -> tuple[str, ...]:
-        values = tuple(item.strip() for item in self.domains.split() if item.strip())
-        if not values:
-            raise ValueError("blockcheck требует хотя бы один домен или URI")
-        for value in values:
-            if not _SAFE_TARGET_RE.fullmatch(value):
-                raise ValueError(
-                    "Недопустимый target для blockcheck: "
-                    f"{value!r}. Разрешены домены/URI без пробелов и shell-символов."
-                )
-        return values
+        try:
+            return normalize_service_targets(self.domains)
+        except ValueError as exc:
+            message = str(exc)
+            if "requires at least one target" in message:
+                raise ValueError("blockcheck требует хотя бы один домен или URI") from exc
+            raise
 
     def for_single_domain(self, target: str) -> "BlockcheckOptions":
         """Return a copy constrained to one sequential blockcheck candidate."""

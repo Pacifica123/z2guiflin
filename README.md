@@ -25,6 +25,8 @@ tests/     небольшие структурные тесты для ново�
 
 Текущая ветка открывает `v0.4-alpha`. Цель нового цикла — применить ту же цепочку к desktop-версии Discord: подобрать рабочие target domains/probes, научиться получать generated strategy, выбирать её и запускать Default workflow для оживления Discord. На протяжении `v0.4-*` осознанно игнорируется более сложная задача композиции «YouTube + Discord одновременно»: достаточно научиться выбирать и запускать стратегию под один целевой сервис за раз.
 
+`v0.4-alpha_stage_2` добавляет кодовый registry service target presets: `youtube-basic` сохраняет текущий default `youtube.com www.youtube.com`, `discord-desktop` фиксирует первый Discord desktop non-voice seed, а `custom` оставляет ручной безопасный ввод targets. GUI selector и CLI-флаг preset остаются задачей следующего stage.
+
 ```bash
 python tools/gui_checks/check_project_tree.py
 python tools/gui_checks/inventory_core.py --check
