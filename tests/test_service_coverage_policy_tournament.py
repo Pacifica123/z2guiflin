@@ -56,9 +56,13 @@ def test_service_coverage_policy_distinguishes_youtube_and_discord() -> None:
     assert discord.policy.order_mode == "order-important"
     assert service_target_recommended_scan_mode(SERVICE_TARGET_DISCORD_DESKTOP) == "scan-all-targets"
     assert service_target_ordered_targets(SERVICE_TARGET_DISCORD_DESKTOP)[:3] == (
-        "updates.discord.com",
         "stable.dl2.discordapp.net",
+        "updates.discord.com",
         "discord.com",
+    )
+    assert get_service_target_preset(SERVICE_TARGET_DISCORD_DESKTOP).phases[0].targets == (
+        "stable.dl2.discordapp.net",
+        "updates.discord.com",
     )
 
 
@@ -67,7 +71,9 @@ def test_service_policy_text_is_read_only_and_owner_facing() -> None:
 
     assert "Service target coverage policy" in text
     assert "coverage mode: ordered-target-chain" in text
-    assert "1. updates.discord.com [updater]" in text
+    assert "phase order: phases use AND; targets inside a phase use OR" in text
+    assert "1. updater (Updater/bootstrap; required): stable.dl2.discordapp.net, updates.discord.com" in text
+    assert "1. stable.dl2.discordapp.net [updater]" in text
     assert "read-only: yes" in text
     assert "mutates services/firewall now: no" in text
 
@@ -103,10 +109,12 @@ UNAVAILABLE code=28
 
     assert "Blockcheck service coverage tournament" in text
     assert "score: 1/9 available" in text
-    assert "ordered prefix: 1/9" in text
-    assert "first blocker: stable.dl2.discordapp.net (unavailable" in text
+    assert "phase score: 1/5 required phases passed" in text
+    assert "phase prefix: 1/5" in text
+    assert "first blocker phase: app-api (not-tested" in text
     assert "full coverage: no" in text
-    assert "Stage 7a does not yet prove one nfqws command across every domain" in text
+    assert "phase logic: phases use AND; targets inside the same phase use OR" in text
+    assert "one strategy at a time" in text
 
 
 def test_blockcheck_cli_exposes_policy_and_tournament(capsys) -> None:
@@ -118,3 +126,38 @@ def test_blockcheck_cli_exposes_policy_and_tournament(capsys) -> None:
     out = capsys.readouterr().out
     assert "Blockcheck service coverage tournament" in out
     assert "preset: discord-desktop" in out
+
+
+def test_one_strategy_validation_plan_writes_single_custom_lists(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+
+    _write_candidate(
+        project,
+        "stable.dl2.discordapp.net",
+        """
+* script : standard/25-fake.sh
+- curl_test_https_tls12 ipv4 stable.dl2.discordapp.net : nfqws2 --payload=tls_client_hello --lua-desync=multidisorder:pos=2
+!!!!! AVAILABLE !!!!!
+""",
+    )
+    result = __import__("zap2_gui.adapters.blockcheck_gui", fromlist=["export_blockcheck_available_strategies"]).export_blockcheck_available_strategies(project, max_strategies=1)
+    strategy_id = result.generated[0].strategy_id
+
+    from zap2_gui.adapters.blockcheck_gui import blockcheck_strategy_validation_plan_to_text, write_blockcheck_strategy_validation_lists
+
+    lists = write_blockcheck_strategy_validation_lists(project, strategy_id=strategy_id)
+    tls12 = lists.root_dir / "list_https_tls12.txt"
+    tls13 = lists.root_dir / "list_https_tls13.txt"
+
+    assert tls12.read_text(encoding="utf-8").strip() == "--payload=tls_client_hello --lua-desync=multidisorder:pos=2"
+    assert tls13.read_text(encoding="utf-8").strip() == "--payload=tls_client_hello --lua-desync=multidisorder:pos=2"
+    assert "--filter-tcp" not in tls12.read_text(encoding="utf-8")
+    assert "--lua-init" not in tls12.read_text(encoding="utf-8")
+
+    text = blockcheck_strategy_validation_plan_to_text(project, strategy_id=strategy_id, target="discord.com")
+    assert "Blockcheck one-strategy validation plan" in text
+    assert "strategy: " + strategy_id in text
+    assert "target: discord.com" in text
+    assert "LIST_HTTPS_TLS12=" in text
+    assert "TEST=custom" in text or "custom list root" in text
+    assert "executes now: no" in text

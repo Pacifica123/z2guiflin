@@ -415,10 +415,10 @@ def test_blockcheck_cli_target_preset_expands_discord_domains(capsys: pytest.Cap
     assert main(["--blockcheck-plan", "--blockcheck-target-preset", "discord-desktop"]) == 0
 
     out = capsys.readouterr().out
-    assert "domains: updates.discord.com, stable.dl2.discordapp.net, discord.com" in out
-    assert "ordered domains: updates.discord.com, stable.dl2.discordapp.net, discord.com" in out
+    assert "domains: stable.dl2.discordapp.net, updates.discord.com, discord.com" in out
+    assert "ordered domains: stable.dl2.discordapp.net, updates.discord.com, discord.com" in out
     assert "service coverage policy: ordered-target-chain; order: order-important" in out
-    assert "DOMAINS=updates.discord.com stable.dl2.discordapp.net discord.com" in out
+    assert "DOMAINS=stable.dl2.discordapp.net updates.discord.com discord.com" in out
 
 
 def test_blockcheck_cli_custom_preset_requires_manual_domains(capsys: pytest.CaptureFixture[str]) -> None:

@@ -38,6 +38,7 @@ from ..models.service_targets import (
     service_target_export_slug,
     service_target_layer_for_target,
     service_target_ordered_targets,
+    service_target_phase_chain,
     service_target_policy,
     service_target_recommended_scan_mode,
     service_target_title,
@@ -121,6 +122,7 @@ class BlockcheckOptions:
     repeats: int = 1
     curl_max_time: int = 3
     timeout_seconds: int = 0
+    custom_list_env: tuple[tuple[str, str], ...] = ()
 
     def normalized_domains(self) -> tuple[str, ...]:
         try:
@@ -167,6 +169,7 @@ class BlockcheckOptions:
             repeats=self.repeats,
             curl_max_time=self.curl_max_time,
             timeout_seconds=self.timeout_seconds,
+            custom_list_env=self.custom_list_env,
         )
 
     def validate(self) -> None:
@@ -188,11 +191,17 @@ class BlockcheckOptions:
             raise ValueError("curl timeout должен быть в диапазоне 1..15 секунд")
         if self.timeout_seconds != 0 and not 30 <= self.timeout_seconds <= 3600:
             raise ValueError("overall timeout должен быть 0 (без общего лимита) или в диапазоне 30..3600 секунд")
+        allowed_custom_keys = {"LIST_HTTP", "LIST_HTTPS_TLS12", "LIST_HTTPS_TLS13", "LIST_QUIC", "ZAP2_TOURNAMENT_STRATEGY_ID"}
+        for key, value in self.custom_list_env:
+            if key not in allowed_custom_keys:
+                raise ValueError(f"unsupported blockcheck custom env key: {key}")
+            if not str(value).strip():
+                raise ValueError(f"empty blockcheck custom env value for {key}")
 
     def to_env(self) -> dict[str, str]:
         self.validate()
         policy = self.service_coverage_policy()
-        return {
+        env = {
             "BATCH": "1",
             "TEST": self.test,
             "DOMAINS": " ".join(self.normalized_domains()),
@@ -212,6 +221,8 @@ class BlockcheckOptions:
             "CURL_MAX_TIME": str(self.curl_max_time),
             "CURL_MAX_TIME_QUIC": str(self.curl_max_time),
         }
+        env.update({key: value for key, value in self.custom_list_env})
+        return env
 
 
 
@@ -239,6 +250,33 @@ class GeneratedStrategyFile:
     service_target_preset_id: str
     coverage_status: str = "single-target"
     runtime_args: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class BlockcheckStrategyValidationLists:
+    """Custom blockcheck list files containing exactly one strategy candidate."""
+
+    strategy_id: str
+    root_dir: Path
+    strategy_line: str
+    env_items: tuple[tuple[str, str], ...]
+
+    def to_text(self) -> str:
+        lines = [
+            "Blockcheck one-strategy validation lists",
+            f"strategy: {self.strategy_id}",
+            f"root: {self.root_dir}",
+            f"strategy line: {self.strategy_line}",
+            "env:",
+        ]
+        lines.extend(f"  {key}={value}" for key, value in self.env_items)
+        lines.extend([
+            "purpose: upstream custom test sees one nfqws2 candidate, so tournament validation is one-strategy-at-a-time",
+            "executes now: no",
+            "mutates services/firewall now: no",
+            "mutates worktree now: yes",
+        ])
+        return "\n".join(lines)
 
 
 @dataclass(frozen=True)
@@ -1351,9 +1389,11 @@ def _update_blockcheck_coverage_manifest(command: BlockcheckCommand, stats: Bloc
     data["scanMode"] = command.options.scan_mode
     data["targets"] = coverage
     data["summary"] = _summarize_coverage_targets(coverage)
+    data["phases"] = list(_coverage_phases_in_policy_order(data, preset_id))
     data["notes"] = [
         "Coverage is interpreted through the service coverage policy, not only by raw target count.",
-        "any-target-available presets may stop at the first working target; ordered-target-chain presets need ordered best-so-far/full coverage evidence.",
+        "Stage 7b treats service phases as AND and targets inside one phase as OR alternatives.",
+        "Strategy tournament semantics are record-holder based: one strategy is validated through phases until it fails or reaches full coverage.",
     ]
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -1388,6 +1428,22 @@ def blockcheck_coverage_to_text(root: Path | None = None) -> str:
             f"{target}: {item.get('status', 'unknown')} "
             f"(available={item.get('availableStrategies', 0)}; checks={item.get('strategyChecks', 0)}; log={item.get('lastLog', '')})"
         )
+    phases = data.get("phases") if isinstance(data.get("phases"), list) else []
+    if phases:
+        lines.append("phases: AND between phases, OR between targets inside a phase")
+        for phase in phases:
+            if not isinstance(phase, dict):
+                continue
+            targets_label = ", ".join(
+                str(item.get("target") or "")
+                for item in phase.get("targets", [])
+                if isinstance(item, dict)
+            )
+            lines.append(
+                "  - "
+                f"{phase.get('phaseId', 'unknown')}: {phase.get('status', 'unknown')} "
+                f"({targets_label})"
+            )
     lines.extend(["read-only: yes", "executes now: no", "mutates services/firewall now: no"])
     return "\n".join(lines)
 
@@ -1430,13 +1486,67 @@ def _status_available(row: dict[str, object]) -> bool:
     return str(row.get("status") or "") == "available"
 
 
+def _phase_status_for_rows(rows: tuple[dict[str, object], ...]) -> tuple[str, dict[str, object] | None]:
+    """Return phase status using OR semantics for target alternatives."""
+
+    if any(_status_available(row) for row in rows):
+        winner = next(row for row in rows if _status_available(row))
+        return "passed", winner
+    if not rows or all(str(row.get("status") or "not-tested") == "not-tested" for row in rows):
+        return "not-tested", rows[0] if rows else None
+    if any(str(row.get("status") or "") == "not-tested" for row in rows):
+        return "pending", next((row for row in rows if str(row.get("status") or "") == "not-tested"), rows[0])
+    return "blocked", rows[0] if rows else None
+
+
+def _coverage_phases_in_policy_order(data: dict[str, object], preset_id: str) -> tuple[dict[str, object], ...]:
+    rows_by_target = {str(row.get("target") or ""): row for row in _coverage_items_in_policy_order(data, preset_id)}
+    phases: list[dict[str, object]] = []
+    try:
+        chain = service_target_phase_chain(preset_id)
+    except ValueError:
+        return ()
+    for phase in chain:
+        target_rows = tuple(
+            rows_by_target.get(
+                target,
+                {
+                    "target": target,
+                    "status": "not-tested",
+                    "availableStrategies": 0,
+                    "strategyChecks": 0,
+                    "lastLog": "",
+                },
+            )
+            for target in phase.targets
+        )
+        status, winner = _phase_status_for_rows(target_rows)
+        phases.append(
+            {
+                "phaseId": phase.phase_id,
+                "title": phase.title,
+                "status": status,
+                "required": phase.required,
+                "targets": list(target_rows),
+                "winner": winner or {},
+                "summary": phase.summary,
+            }
+        )
+    return tuple(phases)
+
+
+def _phase_passed(phase: dict[str, object]) -> bool:
+    return str(phase.get("status") or "") == "passed"
+
+
 def blockcheck_tournament_to_text(root: Path | None = None, preset_id: str | None = None) -> str:
     """Render a read-only service coverage tournament snapshot.
 
-    Stage 7a is deliberately conservative: it does not execute new network tests
-    and it does not claim that upstream blockcheck can already validate one
-    nfqws strategy across every target. It establishes the shared policy/order
-    model and scores the evidence currently stored in the coverage manifest.
+    Stage 7b makes the tournament semantics explicit: strategies are record
+    candidates, phases are AND, and target alternatives inside one phase are OR.
+    The manifest is still per-target evidence; actual one-strategy validation is
+    prepared by the custom-list helpers and recorded as best-so-far evidence once
+    the owner runs it.
     """
 
     path = blockcheck_coverage_manifest_path(root)
@@ -1454,23 +1564,48 @@ def blockcheck_tournament_to_text(root: Path | None = None, preset_id: str | Non
         }
         for target in (preset.ordered_targets_for_policy() if not preset.is_custom else ())
     )
+    phases = _coverage_phases_in_policy_order(data, effective_preset_id) if data else tuple(
+        {
+            "phaseId": phase.phase_id,
+            "title": phase.title,
+            "status": "not-tested",
+            "required": phase.required,
+            "targets": [
+                {
+                    "target": target,
+                    "status": "not-tested",
+                    "availableStrategies": 0,
+                    "strategyChecks": 0,
+                    "lastLog": "",
+                }
+                for target in phase.targets
+            ],
+            "winner": {},
+            "summary": phase.summary,
+        }
+        for phase in (preset.phase_chain_for_policy() if not preset.is_custom else ())
+    )
     available_rows = tuple(row for row in rows if _status_available(row))
-    total = len(rows)
+    total_targets = len(rows)
     available_count = len(available_rows)
-    ordered_prefix = 0
+    required_phases = tuple(phase for phase in phases if bool(phase.get("required", True)))
+    phase_passed_count = sum(1 for phase in required_phases if _phase_passed(phase))
+    phase_prefix = 0
     first_blocker: dict[str, object] | None = None
     if policy.mode == SERVICE_COVERAGE_ORDERED_TARGET_CHAIN:
-        for row in rows:
-            if _status_available(row):
-                ordered_prefix += 1
+        for phase in required_phases:
+            if _phase_passed(phase):
+                phase_prefix += 1
                 continue
-            first_blocker = row
+            first_blocker = phase
             break
     success = False
     if policy.mode == SERVICE_COVERAGE_ANY_TARGET_AVAILABLE:
         success = available_count > 0
-    elif policy.mode in {SERVICE_COVERAGE_ORDERED_TARGET_CHAIN, SERVICE_COVERAGE_MAXIMIZE_TARGETS}:
-        success = total > 0 and available_count == total
+    elif policy.mode == SERVICE_COVERAGE_MAXIMIZE_TARGETS:
+        success = total_targets > 0 and available_count == total_targets
+    elif policy.mode == SERVICE_COVERAGE_ORDERED_TARGET_CHAIN:
+        success = bool(required_phases) and phase_passed_count == len(required_phases)
 
     lines = [
         "Blockcheck service coverage tournament",
@@ -1480,19 +1615,46 @@ def blockcheck_tournament_to_text(root: Path | None = None, preset_id: str | Non
         f"order mode: {policy.order_mode}",
         f"recommended scan mode: {policy.recommended_scan_mode}",
         f"stop rule: {policy.stop_rule}",
-        f"score: {available_count}/{total} available",
+        "strategy loop: one strategy at a time; a candidate advances phase-by-phase until it fails or covers the full chain",
+        "phase logic: phases use AND; targets inside the same phase use OR",
+        f"score: {available_count}/{total_targets} available",
+        f"target score: {available_count}/{total_targets} available",
     ]
+    if phases:
+        lines.append(f"phase score: {phase_passed_count}/{len(required_phases)} required phases passed")
     if policy.mode == SERVICE_COVERAGE_ORDERED_TARGET_CHAIN:
-        lines.append(f"ordered prefix: {ordered_prefix}/{total}")
+        lines.append(f"phase prefix: {phase_prefix}/{len(required_phases)}")
         if first_blocker is not None:
+            alternatives = ", ".join(
+                f"{row.get('target')}={row.get('status', 'unknown')}"
+                for row in first_blocker.get("targets", [])
+                if isinstance(row, dict)
+            )
             lines.append(
-                "first blocker: "
-                f"{first_blocker.get('target')} ({first_blocker.get('status', 'unknown')}; "
-                f"available={first_blocker.get('availableStrategies', 0)}; checks={first_blocker.get('strategyChecks', 0)})"
+                "first blocker phase: "
+                f"{first_blocker.get('phaseId')} ({first_blocker.get('status', 'unknown')}; {alternatives})"
             )
     elif policy.mode == SERVICE_COVERAGE_ANY_TARGET_AVAILABLE:
         lines.append(f"any-target success: {'yes' if available_count else 'no'}")
     lines.append(f"full coverage: {'yes' if success else 'no'}")
+    if phases:
+        lines.append("phases in policy order:")
+        for index, phase in enumerate(phases, 1):
+            alternatives = []
+            for row in phase.get("targets", []):
+                if isinstance(row, dict):
+                    alternatives.append(
+                        f"{row.get('target')}={row.get('status', 'unknown')}"
+                        f"/available:{row.get('availableStrategies', 0)}"
+                    )
+            winner = phase.get("winner") if isinstance(phase.get("winner"), dict) else {}
+            winner_label = str(winner.get("target") or "") if winner else ""
+            suffix = f"; winner={winner_label}" if winner_label else ""
+            lines.append(
+                "  - "
+                f"{index}. {phase.get('phaseId')} ({phase.get('title')}): {phase.get('status', 'unknown')}"
+                f"{suffix}; alternatives: {', '.join(alternatives)}"
+            )
     lines.append("targets in policy order:")
     for index, row in enumerate(rows, 1):
         target = str(row.get("target") or "")
@@ -1503,10 +1665,10 @@ def blockcheck_tournament_to_text(root: Path | None = None, preset_id: str | Non
             f"[{layer}; available={row.get('availableStrategies', 0)}; checks={row.get('strategyChecks', 0)}; log={row.get('lastLog', '')}]"
         )
     lines.extend([
-        "interpretation:",
+        "record-holder interpretation:",
         "  - any-target-available: simple services such as YouTube may use the first working target as a useful candidate.",
-        "  - ordered-target-chain: desktop-style services such as Discord should treat updater/app/gateway/CDN order as meaningful and keep best-so-far evidence.",
-        "  - Stage 7a does not yet prove one nfqws command across every domain; it creates the shared policy/tournament contract and reads current evidence.",
+        "  - ordered-target-chain: desktop-style services such as Discord should validate one strategy through phases and keep only the current record-holder plus optional former records.",
+        "  - Stage 7b fixes the model from raw domain coverage to phase-aware strategy tournament semantics; automated candidate validation uses custom one-strategy lists rather than N-per-target buckets.",
         "read-only: yes",
         "executes now: no",
         "mutates services/firewall now: no",
@@ -1622,6 +1784,120 @@ def _slug(value: str, *, max_len: int = 48) -> str:
 
 def _catalog_relative(path: Path, root: Path) -> str:
     return path.relative_to(root).as_posix()
+
+
+def _strategy_args_for_custom_list(runtime_args: tuple[str, ...]) -> tuple[str, ...]:
+    """Return nfqws2 args suitable for upstream custom/list_https_*.txt.
+
+    Runtime strategies contain GUI/runtime scaffolding such as --lua-init and
+    protocol filters. blockcheck2 custom lists expect the candidate-specific
+    nfqws2 parameters only, one strategy per line.
+    """
+
+    cleaned: list[str] = []
+    for arg in runtime_args:
+        value = str(arg).strip()
+        if not value:
+            continue
+        if value.startswith("--lua-init"):
+            continue
+        if value.startswith("--filter-"):
+            continue
+        cleaned.append(value)
+    if not cleaned:
+        raise ValueError("strategy runtimeArgs do not contain blockcheck-testable nfqws2 parameters")
+    return tuple(cleaned)
+
+
+def _strategy_line_for_custom_list(runtime_args: tuple[str, ...]) -> str:
+    return shlex.join(_strategy_args_for_custom_list(runtime_args))
+
+
+def write_blockcheck_strategy_validation_lists(
+    root: Path | None = None,
+    strategy_id: str = "",
+) -> BlockcheckStrategyValidationLists:
+    """Materialize custom blockcheck lists with exactly one generated strategy.
+
+    This is the Stage 7b bridge from the user's tournament sketch to upstream
+    blockcheck2: a record-candidate strategy can be tested against the next phase
+    without first gathering an arbitrary bucket of N strategies for one domain.
+    """
+
+    if not strategy_id:
+        raise ValueError("strategy_id обязателен для one-strategy validation lists")
+    from .workspace_profiles import load_strategy_catalog
+
+    layout = discover_layout(root)
+    strategies = load_strategy_catalog(layout.root).by_id()
+    if strategy_id not in strategies:
+        raise ValueError(f"Неизвестная стратегия: {strategy_id}. Доступно: {', '.join(sorted(strategies))}")
+    strategy = strategies[strategy_id]
+    line = _strategy_line_for_custom_list(strategy.runtime_args)
+    list_root = layout.root / ".zap2" / "blockcheck" / "tournament" / "custom-lists" / _slug(strategy_id, max_len=96)
+    list_root.mkdir(parents=True, exist_ok=True)
+    files = {
+        "LIST_HTTP": list_root / "list_http.txt",
+        "LIST_HTTPS_TLS12": list_root / "list_https_tls12.txt",
+        "LIST_HTTPS_TLS13": list_root / "list_https_tls13.txt",
+        "LIST_QUIC": list_root / "list_quic.txt",
+    }
+    files["LIST_HTTP"].write_text("# intentionally empty for Stage 7b one-strategy TLS validation\n", encoding="utf-8")
+    files["LIST_HTTPS_TLS12"].write_text(line + "\n", encoding="utf-8")
+    files["LIST_HTTPS_TLS13"].write_text(line + "\n", encoding="utf-8")
+    files["LIST_QUIC"].write_text("# intentionally empty for Discord non-voice Stage 7b TLS validation\n", encoding="utf-8")
+    env_items = tuple((key, str(path)) for key, path in files.items()) + (("ZAP2_TOURNAMENT_STRATEGY_ID", strategy_id),)
+    return BlockcheckStrategyValidationLists(strategy_id=strategy_id, root_dir=list_root, strategy_line=line, env_items=env_items)
+
+
+def blockcheck_strategy_validation_plan_to_text(
+    root: Path | None = None,
+    strategy_id: str = "",
+    target: str = "",
+) -> str:
+    """Read-only plan for validating one strategy against one target/phase alternative."""
+
+    if not target.strip():
+        raise ValueError("target обязателен для strategy validation plan")
+    lists = write_blockcheck_strategy_validation_lists(root=root, strategy_id=strategy_id)
+    from .workspace_profiles import load_strategy_catalog
+
+    layout = discover_layout(root)
+    strategy = load_strategy_catalog(layout.root).by_id()[strategy_id]
+    service_target = strategy.service_target or {}
+    preset_id = str(service_target.get("presetId") or infer_service_target_preset_id((target,)))
+    opts = BlockcheckOptions(
+        domains=target,
+        service_target_preset_id=preset_id,
+        scan_mode=BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
+        test="custom",
+        scanlevel="quick",
+        enable_http=False,
+        enable_https_tls12=True,
+        enable_https_tls13=True,
+        enable_http3=False,
+        custom_list_env=lists.env_items,
+    )
+    command = build_blockcheck_command(root=layout.root, options=opts)
+    lines = [
+        "Blockcheck one-strategy validation plan",
+        f"strategy: {strategy_id}",
+        f"target: {target}",
+        f"service target preset: {preset_id}",
+        "semantics: one strategy candidate is checked against one phase alternative; phases are AND, alternatives are OR",
+        f"custom list root: {lists.root_dir}",
+        f"strategy line: {lists.strategy_line}",
+        "custom env:",
+    ]
+    lines.extend(f"  {key}={value}" for key, value in lists.env_items)
+    lines.extend([
+        "command preview:",
+        f"  {command.redacted_command_preview()}",
+        "executes now: no",
+        "mutates services/firewall now: no",
+        "mutates worktree now: yes (writes one-strategy custom lists)",
+    ])
+    return "\n".join(lines)
 
 
 def _update_strategy_catalog(catalog_path: Path, new_files: tuple[Path, ...], root: Path) -> None:

@@ -18,6 +18,7 @@ from .adapters.blockcheck_gui import (
     blockcheck_coverage_to_text,
     blockcheck_service_policy_to_text,
     blockcheck_tournament_to_text,
+    blockcheck_strategy_validation_plan_to_text,
     blockcheck_plan_to_text,
     blockcheck_preflight_to_text,
     execute_blockcheck_prereq_build,
@@ -354,6 +355,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--blockcheck-tournament",
         action="store_true",
         help="показать read-only service coverage tournament/best-so-far snapshot; без исполнения",
+    )
+    parser.add_argument(
+        "--blockcheck-validate-strategy-plan",
+        metavar="STRATEGY_ID",
+        help="подготовить read-only план проверки одной strategy через upstream custom list на одном target из --blockcheck-domains",
     )
     parser.add_argument(
         "--select-strategy",
@@ -786,6 +792,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.blockcheck_tournament:
         try:
             print(blockcheck_tournament_to_text(preset_id=str(args.blockcheck_target_preset)))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.blockcheck_validate_strategy_plan:
+        try:
+            target = _blockcheck_domains_from_args(args).split()[0]
+            print(blockcheck_strategy_validation_plan_to_text(strategy_id=str(args.blockcheck_validate_strategy_plan), target=target))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

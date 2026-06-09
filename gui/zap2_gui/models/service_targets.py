@@ -45,6 +45,27 @@ _PRESET_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,60}[a-z0-9]$")
 
 
 @dataclass(frozen=True)
+class ServiceCoveragePhase:
+    """One logical service phase: phases are AND, targets inside one phase are OR."""
+
+    phase_id: str
+    title: str
+    targets: tuple[str, ...]
+    required: bool = True
+    summary: str = ""
+
+    def validate(self, preset_id: str) -> None:
+        validate_preset_id(self.phase_id)
+        if not self.title.strip():
+            raise ValueError(f"service target preset {preset_id!r} has a coverage phase without a title")
+        validate_service_targets(self.targets)
+
+    @property
+    def target_string(self) -> str:
+        return " ".join(self.targets)
+
+
+@dataclass(frozen=True)
 class ServiceCoveragePolicy:
     """Coverage semantics shared by user-facing presets and Blockcheck adapters."""
 
@@ -103,6 +124,7 @@ class ServiceTargetPreset:
     summary: str
     targets: tuple[str, ...]
     layers: dict[str, tuple[str, ...]] | None = None
+    phases: tuple[ServiceCoveragePhase, ...] = ()
     mode: str = "preset"
     non_voice: bool = True
     coverage_policy: ServiceCoveragePolicy | None = None
@@ -129,8 +151,20 @@ class ServiceTargetPreset:
         )
 
     def ordered_targets_for_policy(self) -> tuple[str, ...]:
+        if self.phases:
+            return tuple(target for phase in self.phases for target in phase.targets)
         policy_targets = self.policy.required_targets
         return policy_targets if policy_targets else self.targets
+
+    def phase_chain_for_policy(self) -> tuple[ServiceCoveragePhase, ...]:
+        if self.phases:
+            return self.phases
+        if self.is_custom:
+            return ()
+        return tuple(
+            ServiceCoveragePhase(phase_id=service_target_host_token(target).replace(".", "-"), title=str(target), targets=(target,))
+            for target in self.ordered_targets_for_policy()
+        )
 
     def validate(self) -> None:
         validate_preset_id(self.preset_id)
@@ -145,6 +179,17 @@ class ServiceTargetPreset:
             return
         validate_service_targets(self.targets)
         self.policy.validate(self.preset_id, self.targets, is_custom=False)
+        if self.phases:
+            phase_targets: list[str] = []
+            phase_ids: list[str] = []
+            for phase in self.phases:
+                phase.validate(self.preset_id)
+                phase_ids.append(phase.phase_id)
+                phase_targets.extend(phase.targets)
+            if len(phase_ids) != len(set(phase_ids)):
+                raise ValueError(f"service target preset {self.preset_id!r} has duplicate coverage phase ids")
+            if tuple(service_target_host_token(item) for item in phase_targets) != tuple(service_target_host_token(item) for item in self.targets):
+                raise ValueError(f"service target preset {self.preset_id!r} phase chain must cover targets in preset order")
         if self.layers is not None:
             layer_targets: list[str] = []
             for layer_name, targets in self.layers.items():
@@ -260,17 +305,40 @@ def validate_service_targets(targets: tuple[str, ...] | list[str]) -> None:
         seen.add(lowered)
 
 
-_DISCORD_DESKTOP_ORDERED_TARGETS = (
-    "updates.discord.com",
-    "stable.dl2.discordapp.net",
-    "discord.com",
-    "gateway.discord.gg",
-    "cdn.discordapp.com",
-    "media.discordapp.net",
-    "discord.media",
-    "discordapp.net",
-    "discord.gg",
+_DISCORD_DESKTOP_PHASES = (
+    ServiceCoveragePhase(
+        phase_id="updater",
+        title="Updater/bootstrap",
+        targets=("stable.dl2.discordapp.net", "updates.discord.com"),
+        summary="Any updater/download endpoint in this phase may satisfy the first Discord desktop boot phase.",
+    ),
+    ServiceCoveragePhase(
+        phase_id="app-api",
+        title="App/API",
+        targets=("discord.com",),
+        summary="Main app/API HTTPS target.",
+    ),
+    ServiceCoveragePhase(
+        phase_id="gateway",
+        title="Gateway",
+        targets=("gateway.discord.gg",),
+        summary="Persistent WebSocket gateway target.",
+    ),
+    ServiceCoveragePhase(
+        phase_id="cdn-media",
+        title="CDN/media",
+        targets=("cdn.discordapp.com", "media.discordapp.net", "discord.media", "discordapp.net"),
+        summary="Any media/CDN alternative proves this phase enough for the current non-voice loop.",
+    ),
+    ServiceCoveragePhase(
+        phase_id="invite",
+        title="Invite/secondary",
+        targets=("discord.gg",),
+        summary="Secondary invite target; useful but still tracked in the non-voice chain.",
+    ),
 )
+
+_DISCORD_DESKTOP_ORDERED_TARGETS = tuple(target for phase in _DISCORD_DESKTOP_PHASES for target in phase.targets)
 
 _SERVICE_TARGET_PRESETS = (
     ServiceTargetPreset(
@@ -299,23 +367,24 @@ _SERVICE_TARGET_PRESETS = (
         ),
         targets=_DISCORD_DESKTOP_ORDERED_TARGETS,
         layers={
-            "updater": ("updates.discord.com", "stable.dl2.discordapp.net"),
+            "updater": ("stable.dl2.discordapp.net", "updates.discord.com"),
             "app-api": ("discord.com",),
             "gateway": ("gateway.discord.gg",),
             "cdn-media": ("cdn.discordapp.com", "media.discordapp.net", "discord.media", "discordapp.net"),
             "invite": ("discord.gg",),
         },
+        phases=_DISCORD_DESKTOP_PHASES,
         non_voice=True,
         coverage_policy=ServiceCoveragePolicy(
             mode=SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
             order_mode=SERVICE_COVERAGE_ORDER_IMPORTANT,
             summary=(
-                "Desktop-style chain: сначала updater/download, затем app/API, gateway и CDN/media. "
-                "Идеальная стратегия должна покрыть всю цепочку; если это невозможно, UI показывает best partial и first failure."
+                "Desktop-style chain: фазы идут через AND, а targets внутри одной фазы считаются OR-альтернативами. "
+                "Идеальная стратегия должна пройти updater → app/API → gateway → CDN/media; если это невозможно, UI показывает record-holder/best partial."
             ),
             required_targets=_DISCORD_DESKTOP_ORDERED_TARGETS,
             recommended_scan_mode=BLOCKCHECK_SCAN_ALL_TARGETS,
-            stop_rule="search until full ordered coverage is proven or owner stops and reviews best-so-far",
+            stop_rule="test one strategy through the phase chain until full coverage is proven or owner stops and reviews the record-holder",
         ),
     ),
     ServiceTargetPreset(
@@ -388,6 +457,27 @@ def service_target_ordered_targets(preset_id: str) -> tuple[str, ...]:
     return preset.ordered_targets_for_policy()
 
 
+def service_target_phase_chain(preset_id: str) -> tuple[ServiceCoveragePhase, ...]:
+    """Return logical coverage phases: phases are AND, targets inside each phase are OR."""
+
+    preset = get_service_target_preset(preset_id)
+    if preset.is_custom:
+        raise ValueError("custom service target preset does not have a fixed phase chain")
+    return preset.phase_chain_for_policy()
+
+
+def service_target_phase_for_target(preset_id: str, target: str) -> ServiceCoveragePhase | None:
+    token = service_target_host_token(target)
+    try:
+        phases = service_target_phase_chain(preset_id)
+    except ValueError:
+        return None
+    for phase in phases:
+        if token in {service_target_host_token(item) for item in phase.targets}:
+            return phase
+    return None
+
+
 def service_target_recommended_scan_mode(preset_id: str) -> str:
     """Return the scan mode that matches the preset coverage semantics."""
 
@@ -411,9 +501,16 @@ def service_target_coverage_policy_to_text(preset_id: str) -> str:
     if preset.is_custom:
         lines.append("targets: owner-defined at runtime")
     else:
+        phases = preset.phase_chain_for_policy()
+        lines.append("phase order: phases use AND; targets inside a phase use OR")
+        for index, phase in enumerate(phases, 1):
+            marker = "required" if phase.required else "optional"
+            lines.append(f"  {index}. {phase.phase_id} ({phase.title}; {marker}): {', '.join(phase.targets)}")
         lines.append("target order:")
         for index, target in enumerate(preset.ordered_targets_for_policy(), 1):
-            lines.append(f"  {index}. {target} [{service_target_layer_for_target(preset.preset_id, target)}]")
+            phase = service_target_phase_for_target(preset.preset_id, target)
+            phase_id = phase.phase_id if phase is not None else service_target_layer_for_target(preset.preset_id, target)
+            lines.append(f"  {index}. {target} [{phase_id}]")
     lines.extend([
         "read-only: yes",
         "executes now: no",

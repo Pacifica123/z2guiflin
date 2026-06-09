@@ -61,8 +61,8 @@ scan-all-targets
 Discord desktop non-voice order в Stage 7a:
 
 ```text
-1. updates.discord.com
-2. stable.dl2.discordapp.net
+1. stable.dl2.discordapp.net
+2. updates.discord.com
 3. discord.com
 4. gateway.discord.gg
 5. cdn.discordapp.com
@@ -115,3 +115,39 @@ Stage 7a не утверждает, что upstream `blockcheck2.sh` уже ум
 ## Safety boundary
 
 Policy и tournament view являются read-only слоями. Они не запускают sudo, не меняют firewall/services и не выбирают стратегию автоматически.
+
+
+## v0.4-alpha Stage 7b — phase-aware one-strategy tournament
+
+Stage 7b уточняет модель Stage 7a по схеме владельца: стратегии проверяются по одной, а не пачкой `N` стратегий на одном домене. Одна стратегия-кандидат идёт через цепочку фаз и либо становится новым рекордсменом, либо попадает в непрошедшие.
+
+Универсальный контракт теперь такой:
+
+```text
+any-target-available — достаточно любого рабочего target, как в простом YouTube baseline
+maximize-targets — порядок не важен, но нужно максимизировать покрытие
+ordered-target-chain — порядок важен; фазы идут через AND, targets внутри фазы идут через OR
+```
+
+Для Discord desktop non-voice цепочка фаз выглядит так:
+
+```text
+1. updater/bootstrap: stable.dl2.discordapp.net OR updates.discord.com
+2. app-api: discord.com
+3. gateway: gateway.discord.gg
+4. cdn-media: cdn.discordapp.com OR media.discordapp.net OR discord.media OR discordapp.net
+5. invite: discord.gg
+```
+
+Это исправляет ошибку Stage 7a: `updates.discord.com` больше не является абсолютным первым blocker-ом, если та же updater-фаза может быть пройдена через `stable.dl2.discordapp.net`.
+
+Добавлен план one-strategy validation через upstream custom lists. Он записывает ровно одну `nfqws2`-стратегию в `.zap2/blockcheck/tournament/custom-lists/<strategy>/list_https_tls12.txt` и `list_https_tls13.txt`, чтобы следующий шаг мог проверять кандидата по фазам без предварительного накопления произвольной пачки стратегий на одном target-е.
+
+CLI read-only пример:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-tournament --blockcheck-target-preset discord-desktop
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-validate-strategy-plan <strategy-id> --blockcheck-domains discord.com
+```
+
+Граница Stage 7b: патч фиксирует фазовую модель, record-holder семантику и one-strategy custom-list bridge. Полный автоматический GUI-run, который сам берёт кандидата, гонит его по всем фазам и останавливается на полном покрытии, остаётся следующим реализационным слоем поверх этого контракта.
