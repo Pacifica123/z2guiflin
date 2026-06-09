@@ -412,3 +412,23 @@ PYTHONPATH=gui python -m zap2_gui.app --discord-verification-template
 ```
 
 Шаблон отчёта создаётся в `.zap2/verification/discord-non-voice-owner-check.md`, не перезаписывает ручные заметки и явно исключает voice/UDP из критерия успеха. GUI-эквивалент плана доступен во вкладке Blockcheck lab через кнопку `Discord checklist`.
+
+## v0.4-alpha Stage 7a — service coverage policy/tournament
+
+Stage 7a добавляет универсальный слой service coverage policy поверх target presets. Теперь registry явно различает:
+
+```text
+any-target-available — достаточно одного рабочего target, например youtube-basic
+maximize-targets — порядок не важен, но нужно максимальное покрытие
+ordered-target-chain — порядок важен, например Discord desktop updater → app/API → gateway → CDN/media
+```
+
+Для `discord-desktop` порядок target-ов теперь начинается с `updates.discord.com` и `stable.dl2.discordapp.net`, потому что owner verification упиралась в `Checking for updates`. GUI получил read-only `Policy` и `Tournament` actions, а CLI получил:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-service-policy --blockcheck-target-preset discord-desktop
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-tournament --blockcheck-target-preset discord-desktop
+```
+
+Этот слой не запускает sudo и не доказывает одну `nfqws2`-команду на всех доменах автоматически; он фиксирует общий контракт для следующего шага и делает текущую диагностику updater-first.
+

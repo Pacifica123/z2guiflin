@@ -28,10 +28,18 @@ from ..models.service_targets import (
     DEFAULT_BLOCKCHECK_TARGET_STRING,
     DEFAULT_SERVICE_TARGET_PRESET_ID,
     SERVICE_TARGET_CUSTOM,
+    SERVICE_COVERAGE_ANY_TARGET_AVAILABLE,
+    SERVICE_COVERAGE_MAXIMIZE_TARGETS,
+    SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
     get_service_target_preset,
     infer_service_target_preset_id,
     normalize_service_targets,
+    service_target_coverage_policy_to_text,
     service_target_export_slug,
+    service_target_layer_for_target,
+    service_target_ordered_targets,
+    service_target_policy,
+    service_target_recommended_scan_mode,
     service_target_title,
 )
 from ..project_paths import discover_layout
@@ -123,6 +131,24 @@ class BlockcheckOptions:
                 raise ValueError("blockcheck требует хотя бы один домен или URI") from exc
             raise
 
+    def ordered_domains_for_policy(self) -> tuple[str, ...]:
+        """Return domains in the service policy order used by sequential GUI runs."""
+
+        domains = self.normalized_domains()
+        if self.service_target_preset_id == SERVICE_TARGET_CUSTOM:
+            return domains
+        try:
+            preset_order = service_target_ordered_targets(self.service_target_preset_id)
+        except ValueError:
+            return domains
+        if set(item.lower() for item in domains) != set(item.lower() for item in preset_order):
+            return domains
+        positions = {target.lower(): index for index, target in enumerate(preset_order)}
+        return tuple(sorted(domains, key=lambda item: positions.get(item.lower(), len(positions))))
+
+    def service_coverage_policy(self):
+        return service_target_policy(self.service_target_preset_id)
+
     def for_single_domain(self, target: str) -> "BlockcheckOptions":
         """Return a copy constrained to one sequential blockcheck candidate."""
 
@@ -165,11 +191,14 @@ class BlockcheckOptions:
 
     def to_env(self) -> dict[str, str]:
         self.validate()
+        policy = self.service_coverage_policy()
         return {
             "BATCH": "1",
             "TEST": self.test,
             "DOMAINS": " ".join(self.normalized_domains()),
             "ZAP2_SERVICE_TARGET_PRESET": self.service_target_preset_id,
+            "ZAP2_SERVICE_COVERAGE_POLICY": policy.mode,
+            "ZAP2_SERVICE_COVERAGE_ORDER_MODE": policy.order_mode,
             "ZAP2_BLOCKCHECK_SCAN_MODE": self.scan_mode,
             "IPVS": self.ipvs,
             "SCANLEVEL": self.scanlevel,
@@ -330,10 +359,13 @@ class BlockcheckCommand:
             if worker is not None
             else "blockcheck worker uid/gid: upstream default"
         )
+        policy = self.options.service_coverage_policy()
         lines = [
             "Blockcheck GUI plan",
             f"domains: {', '.join(self.options.normalized_domains())}",
+            f"ordered domains: {', '.join(self.options.ordered_domains_for_policy())}",
             f"service target preset: {self.options.service_target_preset_id} ({get_service_target_preset(self.options.service_target_preset_id).title})",
+            f"service coverage policy: {policy.mode}; order: {policy.order_mode}",
             f"candidate scan mode: {self.options.scan_mode}",
             f"test: {self.options.test}",
             f"scanlevel: {self.options.scanlevel}",
@@ -1274,6 +1306,7 @@ def _update_blockcheck_coverage_manifest(command: BlockcheckCommand, stats: Bloc
     preset_id = command.options.service_target_preset_id
     now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     existing = _read_coverage_manifest(manifest_path)
+    policy = command.options.service_coverage_policy()
     if existing and existing.get("serviceTargetPresetId") == preset_id:
         data = dict(existing)
         raw_targets = data.get("targets") if isinstance(data.get("targets"), dict) else {}
@@ -1286,6 +1319,10 @@ def _update_blockcheck_coverage_manifest(command: BlockcheckCommand, stats: Bloc
             "schemaVersion": 1,
             "serviceTargetPresetId": preset_id,
             "serviceTargetTitle": service_target_title(preset_id),
+            "coveragePolicy": policy.mode,
+            "coverageOrderMode": policy.order_mode,
+            "recommendedScanMode": policy.recommended_scan_mode,
+            "stopRule": policy.stop_rule,
             "scanMode": command.options.scan_mode,
             "createdAt": now,
             "targets": {},
@@ -1307,12 +1344,16 @@ def _update_blockcheck_coverage_manifest(command: BlockcheckCommand, stats: Bloc
         "updatedAt": now,
     }
     data["updatedAt"] = now
+    data["coveragePolicy"] = policy.mode
+    data["coverageOrderMode"] = policy.order_mode
+    data["recommendedScanMode"] = policy.recommended_scan_mode
+    data["stopRule"] = policy.stop_rule
     data["scanMode"] = command.options.scan_mode
     data["targets"] = coverage
     data["summary"] = _summarize_coverage_targets(coverage)
     data["notes"] = [
-        "Coverage is per target candidate; one AVAILABLE target does not prove the whole service preset.",
-        "Stage 7 uses this manifest to avoid mistaking discord.com-only success for full Discord desktop readiness.",
+        "Coverage is interpreted through the service coverage policy, not only by raw target count.",
+        "any-target-available presets may stop at the first working target; ordered-target-chain presets need ordered best-so-far/full coverage evidence.",
     ]
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -1333,6 +1374,8 @@ def blockcheck_coverage_to_text(root: Path | None = None) -> str:
         "Blockcheck target coverage",
         f"manifest: {path}",
         f"service target preset: {data.get('serviceTargetPresetId', 'unknown')} ({data.get('serviceTargetTitle', 'unknown')})",
+        f"coverage policy: {data.get('coveragePolicy', 'unknown')}; order: {data.get('coverageOrderMode', 'unknown')}",
+        f"recommended scan mode: {data.get('recommendedScanMode', 'unknown')}",
         f"scan mode: {data.get('scanMode', 'unknown')}",
         f"updated at: {data.get('updatedAt', '')}",
         "targets:",
@@ -1346,6 +1389,128 @@ def blockcheck_coverage_to_text(root: Path | None = None) -> str:
             f"(available={item.get('availableStrategies', 0)}; checks={item.get('strategyChecks', 0)}; log={item.get('lastLog', '')})"
         )
     lines.extend(["read-only: yes", "executes now: no", "mutates services/firewall now: no"])
+    return "\n".join(lines)
+
+
+
+
+def blockcheck_service_policy_to_text(preset_id: str = DEFAULT_SERVICE_TARGET_PRESET_ID) -> str:
+    """Show the universal coverage semantics attached to one service preset."""
+
+    return service_target_coverage_policy_to_text(preset_id)
+
+
+def _coverage_items_in_policy_order(data: dict[str, object], preset_id: str) -> tuple[dict[str, object], ...]:
+    targets = data.get("targets") if isinstance(data.get("targets"), dict) else {}
+    try:
+        ordered = service_target_ordered_targets(preset_id)
+    except ValueError:
+        ordered = tuple(str(key) for key in targets)
+    rows: list[dict[str, object]] = []
+    for target in ordered:
+        item = targets.get(target) if isinstance(targets, dict) else None
+        if isinstance(item, dict):
+            rows.append(dict(item))
+        else:
+            rows.append({
+                "target": target,
+                "status": "not-tested",
+                "availableStrategies": 0,
+                "strategyChecks": 0,
+                "lastLog": "",
+                "updatedAt": "",
+            })
+    for target, item in targets.items() if isinstance(targets, dict) else ():
+        if str(target) not in {str(row.get("target")) for row in rows} and isinstance(item, dict):
+            rows.append(dict(item))
+    return tuple(rows)
+
+
+def _status_available(row: dict[str, object]) -> bool:
+    return str(row.get("status") or "") == "available"
+
+
+def blockcheck_tournament_to_text(root: Path | None = None, preset_id: str | None = None) -> str:
+    """Render a read-only service coverage tournament snapshot.
+
+    Stage 7a is deliberately conservative: it does not execute new network tests
+    and it does not claim that upstream blockcheck can already validate one
+    nfqws strategy across every target. It establishes the shared policy/order
+    model and scores the evidence currently stored in the coverage manifest.
+    """
+
+    path = blockcheck_coverage_manifest_path(root)
+    data = _read_coverage_manifest(path) or {}
+    effective_preset_id = preset_id or str(data.get("serviceTargetPresetId") or DEFAULT_SERVICE_TARGET_PRESET_ID)
+    preset = get_service_target_preset(effective_preset_id)
+    policy = preset.policy
+    rows = _coverage_items_in_policy_order(data, effective_preset_id) if data else tuple(
+        {
+            "target": target,
+            "status": "not-tested",
+            "availableStrategies": 0,
+            "strategyChecks": 0,
+            "lastLog": "",
+        }
+        for target in (preset.ordered_targets_for_policy() if not preset.is_custom else ())
+    )
+    available_rows = tuple(row for row in rows if _status_available(row))
+    total = len(rows)
+    available_count = len(available_rows)
+    ordered_prefix = 0
+    first_blocker: dict[str, object] | None = None
+    if policy.mode == SERVICE_COVERAGE_ORDERED_TARGET_CHAIN:
+        for row in rows:
+            if _status_available(row):
+                ordered_prefix += 1
+                continue
+            first_blocker = row
+            break
+    success = False
+    if policy.mode == SERVICE_COVERAGE_ANY_TARGET_AVAILABLE:
+        success = available_count > 0
+    elif policy.mode in {SERVICE_COVERAGE_ORDERED_TARGET_CHAIN, SERVICE_COVERAGE_MAXIMIZE_TARGETS}:
+        success = total > 0 and available_count == total
+
+    lines = [
+        "Blockcheck service coverage tournament",
+        f"manifest: {path if data else 'absent'}",
+        f"preset: {preset.preset_id} ({preset.title})",
+        f"coverage policy: {policy.mode}",
+        f"order mode: {policy.order_mode}",
+        f"recommended scan mode: {policy.recommended_scan_mode}",
+        f"stop rule: {policy.stop_rule}",
+        f"score: {available_count}/{total} available",
+    ]
+    if policy.mode == SERVICE_COVERAGE_ORDERED_TARGET_CHAIN:
+        lines.append(f"ordered prefix: {ordered_prefix}/{total}")
+        if first_blocker is not None:
+            lines.append(
+                "first blocker: "
+                f"{first_blocker.get('target')} ({first_blocker.get('status', 'unknown')}; "
+                f"available={first_blocker.get('availableStrategies', 0)}; checks={first_blocker.get('strategyChecks', 0)})"
+            )
+    elif policy.mode == SERVICE_COVERAGE_ANY_TARGET_AVAILABLE:
+        lines.append(f"any-target success: {'yes' if available_count else 'no'}")
+    lines.append(f"full coverage: {'yes' if success else 'no'}")
+    lines.append("targets in policy order:")
+    for index, row in enumerate(rows, 1):
+        target = str(row.get("target") or "")
+        layer = service_target_layer_for_target(preset.preset_id, target) if target else "unknown"
+        lines.append(
+            "  - "
+            f"{index}. {target}: {row.get('status', 'unknown')} "
+            f"[{layer}; available={row.get('availableStrategies', 0)}; checks={row.get('strategyChecks', 0)}; log={row.get('lastLog', '')}]"
+        )
+    lines.extend([
+        "interpretation:",
+        "  - any-target-available: simple services such as YouTube may use the first working target as a useful candidate.",
+        "  - ordered-target-chain: desktop-style services such as Discord should treat updater/app/gateway/CDN order as meaningful and keep best-so-far evidence.",
+        "  - Stage 7a does not yet prove one nfqws command across every domain; it creates the shared policy/tournament contract and reads current evidence.",
+        "read-only: yes",
+        "executes now: no",
+        "mutates services/firewall now: no",
+    ])
     return "\n".join(lines)
 
 
@@ -1489,6 +1654,7 @@ def _strategy_payload(
     except ValueError:
         source_path = str(source_log)
     service_preset = get_service_target_preset(service_target_preset_id)
+    service_policy = service_preset.policy
     service_title = service_preset.title
     return {
         "schemaVersion": 1,
@@ -1519,6 +1685,12 @@ def _strategy_payload(
             "nonVoice": service_preset.non_voice,
             "targets": list(target_domains),
             "exportedCandidate": available.target,
+            "coveragePolicy": {
+                "mode": service_policy.mode,
+                "orderMode": service_policy.order_mode,
+                "recommendedScanMode": service_policy.recommended_scan_mode,
+                "stopRule": service_policy.stop_rule,
+            },
             "coverage": {
                 "source": "blockcheck-candidate-coverage",
                 "scope": "per-target; not a full-service guarantee unless every required target is available",
@@ -1545,7 +1717,8 @@ def _strategy_payload(
             "Generated from a concrete AVAILABLE line in the last Blockcheck lab log.",
             "The original nfqws2 command is preserved after base Lua init and protocol filter args.",
             "This file is catalog data only; choosing it does not start network changes until Default workflow is explicitly planned, confirmed and started.",
-            "Stage 7 records per-target coverage so a discord.com-only AVAILABLE strategy is not presented as proven coverage for the whole Discord desktop path.",
+            "Stage 7 records per-target coverage so a single-target AVAILABLE strategy is not presented as proven coverage for a multi-target desktop path.",
+            "Stage 7a records the service coverage policy that explains whether any target, unordered many targets, or an ordered target chain matters.",
         ],
     }
 

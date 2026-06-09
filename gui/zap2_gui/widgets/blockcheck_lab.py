@@ -15,6 +15,8 @@ from ..adapters.blockcheck_gui import (
     PreparedBlockcheckExecution,
     blockcheck_build_plan_to_text,
     blockcheck_coverage_to_text,
+    blockcheck_service_policy_to_text,
+    blockcheck_tournament_to_text,
     blockcheck_plan_to_text,
     blockcheck_preflight_to_text,
     execute_blockcheck_prereq_build,
@@ -31,6 +33,7 @@ from ..models.service_targets import (
     SERVICE_TARGET_CUSTOM,
     SERVICE_TARGET_DISCORD_DESKTOP,
     get_service_target_preset,
+    service_target_recommended_scan_mode,
     list_service_target_presets,
 )
 from ..qt_compat import require_pyqt
@@ -140,6 +143,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     stop_button = QtWidgets.QPushButton("Остановить")
     export_button = QtWidgets.QPushButton("Создать стратегии")
     coverage_button = QtWidgets.QPushButton("Coverage")
+    policy_button = QtWidgets.QPushButton("Policy")
+    tournament_button = QtWidgets.QPushButton("Tournament")
     verify_button = QtWidgets.QPushButton("Discord checklist")
     log_button = QtWidgets.QPushButton("Последний лог")
     stop_button.setEnabled(False)
@@ -151,6 +156,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     buttons.addWidget(stop_button)
     buttons.addWidget(export_button)
     buttons.addWidget(coverage_button)
+    buttons.addWidget(policy_button)
+    buttons.addWidget(tournament_button)
     buttons.addWidget(verify_button)
     buttons.addWidget(log_button)
     buttons.addStretch(1)
@@ -197,10 +204,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         try:
             state["active_target_preset"] = preset.preset_id
             target_preset_hint.setText(f"{preset.preset_id}: {preset.summary}")
-            if preset.preset_id == SERVICE_TARGET_DISCORD_DESKTOP:
-                scan_mode_combo.setCurrentIndex(scan_mode_combo.findData(BLOCKCHECK_SCAN_ALL_TARGETS))
-            elif preset.preset_id != SERVICE_TARGET_CUSTOM and scan_mode_combo.currentData() == BLOCKCHECK_SCAN_ALL_TARGETS:
-                scan_mode_combo.setCurrentIndex(scan_mode_combo.findData(BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE))
+            recommended_scan_mode = service_target_recommended_scan_mode(preset.preset_id)
+            index = scan_mode_combo.findData(recommended_scan_mode)
+            if index >= 0 and preset.preset_id != SERVICE_TARGET_CUSTOM:
+                scan_mode_combo.setCurrentIndex(index)
             if preset.is_custom:
                 domains_edit.setReadOnly(False)
                 domains_edit.setPlaceholderText("example.com api.example.com")
@@ -257,7 +264,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         target_preset_combo.setEnabled(not running)
         scan_mode_combo.setEnabled(not running)
         domains_edit.setEnabled(not running)
-        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, coverage_button, verify_button, log_button):
+        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, coverage_button, policy_button, tournament_button, verify_button, log_button):
             button.setEnabled(not running)
         stop_button.setEnabled(running)
         if running:
@@ -487,7 +494,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             output.setPlainText("Blockcheck run: отменено пользователем")
             return
         try:
-            targets = list(collect_options().normalized_domains())
+            targets = list(collect_options().ordered_domains_for_policy())
         except Exception as exc:
             output.setPlainText(f"Blockcheck run: ошибка параметров\n{exc}")
             return
@@ -524,6 +531,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     stop_button.clicked.connect(lambda _checked=False: stop_blockcheck())
     export_button.clicked.connect(lambda _checked=False: run_action("Создать стратегии", lambda: export_blockcheck_available_strategies(root=root).to_text()))
     coverage_button.clicked.connect(lambda _checked=False: run_action("Coverage", lambda: blockcheck_coverage_to_text(root=root)))
+    policy_button.clicked.connect(lambda _checked=False: run_action("Policy", lambda: blockcheck_service_policy_to_text(selected_target_preset_id())))
+    tournament_button.clicked.connect(lambda _checked=False: run_action("Tournament", lambda: blockcheck_tournament_to_text(root=root, preset_id=selected_target_preset_id())))
     verify_button.clicked.connect(lambda _checked=False: run_action("Discord checklist", lambda: discord_non_voice_verification_plan_to_text(root=root)))
     log_button.clicked.connect(lambda _checked=False: run_action("Последний лог", lambda: last_blockcheck_log_to_text(root=root)))
 

@@ -16,6 +16,8 @@ from .adapters.blockcheck_gui import (
     BlockcheckOptions,
     blockcheck_build_plan_to_text,
     blockcheck_coverage_to_text,
+    blockcheck_service_policy_to_text,
+    blockcheck_tournament_to_text,
     blockcheck_plan_to_text,
     blockcheck_preflight_to_text,
     execute_blockcheck_prereq_build,
@@ -91,6 +93,7 @@ from .models.service_targets import (
     SERVICE_TARGET_CUSTOM,
     get_service_target_preset,
     list_service_target_presets,
+    service_target_recommended_scan_mode,
     service_target_string,
 )
 from .project_paths import discover_layout
@@ -343,6 +346,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="показать per-target coverage manifest для последнего service target preset; без исполнения",
     )
     parser.add_argument(
+        "--blockcheck-service-policy",
+        action="store_true",
+        help="показать универсальную coverage policy для выбранного service target preset; без исполнения",
+    )
+    parser.add_argument(
+        "--blockcheck-tournament",
+        action="store_true",
+        help="показать read-only service coverage tournament/best-so-far snapshot; без исполнения",
+    )
+    parser.add_argument(
         "--select-strategy",
         metavar="STRATEGY_ID",
         help="выбрать strategy id для Default profile; только сохраняет .zap2 selection, без запуска",
@@ -473,8 +486,8 @@ def _blockcheck_service_target_preset_id_from_args(args: argparse.Namespace) -> 
 def _blockcheck_scan_mode_from_args(args: argparse.Namespace) -> str:
     if args.blockcheck_scan_mode:
         return str(args.blockcheck_scan_mode)
-    if str(args.blockcheck_target_preset) == "discord-desktop" and not (args.blockcheck_domains or "").strip():
-        return BLOCKCHECK_SCAN_ALL_TARGETS
+    if not (args.blockcheck_domains or "").strip():
+        return service_target_recommended_scan_mode(str(args.blockcheck_target_preset))
     return BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE
 
 
@@ -761,6 +774,22 @@ def main(argv: list[str] | None = None) -> int:
     if args.blockcheck_coverage:
         print(blockcheck_coverage_to_text())
         return 0
+
+    if args.blockcheck_service_policy:
+        try:
+            print(blockcheck_service_policy_to_text(str(args.blockcheck_target_preset)))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.blockcheck_tournament:
+        try:
+            print(blockcheck_tournament_to_text(preset_id=str(args.blockcheck_target_preset)))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
 
     if args.blockcheck_export_strategies:
         try:

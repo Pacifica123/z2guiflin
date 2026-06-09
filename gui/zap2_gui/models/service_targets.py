@@ -1,8 +1,9 @@
 """Service target preset registry for Blockcheck-oriented discovery.
 
-The registry is intentionally small and data-only at v0.4-alpha Stage 2. It
-provides one source of truth for the target lists that Blockcheck lab should use
-later from GUI/CLI preset selectors, while keeping runtime apply unchanged.
+The registry is intentionally service-oriented rather than Discord/YouTube-only.
+Each preset now declares both its target list and its coverage policy so the
+owner, GUI and Blockcheck adapter share the same answer to a basic question:
+"is one working target enough, or do we need all/most targets to work?".
 """
 
 from __future__ import annotations
@@ -16,8 +17,81 @@ SERVICE_TARGET_DISCORD_DESKTOP = "discord-desktop"
 SERVICE_TARGET_CUSTOM = "custom"
 DEFAULT_SERVICE_TARGET_PRESET_ID = SERVICE_TARGET_YOUTUBE_BASIC
 
+SERVICE_COVERAGE_ANY_TARGET_AVAILABLE = "any-target-available"
+SERVICE_COVERAGE_MAXIMIZE_TARGETS = "maximize-targets"
+SERVICE_COVERAGE_ORDERED_TARGET_CHAIN = "ordered-target-chain"
+SERVICE_COVERAGE_CUSTOM_MANUAL = "custom-manual"
+SERVICE_COVERAGE_ORDER_NOT_IMPORTANT = "order-not-important"
+SERVICE_COVERAGE_ORDER_IMPORTANT = "order-important"
+SERVICE_COVERAGE_ORDER_OWNER_DEFINED = "owner-defined"
+SUPPORTED_SERVICE_COVERAGE_POLICIES = (
+    SERVICE_COVERAGE_ANY_TARGET_AVAILABLE,
+    SERVICE_COVERAGE_MAXIMIZE_TARGETS,
+    SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
+    SERVICE_COVERAGE_CUSTOM_MANUAL,
+)
+SUPPORTED_SERVICE_COVERAGE_ORDER_MODES = (
+    SERVICE_COVERAGE_ORDER_NOT_IMPORTANT,
+    SERVICE_COVERAGE_ORDER_IMPORTANT,
+    SERVICE_COVERAGE_ORDER_OWNER_DEFINED,
+)
+
+BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE = "stop-after-first-available"
+BLOCKCHECK_SCAN_ALL_TARGETS = "scan-all-targets"
+BLOCKCHECK_SCAN_SKIP_DEAD_ONLY = "skip-dead-targets-only"
+
 _SAFE_TARGET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/?=&%+~#@-]{0,250}$")
 _PRESET_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,60}[a-z0-9]$")
+
+
+@dataclass(frozen=True)
+class ServiceCoveragePolicy:
+    """Coverage semantics shared by user-facing presets and Blockcheck adapters."""
+
+    mode: str
+    order_mode: str
+    summary: str
+    required_targets: tuple[str, ...] = ()
+    recommended_scan_mode: str = BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE
+    stop_rule: str = "owner-reviewed"
+
+    @property
+    def wants_ordered_chain(self) -> bool:
+        return self.mode == SERVICE_COVERAGE_ORDERED_TARGET_CHAIN
+
+    @property
+    def accepts_any_available(self) -> bool:
+        return self.mode == SERVICE_COVERAGE_ANY_TARGET_AVAILABLE
+
+    @property
+    def wants_best_coverage(self) -> bool:
+        return self.mode in {SERVICE_COVERAGE_MAXIMIZE_TARGETS, SERVICE_COVERAGE_ORDERED_TARGET_CHAIN}
+
+    def validate(self, preset_id: str, preset_targets: tuple[str, ...], *, is_custom: bool) -> None:
+        if self.mode not in SUPPORTED_SERVICE_COVERAGE_POLICIES:
+            raise ValueError(f"service target preset {preset_id!r} has unsupported coverage policy: {self.mode!r}")
+        if self.order_mode not in SUPPORTED_SERVICE_COVERAGE_ORDER_MODES:
+            raise ValueError(f"service target preset {preset_id!r} has unsupported coverage order mode: {self.order_mode!r}")
+        if self.recommended_scan_mode not in {
+            BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
+            BLOCKCHECK_SCAN_ALL_TARGETS,
+            BLOCKCHECK_SCAN_SKIP_DEAD_ONLY,
+        }:
+            raise ValueError(f"service target preset {preset_id!r} has unsupported recommended scan mode: {self.recommended_scan_mode!r}")
+        if not self.summary.strip():
+            raise ValueError(f"service target preset {preset_id!r} coverage policy must have a summary")
+        if is_custom:
+            if self.mode != SERVICE_COVERAGE_CUSTOM_MANUAL:
+                raise ValueError("custom service target preset must use custom-manual coverage policy")
+            return
+        validate_service_targets(self.required_targets or preset_targets)
+        required = tuple(self.required_targets or preset_targets)
+        preset_tokens = {service_target_host_token(item) for item in preset_targets}
+        missing = [item for item in required if service_target_host_token(item) not in preset_tokens]
+        if missing:
+            raise ValueError(f"service target preset {preset_id!r} coverage policy references unknown targets: {missing!r}")
+        if self.wants_ordered_chain and tuple(required) != tuple(preset_targets):
+            raise ValueError(f"service target preset {preset_id!r} ordered policy must match preset target order")
 
 
 @dataclass(frozen=True)
@@ -31,6 +105,7 @@ class ServiceTargetPreset:
     layers: dict[str, tuple[str, ...]] | None = None
     mode: str = "preset"
     non_voice: bool = True
+    coverage_policy: ServiceCoveragePolicy | None = None
 
     @property
     def is_custom(self) -> bool:
@@ -39,6 +114,23 @@ class ServiceTargetPreset:
     @property
     def target_string(self) -> str:
         return " ".join(self.targets)
+
+    @property
+    def policy(self) -> ServiceCoveragePolicy:
+        if self.coverage_policy is not None:
+            return self.coverage_policy
+        return ServiceCoveragePolicy(
+            mode=SERVICE_COVERAGE_CUSTOM_MANUAL if self.is_custom else SERVICE_COVERAGE_ANY_TARGET_AVAILABLE,
+            order_mode=SERVICE_COVERAGE_ORDER_OWNER_DEFINED if self.is_custom else SERVICE_COVERAGE_ORDER_NOT_IMPORTANT,
+            summary="Manual targets are interpreted by the owner." if self.is_custom else "Any working target is enough for this simple preset.",
+            required_targets=(),
+            recommended_scan_mode=BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
+            stop_rule="owner-reviewed",
+        )
+
+    def ordered_targets_for_policy(self) -> tuple[str, ...]:
+        policy_targets = self.policy.required_targets
+        return policy_targets if policy_targets else self.targets
 
     def validate(self) -> None:
         validate_preset_id(self.preset_id)
@@ -49,8 +141,10 @@ class ServiceTargetPreset:
         if self.is_custom:
             if self.targets:
                 raise ValueError("custom service target preset must not carry fixed targets")
+            self.policy.validate(self.preset_id, self.targets, is_custom=True)
             return
         validate_service_targets(self.targets)
+        self.policy.validate(self.preset_id, self.targets, is_custom=False)
         if self.layers is not None:
             layer_targets: list[str] = []
             for layer_name, targets in self.layers.items():
@@ -58,8 +152,8 @@ class ServiceTargetPreset:
                     raise ValueError(f"service target preset {self.preset_id!r} has an empty layer name")
                 validate_service_targets(tuple(targets))
                 layer_targets.extend(targets)
-            if tuple(layer_targets) != self.targets:
-                raise ValueError(f"service target preset {self.preset_id!r} layers must match targets order exactly")
+            if set(service_target_host_token(item) for item in layer_targets) != set(service_target_host_token(item) for item in self.targets):
+                raise ValueError(f"service target preset {self.preset_id!r} layers must cover the same targets")
 
 
 def validate_preset_id(preset_id: str) -> None:
@@ -166,38 +260,63 @@ def validate_service_targets(targets: tuple[str, ...] | list[str]) -> None:
         seen.add(lowered)
 
 
+_DISCORD_DESKTOP_ORDERED_TARGETS = (
+    "updates.discord.com",
+    "stable.dl2.discordapp.net",
+    "discord.com",
+    "gateway.discord.gg",
+    "cdn.discordapp.com",
+    "media.discordapp.net",
+    "discord.media",
+    "discordapp.net",
+    "discord.gg",
+)
+
 _SERVICE_TARGET_PRESETS = (
     ServiceTargetPreset(
         preset_id=SERVICE_TARGET_YOUTUBE_BASIC,
         title="YouTube basic",
         summary="Проверенный v0.3-stable baseline: базовые YouTube-домены для HTTPS/TLS/QUIC Blockcheck.",
         targets=("youtube.com", "www.youtube.com"),
+        coverage_policy=ServiceCoveragePolicy(
+            mode=SERVICE_COVERAGE_ANY_TARGET_AVAILABLE,
+            order_mode=SERVICE_COVERAGE_ORDER_NOT_IMPORTANT,
+            summary=(
+                "Простой сервисный seed: достаточно найти любую рабочую стратегию хотя бы на одном "
+                "из preset targets, затем владелец проверяет выбранный сервис вручную."
+            ),
+            required_targets=("youtube.com", "www.youtube.com"),
+            recommended_scan_mode=BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
+            stop_rule="stop once first AVAILABLE target is observed",
+        ),
     ),
     ServiceTargetPreset(
         preset_id=SERVICE_TARGET_DISCORD_DESKTOP,
         title="Discord desktop non-voice",
         summary=(
-            "Первичный v0.4-alpha seed для desktop Discord без voice/UDP: login, gateway, "
-            "updates и CDN/media targets."
+            "Первичный v0.4-alpha seed для desktop Discord без voice/UDP: updater, login, "
+            "gateway и CDN/media targets."
         ),
-        targets=(
-            "discord.com",
-            "gateway.discord.gg",
-            "cdn.discordapp.com",
-            "discordapp.net",
-            "discord.media",
-            "media.discordapp.net",
-            "updates.discord.com",
-            "stable.dl2.discordapp.net",
-            "discord.gg",
-        ),
+        targets=_DISCORD_DESKTOP_ORDERED_TARGETS,
         layers={
-            "app-api-gateway": ("discord.com", "gateway.discord.gg"),
-            "cdn-media": ("cdn.discordapp.com", "discordapp.net", "discord.media", "media.discordapp.net"),
             "updater": ("updates.discord.com", "stable.dl2.discordapp.net"),
+            "app-api": ("discord.com",),
+            "gateway": ("gateway.discord.gg",),
+            "cdn-media": ("cdn.discordapp.com", "media.discordapp.net", "discord.media", "discordapp.net"),
             "invite": ("discord.gg",),
         },
         non_voice=True,
+        coverage_policy=ServiceCoveragePolicy(
+            mode=SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
+            order_mode=SERVICE_COVERAGE_ORDER_IMPORTANT,
+            summary=(
+                "Desktop-style chain: сначала updater/download, затем app/API, gateway и CDN/media. "
+                "Идеальная стратегия должна покрыть всю цепочку; если это невозможно, UI показывает best partial и first failure."
+            ),
+            required_targets=_DISCORD_DESKTOP_ORDERED_TARGETS,
+            recommended_scan_mode=BLOCKCHECK_SCAN_ALL_TARGETS,
+            stop_rule="search until full ordered coverage is proven or owner stops and reviews best-so-far",
+        ),
     ),
     ServiceTargetPreset(
         preset_id=SERVICE_TARGET_CUSTOM,
@@ -205,6 +324,14 @@ _SERVICE_TARGET_PRESETS = (
         summary="Безопасный ручной режим: владелец сам вводит домены/URI, а registry валидирует токены.",
         targets=(),
         mode=SERVICE_TARGET_CUSTOM,
+        coverage_policy=ServiceCoveragePolicy(
+            mode=SERVICE_COVERAGE_CUSTOM_MANUAL,
+            order_mode=SERVICE_COVERAGE_ORDER_OWNER_DEFINED,
+            summary="Ручной режим не навязывает семантику покрытия: владелец сам решает, достаточно ли одного target или всей цепочки.",
+            required_targets=(),
+            recommended_scan_mode=BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
+            stop_rule="owner-defined",
+        ),
     ),
 )
 
@@ -244,6 +371,55 @@ def service_target_string(preset_id: str) -> str:
     if preset.is_custom:
         raise ValueError("custom service target preset does not have a fixed target string")
     return preset.target_string
+
+
+def service_target_policy(preset_id: str) -> ServiceCoveragePolicy:
+    """Return coverage policy for a service target preset."""
+
+    return get_service_target_preset(preset_id).policy
+
+
+def service_target_ordered_targets(preset_id: str) -> tuple[str, ...]:
+    """Return the target order that Blockcheck should use for the preset policy."""
+
+    preset = get_service_target_preset(preset_id)
+    if preset.is_custom:
+        raise ValueError("custom service target preset does not have a fixed target order")
+    return preset.ordered_targets_for_policy()
+
+
+def service_target_recommended_scan_mode(preset_id: str) -> str:
+    """Return the scan mode that matches the preset coverage semantics."""
+
+    return service_target_policy(preset_id).recommended_scan_mode
+
+
+def service_target_coverage_policy_to_text(preset_id: str) -> str:
+    """Render a read-only owner-facing description of preset coverage semantics."""
+
+    preset = get_service_target_preset(preset_id)
+    policy = preset.policy
+    lines = [
+        "Service target coverage policy",
+        f"preset: {preset.preset_id} ({preset.title})",
+        f"coverage mode: {policy.mode}",
+        f"order mode: {policy.order_mode}",
+        f"recommended scan mode: {policy.recommended_scan_mode}",
+        f"stop rule: {policy.stop_rule}",
+        f"summary: {policy.summary}",
+    ]
+    if preset.is_custom:
+        lines.append("targets: owner-defined at runtime")
+    else:
+        lines.append("target order:")
+        for index, target in enumerate(preset.ordered_targets_for_policy(), 1):
+            lines.append(f"  {index}. {target} [{service_target_layer_for_target(preset.preset_id, target)}]")
+    lines.extend([
+        "read-only: yes",
+        "executes now: no",
+        "mutates services/firewall now: no",
+    ])
+    return "\n".join(lines)
 
 
 def infer_service_target_preset_id(targets: str | tuple[str, ...] | list[str]) -> str:
@@ -289,7 +465,6 @@ def service_target_title(preset_id: str) -> str:
     """Return the owner-facing title for a preset id."""
 
     return get_service_target_preset(preset_id).title
-
 
 
 def service_target_layer_for_target(preset_id: str, target: str) -> str:
