@@ -409,3 +409,29 @@ def test_blockcheck_lab_exposes_export_button() -> None:
 
     assert "Создать стратегии" in source
     assert "export_blockcheck_available_strategies" in source
+
+
+def test_blockcheck_cli_target_preset_expands_discord_domains(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["--blockcheck-plan", "--blockcheck-target-preset", "discord-desktop"]) == 0
+
+    out = capsys.readouterr().out
+    assert "domains: discord.com, gateway.discord.gg, cdn.discordapp.com" in out
+    assert "DOMAINS=discord.com gateway.discord.gg cdn.discordapp.com" in out
+
+
+def test_blockcheck_cli_custom_preset_requires_manual_domains(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["--blockcheck-plan", "--blockcheck-target-preset", "custom"]) == 2
+
+    err = capsys.readouterr().err
+    assert "custom требует явный --blockcheck-domains" in err
+
+
+def test_blockcheck_lab_widget_exposes_service_target_selector() -> None:
+    source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
+
+    assert "target_preset_combo" in source
+    assert "blockcheckServiceTargetPreset" in source
+    assert "list_service_target_presets" in source
+    assert "SERVICE_TARGET_CUSTOM" in source
+    assert "domains_edit.setReadOnly(True)" in source
+    assert "state[\"custom_targets\"]" in source

@@ -88,6 +88,20 @@ voice/UDP в текущую веху или переносится на след
 selector. Default Blockcheck остаётся YouTube-oriented, а Discord seed становится
 доступен как кодовый preset для следующего stage.
 
+
+
+## Stage 3 selector уточнение
+
+`v0.4-alpha_stage_3` выводит `youtube-basic`, `discord-desktop` и `custom` в
+Blockcheck Lab selector и CLI `--blockcheck-target-preset`. Теперь первый
+Discord non-voice прогон можно начать без ручного набора длинной строки доменов:
+выбрать `Discord desktop non-voice`, оставить HTTPS TLS1.2/TLS1.3/HTTP3 enabled
+и запустить sequential Blockcheck candidates.
+
+Важно: Stage 3 пока отвечает только за target discovery UX. Runtime hostlist ещё
+не синхронизирован с Discord seed, поэтому найденная Discord strategy не считается
+полностью готовой к owner verification до Stage 4.
+
 ## Признаки готовности к v0.4-beta
 
 `v0.4-alpha` можно считать готовой к переходу в beta, когда владелец сможет сказать:

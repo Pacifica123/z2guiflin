@@ -21,7 +21,12 @@ from ..adapters.blockcheck_gui import (
     prepare_blockcheck_execution,
     write_blockcheck_last_log,
 )
-from ..models.service_targets import DEFAULT_BLOCKCHECK_TARGET_STRING
+from ..models.service_targets import (
+    DEFAULT_BLOCKCHECK_TARGET_STRING,
+    SERVICE_TARGET_CUSTOM,
+    get_service_target_preset,
+    list_service_target_presets,
+)
 from ..qt_compat import require_pyqt
 
 
@@ -49,7 +54,17 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     form.setHorizontalSpacing(8)
     form.setVerticalSpacing(8)
 
+    target_preset_combo = QtWidgets.QComboBox()
+    target_preset_combo.setObjectName("blockcheckServiceTargetPreset")
+    for preset in list_service_target_presets():
+        target_preset_combo.addItem(preset.title, preset.preset_id)
+
+    target_preset_hint = QtWidgets.QLabel("")
+    target_preset_hint.setObjectName("mutedText")
+    target_preset_hint.setWordWrap(True)
+
     domains_edit = QtWidgets.QLineEdit(DEFAULT_BLOCKCHECK_TARGET_STRING)
+    domains_edit.setObjectName("blockcheckDomainsEdit")
     domains_edit.setPlaceholderText(DEFAULT_BLOCKCHECK_TARGET_STRING)
 
     test_combo = QtWidgets.QComboBox()
@@ -81,23 +96,26 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     http3_check.setChecked(True)
     dns_check.setChecked(False)
 
-    form.addWidget(QtWidgets.QLabel("Домены/URI"), 0, 0)
-    form.addWidget(domains_edit, 0, 1, 1, 3)
-    form.addWidget(QtWidgets.QLabel("Набор"), 1, 0)
-    form.addWidget(test_combo, 1, 1)
-    form.addWidget(QtWidgets.QLabel("Scanlevel"), 1, 2)
-    form.addWidget(scan_combo, 1, 3)
-    form.addWidget(QtWidgets.QLabel("IP"), 2, 0)
-    form.addWidget(ip_combo, 2, 1)
-    form.addWidget(QtWidgets.QLabel("Repeats"), 2, 2)
-    form.addWidget(repeats_spin, 2, 3)
-    form.addWidget(QtWidgets.QLabel("Curl timeout"), 3, 0)
-    form.addWidget(timeout_spin, 3, 1)
-    form.addWidget(http_check, 4, 0)
-    form.addWidget(https12_check, 4, 1)
-    form.addWidget(https13_check, 4, 2)
-    form.addWidget(http3_check, 4, 3)
-    form.addWidget(dns_check, 5, 0, 1, 2)
+    form.addWidget(QtWidgets.QLabel("Service target"), 0, 0)
+    form.addWidget(target_preset_combo, 0, 1, 1, 3)
+    form.addWidget(target_preset_hint, 1, 1, 1, 3)
+    form.addWidget(QtWidgets.QLabel("Домены/URI"), 2, 0)
+    form.addWidget(domains_edit, 2, 1, 1, 3)
+    form.addWidget(QtWidgets.QLabel("Набор"), 3, 0)
+    form.addWidget(test_combo, 3, 1)
+    form.addWidget(QtWidgets.QLabel("Scanlevel"), 3, 2)
+    form.addWidget(scan_combo, 3, 3)
+    form.addWidget(QtWidgets.QLabel("IP"), 4, 0)
+    form.addWidget(ip_combo, 4, 1)
+    form.addWidget(QtWidgets.QLabel("Repeats"), 4, 2)
+    form.addWidget(repeats_spin, 4, 3)
+    form.addWidget(QtWidgets.QLabel("Curl timeout"), 5, 0)
+    form.addWidget(timeout_spin, 5, 1)
+    form.addWidget(http_check, 6, 0)
+    form.addWidget(https12_check, 6, 1)
+    form.addWidget(https13_check, 6, 2)
+    form.addWidget(http3_check, 6, 3)
+    form.addWidget(dns_check, 7, 0, 1, 2)
 
     buttons = QtWidgets.QHBoxLayout()
     preflight_button = QtWidgets.QPushButton("Preflight")
@@ -141,7 +159,38 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         "monitor": None,
         "candidate_targets": [],
         "candidate_index": 0,
+        "active_target_preset": str(target_preset_combo.currentData()),
+        "custom_targets": "",
+        "syncing_target_preset": False,
     }
+
+    def selected_target_preset_id() -> str:
+        preset_id = target_preset_combo.currentData()
+        return str(preset_id or "")
+
+    def apply_target_preset(preset_id: str, *, remember_previous_custom: bool = True) -> None:
+        if state.get("syncing_target_preset"):
+            return
+        previous = str(state.get("active_target_preset") or "")
+        if remember_previous_custom and previous == SERVICE_TARGET_CUSTOM:
+            state["custom_targets"] = domains_edit.text().strip()
+        preset = get_service_target_preset(preset_id)
+        state["syncing_target_preset"] = True
+        try:
+            state["active_target_preset"] = preset.preset_id
+            target_preset_hint.setText(f"{preset.preset_id}: {preset.summary}")
+            if preset.is_custom:
+                domains_edit.setReadOnly(False)
+                domains_edit.setPlaceholderText("example.com api.example.com")
+                custom_targets = str(state.get("custom_targets") or "").strip()
+                if custom_targets:
+                    domains_edit.setText(custom_targets)
+            else:
+                domains_edit.setReadOnly(True)
+                domains_edit.setPlaceholderText(preset.target_string)
+                domains_edit.setText(preset.target_string)
+        finally:
+            state["syncing_target_preset"] = False
 
     def collect_options() -> BlockcheckOptions:
         return BlockcheckOptions(
@@ -181,6 +230,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         )
 
     def set_running(running: bool) -> None:
+        target_preset_combo.setEnabled(not running)
+        domains_edit.setEnabled(not running)
         for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, log_button):
             button.setEnabled(not running)
         stop_button.setEnabled(running)
@@ -422,6 +473,11 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         status.setText("Статус: stop requested…")
         process.terminate()
         QtCore.QTimer.singleShot(3000, lambda: process.kill() if state.get("process") is process else None)
+
+    target_preset_combo.currentIndexChanged.connect(
+        lambda _index=0: apply_target_preset(selected_target_preset_id())
+    )
+    apply_target_preset(selected_target_preset_id(), remember_previous_custom=False)
 
     preflight_button.clicked.connect(lambda _checked=False: run_action("Preflight", lambda: blockcheck_preflight_to_text(root=root)))
     build_plan_button.clicked.connect(lambda _checked=False: run_action("План binaries", lambda: blockcheck_build_plan_to_text(root=root)))

@@ -25,7 +25,7 @@ tests/     небольшие структурные тесты для ново�
 
 Текущая ветка открывает `v0.4-alpha`. Цель нового цикла — применить ту же цепочку к desktop-версии Discord: подобрать рабочие target domains/probes, научиться получать generated strategy, выбирать её и запускать Default workflow для оживления Discord. На протяжении `v0.4-*` осознанно игнорируется более сложная задача композиции «YouTube + Discord одновременно»: достаточно научиться выбирать и запускать стратегию под один целевой сервис за раз.
 
-`v0.4-alpha_stage_2` добавляет кодовый registry service target presets: `youtube-basic` сохраняет текущий default `youtube.com www.youtube.com`, `discord-desktop` фиксирует первый Discord desktop non-voice seed, а `custom` оставляет ручной безопасный ввод targets. GUI selector и CLI-флаг preset остаются задачей следующего stage.
+`v0.4-alpha_stage_3` выводит registry service target presets в Blockcheck Lab и CLI: `youtube-basic` остаётся default, `discord-desktop` подставляет Discord desktop non-voice targets без ручного ввода, а `custom` сохраняет безопасный ручной режим. Runtime/hostlist alignment остаётся следующей стадией.
 
 ```bash
 python tools/gui_checks/check_project_tree.py
@@ -332,3 +332,26 @@ Stage 1 не меняет runtime и не запускает новые privileg
 
 Полный roadmap зафиксирован в `docs/V04_ALPHA_PATCH_ROADMAP.md`.
 
+## v0.4-alpha Stage 2: registry service target presets
+
+Stage 2 добавил единый кодовый registry `gui/zap2_gui/models/service_targets.py`.
+Он хранит `youtube-basic`, `discord-desktop` и `custom`, но не менял GUI selector,
+CLI-флаг preset, hostlist или runtime apply. Default Blockcheck сохранил
+YouTube baseline `youtube.com www.youtube.com`.
+
+## v0.4-alpha Stage 3: Blockcheck Lab preset selector
+
+Stage 3 подключает registry к пользовательскому Blockcheck path:
+
+- в Blockcheck Lab появился selector `Service target`;
+- `YouTube basic` и `Discord desktop non-voice` автозаполняют поле targets из registry;
+- preset-owned targets отображаются как read-only, чтобы пользователь не думал,
+  что редактирует сам registry;
+- `Custom manual targets` возвращает редактируемое поле и запоминает последнюю
+  ручную строку при переключении между preset-ами;
+- CLI получил `--blockcheck-target-preset`, а `--blockcheck-domains` теперь
+  работает как ручной custom override.
+
+Этот stage всё ещё не меняет `runtime_apply` и не гарантирует, что найденная
+Discord strategy будет применена ко всем нужным hostlist entries. Следующий шаг —
+Discord hostlist/runtime alignment.

@@ -94,15 +94,17 @@ protocol family и путь к successful blockcheck log. Это не меняе
 
 ### Stage 3 — Blockcheck Lab preset selector
 
-Добавить выбор preset в GUI и CLI:
+Текущий patch подключает Stage 2 registry к GUI и CLI:
 
-- combobox или иной простой selector в Blockcheck Lab;
+- combobox `Service target` в Blockcheck Lab;
 - автозаполнение доменного поля при выборе YouTube/Discord;
-- CLI-флаг уровня `--blockcheck-target-preset discord-desktop`;
-- сохранение ручного режима для экспериментов;
-- тесты, что default поведение не ломает YouTube baseline.
+- preset-owned targets отображаются read-only, а ручные правки делаются через `custom`;
+- CLI-флаг `--blockcheck-target-preset discord-desktop`;
+- `--blockcheck-domains` остаётся ручным custom override;
+- тесты подтверждают, что default поведение не ломает YouTube baseline.
 
 Ожидаемый результат: Discord можно прогнать без ручного вписывания всех доменов.
+Stage 3 всё ещё не меняет runtime apply и hostlist.
 
 ### Stage 4 — Discord hostlist/runtime alignment
 

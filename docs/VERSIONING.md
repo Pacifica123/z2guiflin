@@ -180,3 +180,14 @@ hostlist/runtime alignment, service-aware export и owner verification loop.
 Stage 2 намеренно не добавляет GUI selector, CLI-флаг preset, hostlist alignment
 или runtime switching. Эти шаги остаются следующими стадиями `v0.4-alpha`.
 
+## v0.4-alpha Stage 3
+
+`v0.4-alpha_stage_3` остаётся внутри product label `v0.4-alpha`. Он подключает
+service target registry к Blockcheck Lab и CLI: пользователь может выбрать
+`youtube-basic`, `discord-desktop` или `custom` без копирования длинных доменных
+строк вручную.
+
+Stage 3 не продвигает проект к `beta`, потому что Discord hostlist/runtime
+alignment и service-aware export ещё не завершены. Следующие патчи должны
+продолжать текущую stage-нумерацию и не менять правило: YouTube baseline не
+удаляется ради Discord.

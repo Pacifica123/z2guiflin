@@ -53,3 +53,33 @@ Registry принимает только домены/URI-подобные то�
 Stage 2 не меняет `runtime_apply`, nftables scope, hostlist и Strategy UX.
 Следующий ожидаемый шаг — Stage 3, где эти presets будут выведены в Blockcheck
 Lab selector и CLI `--blockcheck-target-preset`.
+
+## Stage 3: GUI и CLI selector
+
+`v0.4-alpha_stage_3` делает registry видимым в Blockcheck Lab:
+
+- selector `Service target` показывает presets в стабильном порядке registry;
+- `youtube-basic` остаётся выбранным по умолчанию и подставляет
+  `youtube.com www.youtube.com`;
+- `discord-desktop` подставляет полный non-voice seed для desktop Discord;
+- `custom` не имеет фиксированных targets, разблокирует поле ввода и сохраняет
+  последнюю ручную строку при переключении между preset-ами.
+
+CLI получает аналогичный путь:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-plan   --blockcheck-target-preset discord-desktop
+```
+
+Если нужно вручную переопределить targets, используется старый явный ввод:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --blockcheck-plan   --blockcheck-target-preset custom   --blockcheck-domains "example.com api.example.com"
+```
+
+`--blockcheck-target-preset custom` без `--blockcheck-domains` считается ошибкой,
+потому что custom preset не хранит фиксированный target list.
+
+Stage 3 не меняет hostlist/runtime alignment. Поэтому Discord strategy, найденная
+через selector, всё ещё требует следующего stage: убедиться, что Default workflow
+применяет выбранные args к тем же Discord hostlist entries.

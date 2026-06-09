@@ -78,7 +78,13 @@ from .adapters.workspace_profiles import (
 )
 from .core_inventory import load_core_build_map, load_core_inventory, load_core_inventory_snapshot
 from .models.navigation import default_navigation_sections
-from .models.service_targets import DEFAULT_BLOCKCHECK_TARGET_STRING
+from .models.service_targets import (
+    DEFAULT_SERVICE_TARGET_PRESET_ID,
+    SERVICE_TARGET_CUSTOM,
+    get_service_target_preset,
+    list_service_target_presets,
+    service_target_string,
+)
 from .project_paths import discover_layout
 from .qt_compat import PyQtUnavailableError, is_pyqt_available
 
@@ -329,9 +335,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="выбрать strategy id для Default profile; только сохраняет .zap2 selection, без запуска",
     )
     parser.add_argument(
+        "--blockcheck-target-preset",
+        choices=tuple(item.preset_id for item in list_service_target_presets()),
+        default=DEFAULT_SERVICE_TARGET_PRESET_ID,
+        help="service target preset для blockcheck: youtube-basic, discord-desktop или custom",
+    )
+    parser.add_argument(
         "--blockcheck-domains",
-        default=DEFAULT_BLOCKCHECK_TARGET_STRING,
-        help="домены/URI для blockcheck; пробельный список, по умолчанию service target youtube-basic",
+        default=None,
+        help="ручные домены/URI для blockcheck; если задано, режим считается custom override",
     )
     parser.add_argument(
         "--blockcheck-test",
@@ -412,9 +424,20 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _blockcheck_domains_from_args(args: argparse.Namespace) -> str:
+    manual_domains = (args.blockcheck_domains or "").strip()
+    if manual_domains:
+        return manual_domains
+    preset_id = str(args.blockcheck_target_preset)
+    preset = get_service_target_preset(preset_id)
+    if preset.is_custom:
+        raise ValueError("--blockcheck-target-preset custom требует явный --blockcheck-domains")
+    return service_target_string(preset_id)
+
+
 def _blockcheck_options_from_args(args: argparse.Namespace) -> BlockcheckOptions:
     return BlockcheckOptions(
-        domains=args.blockcheck_domains,
+        domains=_blockcheck_domains_from_args(args),
         test=args.blockcheck_test,
         scanlevel=args.blockcheck_scanlevel,
         ipvs=args.blockcheck_ipvs,
