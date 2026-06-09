@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "community-discord-hostfakesplit-5222-minimal",
+  "title": "Community Discord hostfakesplit minimal + 5222",
+  "summary": "Чистый Discord-only seed из owner-provided Windows GUI community preset: hostfakesplit_multi для Discord targets с добавленным TCP 5222 из WinDivert capture envelope; без YouTube fallback и без voice/UDP в non-voice runtime.",
+  "philosophy": "windows-community-discord-minimal-owner-experiment",
+  "intendedFor": [
+    "ручная проверка отличия чистого Discord community preset от смешанного Discord+YouTube bridge",
+    "диагностика TCP 5222 как Discord-like port hint из Windows preset",
+    "owner-selects во вкладке Стратегии; не включается автоматически"
+  ],
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-discord"
+  ],
+  "capabilities": {
+    "readsProfiles": true,
+    "readsHostlists": true,
+    "usesLocalBuildPlan": true,
+    "executesAutomatically": false,
+    "requiresSudoAtStage7": false,
+    "mutatesServicesOrFirewallAtStage7": false
+  },
+  "notes": [
+    "The owner-provided Discord-only Windows preset carries --wf-tcp-out=80,443,1080,2053,2083,2087,2096,5222,8443, but its hostfakesplit blocks did not repeat 5222. This Linux seed deliberately includes 5222 in the owner-confirmed nft/NFQUEUE scope to test that hint.",
+    "This strategy is not expected by itself to fix a Discord updater socket that remains in SYN-SENT on TCP/443; it is a clean Discord-only comparison seed.",
+    "Windows --wf-* and WinDivert raw parts are not executed on Linux. The Linux runtime still uses owner-confirmed nftables output queueing.",
+    "The voice/STUN part of the Windows preset is intentionally not included here; Stage 8 remains reserved for voice/UDP."
+  ],
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--lua-init=@core/zapret2/lua/zapret-auto.lua",
+    "--lua-init=@core/zapret2/lua/custom_funcs.lua",
+    "--ctrack-disable=0",
+    "--ipcache-lifetime=8400",
+    "--ipcache-hostname=1",
+    "--filter-tcp=80,443,1080,2053,2083,2087,2096,5222,8443",
+    "--hostlist-domains=discord.media",
+    "--out-range=-d10",
+    "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2",
+    "--new",
+    "--filter-tcp=80,443,1080,2053,2083,2087,2096,5222,8443",
+    "--hostlist-domains=discord.com,gateway.discord.gg,cdn.discordapp.com,media.discordapp.net,discord.gg,discordapp.net,updates.discord.com,stable.dl2.discordapp.net",
+    "--out-range=-d10",
+    "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2",
+    "--new",
+    "--filter-tcp=443,5222",
+    "--ipset-ip=162.159.128.233,162.159.135.232,162.159.136.232,162.159.137.232,162.159.138.232,162.159.129.233,162.159.130.233,162.159.133.233,162.159.134.233,162.159.135.233,162.159.130.234,162.159.133.234,162.159.134.234,162.159.135.234,162.159.136.234",
+    "--out-range=-d10",
+    "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2"
+  ],
+  "serviceTarget": {
+    "presetId": "discord-desktop",
+    "title": "Discord desktop non-voice",
+    "nonVoice": true,
+    "summary": "Discord-only hostfakesplit seed with TCP 5222 coverage hint from a community Windows GUI preset."
+  },
+  "sourcePreset": {
+    "id": "community-discord-hostfakesplit-5222-source",
+    "name": "Owner-provided Discord-only community Windows preset",
+    "engine": "winws2/community",
+    "sourcePath": "strategies/imported/community-discord-hostfakesplit-5222.txt",
+    "metadataPath": "strategies/imported/community-discord-hostfakesplit-5222.json",
+    "portingLevel": "experimental-linux-discord-only-5222-bridge",
+    "windowsOptionsExecuted": false
+  }
+}

@@ -46,3 +46,7 @@ If the bad sign persists, the next investigation should focus on nft hook scope/
 
 `community-discord-syndata-edge-flow-v2` uses early-flow arguments containing `<`, for example `--out-range=<s1`. Upstream `nfqws2` parses `@args` files through shell-like expansion, so these tokens must be quoted in the generated args file. Stage 7l.1 makes that writer shell-safe and changes the default public runtime input base to a uid-scoped temp directory so devctl checks are not affected by stale root-owned `/tmp/zap2-runtime-inputs` directories.
 
+## Stage 7m 5222 follow-up
+
+A second owner-provided Discord-only community preset exposed TCP `5222` in its Windows `--wf-tcp-out` capture envelope. Because Linux does not execute WinDivert `--wf-*` options, Stage 7m adds `community-discord-hostfakesplit-5222-minimal` with `5222` made explicit in `--filter-tcp`. This is intentionally a separate strategy so owner tests can compare the mixed Discord+YouTube bridge, the v2 phase-zero seed and the clean Discord-only 5222 seed without changing defaults.
+

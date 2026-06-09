@@ -555,3 +555,7 @@ The Blockcheck Lab page is also placed inside a scroll area and its fixed-width 
 
 Stage 7l.1 retries the Stage 7l fix with an additional devctl/pytest guard: public runtime inputs now use a uid-scoped default temp directory, so stale root-owned `/tmp/zap2-runtime-inputs` directories cannot break unprivileged checks. The runtime args file writer still shell-quotes every `nfqws2 @file` token, which is required for values such as `--out-range=<s1` used by the community Discord v2 seed.
 
+### v0.4-alpha Stage 7m: Discord community 5222 seed
+
+Stage 7m adds `community-discord-hostfakesplit-5222-minimal`, a Discord-only owner-selectable seed derived from an additional community Windows GUI preset. The patch makes TCP `5222` explicit in the Linux `--filter-tcp`/nft queue scope because the Windows preset exposed it in `--wf-tcp-out`. It does not auto-select the strategy and does not include the voice/STUN branch; Stage 8 remains reserved for voice/UDP.
+

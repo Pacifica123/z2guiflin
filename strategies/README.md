@@ -37,3 +37,8 @@ Then continue through the normal owner-confirmed Default workflow. This strategy
 ## v0.4-alpha Stage 7k community v2 seed
 
 `community-discord-syndata-edge-flow-v2` is an owner-selectable experiment for the Discord Linux newUpdater SYN-SENT case. It keeps the YouTube fallback from the Stage 7j community bridge but adds explicit phase-zero `send`/`syndata` branches for observed Discord Cloudflare edge IPs. It is not selected automatically.
+
+## v0.4-alpha Stage 7m community Discord 5222 seed
+
+`community-discord-hostfakesplit-5222-minimal` is a clean Discord-only import of an owner-provided community Windows preset. It differs from the earlier mixed Discord+YouTube bridge by removing the YouTube fallback and making TCP `5222` explicit in the Linux runtime filter list. This is a diagnostic port-envelope test, not a guarantee that the Discord Linux updater `SYN-SENT` blocker is fixed.
+

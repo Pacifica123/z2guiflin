@@ -17,7 +17,8 @@
     "WinDivert --wf-* switches are not passed to Linux nfqws2; nftables owner-confirmed apply still decides what reaches NFQUEUE.",
     "Discord Cloudflare edge IPs come from Stage 7h/7i diagnostics and are used only as an experimental ipset-ip pre-TLS profile.",
     "hostfakesplit_multi is provided by core/zapret2/lua/custom_funcs.lua as a conservative compatibility shim over built-in hostfakesplit.",
-    "Voice/UDP STUN profile from the Windows preset is intentionally not ported here; Stage 8 remains reserved for voice."
+    "Voice/UDP STUN profile from the Windows preset is intentionally not ported here; Stage 8 remains reserved for voice.",
+    "Stage 7m adds the community-observed TCP 5222 port to Discord hostfakesplit profiles; this is a diagnostic port hint, not a claim that it fixes the updater SYN-SENT blocker."
   ],
   "philosophy": "windows-inspired-owner-experiment",
   "runtimeArgs": [
@@ -39,12 +40,12 @@
     "--out-range=-d10",
     "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2",
     "--new",
-    "--filter-tcp=80,443,1080,2053,2083,2087,2096,8443",
+    "--filter-tcp=80,443,1080,2053,2083,2087,2096,5222,8443",
     "--hostlist-domains=discord.media",
     "--out-range=-d10",
     "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2",
     "--new",
-    "--filter-tcp=80,443,1080,2053,2083,2087,2096,8443",
+    "--filter-tcp=80,443,1080,2053,2083,2087,2096,5222,8443",
     "--hostlist-domains=discord.com,gateway.discord.gg,cdn.discordapp.com,media.discordapp.net,discord.gg,discordapp.net,updates.discord.com,stable.dl2.discordapp.net",
     "--out-range=-d10",
     "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2",

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "community-discord-hostfakesplit-5222-source",
+  "name": "Owner-provided Discord-only community Windows preset",
+  "engine": "winws2/community",
+  "sourcePath": "strategies/imported/community-discord-hostfakesplit-5222.txt",
+  "windowsOptionsExecuted": false,
+  "portingLevel": "linux-concept-bridge-discord-only-5222",
+  "notes": [
+    "The preset includes --wf-tcp-out=80,443,1080,2053,2083,2087,2096,5222,8443.",
+    "Linux does not execute WinDivert --wf-* options directly; Stage 7m uses 5222 as an explicit owner-confirmed nft/NFQUEUE scope hint.",
+    "The original preset includes a voice/STUN block; Stage 7m keeps voice out of the non-voice runtime seed."
+  ]
+}
