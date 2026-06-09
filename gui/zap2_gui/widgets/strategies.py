@@ -16,7 +16,8 @@ from ..qt_compat import require_pyqt
 
 def _strategy_item_text(strategy: Any, active_strategy_id: str) -> str:
     marker = " ✓" if strategy.strategy_id == active_strategy_id else ""
-    return f"{strategy.title}{marker}\n{strategy.strategy_id}"
+    service = getattr(strategy, "service_target_label", "not tagged")
+    return f"{strategy.title}{marker}\nservice: {service}\n{strategy.strategy_id}"
 
 
 def make_strategies_page(root: Path | None = None) -> Any:
@@ -90,7 +91,7 @@ def make_strategies_page(root: Path | None = None) -> Any:
             for strategy in catalog.strategies:
                 item = QtWidgets.QListWidgetItem(_strategy_item_text(strategy, active_strategy_id))
                 item.setData(_user_role(), strategy.strategy_id)
-                item.setToolTip(strategy.summary)
+                item.setToolTip(f"{strategy.service_target_label} — {strategy.summary}")
                 strategy_list.addItem(item)
                 if strategy.strategy_id == (selected_strategy_id or active_strategy_id):
                     strategy_list.setCurrentItem(item)

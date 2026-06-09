@@ -119,6 +119,25 @@ media.discordapp.net
 запускает одну выбранную strategy через owner confirmation, но hostlist больше не
 расходится с Discord targets, по которым была найдена generated strategy.
 
+
+## Stage 5 service-aware export и Strategy UX
+
+`v0.4-alpha_stage_5` делает Discord Blockcheck результат owner-readable. При
+запуске через `discord-desktop` выбранный service id попадает в сохранённый
+Blockcheck plan/log, поэтому exporter больше не путает одиночный successful
+candidate `gateway.discord.gg` с произвольным custom-доменом.
+
+Generated Discord strategy получает service-aware id/title/metadata, например:
+
+```text
+blockcheck-discord-desktop-gateway.discord.gg-YYYYMMDD-HHMMSS-01
+```
+
+В Strategy UX теперь видно `Discord desktop non-voice (discord-desktop)`. Это не
+полная готовность Discord path: следующий stage должен провести owner
+verification loop — выбрать такую generated strategy, запустить Default workflow
+и проверить desktop Discord non-voice в реальной среде.
+
 ## Признаки готовности к v0.4-beta
 
 `v0.4-alpha` можно считать готовой к переходу в beta, когда владелец сможет сказать:

@@ -125,17 +125,21 @@ Stage 3 всё ещё не меняет runtime apply и hostlist.
 
 ### Stage 5 — service-aware export и Strategy UX
 
-Уменьшить риск выбора «не той» стратегии:
+Текущий patch уменьшает риск выбора «не той» стратегии:
 
-- generated strategy names/metadata должны отражать `youtube-basic`,
-  `discord-desktop` или `custom`;
-- вкладка `Стратегии` должна показывать сервисный контекст;
+- `BlockcheckOptions` сохраняет `service_target_preset_id`;
+- Blockcheck plan/log пишет `service target preset: ...` и
+  `ZAP2_SERVICE_TARGET_PRESET=...`;
+- exporter использует этот service id при генерации strategy id/title/metadata;
+- generated JSON получает блок `serviceTarget`;
+- вкладка `Стратегии` и CLI-детали показывают сервисный контекст;
 - active strategy для Default profile остаётся одной выбранной стратегией;
 - пользователь явно понимает, что переключение с YouTube strategy на Discord
   strategy меняет текущий фокус запуска.
 
-Ожидаемый результат: выбор Discord strategy становится таким же понятным, как
-текущий выбор YouTube strategy.
+Ожидаемый результат Stage 5: Discord-generated и YouTube-generated strategies
+различимы без ручного открытия каждого JSON, но runtime всё ещё запускает только
+одну явно выбранную strategy.
 
 ### Stage 6 — owner verification loop для Discord non-voice
 

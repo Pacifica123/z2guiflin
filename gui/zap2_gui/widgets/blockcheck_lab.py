@@ -195,6 +195,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     def collect_options() -> BlockcheckOptions:
         return BlockcheckOptions(
             domains=domains_edit.text().strip(),
+            service_target_preset_id=selected_target_preset_id(),
             test=str(test_combo.currentText()),
             scanlevel=str(scan_combo.currentText()),
             ipvs=str(ip_combo.currentText()),

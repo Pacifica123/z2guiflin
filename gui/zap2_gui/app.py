@@ -435,9 +435,16 @@ def _blockcheck_domains_from_args(args: argparse.Namespace) -> str:
     return service_target_string(preset_id)
 
 
+def _blockcheck_service_target_preset_id_from_args(args: argparse.Namespace) -> str:
+    if (args.blockcheck_domains or "").strip():
+        return SERVICE_TARGET_CUSTOM
+    return str(args.blockcheck_target_preset)
+
+
 def _blockcheck_options_from_args(args: argparse.Namespace) -> BlockcheckOptions:
     return BlockcheckOptions(
         domains=_blockcheck_domains_from_args(args),
+        service_target_preset_id=_blockcheck_service_target_preset_id_from_args(args),
         test=args.blockcheck_test,
         scanlevel=args.blockcheck_scanlevel,
         ipvs=args.blockcheck_ipvs,

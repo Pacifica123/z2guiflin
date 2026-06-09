@@ -33,6 +33,17 @@ class WorkspaceStrategy:
     notes: tuple[str, ...]
     runtime_args: tuple[str, ...] = ()
     source_preset: dict[str, Any] | None = None
+    service_target: dict[str, Any] | None = None
+
+    @property
+    def service_target_label(self) -> str:
+        if not self.service_target:
+            return "not tagged"
+        title = str(self.service_target.get("title") or "").strip()
+        preset_id = str(self.service_target.get("presetId") or "").strip()
+        if title and preset_id:
+            return f"{title} ({preset_id})"
+        return title or preset_id or "not tagged"
 
     @property
     def is_plan_only(self) -> bool:

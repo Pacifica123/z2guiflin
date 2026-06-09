@@ -24,7 +24,15 @@ from typing import Callable
 from .build_dependencies import BuildDependencyReport, run_build_dependency_preflight
 from .gui_privilege import _desktop_env_for_askpass, ensure_sudo_askpass_helper, is_sudo_available
 from .local_build import LocalBuildPlan, create_local_build_plan, inspect_artifacts
-from ..models.service_targets import DEFAULT_BLOCKCHECK_TARGET_STRING, normalize_service_targets
+from ..models.service_targets import (
+    DEFAULT_BLOCKCHECK_TARGET_STRING,
+    DEFAULT_SERVICE_TARGET_PRESET_ID,
+    SERVICE_TARGET_CUSTOM,
+    get_service_target_preset,
+    infer_service_target_preset_id,
+    normalize_service_targets,
+    service_target_export_slug,
+)
 from ..project_paths import discover_layout
 
 SUPPORTED_BLOCKCHECK_TESTS = ("standard", "custom")
@@ -83,6 +91,7 @@ class BlockcheckOptions:
     """Owner-selected blockcheck2 scan parameters."""
 
     domains: str = DEFAULT_BLOCKCHECK_TARGET_STRING
+    service_target_preset_id: str = DEFAULT_SERVICE_TARGET_PRESET_ID
     test: str = "standard"
     scanlevel: str = "quick"
     ipvs: str = "4"
@@ -109,6 +118,7 @@ class BlockcheckOptions:
 
         return BlockcheckOptions(
             domains=target,
+            service_target_preset_id=self.service_target_preset_id,
             test=self.test,
             scanlevel=self.scanlevel,
             ipvs=self.ipvs,
@@ -124,6 +134,7 @@ class BlockcheckOptions:
 
     def validate(self) -> None:
         self.normalized_domains()
+        get_service_target_preset(self.service_target_preset_id)
         if self.test not in SUPPORTED_BLOCKCHECK_TESTS:
             raise ValueError(f"Неподдерживаемый blockcheck test: {self.test}")
         if self.scanlevel not in SUPPORTED_BLOCKCHECK_SCANLEVELS:
@@ -145,6 +156,7 @@ class BlockcheckOptions:
             "BATCH": "1",
             "TEST": self.test,
             "DOMAINS": " ".join(self.normalized_domains()),
+            "ZAP2_SERVICE_TARGET_PRESET": self.service_target_preset_id,
             "IPVS": self.ipvs,
             "SCANLEVEL": self.scanlevel,
             "ENABLE_HTTP": "1" if self.enable_http else "0",
@@ -181,6 +193,7 @@ class GeneratedStrategyFile:
     path: Path
     source_probe: str
     source_target: str
+    service_target_preset_id: str
     runtime_args: tuple[str, ...]
 
 
@@ -190,6 +203,7 @@ class BlockcheckGeneratedStrategiesResult:
 
     source_log: Path
     target_label: str
+    service_target_preset_id: str
     generated: tuple[GeneratedStrategyFile, ...]
     catalog_path: Path
 
@@ -202,6 +216,7 @@ class BlockcheckGeneratedStrategiesResult:
             "Blockcheck generated strategies",
             f"source log: {self.source_log}",
             f"target label: {self.target_label}",
+            f"service target preset: {self.service_target_preset_id}",
             f"generated files: {len(self.generated)}",
             f"catalog: {self.catalog_path}",
         ]
@@ -299,6 +314,7 @@ class BlockcheckCommand:
         lines = [
             "Blockcheck GUI plan",
             f"domains: {', '.join(self.options.normalized_domains())}",
+            f"service target preset: {self.options.service_target_preset_id} ({get_service_target_preset(self.options.service_target_preset_id).title})",
             f"test: {self.options.test}",
             f"scanlevel: {self.options.scanlevel}",
             f"ip versions: {self.options.ipvs}",
@@ -1157,6 +1173,33 @@ def _domains_from_blockcheck_log(text: str, fallback: str = "blockcheck") -> tup
     return (fallback,)
 
 
+def _service_target_preset_from_blockcheck_log(text: str, domains: tuple[str, ...]) -> str:
+    """Return the service preset id captured in a Blockcheck log.
+
+    Stage 5 writes the owner-selected preset into each command plan. Older logs
+    are still exportable: for those we infer a preset from the domains when the
+    mapping is unambiguous, otherwise the generated strategy is tagged custom.
+    """
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if line.startswith("service target preset:"):
+            value = line.split(":", 1)[1].strip().split(None, 1)[0]
+            try:
+                get_service_target_preset(value)
+            except ValueError:
+                return SERVICE_TARGET_CUSTOM
+            return value
+        if line.startswith("ZAP2_SERVICE_TARGET_PRESET="):
+            value = line.split("=", 1)[1].strip()
+            try:
+                get_service_target_preset(value)
+            except ValueError:
+                return SERVICE_TARGET_CUSTOM
+            return value
+    return infer_service_target_preset_id(domains)
+
+
 def _slug(value: str, *, max_len: int = 48) -> str:
     cleaned = value.lower().replace("://", "-").replace("/", "-")
     cleaned = re.sub(r"[^a-z0-9._-]+", "-", cleaned).strip("-._")
@@ -1185,6 +1228,7 @@ def _strategy_payload(
     title: str,
     summary: str,
     target_domains: tuple[str, ...],
+    service_target_preset_id: str,
     available: AvailableBlockcheckStrategy,
     source_log: Path,
     root: Path,
@@ -1195,6 +1239,8 @@ def _strategy_payload(
         source_path = _catalog_relative(source_log, root)
     except ValueError:
         source_path = str(source_log)
+    service_preset = get_service_target_preset(service_target_preset_id)
+    service_title = service_preset.title
     return {
         "schemaVersion": 1,
         "id": strategy_id,
@@ -1202,6 +1248,7 @@ def _strategy_payload(
         "summary": summary,
         "philosophy": "blockcheck-generated-owner-choice",
         "intendedFor": [
+            f"service target preset: {service_target_preset_id} ({service_title})",
             f"target: {', '.join(target_domains)}",
             "manual owner comparison of blockcheck-discovered AVAILABLE strategies",
             "Default workflow start after explicit selection in the Strategies tab",
@@ -1216,10 +1263,19 @@ def _strategy_payload(
             "mutatesServicesOrFirewallAtStage7": False,
         },
         "runtimeArgs": list(available.runtime_args),
+        "serviceTarget": {
+            "presetId": service_target_preset_id,
+            "title": service_title,
+            "summary": service_preset.summary,
+            "nonVoice": service_preset.non_voice,
+            "targets": list(target_domains),
+            "exportedCandidate": available.target,
+        },
         "sourcePreset": {
             "engine": "nfqws2",
             "id": "blockcheck-generated",
             "name": "Blockcheck generated AVAILABLE strategy",
+            "serviceTargetPresetId": service_target_preset_id,
             "portingLevel": "generated-local-runtime-args",
             "sourcePath": source_path,
             "generatedAt": generated_at,
@@ -1253,11 +1309,16 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
     if max_strategies > 0:
         available = available[:max_strategies]
     domains = _domains_from_blockcheck_log(text)
+    service_target_preset_id = _service_target_preset_from_blockcheck_log(text, domains)
+    service_preset = get_service_target_preset(service_target_preset_id)
+    service_slug = service_target_export_slug(service_target_preset_id)
     target_label = _slug(domains[0])
+    export_label = _slug(service_slug) if service_target_preset_id != SERVICE_TARGET_CUSTOM else target_label
     if not available:
         return BlockcheckGeneratedStrategiesResult(
             source_log=source_log,
             target_label=target_label,
+            service_target_preset_id=service_target_preset_id,
             generated=(),
             catalog_path=catalog_path,
         )
@@ -1266,16 +1327,21 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
     stamp = datetime.fromtimestamp(source_log.stat().st_mtime, timezone.utc).strftime("%Y%m%d-%H%M%S")
     files: list[GeneratedStrategyFile] = []
     for index, item in enumerate(available, 1):
-        strategy_id = f"blockcheck-{target_label}-{stamp}-{index:02d}"
+        candidate_label = _slug(item.target or domains[0], max_len=32)
+        strategy_id = f"blockcheck-{export_label}-{candidate_label}-{stamp}-{index:02d}"
         filename = f"{strategy_id}.json"
         path = generated_dir / filename
-        title = f"Blockcheck {domains[0]} #{index:02d}"
-        summary = f"Generated AVAILABLE strategy for {', '.join(domains)} from {item.probe} ({item.script})."
+        title = f"Blockcheck {service_preset.title} / {item.target or domains[0]} #{index:02d}"
+        summary = (
+            f"Generated AVAILABLE strategy for {service_preset.title} "
+            f"candidate {item.target or domains[0]} from {item.probe} ({item.script})."
+        )
         payload = _strategy_payload(
             strategy_id=strategy_id,
             title=title,
             summary=summary,
             target_domains=domains,
+            service_target_preset_id=service_target_preset_id,
             available=item,
             source_log=source_log,
             root=layout.root,
@@ -1289,6 +1355,7 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
                 path=path,
                 source_probe=item.probe,
                 source_target=item.target,
+                service_target_preset_id=service_target_preset_id,
                 runtime_args=item.runtime_args,
             )
         )
@@ -1296,6 +1363,7 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
     return BlockcheckGeneratedStrategiesResult(
         source_log=source_log,
         target_label=target_label,
+        service_target_preset_id=service_target_preset_id,
         generated=tuple(files),
         catalog_path=catalog_path,
     )

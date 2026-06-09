@@ -1,24 +1,43 @@
-# v0.4-alpha Stage 4 — Discord hostlist/runtime alignment
+# v0.4-alpha Stage 5: service-aware export и Strategy UX
 
-Этот devctl-патч выравнивает Discord service target preset с тем hostlist, через
-который Default workflow запускает выбранную strategy.
+Патч продолжает цикл `v0.4-alpha` после Discord hostlist/runtime alignment.
+Цель Stage 5 — сделать generated strategies привязанными к service target preset,
+чтобы владелец не путал YouTube и Discord результаты при выборе стратегии для
+Default profile.
 
-## Реализация
+## Что изменилось
 
-- `profiles/hostlists/default.hosts` дополнен Discord desktop non-voice entries:
-  - `gateway.discord.gg`;
-  - `cdn.discordapp.com`;
-  - `media.discordapp.net`.
-- YouTube baseline entries оставлены в default hostlist.
-- В `service_targets.py` добавлены helper-ы для сравнения service target preset-ов
-  с hostlist text: parser hostlist, нормализация URI-like targets и поиск
-  missing entries.
-- Добавлен тестовый contract, что `youtube-basic` и `discord-desktop` покрыты
-  `profiles/hostlists/default.hosts`.
-- Runtime apply plan проверяется на использование того же aligned hostlist.
+- `BlockcheckOptions` получил `service_target_preset_id`.
+- Blockcheck plan/log теперь показывает `service target preset: ...`.
+- В окружение upstream blockcheck добавляется `ZAP2_SERVICE_TARGET_PRESET` как
+  локальная метка GUI/exporter; upstream script не обязан её понимать.
+- Exporter читает service id из последнего successful Blockcheck log или
+  безопасно infer-ит его из старых логов.
+- Generated strategy id/title/summary теперь service-aware:
+  `blockcheck-discord-desktop-gateway.discord.gg-...`.
+- Generated JSON получает блок `serviceTarget` и `sourcePreset.serviceTargetPresetId`.
+- `WorkspaceStrategy` и CLI/GUI Strategy UX показывают service target label.
+- Добавлены тесты service-aware export и sequential candidate inference.
 
-## Граница stage
+## Что не изменилось
 
-Патч не вводит service auto-switching, не меняет Strategy export metadata, не
-добавляет Discord voice/UDP и не обещает одновременную работу YouTube и Discord.
-Следующая стадия цикла — service-aware export и Strategy UX.
+- YouTube baseline остаётся default.
+- Runtime не получает hidden auto-switching.
+- Default profile по-прежнему использует одну явно выбранную strategy.
+- Одновременная работа YouTube и Discord не гарантируется.
+- Discord voice/UDP не реализуется в этом stage.
+
+## Проверки
+
+```bash
+PYTHONPATH=gui python -m pytest \
+  tests/test_service_aware_strategy_export.py \
+  tests/test_blockcheck_gui_lab.py \
+  tests/test_service_target_presets.py \
+  tests/test_workspace_profiles_and_strategies.py \
+  tests/test_service_target_hostlist_alignment.py \
+  tests/test_v04_alpha_patch_roadmap.py \
+  tests/test_documentation_language.py -q
+
+python -m compileall -q gui tests
+```

@@ -106,3 +106,36 @@ media.discordapp.net
 недостающих entries. Это не runtime auto-switching и не объединение стратегий:
 цель только в том, чтобы strategy, найденная через Discord Blockcheck preset, не
 потеряла эти же targets при запуске через Default workflow hostlist.
+
+## Stage 5: service-aware export
+
+`v0.4-alpha_stage_5` связывает registry не только с Blockcheck input и hostlist,
+но и с generated strategy output. `BlockcheckOptions` теперь несёт
+`service_target_preset_id`, а план запуска сохраняет его в двух местах:
+
+```text
+service target preset: discord-desktop (Discord desktop non-voice)
+ZAP2_SERVICE_TARGET_PRESET=discord-desktop
+```
+
+Это нужно из-за sequential Blockcheck: успешный source log может содержать один
+candidate-домен, например `gateway.discord.gg`, но экспорт не должен превращать
+его в безымянную custom-стратегию. Если service id есть в логе, он считается
+источником истины; для старых логов exporter пытается вывести preset из списка
+доменов и только затем падает обратно в `custom`.
+
+Generated strategy JSON теперь содержит:
+
+```json
+{
+  "serviceTarget": {
+    "presetId": "discord-desktop",
+    "title": "Discord desktop non-voice",
+    "exportedCandidate": "gateway.discord.gg"
+  }
+}
+```
+
+Strategy catalog остаётся plan-only. Service label помогает владельцу выбрать
+правильную стратегию, но не запускает runtime и не объединяет несколько
+стратегий автоматически.

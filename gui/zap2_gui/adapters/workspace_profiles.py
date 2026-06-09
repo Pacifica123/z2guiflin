@@ -239,6 +239,7 @@ def _parse_strategy(path: Path) -> WorkspaceStrategy:
         notes=tuple(str(item) for item in data.get("notes", [])),
         runtime_args=tuple(str(item) for item in data.get("runtimeArgs", [])),
         source_preset=dict(data["sourcePreset"]) if isinstance(data.get("sourcePreset"), dict) else None,
+        service_target=dict(data["serviceTarget"]) if isinstance(data.get("serviceTarget"), dict) else None,
     )
 
 
@@ -423,6 +424,7 @@ def workspace_strategies_to_text(root: Path | None = None) -> str:
         default_marker = " (default)" if strategy.strategy_id == catalog.default_strategy_id else ""
         active_marker = " [selected for Default]" if strategy.strategy_id == active_id else ""
         lines.append(f"  {strategy.strategy_id}{default_marker}{active_marker}: {strategy.title}")
+        lines.append(f"    service target: {strategy.service_target_label}")
         lines.append(f"    philosophy: {strategy.philosophy}; plan-only: yes; runtime args: {len(strategy.runtime_args)}")
     if catalog.active_selection:
         lines.append(f"active selection file: {catalog.active_selection.path}")
@@ -447,6 +449,7 @@ def workspace_strategy_to_text(strategy_id: str, root: Path | None = None) -> st
             f"Workspace strategy: {strategy.strategy_id}",
             f"title: {strategy.title}",
             f"summary: {strategy.summary}",
+            f"service target: {strategy.service_target_label}",
             f"philosophy: {strategy.philosophy}",
             f"intended for: {intended}",
             f"workflow: {workflow}",

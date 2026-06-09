@@ -227,3 +227,49 @@ def service_target_string(preset_id: str) -> str:
     if preset.is_custom:
         raise ValueError("custom service target preset does not have a fixed target string")
     return preset.target_string
+
+
+def infer_service_target_preset_id(targets: str | tuple[str, ...] | list[str]) -> str:
+    """Infer a registry preset id from a target list, falling back to custom.
+
+    Exact preset order is preferred. A single target that belongs to a preset is
+    also enough for sequential Blockcheck logs: the GUI runs candidates one by
+    one, but the owner-facing export should still stay attached to the service
+    preset that launched the scan.
+    """
+
+    try:
+        normalized = normalize_service_targets(targets)
+    except ValueError:
+        return SERVICE_TARGET_CUSTOM
+    lowered = tuple(item.lower() for item in normalized)
+    for preset in _SERVICE_TARGET_PRESETS:
+        if preset.is_custom:
+            continue
+        preset_targets = tuple(item.lower() for item in preset.targets)
+        if lowered == preset_targets:
+            return preset.preset_id
+    if len(lowered) == 1:
+        target = lowered[0]
+        matches = [
+            preset.preset_id
+            for preset in _SERVICE_TARGET_PRESETS
+            if not preset.is_custom and target in tuple(item.lower() for item in preset.targets)
+        ]
+        if len(matches) == 1:
+            return matches[0]
+    return SERVICE_TARGET_CUSTOM
+
+
+def service_target_export_slug(preset_id: str) -> str:
+    """Return a stable slug suitable for generated strategy ids/files."""
+
+    preset = get_service_target_preset(preset_id)
+    return preset.preset_id if not preset.is_custom else SERVICE_TARGET_CUSTOM
+
+
+def service_target_title(preset_id: str) -> str:
+    """Return the owner-facing title for a preset id."""
+
+    return get_service_target_preset(preset_id).title
+

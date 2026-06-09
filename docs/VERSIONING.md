@@ -204,3 +204,17 @@ Stage 4 не вводит service auto-switching, не переносит Window
 не обещает одновременную работу YouTube и Discord. Это только выравнивание
 Blockcheck targets и runtime hostlist перед следующей стадией service-aware
 export/Strategy UX.
+
+## v0.4-alpha Stage 5
+
+`v0.4-alpha_stage_5` закрывает service-aware export и первый слой Strategy UX.
+Blockcheck plan/log теперь сохраняет `service_target_preset_id`, exporter
+создаёт generated strategy id/title/metadata с привязкой к `youtube-basic`,
+`discord-desktop` или `custom`, а вкладка `Стратегии` и CLI-детали показывают
+service target label.
+
+Stage 5 не переводит проект в `beta`: ещё нет owner verification loop, где
+владелец выбирает generated Discord strategy, запускает Default workflow и
+проверяет desktop Discord non-voice в реальной среде. Одновременно Stage 5 не
+ломает YouTube baseline и не вводит автоматическое объединение YouTube/Discord
+стратегий.

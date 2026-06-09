@@ -374,3 +374,26 @@ Default hostlist при этом сохраняет YouTube baseline. Runtime ap
 а hostlist является общим owner-maintained seed, через который Default workflow
 передаёт targets в `nfqws2`. Новые тесты проверяют, что `youtube-basic` и
 `discord-desktop` не расходятся с default hostlist.
+
+## v0.4-alpha Stage 5: service-aware export и Strategy UX
+
+Stage 5 делает Blockcheck export осведомлённым о выбранном service target preset.
+Теперь `BlockcheckOptions` сохраняет `service_target_preset_id`, план запуска
+пишет строку `service target preset: ...`, а окружение blockcheck получает
+`ZAP2_SERVICE_TARGET_PRESET`. Это важно для sequential scan: успешный лог может
+относиться только к одному candidate вроде `gateway.discord.gg`, но экспорт всё
+равно помечает generated strategy как `discord-desktop`, если именно этот preset
+запускал проверку.
+
+Generated strategies теперь получают service-aware id/title/metadata:
+
+```text
+blockcheck-discord-desktop-gateway.discord.gg-YYYYMMDD-HHMMSS-01
+```
+
+В JSON стратегии появляется блок `serviceTarget`, а `sourcePreset` дополнительно
+хранит `serviceTargetPresetId`. Вкладка `Стратегии` и CLI-форматтеры показывают
+service target label, чтобы владелец не путал YouTube-generated и
+Discord-generated результаты. Активной для Default profile всё ещё остаётся
+одна выбранная strategy: Stage 5 не вводит автоматическое объединение YouTube и
+Discord и не обещает их одновременную работу.

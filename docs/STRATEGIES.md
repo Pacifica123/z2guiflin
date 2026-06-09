@@ -102,3 +102,21 @@ strategies/generated/blockcheck-<service-or-target>-<timestamp>-NN.json
 
 Например, YouTube и Discord generated strategies должны быть различимы в списке без открытия JSON. Пока не нужно автоматически склеивать стратегии разных сервисов. Если для YouTube и Discord нужны разные `nfqws2` args, владелец выбирает одну активную strategy для Default profile и заново проходит plan/confirmation/start.
 
+
+## v0.4-alpha Stage 5: service-aware generated strategies
+
+Stage 5 добавляет в generated strategies явный service context. Экспорт из
+Blockcheck больше не полагается только на первый домен в логе: он читает
+`service target preset` из сохранённого плана и записывает его в JSON стратегии.
+
+Пример ожидаемого имени для Discord candidate:
+
+```text
+strategies/generated/blockcheck-discord-desktop-gateway.discord.gg-YYYYMMDD-HHMMSS-01.json
+```
+
+Внутри strategy data появляется блок `serviceTarget`, а текстовые представления
+`--list-strategies`, `--show-strategy` и вкладка `Стратегии` показывают service
+label. Это снижает риск выбрать YouTube strategy при проверке Discord или
+наоборот. Выбор всё ещё один на Default profile и не запускает систему без
+отдельного owner-confirmed plan/start.
