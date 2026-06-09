@@ -87,6 +87,7 @@ from .adapters.discord_endpoint_discovery import (
     discord_endpoint_discovery_plan_to_text,
     discord_endpoint_report_to_text,
     discord_endpoint_watch_to_text,
+    discord_netlog_plan_to_text,
 )
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
@@ -402,6 +403,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="показать последний сохранённый Discord endpoint discovery snapshot",
     )
     parser.add_argument(
+        "--discord-netlog-plan",
+        action="store_true",
+        help="показать privacy-aware owner plan для optional Chromium netlog диагностики Discord",
+    )
+    parser.add_argument(
         "--discord-endpoint-seconds",
         type=int,
         default=DEFAULT_DISCOVERY_SECONDS,
@@ -599,6 +605,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.discord_endpoint_report:
         print(discord_endpoint_report_to_text())
+        return 0
+
+    if args.discord_netlog_plan:
+        print(discord_netlog_plan_to_text())
         return 0
 
     if args.runtime_contracts:

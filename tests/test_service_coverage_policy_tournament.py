@@ -56,13 +56,13 @@ def test_service_coverage_policy_distinguishes_youtube_and_discord() -> None:
     assert discord.policy.order_mode == "order-important"
     assert service_target_recommended_scan_mode(SERVICE_TARGET_DISCORD_DESKTOP) == "scan-all-targets"
     assert service_target_ordered_targets(SERVICE_TARGET_DISCORD_DESKTOP)[:3] == (
-        "stable.dl2.discordapp.net",
         "updates.discord.com",
+        "stable.dl2.discordapp.net",
         "discord.com",
     )
     assert get_service_target_preset(SERVICE_TARGET_DISCORD_DESKTOP).phases[0].targets == (
-        "stable.dl2.discordapp.net",
         "updates.discord.com",
+        "stable.dl2.discordapp.net",
     )
 
 
@@ -72,8 +72,8 @@ def test_service_policy_text_is_read_only_and_owner_facing() -> None:
     assert "Service target coverage policy" in text
     assert "coverage mode: ordered-target-chain" in text
     assert "phase order: phases use AND; targets inside a phase use OR" in text
-    assert "1. updater (Updater/bootstrap; required): stable.dl2.discordapp.net, updates.discord.com" in text
-    assert "1. stable.dl2.discordapp.net [updater]" in text
+    assert "1. updater (Updater/bootstrap; required): updates.discord.com, stable.dl2.discordapp.net" in text
+    assert "1. updates.discord.com [updater]" in text
     assert "read-only: yes" in text
     assert "mutates services/firewall now: no" in text
 

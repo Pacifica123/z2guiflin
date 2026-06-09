@@ -33,6 +33,7 @@ from ..adapters.discord_verification import discord_non_voice_verification_plan_
 from ..adapters.discord_endpoint_discovery import (
     discord_endpoint_discovery_plan_to_text,
     discord_endpoint_report_to_text,
+    discord_netlog_plan_to_text,
 )
 from ..models.service_targets import (
     DEFAULT_BLOCKCHECK_TARGET_STRING,
@@ -921,7 +922,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     endpoint_button.clicked.connect(
         lambda _checked=False: run_action(
             "Discord endpoints",
-            lambda: discord_endpoint_discovery_plan_to_text() + "\n\n" + discord_endpoint_report_to_text(root=root),
+            lambda: discord_endpoint_discovery_plan_to_text() + "\n\n" + discord_endpoint_report_to_text(root=root) + "\n\n" + discord_netlog_plan_to_text(),
         )
     )
     log_button.clicked.connect(lambda _checked=False: run_action("Последний лог", lambda: last_blockcheck_log_to_text(root=root)))

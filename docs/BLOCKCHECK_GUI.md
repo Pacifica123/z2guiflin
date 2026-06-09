@@ -338,3 +338,17 @@ PYTHONPATH=gui python -m zap2_gui.app --discord-endpoint-watch --discord-endpoin
 ```
 
 The watch samples `ss -tunp` and `pgrep -af [Dd]iscord`; it does not run sudo, mutate firewall rules or capture payloads. It is intended for the `Checking for updates` dead end, where guessed targets can be wrong.
+
+## Stage 7h: updater socket state discovery
+
+Stage 7h extends the Stage 7g endpoint discovery loop with TCP state/timer evidence and best-effort DNS mapping. The owner observed the Discord updater splash opening a TCP/443 socket in `SYN-SENT` toward a Cloudflare edge IP that resolves in the current environment for `updates.discord.com`. This means the failure is visible before a completed TLS/HTTP request on that socket, so more curl/TLS strategy tournaments against later Discord phases are not the next best diagnostic step.
+
+New CLI helpers:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-endpoint-watch --discord-endpoint-seconds 30
+PYTHONPATH=gui python -m zap2_gui.app --discord-endpoint-report
+PYTHONPATH=gui python -m zap2_gui.app --discord-netlog-plan
+```
+
+The watcher remains read-only: it samples `ss`, `pgrep` and DNS metadata, does not use sudo, does not mutate firewall/services and does not capture packet payloads. The optional netlog plan is not executed automatically because Chromium netlogs can contain privacy-sensitive URLs, headers or token-like values.

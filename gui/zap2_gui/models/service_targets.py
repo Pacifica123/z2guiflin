@@ -309,8 +309,8 @@ _DISCORD_DESKTOP_PHASES = (
     ServiceCoveragePhase(
         phase_id="updater",
         title="Updater/bootstrap",
-        targets=("stable.dl2.discordapp.net", "updates.discord.com"),
-        summary="Any updater/download endpoint in this phase may satisfy the first Discord desktop boot phase.",
+        targets=("updates.discord.com", "stable.dl2.discordapp.net"),
+        summary="Metadata/update check is observed on updates.discord.com; stable.dl2.discordapp.net remains an updater/download fallback alternative.",
     ),
     ServiceCoveragePhase(
         phase_id="app-api",
@@ -367,7 +367,7 @@ _SERVICE_TARGET_PRESETS = (
         ),
         targets=_DISCORD_DESKTOP_ORDERED_TARGETS,
         layers={
-            "updater": ("stable.dl2.discordapp.net", "updates.discord.com"),
+            "updater": ("updates.discord.com", "stable.dl2.discordapp.net"),
             "app-api": ("discord.com",),
             "gateway": ("gateway.discord.gg",),
             "cdn-media": ("cdn.discordapp.com", "media.discordapp.net", "discord.media", "discordapp.net"),

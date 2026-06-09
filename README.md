@@ -530,3 +530,7 @@ PYTHONPATH=gui python -m zap2_gui.app --discord-endpoint-report
 ```
 
 This does not require sudo, does not mutate firewall/services and does not capture payloads. It samples visible process socket metadata only.
+
+### v0.4-alpha Stage 7h — Discord updater endpoint deep discovery
+
+Stage 7h adds TCP state/timer and DNS matching to the Discord endpoint watcher. If the Discord splash shows `Checking for updates` while the watcher reports `SYN-SENT` for a `updates.discord.com` edge IP, the current blocker is before a completed TLS/HTTP exchange on that socket. Use `--discord-netlog-plan` only as an owner-run, privacy-aware follow-up; raw Chromium netlogs should be reviewed and redacted before sharing.
