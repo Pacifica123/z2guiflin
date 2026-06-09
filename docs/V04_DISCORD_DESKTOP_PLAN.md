@@ -148,3 +148,18 @@ verification loop — выбрать такую generated strategy, запуст
 - стратегия была выбрана во вкладке `Стратегии`;
 - Default workflow стартовал без регресса safety boundary;
 - desktop Discord реально заработал хотя бы в базовом сценарии владельца.
+
+
+## Stage 6: owner verification loop
+
+После Stage 5 Discord-generated strategies уже отличаются от YouTube-generated strategies по service label. Stage 6 добавляет проверочную петлю, которую владелец выполняет перед следующим патчем:
+
+1. выбрать `Discord desktop non-voice` во вкладке Blockcheck lab;
+2. прогнать sequential Blockcheck;
+3. экспортировать `AVAILABLE` стратегии;
+4. выбрать generated Discord strategy во вкладке `Стратегии`;
+5. запустить Default workflow через существующий owner-confirmed путь;
+6. полностью перезапустить desktop Discord;
+7. заполнить `.zap2/verification/discord-non-voice-owner-check.md`.
+
+Критерий Stage 6 — не «починить всё», а получить честный owner report: login/session, gateway, чаты и CDN/media работают или нет. Voice/UDP, звонки и screen share не входят в non-voice успех и не должны смешиваться с выводами Stage 7.

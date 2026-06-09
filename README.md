@@ -397,3 +397,15 @@ service target label, чтобы владелец не путал YouTube-genera
 Discord-generated результаты. Активной для Default profile всё ещё остаётся
 одна выбранная strategy: Stage 5 не вводит автоматическое объединение YouTube и
 Discord и не обещает их одновременную работу.
+
+
+## v0.4-alpha Stage 6: Discord owner verification loop
+
+Stage 6 добавляет проверочную петлю перед личной проверкой Discord desktop non-voice. Она не исполняет сетевые действия сама: владелец видит последовательность Blockcheck/export/select/default-start и затем заполняет локальный отчёт.
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-verification-plan
+PYTHONPATH=gui python -m zap2_gui.app --discord-verification-template
+```
+
+Шаблон отчёта создаётся в `.zap2/verification/discord-non-voice-owner-check.md`, не перезаписывает ручные заметки и явно исключает voice/UDP из критерия успеха. GUI-эквивалент плана доступен во вкладке Blockcheck lab через кнопку `Discord checklist`.

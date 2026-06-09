@@ -218,3 +218,24 @@ Stage 5 не переводит проект в `beta`: ещё нет owner veri
 проверяет desktop Discord non-voice в реальной среде. Одновременно Stage 5 не
 ломает YouTube baseline и не вводит автоматическое объединение YouTube/Discord
 стратегий.
+
+## v0.4-alpha Stage 6: owner verification loop для Discord non-voice
+
+`v0.4-alpha_stage_6` добавляет последний слой перед личной проверкой владельца:
+read-only verification loop и markdown-шаблон отчёта. Новый CLI:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-verification-plan
+PYTHONPATH=gui python -m zap2_gui.app --discord-verification-template
+```
+
+План описывает GUI/CLI-петлю: прогнать `discord-desktop`, экспортировать
+`AVAILABLE` стратегии, выбрать generated Discord strategy, запустить Default
+workflow обычным owner-confirmed путём, полностью перезапустить desktop Discord и
+отметить non-voice признаки: login/session, gateway, список серверов, чаты,
+CDN/media. Шаблон создаётся в `.zap2/verification/discord-non-voice-owner-check.md`
+и не перезаписывает уже заполненные заметки.
+
+Stage 6 не запускает проверки автоматически, не меняет firewall/services и не
+считает voice/UDP частью успеха. Его задача — собрать evidence для Stage 7: что
+именно сломалось или подтвердилось в окружении владельца.

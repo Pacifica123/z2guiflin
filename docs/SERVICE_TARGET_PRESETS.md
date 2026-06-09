@@ -139,3 +139,17 @@ Generated strategy JSON теперь содержит:
 Strategy catalog остаётся plan-only. Service label помогает владельцу выбрать
 правильную стратегию, но не запускает runtime и не объединяет несколько
 стратегий автоматически.
+
+
+## Stage 6: owner verification loop
+
+`v0.4-alpha_stage_6` использует registry не для нового runtime-режима, а для воспроизводимой проверки. Verification loop привязан к preset `discord-desktop` и проверяет ровно тот же target seed, который уже прошёл Stage 2–5: registry, selector, hostlist/runtime alignment и service-aware export.
+
+Новые команды:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-verification-plan
+PYTHONPATH=gui python -m zap2_gui.app --discord-verification-template
+```
+
+План напоминает владельцу, что success criteria относятся к login/session, gateway, чатам и CDN/media. Voice channels, UDP/STUN discovery и одновременная работа YouTube+Discord одной стратегией остаются явно исключёнными из Stage 6.

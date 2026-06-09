@@ -21,6 +21,7 @@ from ..adapters.blockcheck_gui import (
     prepare_blockcheck_execution,
     write_blockcheck_last_log,
 )
+from ..adapters.discord_verification import discord_non_voice_verification_plan_to_text
 from ..models.service_targets import (
     DEFAULT_BLOCKCHECK_TARGET_STRING,
     SERVICE_TARGET_CUSTOM,
@@ -125,6 +126,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     run_button = QtWidgets.QPushButton("Запустить blockcheck")
     stop_button = QtWidgets.QPushButton("Остановить")
     export_button = QtWidgets.QPushButton("Создать стратегии")
+    verify_button = QtWidgets.QPushButton("Discord checklist")
     log_button = QtWidgets.QPushButton("Последний лог")
     stop_button.setEnabled(False)
     buttons.addWidget(preflight_button)
@@ -134,6 +136,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     buttons.addWidget(run_button)
     buttons.addWidget(stop_button)
     buttons.addWidget(export_button)
+    buttons.addWidget(verify_button)
     buttons.addWidget(log_button)
     buttons.addStretch(1)
 
@@ -233,7 +236,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     def set_running(running: bool) -> None:
         target_preset_combo.setEnabled(not running)
         domains_edit.setEnabled(not running)
-        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, log_button):
+        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, verify_button, log_button):
             button.setEnabled(not running)
         stop_button.setEnabled(running)
         if running:
@@ -487,6 +490,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     run_button.clicked.connect(lambda _checked=False: run_blockcheck())
     stop_button.clicked.connect(lambda _checked=False: stop_blockcheck())
     export_button.clicked.connect(lambda _checked=False: run_action("Создать стратегии", lambda: export_blockcheck_available_strategies(root=root).to_text()))
+    verify_button.clicked.connect(lambda _checked=False: run_action("Discord checklist", lambda: discord_non_voice_verification_plan_to_text(root=root)))
     log_button.clicked.connect(lambda _checked=False: run_action("Последний лог", lambda: last_blockcheck_log_to_text(root=root)))
 
     layout.addWidget(title)

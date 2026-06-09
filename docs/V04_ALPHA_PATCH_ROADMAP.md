@@ -143,18 +143,19 @@ Stage 3 всё ещё не меняет runtime apply и hostlist.
 
 ### Stage 6 — owner verification loop для Discord non-voice
 
-Собрать owner-facing проверочный сценарий:
+Текущий patch добавляет owner-facing проверочный сценарий:
 
-- прогнать Discord preset;
-- экспортировать `AVAILABLE` strategies;
-- выбрать generated Discord strategy;
-- запустить Default workflow;
-- полностью перезапустить desktop Discord;
-- зафиксировать, что работает: login, gateway, список серверов, чаты, CDN/media;
-- зафиксировать, что не работает, отдельно от voice.
+- CLI `--discord-verification-plan` показывает полную петлю проверки без исполнения;
+- CLI `--discord-verification-template` создаёт `.zap2/verification/discord-non-voice-owner-check.md`;
+- вкладка Blockcheck lab получает кнопку `Discord checklist`;
+- сценарий ведёт владельца через Discord preset, export `AVAILABLE`, выбор generated Discord strategy и Default workflow;
+- success checklist разделяет login/session, gateway, список серверов, чаты и CDN/media;
+- failure buckets разделяют no-available, dead target, wrong strategy selection, gateway-only failure и CDN/media failure;
+- voice/UDP, звонки и screen share явно исключены из критерия успеха.
 
-Ожидаемый результат: есть evidence log, по которому можно понять, достаточно ли
-доменного подхода для desktop Discord non-voice.
+Ожидаемый результат: владелец получает evidence log, по которому Stage 7 сможет
+понять, достаточно ли доменного подхода для desktop Discord non-voice и какие
+точечные исправления действительно нужны.
 
 ### Stage 7 — точечные исправления по результатам Discord проверки
 

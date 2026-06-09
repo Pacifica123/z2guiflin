@@ -68,6 +68,10 @@ from .adapters.gui_privilege import (
     SUPPORTED_GUI_PRIVILEGED_ACTIONS,
     gui_privileged_command_to_text,
 )
+from .adapters.discord_verification import (
+    discord_non_voice_verification_plan_to_text,
+    write_discord_non_voice_report_template_to_text,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -335,6 +339,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="выбрать strategy id для Default profile; только сохраняет .zap2 selection, без запуска",
     )
     parser.add_argument(
+        "--discord-verification-plan",
+        action="store_true",
+        help="показать owner verification loop для Discord desktop non-voice; без запуска проверок",
+    )
+    parser.add_argument(
+        "--discord-verification-template",
+        action="store_true",
+        help="создать markdown-шаблон owner report для Discord desktop non-voice в .zap2/verification",
+    )
+    parser.add_argument(
         "--blockcheck-target-preset",
         choices=tuple(item.preset_id for item in list_service_target_presets()),
         default=DEFAULT_SERVICE_TARGET_PRESET_ID,
@@ -477,6 +491,14 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 2
 
+
+    if args.discord_verification_plan:
+        print(discord_non_voice_verification_plan_to_text())
+        return 0
+
+    if args.discord_verification_template:
+        print(write_discord_non_voice_report_template_to_text())
+        return 0
 
     if args.runtime_contracts:
         print(runtime_contracts_to_text())

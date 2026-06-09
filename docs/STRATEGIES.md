@@ -120,3 +120,10 @@ strategies/generated/blockcheck-discord-desktop-gateway.discord.gg-YYYYMMDD-HHMM
 label. Это снижает риск выбрать YouTube strategy при проверке Discord или
 наоборот. Выбор всё ещё один на Default profile и не запускает систему без
 отдельного owner-confirmed plan/start.
+
+
+## v0.4-alpha Stage 6: проверка выбранной Discord strategy
+
+Stage 6 не меняет формат strategy JSON, но добавляет owner verification loop вокруг уже выбранной strategy. После экспорта Discord-generated strategy владелец должен увидеть service label `Discord desktop non-voice (discord-desktop)`, выбрать эту strategy для Default profile, заново подготовить и подтвердить start-plan, а затем проверить desktop Discord после полного перезапуска приложения.
+
+Результат проверки записывается в `.zap2/verification/discord-non-voice-owner-check.md`. Это помогает Stage 7 отличить проблемы выбора strategy от проблем gateway, CDN/media или отсутствующих targets. Voice/UDP остаётся отдельной будущей задачей, а не причиной считать non-voice strategy проваленной.
