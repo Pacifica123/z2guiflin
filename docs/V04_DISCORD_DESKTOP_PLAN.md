@@ -60,6 +60,26 @@ Blockcheck lab -> AVAILABLE strategies -> generated strategy files -> выбор
 - сохранять возможность открыть JSON и увидеть исходную `nfqws2` строку;
 - не менять firewall/service state без того же owner-confirmed workflow, который уже используется для YouTube.
 
+
+## Stage 1 roadmap уточнение
+
+`v0.4-alpha_stage_1` уточняет цель цикла: финальный результат `v0.4-*` — это
+осознанный выбор между сервисными целями YouTube и Discord, а не обязательное
+создание одной стратегии, которая гарантированно оживляет оба сервиса
+одновременно.
+
+Для первого практического Discord-прохода принимается non-voice гипотеза:
+достаточно дать Blockcheck lab готовый Discord target preset и затем убедиться,
+что runtime hostlist содержит те же targets. Минимальный seed:
+
+```text
+discord.com gateway.discord.gg cdn.discordapp.com discordapp.net discord.media media.discordapp.net updates.discord.com discord.gg
+```
+
+После подтверждения non-voice слоя можно отдельно решать, входит ли Discord
+voice/UDP в текущую веху или переносится на следующий цикл. Подробная
+последовательность патчей описана в `V04_ALPHA_PATCH_ROADMAP.md`.
+
 ## Признаки готовности к v0.4-beta
 
 `v0.4-alpha` можно считать готовой к переходу в beta, когда владелец сможет сказать:

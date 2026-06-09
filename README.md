@@ -297,3 +297,36 @@ Blockcheck lab -> AVAILABLE стратегии -> generated strategy files -> в
 
 Нефокус для `v0.4-*`: автоматическое объединение стратегий YouTube и Discord в одну без конфликтов. Пока достаточно сценария «выбрать стратегию под YouTube» или «выбрать стратегию под Discord».
 
+## v0.4-alpha Stage 1: roadmap выбора YouTube или Discord
+
+Stage 1 не меняет runtime и не запускает новые privileged действия. Он фиксирует
+план патчей для всей `v0.4-*` вехи: финальная цель цикла — не универсальная
+композиция всех сервисов, а понятный выбор целевого сервиса.
+
+Минимальный финальный UX:
+
+```text
+выбрать YouTube -> использовать YouTube strategy -> запустить Default workflow
+или
+выбрать Discord -> использовать Discord strategy -> запустить Default workflow
+```
+
+Одновременная работа YouTube и Discord в рамках одной активной стратегии не
+гарантируется. Это допустимо только как побочный успех конкретной стратегии, но
+не как обязательный критерий готовности `v0.4-*`.
+
+Ближайший реализационный путь после этого stage:
+
+- добавить registry service target presets `youtube-basic`, `discord-desktop`,
+  `custom`;
+- вывести preset selector в Blockcheck Lab и CLI;
+- дополнить Discord hostlist/runtime alignment для `gateway.discord.gg`,
+  `cdn.discordapp.com`, `media.discordapp.net`;
+- сделать generated strategies service-aware, чтобы не путать YouTube и Discord
+  результаты;
+- проверить Discord desktop non-voice через существующий owner-confirmed Default
+  workflow;
+- voice/UDP рассматривать отдельно после подтверждения non-voice слоя.
+
+Полный roadmap зафиксирован в `docs/V04_ALPHA_PATCH_ROADMAP.md`.
+

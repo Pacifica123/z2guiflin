@@ -158,3 +158,15 @@ v0.4-alpha_stage_3
 
 Stage id должен описывать конкретный шаг Discord desktop cycle, например candidate discovery, Discord Blockcheck preset, strategy export UX или runtime verification.
 
+## v0.4-alpha Stage 1
+
+`v0.4-alpha_stage_1` остаётся внутри product label `v0.4-alpha` и является
+документационным roadmap patch. Он не продвигает проект к `beta` и не меняет
+runtime-поведение.
+
+Stage 1 фиксирует, что финальная цель `v0.4-*` — выбор между рабочим YouTube
+путём и рабочим Discord desktop путём. В рамках этой вехи не требуется
+гарантировать их одновременную работу одной универсальной стратегией. Следующие
+реализационные stages должны двигаться от простого service target preset к
+hostlist/runtime alignment, service-aware export и owner verification loop.
+
