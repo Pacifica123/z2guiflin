@@ -30,6 +30,10 @@ from ..adapters.blockcheck_gui import (
     write_blockcheck_last_log,
 )
 from ..adapters.discord_verification import discord_non_voice_verification_plan_to_text
+from ..adapters.discord_endpoint_discovery import (
+    discord_endpoint_discovery_plan_to_text,
+    discord_endpoint_report_to_text,
+)
 from ..models.service_targets import (
     DEFAULT_BLOCKCHECK_TARGET_STRING,
     SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
@@ -69,9 +73,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
     target_preset_combo = QtWidgets.QComboBox()
     target_preset_combo.setObjectName("blockcheckServiceTargetPreset")
-    target_preset_combo.setMinimumHeight(34)
-    target_preset_combo.setMinimumWidth(360)
-    target_preset_combo.setMaximumWidth(680)
+    target_preset_combo.setMinimumHeight(38)
+    target_preset_combo.setMinimumWidth(340)
+    target_preset_combo.setMaximumWidth(820)
     target_preset_combo.setMinimumContentsLength(24)
     try:
         target_preset_combo.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
@@ -83,22 +87,23 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     target_preset_hint = QtWidgets.QLabel("")
     target_preset_hint.setObjectName("mutedText")
     target_preset_hint.setWordWrap(True)
-    target_preset_hint.setMinimumHeight(42)
-    target_preset_hint.setMaximumWidth(760)
+    target_preset_hint.setMinimumHeight(64)
+    target_preset_hint.setMaximumHeight(92)
+    target_preset_hint.setMaximumWidth(900)
 
     domains_edit = QtWidgets.QLineEdit(DEFAULT_BLOCKCHECK_TARGET_STRING)
     domains_edit.setObjectName("blockcheckDomainsEdit")
     domains_edit.setPlaceholderText(DEFAULT_BLOCKCHECK_TARGET_STRING)
-    domains_edit.setMinimumHeight(34)
-    domains_edit.setMinimumWidth(360)
-    domains_edit.setMaximumWidth(760)
+    domains_edit.setMinimumHeight(38)
+    domains_edit.setMinimumWidth(340)
+    domains_edit.setMaximumWidth(900)
     domains_edit.setToolTip("Registry-owned presets keep this field read-only; Custom manual targets makes it editable.")
 
     scan_mode_combo = QtWidgets.QComboBox()
     scan_mode_combo.setObjectName("blockcheckCandidateScanMode")
-    scan_mode_combo.setMinimumHeight(34)
-    scan_mode_combo.setMinimumWidth(360)
-    scan_mode_combo.setMaximumWidth(760)
+    scan_mode_combo.setMinimumHeight(38)
+    scan_mode_combo.setMinimumWidth(340)
+    scan_mode_combo.setMaximumWidth(900)
     scan_mode_combo.addItem("Stop after first AVAILABLE", BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE)
     scan_mode_combo.addItem("Scan all preset targets", BLOCKCHECK_SCAN_ALL_TARGETS)
     scan_mode_combo.addItem("Skip only dead targets", BLOCKCHECK_SCAN_SKIP_DEAD_ONLY)
@@ -113,9 +118,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     ip_combo.addItems(["4", "6", "46"])
 
     for compact_combo in (test_combo, scan_combo, ip_combo):
-        compact_combo.setMinimumHeight(32)
-        compact_combo.setMinimumWidth(160)
-        compact_combo.setMaximumWidth(260)
+        compact_combo.setMinimumHeight(36)
+        compact_combo.setMinimumWidth(170)
+        compact_combo.setMaximumWidth(280)
 
     repeats_spin = QtWidgets.QSpinBox()
     repeats_spin.setRange(1, 5)
@@ -132,8 +137,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     timeout_spin.setValue(3)
     timeout_spin.setSuffix(" сек")
     for compact_spin in (repeats_spin, timeout_spin, phase_budget_spin):
-        compact_spin.setMinimumHeight(32)
-        compact_spin.setMinimumWidth(130)
+        compact_spin.setMinimumHeight(36)
+        compact_spin.setMinimumWidth(140)
 
     http_check = QtWidgets.QCheckBox("HTTP")
     https12_check = QtWidgets.QCheckBox("HTTPS TLS1.2")
@@ -174,17 +179,19 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     form.addWidget(http3_check, 7, 3)
     form.addWidget(dns_check, 8, 0, 1, 2)
     form.addWidget(dead_guard_check, 8, 2, 1, 2)
-    form.setColumnMinimumWidth(0, 120)
-    form.setColumnMinimumWidth(1, 280)
-    form.setColumnMinimumWidth(2, 120)
-    form.setColumnMinimumWidth(3, 280)
+    form.setColumnMinimumWidth(0, 130)
+    form.setColumnMinimumWidth(1, 320)
+    form.setColumnMinimumWidth(2, 130)
+    form.setColumnMinimumWidth(3, 320)
     form.setColumnStretch(0, 0)
     form.setColumnStretch(1, 2)
     form.setColumnStretch(2, 0)
     form.setColumnStretch(3, 2)
-    form_box.setMinimumHeight(265)
+    form_box.setMinimumHeight(320)
+    form_box.setMaximumWidth(1020)
 
     actions_box = QtWidgets.QGroupBox("Actions")
+    actions_box.setMaximumWidth(1020)
     actions_layout = QtWidgets.QVBoxLayout(actions_box)
     actions_layout.setContentsMargins(8, 8, 8, 8)
     actions_layout.setSpacing(6)
@@ -201,14 +208,16 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     policy_button = QtWidgets.QPushButton("Policy")
     tournament_button = QtWidgets.QPushButton("Tournament")
     verify_button = QtWidgets.QPushButton("Checklist")
+    endpoint_button = QtWidgets.QPushButton("Endpoints")
     log_button = QtWidgets.QPushButton("Raw log")
     stop_button.setEnabled(False)
     for action_button in (
         preflight_button, build_plan_button, build_button, plan_button, run_button, stop_button,
-        export_button, coverage_button, policy_button, tournament_button, verify_button, log_button,
+        export_button, coverage_button, policy_button, tournament_button, verify_button, endpoint_button, log_button,
     ):
-        action_button.setMinimumHeight(36)
+        action_button.setMinimumHeight(38)
         action_button.setMinimumWidth(96)
+        action_button.setMaximumWidth(170)
     export_button.setMinimumWidth(128)
     buttons.addWidget(preflight_button)
     buttons.addWidget(plan_button)
@@ -222,6 +231,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     secondary_buttons.addWidget(policy_button)
     secondary_buttons.addWidget(tournament_button)
     secondary_buttons.addWidget(verify_button)
+    secondary_buttons.addWidget(endpoint_button)
     secondary_buttons.addWidget(log_button)
     secondary_buttons.addStretch(1)
     actions_layout.addLayout(buttons)
@@ -232,7 +242,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
     output = QtWidgets.QPlainTextEdit()
     output.setReadOnly(True)
-    output.setMinimumHeight(300)
+    output.setMinimumHeight(320)
     try:
         output.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.WidgetWidth)
     except Exception:  # pragma: no cover - compatibility with older Qt bindings
@@ -420,7 +430,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         domains_edit.setEnabled(not running)
         dead_guard_check.setEnabled(not running)
         phase_budget_spin.setEnabled(not running)
-        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, coverage_button, policy_button, tournament_button, verify_button, log_button):
+        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, coverage_button, policy_button, tournament_button, verify_button, endpoint_button, log_button):
             button.setEnabled(not running)
         stop_button.setEnabled(running)
         if running:
@@ -908,12 +918,23 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     policy_button.clicked.connect(lambda _checked=False: run_action("Policy", lambda: blockcheck_service_policy_to_text(selected_target_preset_id())))
     tournament_button.clicked.connect(lambda _checked=False: run_action("Tournament", lambda: blockcheck_tournament_to_text(root=root, preset_id=selected_target_preset_id())))
     verify_button.clicked.connect(lambda _checked=False: run_action("Discord checklist", lambda: discord_non_voice_verification_plan_to_text(root=root)))
+    endpoint_button.clicked.connect(
+        lambda _checked=False: run_action(
+            "Discord endpoints",
+            lambda: discord_endpoint_discovery_plan_to_text() + "\n\n" + discord_endpoint_report_to_text(root=root),
+        )
+    )
     log_button.clicked.connect(lambda _checked=False: run_action("Последний лог", lambda: last_blockcheck_log_to_text(root=root)))
 
-    layout.addWidget(title)
-    layout.addWidget(intro)
-    layout.addWidget(form_box)
-    layout.addWidget(actions_box)
-    layout.addWidget(status)
-    layout.addWidget(output, 1)
+    output.setMinimumHeight(260)
+    title.setMaximumWidth(1040)
+    intro.setMaximumWidth(1040)
+    status.setMaximumWidth(1040)
+    output.setMaximumWidth(1080)
+    layout.addWidget(title, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
+    layout.addWidget(intro, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
+    layout.addWidget(form_box, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
+    layout.addWidget(actions_box, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
+    layout.addWidget(status, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
+    layout.addWidget(output, 1, QtCore.Qt.AlignmentFlag.AlignHCenter)
     return page

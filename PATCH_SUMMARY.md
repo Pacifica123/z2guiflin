@@ -1,23 +1,31 @@
-# v0.4-alpha Stage 7f — bounded phase alternatives and core docs
+# v0.4-alpha Stage 7g — Discord endpoint discovery and diagnostics UI cleanup
 
-This patch continues the Discord desktop non-voice investigation after Stage 7e.
+This patch pivots the Discord desktop investigation away from guessing only updater domains.
 
-## What changed
+## Added
 
-- Adds an owner-visible `Alt check cap` to Blockcheck Lab.
-- Defaults Discord ordered phase runs to 160 strategy checks per phase alternative.
-- If an ordered phase alternative reaches the cap without `AVAILABLE`, the GUI stops only that candidate and moves to the next OR alternative.
-- If `AVAILABLE` appears first, the existing early-stop path still advances to the next required phase.
-- Improves the diagnostics layout with wider default window geometry, max widths on long controls, larger row spacing and a reserved hint area.
-- Adds `docs/ZAPRET2_CORE_BLOCKCHECK_NOTES.md` after reviewing the bundled zapret2 documentation and Flowseal/Windows references.
+- `gui/zap2_gui/adapters/discord_endpoint_discovery.py`
+- CLI:
+  - `--discord-endpoint-plan`
+  - `--discord-endpoint-watch --discord-endpoint-seconds N`
+  - `--discord-endpoint-report`
+- `docs/DISCORD_ENDPOINT_DISCOVERY.md`
+- Blockcheck Lab `Endpoints` action that prints the plan plus latest saved report.
 
-## Why
+## Behavior
 
-Owner testing showed that the phase-gated Discord run could stay on `stable.dl2.discordapp.net` indefinitely or until manual Stop. That blocks the intended tournament loop from reaching `updates.discord.com`, `discord.com`, gateway and CDN/media phases. Stage 7f keeps the owner-sketched AND/OR phase semantics but adds a practical budget so one moving CDN/updater target cannot consume the whole run.
+The watch samples local `ss -H -tunp` and `pgrep -af [Dd]iscord` output while the owner starts Discord manually. It is read-only: no sudo, no firewall/service mutation, no payload capture and no credentials.
 
-## Boundaries
+Snapshots are saved under:
 
-- This does not yet implement a full automatic one-strategy validator across every phase.
-- This does not port Flowseal/Windows presets into an executable Linux runtime preset.
-- This does not touch Discord voice/UDP/STUN, which remains reserved for Stage 8.
-- Raw upstream blockcheck logs remain available in `.zap2/blockcheck/logs/`.
+```text
+.zap2/discord-discovery/
+```
+
+## UI cleanup
+
+The diagnostics window is made roomier again and the Blockcheck Lab controls are centered/bounded instead of stretching across the full window. Hint rows and output height were increased to reduce the cramped look on the diagnostics tab.
+
+## Not done
+
+This patch does not implement full one-strategy record-holder validation and does not claim Discord desktop works. It gives the next patch actual local updater endpoint evidence.

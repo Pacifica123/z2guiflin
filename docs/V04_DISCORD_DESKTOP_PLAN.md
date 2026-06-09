@@ -294,3 +294,9 @@ For `discord-desktop` the default cap is 160 strategy checks per alternative. If
 Stage 7f also records core reference notes from `core/zapret2`: upstream custom blockcheck lists can be supplied via `LIST_HTTP`, `LIST_HTTPS_TLS12`, `LIST_HTTPS_TLS13` and `LIST_QUIC`, and `nfqws2` profile ordering is first-match-wins. These notes are captured in `docs/ZAPRET2_CORE_BLOCKCHECK_NOTES.md` for the future real one-strategy validator and possible multi-profile Discord runtime work.
 
 The Blockcheck Lab layout is widened again and key controls now have maximum widths plus a reserved two-line preset description area, so the diagnostics screen is less edge-stretched and less vertically overlapped.
+
+## Stage 7g adjustment: discover updater endpoints before adding more guesses
+
+Stage 7f showed that bounded checks can exhaust both current updater alternatives without finding `AVAILABLE`. Rather than guessing more domains immediately, Stage 7g introduces local endpoint discovery for the running desktop process. The owner should capture TCP/UDP sockets while the client is stuck on `Checking for updates`, then feed the observed endpoints back into the target registry/tournament design.
+
+This is still non-voice scope unless discovery clearly shows UDP during the updater splash. Voice channels, calls and screen share remain reserved for the later voice stage.

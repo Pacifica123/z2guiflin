@@ -514,3 +514,19 @@ For `discord-desktop` the default cap is 160 strategy checks per alternative. If
 Stage 7f also records core reference notes from `core/zapret2`: upstream custom blockcheck lists can be supplied via `LIST_HTTP`, `LIST_HTTPS_TLS12`, `LIST_HTTPS_TLS13` and `LIST_QUIC`, and `nfqws2` profile ordering is first-match-wins. These notes are captured in `docs/ZAPRET2_CORE_BLOCKCHECK_NOTES.md` for the future real one-strategy validator and possible multi-profile Discord runtime work.
 
 The Blockcheck Lab layout is widened again and key controls now have maximum widths plus a reserved two-line preset description area, so the diagnostics screen is less edge-stretched and less vertically overlapped.
+
+### v0.4-alpha Stage 7g — Discord endpoint discovery
+
+The diagnostics tab now has an `Endpoints` action for the Discord updater dead end. It prints a read-only plan and latest report. The CLI watch is:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-endpoint-watch --discord-endpoint-seconds 90
+```
+
+Run the watch, start Discord during the window, leave it on `Checking for updates`, then inspect:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-endpoint-report
+```
+
+This does not require sudo, does not mutate firewall/services and does not capture payloads. It samples visible process socket metadata only.

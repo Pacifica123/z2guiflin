@@ -32,3 +32,17 @@ The practical ideas worth carrying forward are:
 - Discord UDP/voice is a separate STUN/Discord L7 layer and stays outside non-voice Stage 7.
 - Fake/fakedsplit/fakeddisorder-style strategies correspond conceptually to zapret2 Lua fake/fakedsplit/fakeddisorder/multisplit/multidisorder functions, but must be tested through blockcheck2 rather than copied blindly.
 ```
+
+## Stage 7g endpoint discovery pivot
+
+The Stage 7f evidence showed a practical limit of target guessing: `stable.dl2.discordapp.net` and `updates.discord.com` can both fail the bounded updater phase in a given run, while the real Electron updater splash may still be connecting somewhere else.
+
+Before adding more guessed updater domains, Stage 7g adds a read-only endpoint discovery loop around the local process:
+
+```text
+ss -H -tunp + pgrep -af [Dd]iscord
+```
+
+This does not replace Blockcheck. It is a source of candidate endpoints that can later be converted into service targets, hostlist entries or explicit phase alternatives.
+
+If the discovery output contains UDP endpoints during `Checking for updates`, the v0.4 plan must explicitly decide whether to investigate that as a pre-voice bootstrap layer or keep it out of the non-voice success criteria.

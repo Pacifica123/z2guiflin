@@ -82,6 +82,12 @@ from .adapters.discord_verification import (
     discord_non_voice_verification_plan_to_text,
     write_discord_non_voice_report_template_to_text,
 )
+from .adapters.discord_endpoint_discovery import (
+    DEFAULT_DISCOVERY_SECONDS,
+    discord_endpoint_discovery_plan_to_text,
+    discord_endpoint_report_to_text,
+    discord_endpoint_watch_to_text,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -134,7 +140,7 @@ def describe_project() -> str:
             "default build workflow: v0.4-alpha over v0.3-stable baseline owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
             "GUI privileged start/stop: v0.4-alpha via graphical sudo askpass",
-            "blockcheck lab: v0.3-stable YouTube path; v0.4-alpha target expansion toward Discord desktop",
+            "blockcheck lab: v0.4-alpha service targets plus Discord endpoint discovery diagnostics",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: v0.4-alpha documentation baseline; next cycle targets desktop Discord",
@@ -381,6 +387,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="создать markdown-шаблон owner report для Discord desktop non-voice в .zap2/verification",
     )
     parser.add_argument(
+        "--discord-endpoint-plan",
+        action="store_true",
+        help="показать read-only план discovery для endpoints desktop Discord updater; без запуска",
+    )
+    parser.add_argument(
+        "--discord-endpoint-watch",
+        action="store_true",
+        help="read-only ss/pgrep watch: запустите Discord во время окна наблюдения, чтобы увидеть TCP/UDP endpoints",
+    )
+    parser.add_argument(
+        "--discord-endpoint-report",
+        action="store_true",
+        help="показать последний сохранённый Discord endpoint discovery snapshot",
+    )
+    parser.add_argument(
+        "--discord-endpoint-seconds",
+        type=int,
+        default=DEFAULT_DISCOVERY_SECONDS,
+        help="длительность --discord-endpoint-watch в секундах: 1..600",
+    )
+    parser.add_argument(
         "--blockcheck-target-preset",
         choices=tuple(item.preset_id for item in list_service_target_presets()),
         default=DEFAULT_SERVICE_TARGET_PRESET_ID,
@@ -560,6 +587,18 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.discord_verification_template:
         print(write_discord_non_voice_report_template_to_text())
+        return 0
+
+    if args.discord_endpoint_plan:
+        print(discord_endpoint_discovery_plan_to_text(seconds=args.discord_endpoint_seconds))
+        return 0
+
+    if args.discord_endpoint_watch:
+        print(discord_endpoint_watch_to_text(seconds=args.discord_endpoint_seconds))
+        return 0
+
+    if args.discord_endpoint_report:
+        print(discord_endpoint_report_to_text())
         return 0
 
     if args.runtime_contracts:

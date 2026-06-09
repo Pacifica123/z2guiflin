@@ -36,3 +36,7 @@ Port precheck не должен быть окончательным судьёй
 5. сохранять только record-holder и небольшой список прошлых рекордсменов.
 
 Это отличается от target coverage scan и должно реализовываться как отдельный слой, чтобы GUI, пользователь и blockcheck не путали “какой-то домен дал AVAILABLE” с “одна стратегия прошла цепочку Discord desktop”.
+
+## Stage 7g caution
+
+Flowseal includes broad domain lists and a special `list-google.txt` entry for `stable.dl2.discordapp.net`, but the Linux desktop updater should not be reduced to that one guessed host. Stage 7g therefore adds local endpoint discovery before the next registry expansion. The owner should compare observed sockets from the Linux `discord` process against the Flowseal/Windows reference layers before adding new updater targets.

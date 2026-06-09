@@ -328,3 +328,13 @@ Stage 7f fixes the owner-observed case where an ordered Discord phase run stayed
 The default cap for `discord-desktop` is 160 checks. Owners can set it to `off` when they want a full upstream search on one target, or raise it when a target is known to produce late successes.
 
 The Blockcheck Lab layout was also widened and de-stretched: key controls now have maximum widths, the preset hint has a reserved two-line area, and the main window default size is roomier. This does not change runtime behavior; it only makes the diagnostics page more readable while the tournament log is being watched.
+
+## Stage 7g: Discord endpoint discovery button
+
+The Blockcheck Lab action row now includes `Endpoints`. It prints a read-only plan and the latest saved Discord endpoint discovery snapshot. The actual long-running watch remains CLI-first:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-endpoint-watch --discord-endpoint-seconds 90
+```
+
+The watch samples `ss -tunp` and `pgrep -af [Dd]iscord`; it does not run sudo, mutate firewall rules or capture payloads. It is intended for the `Checking for updates` dead end, where guessed targets can be wrong.
