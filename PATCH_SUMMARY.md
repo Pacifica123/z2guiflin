@@ -1,24 +1,29 @@
-# Patch summary — v0.4-alpha Stage 7n
+# Patch Summary — v0.4-alpha Stage 7n2
 
-Stage 7n adds Discord pre-TLS observability groundwork after the RA methodology review.
+## v0.4-alpha Stage 7n2 — guided Discord pre-TLS probe harness
 
-## Added
+This patch adds an owner-facing guided diagnostic harness for the Discord Linux pre-TLS/SYN-SENT problem.
 
-- `capturePolicy` metadata on workspace strategies.
-- owner-confirmed nft rules now include counters.
-- early-flow capture policy support for explicit Discord edge IPs and TCP ports.
-- optional diagnostic input SYN+ACK / FIN/RST queue rules for capture policies.
-- `community-discord-pretls-diagnostic-pktdebug` strategy.
-- `--runtime-nft-state` read-only CLI snapshot.
-- `docs/DISCORD_PRETLS_OBSERVABILITY.md`.
+### Added
 
-## Not changed
+- `--runtime-discord-pretls-guided-probe` CLI action.
+- `--pretls-probe-no-wait` and `--pretls-probe-wait-seconds` options for CI/dry-run use.
+- `.zap2/runtime/reports/discord-pretls-guided-probe-*.json` and `.md` report generation.
+- Verdict engine for workflow/nft/nfqws2/counter/log states.
+- Clear separation of `SHELL COMMAND` and `MANUAL ACTION` prompts.
+- `docs/DISCORD_PRETLS_GUIDED_PROBE.md`.
 
-- YouTube baseline remains the default strategy path.
-- No automatic firewall/service mutation is introduced.
-- Voice/UDP remains reserved for Stage 8.
+### Not changed
 
+- No new Discord bypass strategy.
+- No silent firewall/service mutation.
+- No automatic Discord launch.
+- No YouTube baseline changes.
 
-### v0.4-alpha Stage 7n1 — active pre-TLS state probe
+### Validation
 
-Adds active nft/NFQUEUE state reporting for Discord pre-TLS diagnostics: running/applied strategy, session PID health, corrected nft counter commands, and a read-only `--runtime-pretls-probe` checklist.
+- Stage 7n2 guided probe tests.
+- Stage 7n/7n1 observability regressions.
+- Runtime apply/session regressions.
+- Stage 7j/7k/7l/7m strategy regressions.
+- `compileall` for `gui` and `tests`.

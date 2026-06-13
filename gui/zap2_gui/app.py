@@ -58,6 +58,10 @@ from .adapters.runtime_session import (
     stop_runtime_session,
 )
 from .adapters.runtime_nft_state import runtime_nft_state_to_text, runtime_pretls_probe_to_text
+from .adapters.discord_pretls_guided_probe import (
+    DEFAULT_GUIDED_PROBE_WAIT_SECONDS,
+    runtime_discord_pretls_guided_probe_to_text,
+)
 from .adapters.runtime_service import (
     SUPPORTED_SERVICE_EXECUTION_ACTIONS,
     SUPPORTED_SERVICE_PLAN_ACTIONS,
@@ -269,6 +273,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--runtime-pretls-probe",
         action="store_true",
         help="показать read-only pre-TLS probe checklist для активного nfqws2/nft состояния; без исполнения nft",
+    )
+    parser.add_argument(
+        "--runtime-discord-pretls-guided-probe",
+        action="store_true",
+        help="интерактивный guided-прогон Discord pre-TLS: counters before/after, nfqws2 health, verdict report; без запуска Discord и без firewall mutation",
+    )
+    parser.add_argument(
+        "--pretls-probe-wait-seconds",
+        type=int,
+        default=DEFAULT_GUIDED_PROBE_WAIT_SECONDS,
+        help="ожидание для --runtime-discord-pretls-guided-probe в non-interactive режиме: 0..600 секунд",
+    )
+    parser.add_argument(
+        "--pretls-probe-no-wait",
+        action="store_true",
+        help="не ждать Enter/manual action в guided-probe; полезно для CI и dry-run проверки состояния",
     )
 
     parser.add_argument(
@@ -773,6 +793,21 @@ def main(argv: list[str] | None = None) -> int:
     if args.runtime_pretls_probe:
         try:
             print(runtime_pretls_probe_to_text(profile_id=args.profile))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+
+    if args.runtime_discord_pretls_guided_probe:
+        try:
+            text = runtime_discord_pretls_guided_probe_to_text(
+                profile_id=args.profile,
+                wait_seconds=args.pretls_probe_wait_seconds,
+                interactive=not args.pretls_probe_no_wait,
+                emit=print,
+            )
+            print(text)
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

@@ -572,3 +572,14 @@ and manual nft counter command without mutating the system.
 ### v0.4-alpha Stage 7n1 — active pre-TLS state probe
 
 Adds active nft/NFQUEUE state reporting for Discord pre-TLS diagnostics: running/applied strategy, session PID health, corrected nft counter commands, and a read-only `--runtime-pretls-probe` checklist.
+
+
+### v0.4-alpha Stage 7n2 — guided Discord pre-TLS probe harness
+
+Stage 7n2 adds a guided Discord pre-TLS diagnostic command:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-discord-pretls-guided-probe
+```
+
+It is not a new bypass preset. It collects one synchronized report with active strategy, owner-rules state, nft queue counters, nfqws2 PID before/after, args/log/debug deltas, verdict, and the next allowed diagnostic branch. The command separates `SHELL COMMAND` from `MANUAL ACTION` so the Discord launch instruction is not confused with a terminal command. Reports are saved under `.zap2/runtime/reports/`.

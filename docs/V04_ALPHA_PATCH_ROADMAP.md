@@ -331,3 +331,8 @@ Stage 7d фиксирует два наблюдения owner-run после Sta
 ### v0.4-alpha Stage 7n1 — active pre-TLS state probe
 
 Adds active nft/NFQUEUE state reporting for Discord pre-TLS diagnostics: running/applied strategy, session PID health, corrected nft counter commands, and a read-only `--runtime-pretls-probe` checklist.
+
+
+## Stage 7n2 — guided Discord pre-TLS probe harness
+
+Stage 7n2 turns the Stage 7n/7n1 observability pieces into one guided owner-facing run. It writes JSON/Markdown reports with nft counter deltas, nfqws2 health, qnum consistency, log/debug deltas, a verdict, and the next allowed branch. It intentionally does not add another Discord bypass strategy.

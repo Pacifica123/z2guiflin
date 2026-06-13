@@ -427,3 +427,8 @@ enter the Linux NFQUEUE path.
 ### v0.4-alpha Stage 7n1 — active pre-TLS state probe
 
 Adds active nft/NFQUEUE state reporting for Discord pre-TLS diagnostics: running/applied strategy, session PID health, corrected nft counter commands, and a read-only `--runtime-pretls-probe` checklist.
+
+
+### v0.4-alpha stage7n2-guided-pretls-probe-harness
+
+Adds a guided diagnostic harness for Discord pre-TLS observability. The patch is diagnostic-first: it produces reports and verdicts but does not add a new bypass strategy or alter the YouTube baseline.
