@@ -50,7 +50,7 @@ NFQUEUE path.
 4. While Discord is stuck on `Checking for updates`, inspect counters manually:
 
    ```bash
-   sudo nft list table inet zap2_default -a
+   sudo nft -a list table inet zap2_default
    ```
 
 5. Compare evidence:
@@ -70,3 +70,31 @@ NFQUEUE path.
 Stage 7n remains owner-confirmed. It does not silently broaden default YouTube
 capture and does not enable early-flow capture unless the selected strategy has
 an explicit `capturePolicy`.
+
+
+## Stage 7n1 active-state check
+
+Stage 7n1 extends the read-only state view. `--runtime-nft-state` now prefers the
+active owner-rules/session metadata when rules are applied, instead of only
+rendering the currently selected generated plan. This matters during Discord
+pre-TLS experiments because a selected strategy can differ from the strategy that
+is already applied and attached to NFQUEUE.
+
+Use:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-nft-state
+PYTHONPATH=gui python -m zap2_gui.app --runtime-pretls-probe
+```
+
+The probe remains read-only. It does not run `nft`, does not call sudo, and does
+not mutate firewall/services. It tells the owner whether the next synchronized
+manual check should be counter-focused, session-health-focused, or capture-scope
+focused.
+
+Manual counter commands use nft options before the command:
+
+```bash
+sudo nft reset counters table inet zap2_default
+sudo nft -a list table inet zap2_default
+```

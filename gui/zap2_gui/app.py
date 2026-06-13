@@ -57,7 +57,7 @@ from .adapters.runtime_session import (
     start_runtime_session,
     stop_runtime_session,
 )
-from .adapters.runtime_nft_state import runtime_nft_state_to_text
+from .adapters.runtime_nft_state import runtime_nft_state_to_text, runtime_pretls_probe_to_text
 from .adapters.runtime_service import (
     SUPPORTED_SERVICE_EXECUTION_ACTIONS,
     SUPPORTED_SERVICE_PLAN_ACTIONS,
@@ -264,6 +264,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--runtime-nft-state",
         action="store_true",
         help="показать read-only nft/NFQUEUE capture snapshot и manual counter command; без исполнения nft",
+    )
+    parser.add_argument(
+        "--runtime-pretls-probe",
+        action="store_true",
+        help="показать read-only pre-TLS probe checklist для активного nfqws2/nft состояния; без исполнения nft",
     )
 
     parser.add_argument(
@@ -760,6 +765,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.runtime_nft_state:
         try:
             print(runtime_nft_state_to_text(profile_id=args.profile))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.runtime_pretls_probe:
+        try:
+            print(runtime_pretls_probe_to_text(profile_id=args.profile))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

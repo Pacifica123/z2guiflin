@@ -422,3 +422,8 @@ Stage 7n introduces Discord pre-TLS observability: nft counters, explicit
 strategy `capturePolicy`, a read-only runtime nft snapshot, and a diagnostic
 `pktdebug` strategy for proving whether Discord updater SYN/early-flow packets
 enter the Linux NFQUEUE path.
+
+
+### v0.4-alpha Stage 7n1 — active pre-TLS state probe
+
+Adds active nft/NFQUEUE state reporting for Discord pre-TLS diagnostics: running/applied strategy, session PID health, corrected nft counter commands, and a read-only `--runtime-pretls-probe` checklist.

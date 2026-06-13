@@ -567,3 +567,8 @@ Stage 7n adds a diagnostic early-flow branch for the Discord desktop updater
 the nft/NFQUEUE capture envelope can be inspected separately from nfqws2
 `runtimeArgs`. Use `--runtime-nft-state` to review the generated capture plan
 and manual nft counter command without mutating the system.
+
+
+### v0.4-alpha Stage 7n1 — active pre-TLS state probe
+
+Adds active nft/NFQUEUE state reporting for Discord pre-TLS diagnostics: running/applied strategy, session PID health, corrected nft counter commands, and a read-only `--runtime-pretls-probe` checklist.
