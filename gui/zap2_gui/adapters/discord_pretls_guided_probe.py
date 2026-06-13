@@ -1,8 +1,9 @@
 """Guided Discord pre-TLS probe harness.
 
 Stage 7n/7n1 made the Discord SYN path observable in pieces: nft counters,
-active strategy snapshots, and nfqws2 PID health.  Stage 7n2 turns those pieces
-into one guided, owner-facing probe.  The helper is deliberately diagnostic:
+active strategy snapshots, and nfqws2 PID health.  Stage 7n2 turned those pieces
+into one guided, owner-facing probe. Stage 7n3 adds endpoint/socket correlation
+so a zero counter delta can be distinguished from a missed observation window.  The helper is deliberately diagnostic:
 it reads runtime state, nft counters, process health, and log deltas; it never
 starts Discord, never applies firewall rules, and never changes services.
 """
@@ -19,6 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from .discord_endpoint_discovery import DiscordEndpointSnapshot, run_discord_endpoint_watch
 from .runtime_nft_state import runtime_nft_state_snapshot
 from .runtime_session import runtime_session_status
 from .runtime_state import ensure_runtime_store
@@ -31,6 +33,7 @@ Emit = Callable[[str], None]
 InputFunc = Callable[[str], str]
 SleepFunc = Callable[[float], None]
 NftRunner = Callable[[str], tuple[int, str, str]]
+EndpointWatchRunner = Callable[[Path | None, int], DiscordEndpointSnapshot | None]
 
 
 @dataclass(frozen=True)
@@ -74,6 +77,40 @@ class ProbeLogSizes:
         return {"stdout": self.stdout_size, "stderr": self.stderr_size, "debug": self.debug_size}
 
 
+
+
+@dataclass(frozen=True)
+class ProbeEndpointSummary:
+    snapshot_path: Path | None
+    samples: int
+    observations: int
+    process_lines: int
+    states: dict[str, int]
+    ports: dict[str, int]
+    capture_matches: int
+    capture_misses: int
+    established: int
+    syn_sent: int
+    established_with_sendq: int
+    primary_endpoint: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "snapshotPath": None if self.snapshot_path is None else str(self.snapshot_path),
+            "samples": self.samples,
+            "observations": self.observations,
+            "processLines": self.process_lines,
+            "states": dict(self.states),
+            "ports": dict(self.ports),
+            "captureMatches": self.capture_matches,
+            "captureMisses": self.capture_misses,
+            "established": self.established,
+            "synSent": self.syn_sent,
+            "establishedWithSendQ": self.established_with_sendq,
+            "primaryEndpoint": self.primary_endpoint,
+        }
+
+
 @dataclass(frozen=True)
 class ProbeDelta:
     before: int | None
@@ -107,6 +144,7 @@ class DiscordPretlsGuidedProbeReport:
     log_sizes_before: ProbeLogSizes
     log_sizes_after: ProbeLogSizes
     log_deltas: dict[str, ProbeDelta]
+    endpoint_summary: ProbeEndpointSummary | None
     args_path: Path | None
     args_hash: str | None
     stdout_path: Path | None
@@ -125,7 +163,7 @@ class DiscordPretlsGuidedProbeReport:
     def to_payload(self) -> dict[str, Any]:
         return {
             "schemaVersion": 1,
-            "stage": "v0.4-alpha_stage7n2",
+            "stage": "v0.4-alpha_stage7n3",
             "kind": "discord-pretls-guided-probe-report",
             "createdAt": self.created_at,
             "profileId": self.profile_id,
@@ -149,6 +187,7 @@ class DiscordPretlsGuidedProbeReport:
             "logSizesBefore": self.log_sizes_before.to_dict(),
             "logSizesAfter": self.log_sizes_after.to_dict(),
             "logDeltas": {key: value.to_dict() for key, value in self.log_deltas.items()},
+            "endpointSummary": None if self.endpoint_summary is None else self.endpoint_summary.to_dict(),
             "argsPath": None if self.args_path is None else str(self.args_path),
             "argsHash": self.args_hash,
             "stdoutPath": None if self.stdout_path is None else str(self.stdout_path),
@@ -215,6 +254,10 @@ class DiscordPretlsGuidedProbeReport:
                 f"| stderr | {_fmt_delta(logs.get('stderr'))} |",
                 f"| debug | {_fmt_delta(logs.get('debug'))} |",
                 "",
+                "## Endpoint correlation",
+                "",
+                *_endpoint_markdown_lines(self.endpoint_summary),
+                "",
                 "## Verdict",
                 "",
                 f"verdict: `{self.verdict}`",
@@ -266,6 +309,7 @@ class DiscordPretlsGuidedProbeReport:
             f"  stdout: {_delta_text(logs.get('stdout'))}",
             f"  stderr: {_delta_text(logs.get('stderr'))}",
             f"  debug: {_delta_text(logs.get('debug'))}",
+            *_endpoint_text_lines(self.endpoint_summary),
             f"verdict: {self.verdict}",
             f"meaning: {self.meaning}",
             f"next branch: {self.next_branch}",
@@ -289,6 +333,104 @@ def _delta_text(value: ProbeDelta | None) -> str:
     if value is None or value.delta is None:
         return "n/a"
     return f"{value.before} -> {value.after} (delta {value.delta})"
+
+
+
+
+def _to_int(value: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _summarize_endpoints(snapshot: DiscordEndpointSnapshot | None, *, capture_ips: tuple[str, ...], capture_ports: tuple[str, ...]) -> ProbeEndpointSummary | None:
+    if snapshot is None:
+        return None
+    states: dict[str, int] = {}
+    ports: dict[str, int] = {}
+    capture_ip_set = set(capture_ips)
+    capture_port_set = set(capture_ports)
+    capture_matches = 0
+    capture_misses = 0
+    established = 0
+    syn_sent = 0
+    established_with_sendq = 0
+    primary = "нет"
+    best_sightings = -1
+    for item in snapshot.observations:
+        sightings = max(item.sightings, 1)
+        state_key = item.state or "?"
+        port_key = item.peer_port or "?"
+        states[state_key] = states.get(state_key, 0) + sightings
+        ports[port_key] = ports.get(port_key, 0) + sightings
+        matches_capture = (not capture_ip_set or item.peer_host in capture_ip_set) and (not capture_port_set or item.peer_port in capture_port_set)
+        if matches_capture:
+            capture_matches += sightings
+        else:
+            capture_misses += sightings
+        if item.state.upper() == "ESTAB":
+            established += sightings
+            if _to_int(item.send_q) > 0:
+                established_with_sendq += sightings
+        if item.state.upper() == "SYN-SENT":
+            syn_sent += sightings
+        if sightings > best_sightings:
+            best_sightings = sightings
+            queues = f" recvq={item.recv_q or '?'} sendq={item.send_q or '?'}" if item.recv_q or item.send_q else ""
+            hosts = f" hosts={','.join(item.matched_hosts)}" if item.matched_hosts else ""
+            primary = f"{item.proto.upper()} {item.peer_host}:{item.peer_port or '?'} state={item.state or '?'}{queues}{hosts} pid={item.pid or '?'}"
+    return ProbeEndpointSummary(
+        snapshot_path=snapshot.output_path,
+        samples=snapshot.samples,
+        observations=len(snapshot.observations),
+        process_lines=len(snapshot.process_lines),
+        states=dict(sorted(states.items())),
+        ports=dict(sorted(ports.items())),
+        capture_matches=capture_matches,
+        capture_misses=capture_misses,
+        established=established,
+        syn_sent=syn_sent,
+        established_with_sendq=established_with_sendq,
+        primary_endpoint=primary,
+    )
+
+
+def _endpoint_text_lines(summary: ProbeEndpointSummary | None) -> list[str]:
+    if summary is None:
+        return ["endpoint correlation: n/a"]
+    states = ", ".join(f"{key}={value}" for key, value in summary.states.items()) or "нет"
+    ports = ", ".join(f"{key}={value}" for key, value in summary.ports.items()) or "нет"
+    return [
+        "endpoint correlation:",
+        f"  samples: {summary.samples}; observations: {summary.observations}; process lines: {summary.process_lines}",
+        f"  states: {states}",
+        f"  ports: {ports}",
+        f"  capture policy matches/misses: {summary.capture_matches}/{summary.capture_misses}",
+        f"  ESTAB/SYN-SENT/ESTAB-with-SendQ: {summary.established}/{summary.syn_sent}/{summary.established_with_sendq}",
+        f"  primary endpoint: {summary.primary_endpoint}",
+        f"  snapshot: {summary.snapshot_path if summary.snapshot_path is not None else 'нет'}",
+    ]
+
+
+def _endpoint_markdown_lines(summary: ProbeEndpointSummary | None) -> list[str]:
+    if summary is None:
+        return ["endpoint correlation: `n/a`"]
+    lines = [
+        f"snapshot: `{summary.snapshot_path if summary.snapshot_path is not None else 'нет'}`",
+        f"samples: `{summary.samples}`",
+        f"observations: `{summary.observations}`",
+        f"process lines: `{summary.process_lines}`",
+        f"capture matches/misses: `{summary.capture_matches}` / `{summary.capture_misses}`",
+        f"ESTAB / SYN-SENT / ESTAB-with-SendQ: `{summary.established}` / `{summary.syn_sent}` / `{summary.established_with_sendq}`",
+        f"primary endpoint: `{summary.primary_endpoint}`",
+        "",
+        "| kind | values |",
+        "|---|---|",
+        "| states | " + (", ".join(f"`{key}={value}`" for key, value in summary.states.items()) or "нет") + " |",
+        "| ports | " + (", ".join(f"`{key}={value}`" for key, value in summary.ports.items()) or "нет") + " |",
+    ]
+    return lines
 
 
 def _utc_now() -> str:
@@ -494,6 +636,7 @@ def _verdict(
     counters_after: ProbeNftCounters | None,
     counter_deltas: dict[str, ProbeDelta],
     log_deltas: dict[str, ProbeDelta],
+    endpoint_summary: ProbeEndpointSummary | None,
     nfqueue_match: bool,
     strategy_compatible: bool,
 ) -> tuple[str, str, str]:
@@ -542,6 +685,12 @@ def _verdict(
             "Fix nft counter reading or attach manual before/after output.",
         )
     if out_delta <= 0:
+        if endpoint_summary is not None and endpoint_summary.established > 0:
+            return (
+                "V3_NO_OUT_COUNTER_DELTA_WITH_ESTAB_ENDPOINT",
+                "Discord reached an ESTAB endpoint during the observation window, but the pre-TLS capture counter did not grow; the capturePolicy may not cover the actual endpoint or the counter window/state is mismatched.",
+                "Correlate endpoint IP/port/UID with capturePolicy before changing desync flags.",
+            )
         return (
             "V3_NO_OUT_COUNTER_DELTA",
             "Discord launch did not increase the outbound pre-TLS capture counter in this guided run.",
@@ -552,6 +701,18 @@ def _verdict(
             "V4_NFQWS2_DIED_AFTER_HIT",
             "Discord packets hit the nft rule, but nfqws2 was not alive after the manual action.",
             "Investigate session supervision, silent exit, crash visibility, or queue lifecycle before tuning flags.",
+        )
+    if endpoint_summary is not None and endpoint_summary.established_with_sendq > 0:
+        return (
+            "V9_ESTAB_WITH_SENDQ",
+            "Discord reached ESTAB during the observation window, but at least one established socket had non-zero Send-Q; the current blocker may be after TCP handshake, around first payload/TLS/updater data.",
+            "Move to first-payload/TLS-stage observability instead of treating this as pure SYN-SENT only.",
+        )
+    if endpoint_summary is not None and endpoint_summary.established > 0:
+        return (
+            "V8_TCP_ESTABLISHED",
+            "Discord reached an ESTAB TCP endpoint during the observation window; pure pre-TLS SYN failure is not the only current failure mode.",
+            "Preserve this report and move to first-payload/TLS/updater-stage correlation.",
         )
     if synack_delta is not None and synack_delta > 0:
         return (
@@ -573,6 +734,12 @@ def _verdict(
     )
 
 
+def _default_endpoint_watch_runner(root: Path | None, seconds: int) -> DiscordEndpointSnapshot | None:
+    if seconds <= 0:
+        return None
+    return run_discord_endpoint_watch(root=root, seconds=seconds, interval=1.0)
+
+
 def _write_report(report: DiscordPretlsGuidedProbeReport) -> None:
     report.report_json_path.write_text(json.dumps(report.to_payload(), ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     report.report_md_path.write_text(report.to_markdown(), encoding="utf-8")
@@ -585,6 +752,7 @@ def run_discord_pretls_guided_probe(
     wait_seconds: int = DEFAULT_GUIDED_PROBE_WAIT_SECONDS,
     interactive: bool = True,
     nft_runner: NftRunner = default_nft_runner,
+    endpoint_watch_runner: EndpointWatchRunner | None = _default_endpoint_watch_runner,
     emit: Emit | None = None,
     input_func: InputFunc = input,
     sleep_func: SleepFunc = time.sleep,
@@ -606,6 +774,8 @@ def run_discord_pretls_guided_probe(
     log_before = _log_sizes(snapshot_before)
     counters_before: ProbeNftCounters | None = None
     counters_after: ProbeNftCounters | None = None
+    endpoint_snapshot: DiscordEndpointSnapshot | None = None
+    endpoint_summary: ProbeEndpointSummary | None = None
     notes: list[str] = []
 
     if emit is not None:
@@ -625,12 +795,18 @@ def run_discord_pretls_guided_probe(
                     emit("  Close Discord if it is open, then open Discord from your desktop menu and wait until it says Checking for updates.")
                     emit("  Return here and press Enter after the updater spinner is visible.")
                 input_func("Press Enter after the MANUAL ACTION is complete: ")
+                if wait_seconds > 0 and emit is not None:
+                    emit(f"Observation window: keeping Discord open and sampling endpoints/counters for {wait_seconds} seconds...")
             elif wait_seconds > 0:
                 if emit is not None:
                     emit("")
                     emit("MANUAL ACTION WINDOW — do not type this into shell:")
-                    emit(f"  Open Discord now. The probe will wait {wait_seconds} seconds before reading after-counters.")
-                sleep_func(wait_seconds)
+                    emit(f"  Open Discord now. The probe will observe endpoints for {wait_seconds} seconds before reading after-counters.")
+            if wait_seconds > 0:
+                if endpoint_watch_runner is not None:
+                    endpoint_snapshot = endpoint_watch_runner(paths.root, wait_seconds)
+                else:
+                    sleep_func(wait_seconds)
             counters_after = read_nft_counters(snapshot_before.nft_table, runner=nft_runner)
     else:
         if snapshot_before.saved_state != "applied":
@@ -650,6 +826,7 @@ def run_discord_pretls_guided_probe(
     log_after = _log_sizes(snapshot_after)
     counter_deltas = _make_counter_deltas(counters_before, counters_after)
     log_deltas = _make_log_deltas(log_before, log_after)
+    endpoint_summary = _summarize_endpoints(endpoint_snapshot, capture_ips=snapshot_before.queued_edge_ips, capture_ports=snapshot_before.queued_tcp_ports)
     verdict, meaning, next_branch = _verdict(
         snapshot_before=snapshot_before,
         snapshot_after=snapshot_after,
@@ -657,6 +834,7 @@ def run_discord_pretls_guided_probe(
         counters_after=counters_after,
         counter_deltas=counter_deltas,
         log_deltas=log_deltas,
+        endpoint_summary=endpoint_summary,
         nfqueue_match=nfqueue_match,
         strategy_compatible=strategy_compatible,
     )
@@ -664,6 +842,8 @@ def run_discord_pretls_guided_probe(
         notes.append(f"before nft read failed: {counters_before.error}")
     if counters_after is not None and not counters_after.read_ok:
         notes.append(f"after nft read failed: {counters_after.error}")
+    if endpoint_summary is not None:
+        notes.append(f"endpoint observations: {endpoint_summary.observations}; states={endpoint_summary.states}")
     if session_record.get("runtimeArgs"):
         notes.append(f"runtime args count: {len(session_record.get('runtimeArgs', []))}")
     notes.append("The probe never launches Discord by itself and never mutates firewall/service state.")
@@ -690,6 +870,7 @@ def run_discord_pretls_guided_probe(
         log_sizes_before=log_before,
         log_sizes_after=log_after,
         log_deltas=log_deltas,
+        endpoint_summary=endpoint_summary,
         args_path=snapshot_before.session_args_path,
         args_hash=_sha256_file(snapshot_before.session_args_path),
         stdout_path=snapshot_before.session_stdout_path,

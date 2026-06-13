@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from zap2_gui.adapters.discord_endpoint_discovery import DiscordEndpointObservation, DiscordEndpointSnapshot
 from zap2_gui.adapters.discord_pretls_guided_probe import (
     read_nft_counters,
     run_discord_pretls_guided_probe,
@@ -142,6 +143,7 @@ def test_stage7n2_guided_probe_reports_out_hit_alive_logs_silent(tmp_path: Path)
             interactive=False,
             wait_seconds=0,
             nft_runner=lambda table: next(calls),
+            endpoint_watch_runner=None,
         )
     finally:
         proc.terminate()
@@ -172,6 +174,7 @@ def test_stage7n2_guided_probe_reports_log_activity(tmp_path: Path) -> None:
             interactive=False,
             wait_seconds=1,
             nft_runner=lambda table: next(calls),
+            endpoint_watch_runner=None,
             sleep_func=sleep_and_log,
         )
     finally:
@@ -180,6 +183,59 @@ def test_stage7n2_guided_probe_reports_log_activity(tmp_path: Path) -> None:
 
     assert report.verdict == "V6_LOG_ACTIVITY_WITH_OUT_HIT"
     assert report.log_deltas["stdout"].delta and report.log_deltas["stdout"].delta > 0
+
+
+
+def _endpoint_snapshot(project: Path) -> DiscordEndpointSnapshot:
+    return DiscordEndpointSnapshot(
+        created_at="2026-06-13T07:20:13Z",
+        seconds=1,
+        samples=1,
+        process_lines=("16790 /home/noir/.config/discord/Discord",),
+        observations=(
+            DiscordEndpointObservation(
+                proto="tcp",
+                local="192.168.0.100:60540",
+                peer="162.159.128.233:443",
+                state="ESTAB",
+                recv_q="0",
+                send_q="268",
+                timer="on,35sec,10",
+                pid="16790",
+                process_name="Discord",
+                matched_hosts=("updates.discord.com",),
+            ),
+        ),
+        output_path=project / ".zap2" / "discord-discovery" / "endpoint-snapshot-test.json",
+    )
+
+
+def test_stage7n3_guided_probe_correlates_estab_sendq_endpoint(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    select_workspace_strategy(project, "community-discord-pretls-diagnostic-pktdebug", profile_id="default")
+    _write_active_owner_rules(project)
+    proc = _write_running_session(project)
+    calls = iter([(0, _nft_text(0), ""), (0, _nft_text(8, 2032, synack_packets=1), "")])
+
+    try:
+        report = run_discord_pretls_guided_probe(
+            project,
+            interactive=False,
+            wait_seconds=1,
+            nft_runner=lambda table: next(calls),
+            endpoint_watch_runner=lambda root, seconds: _endpoint_snapshot(project),
+        )
+    finally:
+        proc.terminate()
+        proc.wait(timeout=5)
+
+    assert report.verdict == "V9_ESTAB_WITH_SENDQ"
+    assert report.endpoint_summary is not None
+    assert report.endpoint_summary.established_with_sendq == 1
+    assert report.endpoint_summary.capture_matches == 1
+    payload = json.loads(report.report_json_path.read_text(encoding="utf-8"))
+    assert payload["stage"] == "v0.4-alpha_stage7n3"
+    assert payload["endpointSummary"]["establishedWithSendQ"] == 1
 
 
 def test_stage7n2_cli_exposes_guided_probe_no_wait(capsys) -> None:

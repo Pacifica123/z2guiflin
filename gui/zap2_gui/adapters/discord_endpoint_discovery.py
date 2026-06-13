@@ -74,6 +74,8 @@ class DiscordEndpointObservation:
     local: str
     peer: str
     state: str = ""
+    recv_q: str = ""
+    send_q: str = ""
     timer: str = ""
     process: str = ""
     pid: str = ""
@@ -107,6 +109,8 @@ class DiscordEndpointObservation:
             "peerHost": self.peer_host,
             "peerPort": self.peer_port,
             "state": self.state,
+            "recvQ": self.recv_q,
+            "sendQ": self.send_q,
             "timer": self.timer,
             "process": self.process,
             "pid": self.pid,
@@ -196,10 +200,11 @@ class DiscordEndpointSnapshot:
             for item in self.observations[:80]:
                 name = f" process={item.process_name or '?'} pid={item.pid or '?'}" if item.process or item.pid else ""
                 state = f" state={item.state}" if item.state else ""
+                queues = f" recvq={item.recv_q or '?'} sendq={item.send_q or '?'}" if item.recv_q or item.send_q else ""
                 timer = f" timer={item.timer}" if item.timer else ""
                 hosts = f" hosts={','.join(item.matched_hosts)}" if item.matched_hosts else ""
                 count = f" sightings={item.sightings}" if item.sightings > 1 else ""
-                lines.append(f"    - {item.proto.upper()} {item.peer_host}:{item.peer_port or '?'}{state}{timer}{count}{hosts}{name}")
+                lines.append(f"    - {item.proto.upper()} {item.peer_host}:{item.peer_port or '?'}{state}{queues}{timer}{count}{hosts}{name}")
             if len(self.observations) > 80:
                 lines.append(f"    - ... {len(self.observations) - 80} more")
         lines.append("")
@@ -253,6 +258,12 @@ def _parse_process_lines(text: str) -> tuple[str, ...]:
             continue
         lowered = line.lower()
         if "discord" in lowered:
+            # Stage 7n3: keep the owner-facing process list focused on the
+            # Discord desktop process tree.  The local nfqws2 session and our
+            # own zap2 diagnostic commands can contain strategy names with the
+            # word "discord", but they are not Discord endpoints.
+            if "nfqws" in lowered or "zap2_gui.app" in lowered or "discord-endpoint-watch" in lowered or "discord-pretls" in lowered:
+                continue
             lines.append(line)
     return tuple(dict.fromkeys(lines))
 
@@ -280,17 +291,23 @@ def _parse_ss_output(text: str, *, default_proto: str = "") -> tuple[DiscordEndp
             continue
         proto = default_proto.lower()
         state = ""
+        recv_q = ""
+        send_q = ""
         local = ""
         peer = ""
         tail = ""
         if parts[0].lower() in {"tcp", "udp"} and len(parts) >= 6:
             proto = parts[0].lower()
             state = parts[1]
+            recv_q = parts[2] if len(parts) > 2 else ""
+            send_q = parts[3] if len(parts) > 3 else ""
             local = parts[4]
             peer = parts[5]
             tail = parts[6].strip() if len(parts) > 6 else ""
         elif default_proto and parts[0].upper() in _STATE_TOKENS and len(parts) >= 5:
             state = parts[0]
+            recv_q = parts[1] if len(parts) > 1 else ""
+            send_q = parts[2] if len(parts) > 2 else ""
             local = parts[3]
             peer = parts[4]
             tail = " ".join(parts[5:]).strip() if len(parts) > 5 else ""
@@ -309,6 +326,8 @@ def _parse_ss_output(text: str, *, default_proto: str = "") -> tuple[DiscordEndp
                 local=local,
                 peer=peer,
                 state=state,
+                recv_q=recv_q,
+                send_q=send_q,
                 timer=timer,
                 process=process,
                 pid=pid_match.group("pid") if pid_match else "",
@@ -441,6 +460,8 @@ def latest_discord_endpoint_snapshot(root: Path | None = None) -> DiscordEndpoin
             local=str(item.get("local", "")),
             peer=str(item.get("peer", "")),
             state=str(item.get("state", "")),
+            recv_q=str(item.get("recvQ", "")),
+            send_q=str(item.get("sendQ", "")),
             timer=str(item.get("timer", "")),
             process=str(item.get("process", "")),
             pid=str(item.get("pid", "")),
