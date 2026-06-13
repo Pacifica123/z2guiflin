@@ -1,0 +1,19 @@
+Stage 7o2a — matrix row runner
+
+Command:
+  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row <row-id>
+
+Purpose:
+  Simplify one observation-matrix row collection without silently starting privileged firewall state.
+
+Main states:
+  - baseline row: refuses if Zap2 runtime is active; otherwise starts read-only endpoint-watch window.
+  - strategy row, workflow stopped: selects strategy as owner, prepares start plan, prints exact confirm/start/rerun commands.
+  - strategy row, workflow running without sudo: prints the exact sudo row-runner command for nft counter reads.
+  - strategy row, workflow running with sudo: delegates to the guided pre-TLS probe.
+
+Safety:
+  - does not launch Discord;
+  - does not auto-apply nft rules;
+  - refuses root-owned strategy selection;
+  - does not import or execute external scripts.

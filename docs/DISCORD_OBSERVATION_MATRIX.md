@@ -49,3 +49,15 @@ The report is written to:
 A candidate is not promoted because it exists in an external reference. A candidate can only be promoted if the matrix shows it changes a meaningful observation compared with the baseline and diagnostic rows: endpoint state, counter deltas, SYN+ACK visibility, Send-Q behavior, log/debug deltas, or Discord updater progress.
 
 Stage 7o2 deliberately keeps the matrix as an observation tool. The first actual promotion of a candidate belongs to a later patch after evidence exists.
+
+## Stage 7o2a row runner
+
+Stage 7o2a adds a simplified row runner:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row <row-id>
+```
+
+Use this instead of manually assembling every row command from memory. The runner selects/prepares a row when safe, stops before privileged start if owner confirmation is needed, and reruns the guided probe only when the Default workflow is already alive and the process has permission to read nft counters.
+
+See `docs/DISCORD_OBSERVATION_MATRIX_ROW_RUNNER.md` for the full state model.

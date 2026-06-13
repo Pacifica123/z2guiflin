@@ -1,9 +1,19 @@
-Stage 7o2 matrix rows:
-- no zapret baseline: endpoint-watch only, workflow stopped
-- diagnostic pktdebug: community-discord-pretls-diagnostic-pktdebug
-- current v2 strategy: community-discord-syndata-edge-flow-v2
-- kartavkun-like multisplit: reference-linux-general-multisplit-like
-- fake_tls_auto-like: reference-zapret2-generic-tls-fake
-- simple_fake-like: reference-flowseal-simple-fake-like
+Stage 7o2/7o2a — Discord observation matrix plan
 
-The matrix is an evidence aggregator. It does not execute external scripts and does not promote a strategy by itself.
+Rows:
+  - baseline-no-zapret / no zapret baseline: no Zap2 runtime; collect endpoint-watch snapshot while opening Discord.
+  - diagnostic-pktdebug: validate observation funnel.
+  - current-v2-syndata: retest current Zap2 v2 candidate.
+  - reference-kartavkun-multisplit: external Linux multisplit-like candidate.
+  - reference-fake-tls-auto: zapret2 generic TLS fake-like candidate.
+  - reference-simple-fake: Flowseal simple fake-like candidate.
+
+Simplified command per row:
+  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row <row-id>
+
+The row runner selects/prepares the row, prints the exact owner-confirmed start commands when runtime is not running, and delegates to the guided probe only when the Default workflow is already alive with the correct strategy.
+
+Final aggregation:
+  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-report
+
+does not execute external scripts. No external scripts are executed. No firewall/service state is changed unless the owner follows the explicit existing Default workflow commands.

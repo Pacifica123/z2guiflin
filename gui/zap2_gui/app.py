@@ -101,8 +101,10 @@ from .adapters.discord_dns_edge_diagnostics import (
 )
 from .adapters.external_reference_audit import external_reference_audit_to_text
 from .adapters.discord_observation_matrix import (
+    DEFAULT_MATRIX_ROW_SECONDS,
     discord_observation_matrix_plan_to_text,
     discord_observation_matrix_report_to_text,
+    discord_observation_matrix_run_row_to_text,
 )
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
@@ -293,6 +295,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--discord-observation-matrix-report",
         action="store_true",
         help="собрать read-only Stage 7o2 observation matrix из уже сохранённых guided reports/snapshots",
+    )
+    parser.add_argument(
+        "--discord-observation-matrix-run-row",
+        metavar="ROW_ID",
+        help="Stage 7o2a: упростить сбор одной строки observation matrix: baseline или guided row runner",
+    )
+    parser.add_argument(
+        "--matrix-row-wait-seconds",
+        type=int,
+        default=DEFAULT_MATRIX_ROW_SECONDS,
+        help="окно наблюдения для --discord-observation-matrix-run-row: 0..600 секунд",
+    )
+    parser.add_argument(
+        "--matrix-row-no-wait",
+        action="store_true",
+        help="не ждать Enter/manual action в matrix row runner; полезно для dry-run/CI",
     )
     parser.add_argument(
         "--pretls-probe-wait-seconds",
@@ -849,6 +867,22 @@ def main(argv: list[str] | None = None) -> int:
     if args.discord_observation_matrix_report:
         try:
             print(discord_observation_matrix_report_to_text(profile_id=args.profile))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.discord_observation_matrix_run_row:
+        try:
+            print(
+                discord_observation_matrix_run_row_to_text(
+                    row_id=str(args.discord_observation_matrix_run_row),
+                    profile_id=args.profile,
+                    wait_seconds=args.matrix_row_wait_seconds,
+                    interactive=not args.matrix_row_no_wait,
+                    emit=print,
+                )
+            )
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

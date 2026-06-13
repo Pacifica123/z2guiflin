@@ -137,3 +137,43 @@ def test_stage7o2_docs_keep_matrix_non_executable() -> None:
     assert "does not add a new bypass strategy" in docs
     assert "does not execute external scripts" in snippet
     assert "no zapret baseline" in snippet
+
+
+def test_stage7o2a_row_runner_selects_and_prepares_strategy(tmp_path: Path, monkeypatch) -> None:
+    project = _copy_project(tmp_path)
+    monkeypatch.setenv("ZAP2_MATRIX_ROW_ALLOW_ROOT_SELECTION", "1")
+
+    from zap2_gui.adapters.discord_observation_matrix import discord_observation_matrix_run_row_to_text
+
+    text = discord_observation_matrix_run_row_to_text(
+        "diagnostic-pktdebug",
+        root=project,
+        interactive=False,
+        wait_seconds=0,
+    )
+
+    assert "Stage 7o2a" in text or "stage7o2a" in text
+    assert "prepared-waiting-for-default-workflow" in text
+    assert "community-discord-pretls-diagnostic-pktdebug" in text
+    assert "--runtime-confirm runtime-default-community-discord-pretls-diagnostic-pktdebug-default-start-workflow-plan" in text
+    selection = project / ".zap2" / "strategies" / "default.active-strategy.json"
+    assert selection.exists()
+    assert "community-discord-pretls-diagnostic-pktdebug" in selection.read_text(encoding="utf-8")
+
+
+def test_stage7o2a_cli_exposes_row_runner(capsys, tmp_path: Path, monkeypatch) -> None:
+    _copy_project(tmp_path)
+    monkeypatch.setenv("ZAP2_MATRIX_ROW_ALLOW_ROOT_SELECTION", "1")
+    try:
+        assert main(["--discord-observation-matrix-run-row", "diagnostic-pktdebug", "--matrix-row-no-wait", "--matrix-row-wait-seconds", "0"]) == 0
+        out = capsys.readouterr().out
+        assert "Discord observation matrix row runner" in out
+        assert "prepared-waiting-for-default-workflow" in out
+    finally:
+        shutil.rmtree(ROOT / ".zap2", ignore_errors=True)
+
+
+def test_stage7o2a_plan_points_to_row_runner() -> None:
+    text = discord_observation_matrix_plan_to_text(ROOT)
+    assert "--discord-observation-matrix-run-row diagnostic-pktdebug" in text
+    assert "Simplified row runner" in text

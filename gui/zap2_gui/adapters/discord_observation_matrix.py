@@ -10,19 +10,28 @@ ad-hoc Discord preset.
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
-from .discord_endpoint_discovery import latest_discord_endpoint_snapshot
+from .discord_endpoint_discovery import DiscordEndpointSnapshot, latest_discord_endpoint_snapshot, run_discord_endpoint_watch
+from .runtime_default import prepare_default_workflow_plan
+from .runtime_nft_state import runtime_nft_state_snapshot
 from .runtime_state import ensure_runtime_store
-from .workspace_profiles import load_strategy_catalog
+from .workspace_profiles import load_strategy_catalog, load_workspace_catalog, select_workspace_strategy
 from ..project_paths import discover_layout
 
 
 MATRIX_STAGE = "v0.4-alpha_stage7o2"
+MATRIX_RUNNER_STAGE = "v0.4-alpha_stage7o2a"
+DEFAULT_MATRIX_ROW_SECONDS = 45
+
+Emit = Callable[[str], None]
+InputFunc = Callable[[str], str]
+EndpointWatchRunner = Callable[[Path | None, int], DiscordEndpointSnapshot]
 
 
 @dataclass(frozen=True)
@@ -190,7 +199,7 @@ MATRIX_PLAN_ROWS: tuple[ObservationMatrixPlanRow, ...] = (
         strategy_id=None,
         mode="endpoint-watch-only",
         purpose="Observe Discord without Zap2 runtime so SYN-SENT/ESTAB/updater behavior is not blamed on nfqws2.",
-        run_command="PYTHONPATH=gui python -m zap2_gui.app --discord-endpoint-watch --discord-endpoint-seconds 45",
+        run_command="PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row baseline-no-zapret",
         expected_evidence=".zap2/discord-discovery/endpoint-snapshot-*.json",
     ),
     ObservationMatrixPlanRow(
@@ -199,7 +208,7 @@ MATRIX_PLAN_ROWS: tuple[ObservationMatrixPlanRow, ...] = (
         strategy_id="community-discord-pretls-diagnostic-pktdebug",
         mode="guided-probe",
         purpose="Validate the observability funnel: nft counter, qnum, live nfqws2 and endpoint correlation.",
-        run_command="sudo env PYTHONPATH=gui python -m zap2_gui.app --runtime-discord-pretls-guided-probe",
+        run_command="PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row diagnostic-pktdebug",
         expected_evidence="discord-pretls-guided-probe-*.json with strategy community-discord-pretls-diagnostic-pktdebug",
     ),
     ObservationMatrixPlanRow(
@@ -208,7 +217,7 @@ MATRIX_PLAN_ROWS: tuple[ObservationMatrixPlanRow, ...] = (
         strategy_id="community-discord-syndata-edge-flow-v2",
         mode="guided-probe",
         purpose="Re-test the strongest current Zap2 Discord early-flow candidate under the same observation harness.",
-        run_command="sudo env PYTHONPATH=gui python -m zap2_gui.app --runtime-discord-pretls-guided-probe",
+        run_command="PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row current-v2-syndata",
         expected_evidence="discord-pretls-guided-probe-*.json with strategy community-discord-syndata-edge-flow-v2",
     ),
     ObservationMatrixPlanRow(
@@ -217,7 +226,7 @@ MATRIX_PLAN_ROWS: tuple[ObservationMatrixPlanRow, ...] = (
         strategy_id="reference-linux-general-multisplit-like",
         mode="guided-probe",
         purpose="Check whether a broad Linux reference multisplit-like candidate changes updater behavior.",
-        run_command="sudo env PYTHONPATH=gui python -m zap2_gui.app --runtime-discord-pretls-guided-probe",
+        run_command="PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row reference-kartavkun-multisplit",
         expected_evidence="discord-pretls-guided-probe-*.json with strategy reference-linux-general-multisplit-like",
     ),
     ObservationMatrixPlanRow(
@@ -226,7 +235,7 @@ MATRIX_PLAN_ROWS: tuple[ObservationMatrixPlanRow, ...] = (
         strategy_id="reference-zapret2-generic-tls-fake",
         mode="guided-probe",
         purpose="Check a zapret2-style generic TLS fake candidate inspired by working reference packs.",
-        run_command="sudo env PYTHONPATH=gui python -m zap2_gui.app --runtime-discord-pretls-guided-probe",
+        run_command="PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row reference-fake-tls-auto",
         expected_evidence="discord-pretls-guided-probe-*.json with strategy reference-zapret2-generic-tls-fake",
     ),
     ObservationMatrixPlanRow(
@@ -235,7 +244,7 @@ MATRIX_PLAN_ROWS: tuple[ObservationMatrixPlanRow, ...] = (
         strategy_id="reference-flowseal-simple-fake-like",
         mode="guided-probe",
         purpose="Check a broad Flowseal/simple-fake inspired candidate without importing external scripts.",
-        run_command="sudo env PYTHONPATH=gui python -m zap2_gui.app --runtime-discord-pretls-guided-probe",
+        run_command="PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row reference-simple-fake",
         expected_evidence="discord-pretls-guided-probe-*.json with strategy reference-flowseal-simple-fake-like",
     ),
 )
@@ -410,6 +419,260 @@ def collect_observation_matrix(root: Path | None = None, profile_id: str = "defa
     return report
 
 
+
+
+def _row_by_id(row_id: str) -> ObservationMatrixPlanRow:
+    wanted = row_id.strip()
+    aliases = {
+        "baseline": "baseline-no-zapret",
+        "pktdebug": "diagnostic-pktdebug",
+        "v2": "current-v2-syndata",
+        "multisplit": "reference-kartavkun-multisplit",
+        "fake-tls": "reference-fake-tls-auto",
+        "simple-fake": "reference-simple-fake",
+    }
+    wanted = aliases.get(wanted, wanted)
+    for row in MATRIX_PLAN_ROWS:
+        if row.row_id == wanted or row.strategy_id == wanted:
+            return row
+    available = ", ".join(row.row_id for row in MATRIX_PLAN_ROWS)
+    raise ValueError(f"Unknown observation matrix row: {row_id}. Available rows: {available}")
+
+
+def _is_root_process() -> bool:
+    if os.environ.get("ZAP2_MATRIX_ROW_ALLOW_ROOT_SELECTION") == "1":
+        return False
+    geteuid = getattr(os, "geteuid", None)
+    return bool(geteuid is not None and geteuid() == 0)
+
+
+def _selected_strategy_id(root: Path, profile_id: str) -> str:
+    catalog = load_workspace_catalog(root)
+    try:
+        return catalog.profile_by_id()[profile_id].strategy_id
+    except KeyError as exc:
+        raise ValueError(f"Workspace profile не найден: {profile_id}") from exc
+
+
+def _baseline_runner_text(
+    root: Path,
+    row: ObservationMatrixPlanRow,
+    *,
+    seconds: int,
+    interactive: bool,
+    emit: Emit | None,
+    input_func: InputFunc,
+    endpoint_runner: EndpointWatchRunner,
+) -> str:
+    snapshot = runtime_nft_state_snapshot(root)
+    if snapshot.saved_state == "applied" or snapshot.session_state == "running":
+        return "\n".join(
+            [
+                "Discord observation matrix row runner",
+                f"stage: {MATRIX_RUNNER_STAGE}",
+                f"row: {row.row_id} — {row.label}",
+                "mode: endpoint-watch-only baseline",
+                "status: blocked-before-baseline",
+                "reason: Zap2 runtime appears to be running/applied; baseline must be collected without Zap2 runtime.",
+                "NEXT SHELL COMMANDS:",
+                "  PYTHONPATH=gui python -m zap2_gui.app --default-stop-plan",
+                "  PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-<strategy>-default-stop-workflow-plan",
+                "  sudo env PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-default-<strategy>-default-stop-workflow-plan",
+                f"  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id}",
+                "MANUAL ACTION:",
+                "  Do not open Discord until the row runner asks for it.",
+                "executes Discord now: no",
+                "applies firewall/services now: no",
+            ]
+        )
+    if interactive:
+        if emit is not None:
+            emit("Discord observation matrix row runner")
+            emit(f"row: {row.row_id} — {row.label}")
+            emit("MANUAL ACTION — do not type this into shell:")
+            emit("  Close Discord fully. Press Enter here when Discord is closed.")
+        input_func("Press Enter when Discord is closed: ")
+        if emit is not None:
+            emit("")
+            emit("MANUAL ACTION WINDOW — do not type this into shell:")
+            emit(f"  Open Discord now and wait for Checking for updates. The watcher will sample for {seconds} seconds.")
+    snapshot = endpoint_runner(root, seconds)
+    lines = [
+        "Discord observation matrix row runner",
+        f"stage: {MATRIX_RUNNER_STAGE}",
+        f"row: {row.row_id} — {row.label}",
+        "mode: endpoint-watch-only baseline",
+        "status: completed",
+        f"snapshot: {snapshot.output_path if snapshot.output_path is not None else 'нет'}",
+        f"observations: {len(snapshot.observations)}",
+        f"process lines: {len(snapshot.process_lines)}",
+        "next branch: run strategy rows, then regenerate the observation matrix report.",
+        "NEXT SHELL COMMAND:",
+        "  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-report",
+        "read-only: yes",
+        "applies firewall/services now: no",
+    ]
+    return "\n".join(lines)
+
+
+def _strategy_runner_setup_text(root: Path, row: ObservationMatrixPlanRow, profile_id: str) -> str:
+    plan = prepare_default_workflow_plan(root=root, action="start", profile_id=profile_id)
+    start_plan_id = plan.plan_id
+    return "\n".join(
+        [
+            "Discord observation matrix row runner",
+            f"stage: {MATRIX_RUNNER_STAGE}",
+            f"row: {row.row_id} — {row.label}",
+            f"strategy: {row.strategy_id}",
+            "status: prepared-waiting-for-default-workflow",
+            "meaning: the row strategy is selected and the start plan is prepared, but owner-rules/nfqws2 are not running yet.",
+            "MANUAL ACTION:",
+            "  Keep Discord closed. Do not launch Discord yet.",
+            "NEXT SHELL COMMANDS:",
+            f"  PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm {start_plan_id}",
+            f"  sudo env PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm {start_plan_id}",
+            f"  sudo env PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id}",
+            "why sudo only on the last two commands:",
+            "  - strategy selection and plan preparation are non-privileged; nft counter reads need root.",
+            "  - Discord must be opened only when the guided probe prints MANUAL ACTION.",
+            "executes Discord now: no",
+            "applies firewall/services now: no",
+        ]
+    )
+
+
+def discord_observation_matrix_run_row_to_text(
+    row_id: str,
+    root: Path | None = None,
+    profile_id: str = "default",
+    *,
+    wait_seconds: int = DEFAULT_MATRIX_ROW_SECONDS,
+    interactive: bool = True,
+    emit: Emit | None = None,
+    input_func: InputFunc = input,
+    endpoint_runner: EndpointWatchRunner = run_discord_endpoint_watch,
+) -> str:
+    """Run or prepare exactly one observation-matrix row.
+
+    This is Stage 7o2a's UX simplification layer.  It does not silently start
+    privileged firewall state.  Instead it selects/prepares when safe, refuses
+    invalid states, and runs the existing guided probe only when the workflow is
+    already alive and this process has enough privileges to read nft counters.
+    """
+
+    layout = discover_layout(root)
+    row = _row_by_id(row_id)
+    wait_seconds = max(0, min(int(wait_seconds), 600))
+    if row.strategy_id is None:
+        return _baseline_runner_text(
+            layout.root,
+            row,
+            seconds=wait_seconds,
+            interactive=interactive,
+            emit=emit,
+            input_func=input_func,
+            endpoint_runner=endpoint_runner,
+        )
+
+    if _is_root_process():
+        selected = _selected_strategy_id(layout.root, profile_id)
+        if selected != row.strategy_id:
+            return "\n".join(
+                [
+                    "Discord observation matrix row runner",
+                    f"stage: {MATRIX_RUNNER_STAGE}",
+                    f"row: {row.row_id} — {row.label}",
+                    "status: blocked-root-selection",
+                    "reason: this command is running as root, but the row strategy is not selected. Refusing to write .zap2 strategy selection as root.",
+                    "NEXT SHELL COMMAND:",
+                    f"  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id}",
+                    "executes Discord now: no",
+                    "applies firewall/services now: no",
+                ]
+            )
+    else:
+        selected = _selected_strategy_id(layout.root, profile_id)
+        if selected != row.strategy_id:
+            select_workspace_strategy(layout.root, strategy_id=row.strategy_id or "", profile_id=profile_id, reason=f"stage7o2a-matrix-row:{row.row_id}")
+
+    snapshot = runtime_nft_state_snapshot(layout.root, profile_id=profile_id)
+    if snapshot.saved_state != "applied" or snapshot.session_state != "running":
+        if _is_root_process():
+            return "\n".join(
+                [
+                    "Discord observation matrix row runner",
+                    f"stage: {MATRIX_RUNNER_STAGE}",
+                    f"row: {row.row_id} — {row.label}",
+                    f"strategy: {row.strategy_id}",
+                    "status: workflow-not-running-under-root",
+                    "meaning: root can read nft counters, but Default workflow is not running; start it from the owner-confirmed path first.",
+                    "NEXT SHELL COMMAND:",
+                    f"  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id}",
+                    "executes Discord now: no",
+                    "applies firewall/services now: no",
+                ]
+            )
+        return _strategy_runner_setup_text(layout.root, row, profile_id)
+
+    if snapshot.active_strategy_id != row.strategy_id:
+        return "\n".join(
+            [
+                "Discord observation matrix row runner",
+                f"stage: {MATRIX_RUNNER_STAGE}",
+                f"row: {row.row_id} — {row.label}",
+                f"expected strategy: {row.strategy_id}",
+                f"active/applied strategy: {snapshot.active_strategy_id}",
+                "status: blocked-active-strategy-mismatch",
+                "meaning: Default workflow is already running with a different strategy. Stop it, then rerun this row runner.",
+                "NEXT SHELL COMMANDS:",
+                "  PYTHONPATH=gui python -m zap2_gui.app --default-stop-plan",
+                "  PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-<active-strategy>-default-stop-workflow-plan",
+                "  sudo env PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-default-<active-strategy>-default-stop-workflow-plan",
+                f"  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id}",
+                "executes Discord now: no",
+                "applies firewall/services now: no",
+            ]
+        )
+
+    if not _is_root_process():
+        return "\n".join(
+            [
+                "Discord observation matrix row runner",
+                f"stage: {MATRIX_RUNNER_STAGE}",
+                f"row: {row.row_id} — {row.label}",
+                f"strategy: {row.strategy_id}",
+                "status: ready-needs-sudo-for-guided-probe",
+                "meaning: workflow is running with the correct strategy, but nft counter reads require root.",
+                "NEXT SHELL COMMAND:",
+                f"  sudo env PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id}",
+                "MANUAL ACTION:",
+                "  Keep Discord closed until the guided probe prints MANUAL ACTION.",
+                "executes Discord now: no",
+                "applies firewall/services now: no",
+            ]
+        )
+
+    from .discord_pretls_guided_probe import runtime_discord_pretls_guided_probe_to_text
+
+    text = runtime_discord_pretls_guided_probe_to_text(
+        root=layout.root,
+        profile_id=profile_id,
+        wait_seconds=wait_seconds,
+        interactive=interactive,
+        emit=emit,
+    )
+    return "\n\n".join(
+        [
+            text,
+            "Matrix row runner post-step",
+            f"row: {row.row_id}",
+            "MANUAL ACTION:",
+            "  After the probe report is written, close Discord, then stop Default workflow before moving to the next row.",
+            "NEXT SHELL COMMAND:",
+            "  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-report",
+        ]
+    )
+
 def discord_observation_matrix_plan_to_text(root: Path | None = None, profile_id: str = "default") -> str:
     layout = discover_layout(root)
     catalog = load_strategy_catalog(layout.root).by_id()
@@ -438,7 +701,11 @@ def discord_observation_matrix_plan_to_text(root: Path | None = None, profile_id
             "",
         ])
     lines.extend([
-        "Owner loop per strategy row:",
+        "Simplified row runner:",
+        "  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row <row id>",
+        "  The runner selects/prepares the row, tells you when workflow must be started, and runs the guided probe when the state is valid.",
+        "",
+        "Manual fallback loop per strategy row:",
         "  1. Close Discord fully.",
         "  2. Select the row strategy with --select-strategy when the row has a strategy.",
         "  3. Start Default workflow through the existing owner-confirmed path.",
