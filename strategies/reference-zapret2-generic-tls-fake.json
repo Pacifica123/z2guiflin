@@ -1,0 +1,83 @@
+{
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": true,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
+  "capturePolicy": {
+    "dns53ForIpcache": "not-enabled-stage7o1",
+    "edgeIpScoped": false,
+    "edgeIps": [],
+    "kind": "external-reference-first-data-v1",
+    "ownerUidScoped": true,
+    "packetWindowHint": {
+      "enforcedByRuntime": false,
+      "tcpIn": "10",
+      "tcpOut": "20"
+    },
+    "queueInputFinRst": true,
+    "queueInputSynAck": true,
+    "tcpOutPorts": [
+      "80",
+      "443"
+    ],
+    "udpOutPorts": []
+  },
+  "id": "reference-zapret2-generic-tls-fake",
+  "intendedFor": [
+    "Stage 7o1 reference lane after external working Linux audit",
+    "checking whether generic TLS ClientHello fake_default_tls helps the Discord updater first-data stall",
+    "owner-selected observation under guided probe/matrix; never automatic default"
+  ],
+  "notes": [
+    "Source basis: zapret2-vernette-docker config.default and vendored bol-van zapret2 config.default use generic TLS ClientHello fake profiles with broader packet windows than the Stage 7n SYN-only diagnostic.",
+    "The capturePolicy is owner-scoped but not Discord-edge-IP scoped; this intentionally tests the broader first-data/TLS envelope seen in working references while preserving owner confirmation and rollback.",
+    "UDP/QUIC remains excluded in Stage 7o1 to keep voice/media and QUIC as a later explicit lane.",
+    "packetWindowHint records the external 20/10 lesson but current runtime still enforces its existing nft ct original packet range; Stage 7o1 does not silently change packet-window semantics."
+  ],
+  "philosophy": "external-reference-first-data-candidate",
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--ctrack-disable=0",
+    "--filter-tcp=80",
+    "--filter-l7=http",
+    "--payload=http_req",
+    "--lua-desync=http_methodeol",
+    "--new",
+    "--filter-tcp=443",
+    "--filter-l7=tls",
+    "--payload=tls_client_hello",
+    "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=1"
+  ],
+  "schemaVersion": 1,
+  "serviceTarget": {
+    "nonVoice": true,
+    "presetId": "discord-desktop",
+    "summary": "External-inspired candidate for observed Discord updater first-data/TLS stall. Not a final fix and not enabled by default.",
+    "title": "Discord desktop non-voice / external reference lane"
+  },
+  "sourcePreset": {
+    "externalScriptsExecuted": false,
+    "id": "external-reference-zapret2-generic-tls-fake",
+    "portingLevel": "zapret2-compatible-candidate",
+    "sourceBasis": [
+      "zapret2-vernette-docker-master.zip",
+      "zapret2-core-from_bolvan.zip"
+    ],
+    "windowsOptionsExecuted": false
+  },
+  "summary": "External-inspired zapret2/nfqws2 candidate based on upstream/vernette generic first-data TLS fake patterns; intended for observation matrix after Discord reaches ESTAB+Send-Q, not as a final Discord fix.",
+  "title": "Reference zapret2 generic TLS fake",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-discord-updater-and-counters"
+  ]
+}

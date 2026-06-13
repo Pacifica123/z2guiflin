@@ -46,3 +46,16 @@ Then continue through the normal owner-confirmed Default workflow. This strategy
 ## v0.4-alpha Stage 7n pre-TLS observability seed
 
 `community-discord-pretls-diagnostic-pktdebug` is a diagnostic-only strategy for the Discord Linux updater `SYN-SENT` case. It introduces an explicit `capturePolicy` so the owner-confirmed nft/NFQUEUE capture envelope can be inspected independently from `runtimeArgs`. Its goal is to prove visibility through nft counters and nfqws2 debug before adding more bypass strategies.
+
+
+## Stage 7o1 external reference candidates
+
+Stage 7o1 adds an external-reference lane based on the Stage 7o0 audit:
+
+```text
+reference-zapret2-generic-tls-fake
+reference-linux-general-multisplit-like
+reference-flowseal-simple-fake-like
+```
+
+These are not final Discord fixes and they do not change the default strategy. They are owner-selectable candidates for the Stage 7o2 observation matrix, intended to test whether broader first-data/TLS profiles from working Linux/Windows references move the Discord updater beyond the observed ESTAB + spinner state. UDP/voice remains deferred.

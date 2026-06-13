@@ -1,0 +1,65 @@
+# External reference general host bucket for Stage 7o1.
+# Sources: curated subset of kartavkun list-general, Flowseal/zapret Windows references,
+# and existing Zap2 default.hosts. This is a hostlist data file only; it is not an installer.
+
+# Cloudflare / ECH / CDN buckets commonly present in working references
+cloudflare-ech.com
+encryptedsni.com
+cloudflareaccess.com
+cloudflareapps.com
+cloudflarebolt.com
+cloudflareclient.com
+cloudflareinsights.com
+cloudflarepartners.com
+cloudflareportal.com
+cloudflarepreview.com
+cloudflareresolve.com
+cloudflaressl.com
+cloudflarestatus.com
+cloudflarestorage.com
+cloudflarestream.com
+cloudflaretest.com
+cloudfront.net
+
+# Discord app/update/media/general bucket
+dis.gd
+discord.com
+www.discord.com
+discord.gg
+discord.media
+discordapp.com
+discordapp.net
+discordcdn.com
+cdn.discordapp.com
+media.discordapp.net
+gateway.discord.gg
+updates.discord.com
+stable.dl2.discordapp.net
+discord-attachments-uploads-prd.storage.googleapis.com
+discord.app
+discord.co
+discord.dev
+discord.gift
+discord.gifts
+discord.new
+discord.status
+discordstatus.com
+
+# YouTube / Google video baseline bucket retained for regression observation
+youtube.com
+www.youtube.com
+m.youtube.com
+youtu.be
+ytimg.com
+googlevideo.com
+youtubei.googleapis.com
+ggpht.com
+
+# Adjacent media/community hosts observed in list-general references
+frankerfacez.com
+ffzap.com
+betterttv.net
+7tv.app
+7tv.io
+localizeapi.com
+klipy.com

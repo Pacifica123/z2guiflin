@@ -148,3 +148,16 @@ The project should stop treating every Discord failure as evidence that we need 
 not “copy working scripts”
 but “extract their capture/profile model safely and test it under Zap2 observation”.
 ```
+
+
+## Stage 7o1 follow-up
+
+Stage 7o1 promotes three future candidate families from the audit into owner-selectable Zap2 strategy files:
+
+```text
+reference-zapret2-generic-tls-fake
+reference-linux-general-multisplit-like
+reference-flowseal-simple-fake-like
+```
+
+They remain non-default, owner-confirmed, TCP-only in Stage 7o1, and intended for Stage 7o2 observation matrix rather than immediate promotion. See `docs/EXTERNAL_REFERENCE_CANDIDATE_STRATEGIES.md`.

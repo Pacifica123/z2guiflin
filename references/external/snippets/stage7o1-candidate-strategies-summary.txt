@@ -1,0 +1,5 @@
+Stage 7o1 candidate strategies:
+- reference-zapret2-generic-tls-fake: zapret2-compatible generic HTTP/TLS first-data profile, TCP 80/443.
+- reference-linux-general-multisplit-like: broad general Discord/Cloudflare host bucket, TCP 80/443/high TLS ports, multisplit/multidisorder-like primitives.
+- reference-flowseal-simple-fake-like: TCP-only Flowseal simple-fake translation, UDP/STUN/game-filter deferred.
+All candidates are owner-selectable only and do not run external scripts.

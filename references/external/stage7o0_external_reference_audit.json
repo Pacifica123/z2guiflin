@@ -8,7 +8,7 @@
         "zapret2-vernette-docker",
         "bolvan-zapret2-core"
       ],
-      "stage": "future-stage7o1-candidate",
+      "stage": "stage7o1-owner-selectable-candidate",
       "why": "Matches the observed ESTAB+Send-Q updater case better than SYN-only pktdebug."
     },
     {
@@ -19,7 +19,7 @@
         "kartavkun-linux-main",
         "zapret2-gui-windows"
       ],
-      "stage": "future-stage7o1-candidate",
+      "stage": "stage7o1-owner-selectable-candidate",
       "why": "External working configs target first data/TLS over broad general lists."
     },
     {
@@ -30,7 +30,7 @@
         "sergeydigl3-linux-stable4",
         "flowseal-windows"
       ],
-      "stage": "future-stage7o1-candidate",
+      "stage": "stage7o1-owner-selectable-candidate",
       "why": "Flowseal-derived Linux references appear closer to what users report as working."
     },
     {
@@ -54,7 +54,7 @@
   ],
   "id": "external-working-reference-audit-2026-06-13",
   "recommendedNextStages": [
-    "stage7o1: create safe, owner-confirmed external-inspired candidate strategies without changing defaults",
+    "stage7o1: create safe, owner-confirmed external-inspired candidate strategies without changing defaults (implemented by Stage 7o1)",
     "stage7o2: run observation matrix across no-zapret baseline, diagnostic pktdebug, current v2, and reference-inspired candidates",
     "stage7o3: promote only the candidate that changes Discord updater state under the observation matrix"
   ],

@@ -37,7 +37,7 @@ def test_stage7o0_reference_audit_records_broad_capture_lessons() -> None:
     assert not kartavkun.edge_ip_scoped
 
 
-def test_stage7o0_reference_audit_has_future_candidate_families_not_runnable_strategies() -> None:
+def test_stage7o0_reference_audit_candidate_families_are_promoted_by_stage7o1() -> None:
     audit = load_external_reference_audit(ROOT)
     candidate_ids = {candidate.candidate_id for candidate in audit.candidate_families}
     catalog = json.loads((ROOT / "strategies" / "catalog.json").read_text(encoding="utf-8"))
@@ -45,9 +45,9 @@ def test_stage7o0_reference_audit_has_future_candidate_families_not_runnable_str
 
     assert "reference-zapret2-generic-tls-fake" in candidate_ids
     assert "reference-linux-general-multisplit-like" in candidate_ids
-    assert "reference-zapret2-generic-tls-fake" not in strategy_files
-    assert "reference-linux-general-multisplit-like" not in strategy_files
-
+    assert "reference-zapret2-generic-tls-fake" in strategy_files
+    assert "reference-linux-general-multisplit-like" in strategy_files
+    assert catalog["defaultStrategyId"] == "manual-local"
 
 def test_stage7o0_external_reference_audit_cli(capsys) -> None:
     assert main(["--external-reference-audit"]) == 0

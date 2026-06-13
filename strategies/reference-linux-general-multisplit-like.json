@@ -1,0 +1,93 @@
+{
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": true,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
+  "capturePolicy": {
+    "dns53ForIpcache": "not-enabled-stage7o1",
+    "edgeIpScoped": false,
+    "edgeIps": [],
+    "kind": "external-reference-first-data-v1",
+    "ownerUidScoped": true,
+    "packetWindowHint": {
+      "enforcedByRuntime": false,
+      "tcpIn": "10",
+      "tcpOut": "20"
+    },
+    "queueInputFinRst": true,
+    "queueInputSynAck": true,
+    "tcpOutPorts": [
+      "80",
+      "443",
+      "2053",
+      "2083",
+      "2087",
+      "2096",
+      "8443"
+    ],
+    "udpOutPorts": []
+  },
+  "id": "reference-linux-general-multisplit-like",
+  "intendedFor": [
+    "testing the hypothesis that Discord updater is stuck after TCP ESTAB on first TLS/updater payload",
+    "bringing the kartavkun/Windows general-bucket idea into Zap2 without copying installers or global firewall rules",
+    "observation matrix comparison against pktdebug and existing community strategies"
+  ],
+  "notes": [
+    "Source basis: kartavkun general configs and zapret2 config.default emphasize list-general/Cloudflare/Discord buckets plus multisplit/multidisorder first-data profiles.",
+    "This strategy uses profiles/hostlists/reference-general.hosts as a curated non-runnable host bucket; the default profile hostlist is still appended by runtime for compatibility.",
+    "High Discord/Cloudflare TLS-like ports are made explicit in capturePolicy and in the TLS filter, but UDP/voice remains off.",
+    "This is a candidate for observation, not a claim that multisplit/multidisorder will fix Discord on this network."
+  ],
+  "philosophy": "external-reference-general-bucket-candidate",
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--ctrack-disable=0",
+    "--filter-tcp=80",
+    "--hostlist=profiles/hostlists/reference-general.hosts",
+    "--filter-l7=http",
+    "--payload=http_req",
+    "--lua-desync=fake:blob=fake_default_http:tcp_md5",
+    "--lua-desync=multisplit:pos=method+2",
+    "--new",
+    "--filter-tcp=443,2053,2083,2087,2096,8443",
+    "--hostlist=profiles/hostlists/reference-general.hosts",
+    "--filter-l7=tls",
+    "--payload=tls_client_hello",
+    "--lua-desync=fake:blob=fake_default_tls:tcp_md5:tcp_seq=-10000",
+    "--lua-desync=multidisorder:pos=1,midsld"
+  ],
+  "schemaVersion": 1,
+  "serviceTarget": {
+    "nonVoice": true,
+    "presetId": "discord-desktop",
+    "summary": "External-inspired candidate for observed Discord updater first-data/TLS stall. Not a final fix and not enabled by default.",
+    "title": "Discord desktop non-voice / external reference lane"
+  },
+  "sourcePreset": {
+    "externalScriptsExecuted": false,
+    "id": "external-reference-linux-general-multisplit-like",
+    "portingLevel": "zapret2-compatible-candidate",
+    "sourceBasis": [
+      "zapret-kartabkun-linux-main.zip",
+      "zapret2-gui_windows.zip",
+      "zapret2-core-from_bolvan.zip"
+    ],
+    "windowsOptionsExecuted": false
+  },
+  "summary": "External-inspired general Cloudflare/Discord bucket candidate: broad owner-scoped TCP envelope plus zapret2-compatible multisplit/multidisorder-style first-payload handling.",
+  "title": "Reference Linux general multisplit-like",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-endpoint-state-and-sendq"
+  ]
+}

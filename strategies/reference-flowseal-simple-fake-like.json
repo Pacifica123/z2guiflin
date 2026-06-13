@@ -1,0 +1,99 @@
+{
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": true,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
+  "capturePolicy": {
+    "dns53ForIpcache": "not-enabled-stage7o1",
+    "edgeIpScoped": false,
+    "edgeIps": [],
+    "kind": "external-reference-first-data-v1",
+    "ownerUidScoped": true,
+    "packetWindowHint": {
+      "enforcedByRuntime": false,
+      "tcpIn": "10",
+      "tcpOut": "20"
+    },
+    "queueInputFinRst": true,
+    "queueInputSynAck": true,
+    "tcpOutPorts": [
+      "80",
+      "443",
+      "2053",
+      "2083",
+      "2087",
+      "2096",
+      "8443"
+    ],
+    "udpOutPorts": []
+  },
+  "id": "reference-flowseal-simple-fake-like",
+  "intendedFor": [
+    "checking whether a Flowseal-like simple fake TCP family changes Discord updater behavior after ESTAB",
+    "safe Zap2 translation of the broad TCP part of working Flowseal-derived references",
+    "manual observation only; do not enable as default or service mode"
+  ],
+  "notes": [
+    "Source basis: Sergeydigl3 Stable4 general_SIMPLE_FAKE/general_nix1 and Flowseal Windows use broad TCP 80/443/2053/2083/2087/2096/8443 capture plus fake TLS profiles.",
+    "The Windows references also include UDP QUIC/STUN/game-filter branches; Stage 7o1 intentionally leaves those out until a separate UDP/voice lane exists.",
+    "This strategy broadens capture beyond Discord edge IPs but remains owner UID scoped and owner-confirmed through Zap2 runtime_apply.",
+    "If it moves Discord, Stage 7o2/7o3 must still prove which branch mattered before promotion."
+  ],
+  "philosophy": "external-reference-flowseal-tcp-candidate",
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--ctrack-disable=0",
+    "--filter-tcp=2053,2083,2087,2096,8443",
+    "--hostlist-domains=discord.media",
+    "--filter-l7=tls",
+    "--payload=tls_client_hello",
+    "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=6",
+    "--new",
+    "--filter-tcp=443",
+    "--hostlist=profiles/hostlists/reference-general.hosts",
+    "--filter-l7=tls",
+    "--payload=tls_client_hello",
+    "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=6",
+    "--new",
+    "--filter-tcp=80,443",
+    "--hostlist=profiles/hostlists/reference-general.hosts",
+    "--filter-l7=tls,http",
+    "--payload=tls_client_hello",
+    "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=6",
+    "--payload=http_req",
+    "--lua-desync=fake:blob=fake_default_http:tcp_ts=-1000:repeats=6"
+  ],
+  "schemaVersion": 1,
+  "serviceTarget": {
+    "nonVoice": true,
+    "presetId": "discord-desktop",
+    "summary": "External-inspired candidate for observed Discord updater first-data/TLS stall. Not a final fix and not enabled by default.",
+    "title": "Discord desktop non-voice / external reference lane"
+  },
+  "sourcePreset": {
+    "externalScriptsExecuted": false,
+    "id": "external-reference-flowseal-simple-fake-like",
+    "portingLevel": "tcp-only-zapret2-compatible-candidate",
+    "sourceBasis": [
+      "zapret-Sergeydigl3-linux-Stable4.zip",
+      "zapret-Sergeydigl3-linux-master.zip",
+      "zapret1-flowseal-windows.zip"
+    ],
+    "windowsOptionsExecuted": false
+  },
+  "summary": "External-inspired Flowseal/Sergeydigl3 simple-fake TCP candidate: broader owner-scoped capture envelope and repeated fake TLS/HTTP first-data profiles, with UDP/STUN deliberately deferred.",
+  "title": "Reference Flowseal simple fake-like TCP",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-discord-and-youtube-regression"
+  ]
+}

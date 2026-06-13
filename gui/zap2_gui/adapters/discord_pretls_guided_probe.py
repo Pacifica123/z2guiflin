@@ -769,7 +769,7 @@ def run_discord_pretls_guided_probe(
     nfqueue_match = nfqueue_session == snapshot_before.nfqueue_num if nfqueue_session is not None else False
     strategy_compatible = (
         snapshot_before.active_strategy_id == PRETLS_DIAGNOSTIC_STRATEGY_ID
-        or snapshot_before.capture_policy_kind == "desktop-early-flow-v1"
+        or snapshot_before.capture_policy_kind in {"desktop-early-flow-v1", "external-reference-first-data-v1"}
     )
     log_before = _log_sizes(snapshot_before)
     counters_before: ProbeNftCounters | None = None
