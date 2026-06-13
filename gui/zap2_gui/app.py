@@ -99,6 +99,7 @@ from .adapters.discord_dns_edge_diagnostics import (
     discord_dns_edge_check_to_text,
     discord_dns_edge_plan_to_text,
 )
+from .adapters.external_reference_audit import external_reference_audit_to_text
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -477,6 +478,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--external-reference-audit",
+        action="store_true",
+        help="показать read-only Stage 7o0 audit внешних рабочих zapret/Linux/Windows reference-решений; без запуска внешних скриптов",
+    )
+
+    parser.add_argument(
         "--blockcheck-target-preset",
         choices=tuple(item.preset_id for item in list_service_target_presets()),
         default=DEFAULT_SERVICE_TARGET_PRESET_ID,
@@ -680,6 +687,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.discord_dns_edge_check:
         print(discord_dns_edge_check_to_text(hosts=args.discord_dns_edge_hosts, resolvers=args.discord_dns_edge_resolvers, timeout_seconds=args.discord_dns_edge_timeout))
+        return 0
+
+    if args.external_reference_audit:
+        print(external_reference_audit_to_text())
         return 0
 
     if args.runtime_contracts:

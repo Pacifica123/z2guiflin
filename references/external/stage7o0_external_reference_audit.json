@@ -1,0 +1,390 @@
+{
+  "candidateFamilies": [
+    {
+      "captureShape": "owner-scoped TCP 80/443, packet window closer to 20 out / 10 in, optional hostlist scope",
+      "id": "reference-zapret2-generic-tls-fake",
+      "profileShape": "TLS ClientHello fake_default_tls / generic first-data profile",
+      "sourceBasis": [
+        "zapret2-vernette-docker",
+        "bolvan-zapret2-core"
+      ],
+      "stage": "future-stage7o1-candidate",
+      "why": "Matches the observed ESTAB+Send-Q updater case better than SYN-only pktdebug."
+    },
+    {
+      "captureShape": "owner-scoped TCP 80/443 plus Discord high TLS ports, broad Discord/Cloudflare host bucket",
+      "id": "reference-linux-general-multisplit-like",
+      "profileShape": "multisplit/multidisorder-like first payload handling where supported by nfqws2",
+      "sourceBasis": [
+        "kartavkun-linux-main",
+        "zapret2-gui-windows"
+      ],
+      "stage": "future-stage7o1-candidate",
+      "why": "External working configs target first data/TLS over broad general lists."
+    },
+    {
+      "captureShape": "owner-scoped translation of broad WinDivert TCP envelope, initially without UDP voice ranges",
+      "id": "reference-flowseal-simple-fake-like",
+      "profileShape": "fake TLS/QUIC family with careful Linux capability proof",
+      "sourceBasis": [
+        "sergeydigl3-linux-stable4",
+        "flowseal-windows"
+      ],
+      "stage": "future-stage7o1-candidate",
+      "why": "Flowseal-derived Linux references appear closer to what users report as working."
+    },
+    {
+      "captureShape": "requires winws2 Lua family audit",
+      "id": "reference-discord-urgent-sni-later",
+      "profileShape": "discord_urgent_sni and related Discord-specific Lua functions",
+      "sourceBasis": [
+        "zapret2-gui-windows"
+      ],
+      "stage": "deferred-after-compatibility-proof",
+      "why": "Potentially important but unsafe to import before proving Lua primitive compatibility on Linux."
+    }
+  ],
+  "crossSourceFindings": [
+    "Working references are strategy packs plus capture envelopes, not isolated Discord-domain lists.",
+    "The common TCP surface includes 80/443 and often 2053/2083/2087/2096/8443; game-filter variants can widen to 1024-65535.",
+    "The common UDP surface includes 443 and often Discord/STUN/game ranges; v0.4 should keep UDP/voice as a separate later lane.",
+    "Packet windows are usually wider than Zap2's initial early-flow diagnostic: upstream zapret2 examples use 20 outgoing TCP packets and 10 incoming TCP packets.",
+    "Discord is frequently handled through a general Cloudflare/Discord bucket rather than only updates.discord.com.",
+    "Windows references must be treated as questions about capture-envelope translation, not as Linux recipes."
+  ],
+  "id": "external-working-reference-audit-2026-06-13",
+  "recommendedNextStages": [
+    "stage7o1: create safe, owner-confirmed external-inspired candidate strategies without changing defaults",
+    "stage7o2: run observation matrix across no-zapret baseline, diagnostic pktdebug, current v2, and reference-inspired candidates",
+    "stage7o3: promote only the candidate that changes Discord updater state under the observation matrix"
+  ],
+  "safety": {
+    "changesRuntimeDefaultStrategy": false,
+    "executesExternalScripts": false,
+    "externalMaterialsAreCuratedSummaries": true,
+    "importsLargeThirdPartyArchives": false,
+    "mutatesFirewallOrServices": false,
+    "requiresOwnerConfirmationBeforeFutureUse": true
+  },
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "archive": "zapret2-vernette-docker-master.zip",
+      "captureEnvelope": {
+        "edgeIpScoped": false,
+        "kind": "broad-service-config",
+        "ownerScoped": false,
+        "tcpPktIn": "10",
+        "tcpPktOut": "20",
+        "tcpPorts": [
+          "80",
+          "443"
+        ],
+        "udpPktIn": "3",
+        "udpPktOut": "5",
+        "udpPorts": [
+          "443"
+        ]
+      },
+      "family": "zapret2/nfqws2 docker config reference",
+      "id": "zapret2-vernette-docker",
+      "lessons": [
+        "The zapret2 example uses larger packet windows than Zap2's Discord pre-TLS diagnostic profile.",
+        "It includes a generic TLS fallback, not only service-specific hosts."
+      ],
+      "reviewedFiles": [
+        "config.default",
+        "entrypoint.sh"
+      ],
+      "risks": [
+        "Docker/init script starts services; not safe to import as a runnable Zap2 action."
+      ],
+      "strategyFamilies": [
+        "HTTP method/eol mutation",
+        "YouTube-domain multisplit",
+        "generic TLS ClientHello fake_default_tls with tcp_ts",
+        "QUIC fake_default_quic repeats"
+      ]
+    },
+    {
+      "archive": "zapret-Sergeydigl3-linux-Stable4.zip",
+      "captureEnvelope": {
+        "edgeIpScoped": false,
+        "kind": "wide-winws-to-nfqws-bridge",
+        "markGuard": "0x40000000",
+        "ownerScoped": false,
+        "tcpPorts": [
+          "80",
+          "443",
+          "2053",
+          "2083",
+          "2087",
+          "2096",
+          "8443",
+          "game-filter"
+        ],
+        "udpPorts": [
+          "443",
+          "19294-19344",
+          "50000-50100",
+          "game-filter"
+        ]
+      },
+      "family": "Flowseal/zapret1 WinDivert BAT to Linux nfqws bridge",
+      "id": "sergeydigl3-linux-stable4",
+      "lessons": [
+        "The reference is broad by design and does not try to isolate only updates.discord.com SYN packets.",
+        "The reference treats game-filter/high TCP and UDP ranges as part of the working envelope."
+      ],
+      "reviewedFiles": [
+        "main_script.sh",
+        "custom-strategies/general_SIMPLE_FAKE.bat",
+        "custom-strategies/general_nix1.bat",
+        "stop_and_clean_nft.sh"
+      ],
+      "risks": [
+        "Uses pkill/cleanup/service scripts and repository bootstrap; only safe as reference material."
+      ],
+      "strategyFamilies": [
+        "fake TLS with ts fooling",
+        "fake QUIC",
+        "Discord/STUN UDP fake",
+        "discord.media TCP high-port fake"
+      ]
+    },
+    {
+      "archive": "zapret-Sergeydigl3-linux-master.zip",
+      "captureEnvelope": {
+        "edgeIpScoped": false,
+        "kind": "nftables/iptables backend translation of WinDivert envelope",
+        "markGuard": "0x40000000",
+        "ownerScoped": false,
+        "tcpPorts": [
+          "80",
+          "443",
+          "2053",
+          "2083",
+          "2087",
+          "2096",
+          "8443",
+          "game-filter"
+        ],
+        "udpPorts": [
+          "443",
+          "19294-19344",
+          "50000-50100",
+          "game-filter"
+        ]
+      },
+      "family": "newer Linux bridge with firewall backend abstraction",
+      "id": "sergeydigl3-linux-master",
+      "lessons": [
+        "Linux working references translate the Windows capture envelope first, then profile logic.",
+        "This is closer to a reference lane than another Discord-only preset."
+      ],
+      "reviewedFiles": [
+        "src/firewall-backends/00-nftables.sh",
+        "src/cli/run.sh",
+        "src/cli/strategy.sh",
+        "custom-strategies/*.bat"
+      ],
+      "risks": [
+        "CLI can install services and manipulate firewall; future Zap2 use must stay owner-confirmed and previewed."
+      ],
+      "strategyFamilies": [
+        "simple fake",
+        "nix1 fake",
+        "game-filter variants"
+      ]
+    },
+    {
+      "archive": "zapret-kartabkun-linux-main.zip",
+      "captureEnvelope": {
+        "edgeIpScoped": false,
+        "kind": "zapret config pack",
+        "optionalGameFilterTcp": "1024-65535",
+        "optionalGameFilterUdp": "1024-65535",
+        "ownerScoped": false,
+        "tcpPktIn": "3",
+        "tcpPktOut": "6 + AUTOHOSTLIST_RETRANS_THRESHOLD",
+        "tcpPorts": [
+          "80",
+          "443"
+        ],
+        "udpPktIn": "0",
+        "udpPktOut": "6 + AUTOHOSTLIST_RETRANS_THRESHOLD",
+        "udpPorts": [
+          "443",
+          "50000-65535"
+        ]
+      },
+      "family": "Linux zapret1 config pack",
+      "id": "kartavkun-linux-main",
+      "lessons": [
+        "Discord is treated as part of a general Cloudflare/Discord hostlist bucket.",
+        "The packet window is closer to first-data/TLS observation than Zap2's narrow SYN-only diagnostic."
+      ],
+      "reviewedFiles": [
+        "configs/general",
+        "configs/general (ALT12)",
+        "configs/general (FAKE_TLS_AUTO)",
+        "configs/general (SIMPLE FAKE)",
+        "hostlists/list-general.txt",
+        "hostlists/ipset-all.txt"
+      ],
+      "risks": [
+        "Large ipset-all and install scripts are not imported; future candidate profiles must use small curated host/IP scopes first."
+      ],
+      "strategyFamilies": [
+        "general",
+        "ALT variants",
+        "FAKE_TLS_AUTO",
+        "SIMPLE FAKE",
+        "list-general/ipset-all targeting"
+      ]
+    },
+    {
+      "archive": "zapret1-flowseal-windows.zip",
+      "captureEnvelope": {
+        "edgeIpScoped": false,
+        "kind": "WinDivert",
+        "ownerScoped": false,
+        "tcpPorts": [
+          "80",
+          "443",
+          "2053",
+          "2083",
+          "2087",
+          "2096",
+          "8443",
+          "game-filter"
+        ],
+        "udpPorts": [
+          "443",
+          "19294-19344",
+          "50000-50100",
+          "game-filter"
+        ],
+        "windowsOnly": true
+      },
+      "family": "Windows WinDivert strategy pack reference",
+      "id": "flowseal-windows",
+      "lessons": [
+        "Windows success may come from the capture envelope as much as from desync flags.",
+        "Copying flags without translating the envelope is methodologically weak."
+      ],
+      "reviewedFiles": [
+        "general*.bat",
+        "Discord.bat",
+        "lists/ipset/list references"
+      ],
+      "risks": [
+        "WinDivert flags are not Linux nft rules; future use requires an explicit translation layer."
+      ],
+      "strategyFamilies": [
+        "fake",
+        "fake+split",
+        "multidisorder",
+        "badseq",
+        "ts/md5sig fooling",
+        "Discord/STUN UDP"
+      ]
+    },
+    {
+      "archive": "zapret2-gui_windows.zip",
+      "captureEnvelope": {
+        "edgeIpScoped": false,
+        "kind": "winws2/WinDivert with Lua profiles",
+        "ownerScoped": false,
+        "rawPartsObserved": [
+          "windivert_part.discord_media.txt",
+          "windivert_part.stun.txt",
+          "windivert_part.wireguard.txt"
+        ],
+        "tcpPortsObserved": [
+          "80",
+          "443",
+          "1080",
+          "2053",
+          "2083",
+          "2087",
+          "2096",
+          "5222",
+          "8443",
+          "1024-65535",
+          "443-65535"
+        ],
+        "udpPortsObserved": [
+          "443",
+          "443-65535",
+          "19294-19344",
+          "50000-50100",
+          "1024-65535"
+        ],
+        "windowsOnly": true
+      },
+      "family": "Windows zapret2 GUI builtin presets",
+      "id": "zapret2-gui-windows",
+      "lessons": [
+        "The newer Windows GUI has richer Discord-specific Lua families than Zap2 currently models.",
+        "The near-term Linux lane should audit families separately from blindly importing them."
+      ],
+      "reviewedFiles": [
+        "builtin winws2 general/game-filter presets",
+        "ALL TCP & UDP discord_urgent_sni.txt"
+      ],
+      "risks": [
+        "Some Lua functions may not exist or behave differently in vendored Linux nfqws2; require compatibility proof."
+      ],
+      "strategyFamilies": [
+        "multisplit with seqovl patterns",
+        "Discord update/app/media profiles",
+        "discord_urgent_sni",
+        "fake QUIC/UDP",
+        "voice/STUN profiles"
+      ]
+    },
+    {
+      "archive": "zapret2-core-from_bolvan.zip",
+      "captureEnvelope": {
+        "edgeIpScoped": false,
+        "kind": "upstream Linux default",
+        "ownerScoped": false,
+        "tcpPktIn": "10",
+        "tcpPktOut": "20",
+        "tcpPorts": [
+          "80",
+          "443"
+        ],
+        "udpPktIn": "3",
+        "udpPktOut": "5",
+        "udpPorts": [
+          "443"
+        ]
+      },
+      "family": "upstream zapret2/nfqws2 config and custom examples",
+      "id": "bolvan-zapret2-core",
+      "lessons": [
+        "Upstream zapret2 defaults also use wider packet windows than Zap2's initial Discord diagnostics.",
+        "Discord media is treated as a custom UDP signature branch and should remain post-updater scope for v0.4."
+      ],
+      "reviewedFiles": [
+        "config.default",
+        "init.d/custom.d.examples.linux/50-discord-media",
+        "windivert_part.discord_media.txt"
+      ],
+      "risks": [
+        "Upstream init scripts may change firewall/services; Zap2 must keep owner-confirmed boundaries."
+      ],
+      "strategyFamilies": [
+        "HTTP fake/multisplit",
+        "TLS fake+multidisorder",
+        "QUIC fake",
+        "Discord media UDP custom hook"
+      ]
+    }
+  ],
+  "stage": "v0.4-alpha_stage7o0",
+  "status": "reference-only; no external script is vendored as executable workflow",
+  "title": "External working reference audit for Discord/Linux strategy lane"
+}

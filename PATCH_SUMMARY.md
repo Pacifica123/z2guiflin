@@ -1,40 +1,33 @@
-# Patch Summary — v0.4-alpha Stage 7n3
+# v0.4-alpha Stage 7o0 — External working reference audit
 
-## v0.4-alpha Stage 7n3 — guided pre-TLS endpoint/counter correlation
+## Summary
 
-This patch extends the Stage 7n2 guided Discord pre-TLS harness after the real-world run showed a valid `V3_NO_OUT_COUNTER_DELTA` report, while a later endpoint watch observed an `ESTAB` Discord socket and nft counters. The new goal is to avoid missing the actual updater-flow window.
+Stage 7o0 opens an external-reference lane for Discord/Linux work.  The patch does not add another bypass strategy; it imports a curated, read-only audit of provided working reference archives and exposes it through a CLI command.
 
-### Added / changed
+## Added
 
-- The guided probe now runs a post-manual-action observation window before reading final counters.
-- The observation window samples Discord endpoints through the existing read-only `ss`/`pgrep` endpoint watcher.
-- Reports now include endpoint correlation:
-  - endpoint snapshot path;
-  - sample and observation counts;
-  - socket states and ports;
-  - capturePolicy match/miss counts;
-  - ESTAB / SYN-SENT / ESTAB-with-SendQ counts;
-  - primary endpoint summary.
-- The endpoint watcher now filters out local zap2/nfqws2 diagnostic processes from the “Discord-like processes” list.
-- `ss` parsing now preserves Recv-Q and Send-Q, so `ESTAB` with pending data can be separated from a clean TCP establishment.
-- New verdicts:
-  - `V3_NO_OUT_COUNTER_DELTA_WITH_ESTAB_ENDPOINT`;
-  - `V8_TCP_ESTABLISHED`;
-  - `V9_ESTAB_WITH_SENDQ`.
-- `docs/DISCORD_PRETLS_GUIDED_PROBE.md` now documents Stage 7n3 endpoint/counter correlation.
+- `references/external/stage7o0_external_reference_audit.json`
+  - curated summaries of zapret2 Docker, Sergeydigl3 Linux, kartavkun Linux, Flowseal Windows, zapret2 Windows GUI, and upstream zapret2 core references;
+  - capture envelopes, packet windows, hostlist/ipset shape, strategy families, risks, and future candidate families.
+- `references/external/snippets/*.txt`
+  - short non-runnable summaries of the reviewed external references.
+- `docs/EXTERNAL_REFERENCE_AUDIT.md`
+  - explains why Stage 7o0 exists, what was learned, and what must not be copied blindly.
+- `gui/zap2_gui/adapters/external_reference_audit.py`
+  - read-only loader and text renderer for the audit.
+- CLI:
+  - `PYTHONPATH=gui python -m zap2_gui.app --external-reference-audit`
+- tests:
+  - `tests/test_stage7o0_external_reference_audit.py`
 
-### Not changed
+## Safety boundary
 
-- No new Discord bypass strategy.
-- No broader capture policy by default.
-- No automatic Discord launch.
-- No hidden firewall/service mutation.
-- No YouTube baseline changes.
+- No third-party script is executed.
+- No external archive is vendored wholesale into an executable workflow.
+- No firewall/service mutation is added.
+- No default strategy changes.
+- Candidate families are named for future Stage 7o1 work but are not runnable strategies yet.
 
-### Validation
+## Main finding
 
-- Stage 7n2/7n3 guided probe tests.
-- Discord endpoint discovery parsing tests.
-- Runtime apply/session regressions.
-- Strategy/workspace regressions.
-- `compileall` for `gui` and `tests`.
+External working references generally combine broad capture envelopes with first-data/TLS/QUIC strategy families.  This suggests Zap2 should add a safe reference-inspired strategy lane instead of continuing only with narrow Discord edge-IP pre-TLS probes.

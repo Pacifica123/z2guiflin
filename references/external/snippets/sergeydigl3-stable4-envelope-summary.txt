@@ -1,0 +1,4 @@
+Sergeydigl3 Stable4 envelope summary
+====================================
+
+WinDivert BAT envelope uses TCP 80,443,2053,2083,2087,2096,8443 plus GameFilter and UDP 443,19294-19344,50000-50100 plus GameFilter. Linux bridge parses BAT files and runs nfqws with broad nft rules and mark guard.

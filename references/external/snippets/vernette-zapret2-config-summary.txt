@@ -1,0 +1,8 @@
+Vernette zapret2 config summary
+===============================
+
+NFQWS2_PORTS_TCP=80,443
+NFQWS2_PORTS_UDP=443
+NFQWS2_TCP_PKT_OUT=20
+NFQWS2_TCP_PKT_IN=10
+NFQWS2_OPT includes HTTP, YouTube multisplit, generic TLS fake_default_tls, QUIC fake_default_quic.

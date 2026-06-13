@@ -1,0 +1,4 @@
+Windows GUI winws2 reference summary
+====================================
+
+Observed winws2 presets use --wf-tcp-out surfaces including 80,443,1080,2053,2083,2087,2096,5222,8443 and wide game-filter ranges; Discord profiles include updates.discord.com, discord.com, discord.media, UDP, and discord_urgent_sni families.

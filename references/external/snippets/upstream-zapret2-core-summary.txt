@@ -1,0 +1,4 @@
+Upstream zapret2 core summary
+=============================
+
+config.default sets NFQWS2_PORTS_TCP=80,443; NFQWS2_PORTS_UDP=443; NFQWS2_TCP_PKT_OUT=20; NFQWS2_TCP_PKT_IN=10; default NFQWS2_OPT includes HTTP, TLS fake+multidisorder, and QUIC fake.

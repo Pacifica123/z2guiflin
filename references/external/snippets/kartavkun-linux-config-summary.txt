@@ -1,0 +1,8 @@
+Kartavkun Linux config summary
+==============================
+
+NFQWS_PORTS_TCP=80,443
+NFQWS_PORTS_UDP=443,50000-65535
+NFQWS_TCP_PKT_OUT=$((6+$AUTOHOSTLIST_RETRANS_THRESHOLD))
+NFQWS_TCP_PKT_IN=3
+list-general includes cloudflare*, dis.gd, discord.com, discord.gg, discord.media, discordapp.com, discordapp.net, discordcdn.com.
