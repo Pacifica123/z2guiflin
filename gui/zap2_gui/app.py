@@ -100,6 +100,10 @@ from .adapters.discord_dns_edge_diagnostics import (
     discord_dns_edge_plan_to_text,
 )
 from .adapters.external_reference_audit import external_reference_audit_to_text
+from .adapters.discord_observation_matrix import (
+    discord_observation_matrix_plan_to_text,
+    discord_observation_matrix_report_to_text,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -279,6 +283,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--runtime-discord-pretls-guided-probe",
         action="store_true",
         help="интерактивный guided-прогон Discord pre-TLS: counters before/after, nfqws2 health, verdict report; без запуска Discord и без firewall mutation",
+    )
+    parser.add_argument(
+        "--discord-observation-matrix-plan",
+        action="store_true",
+        help="показать Stage 7o2 matrix-plan: baseline, diagnostic, current v2 и external-reference кандидаты; без исполнения",
+    )
+    parser.add_argument(
+        "--discord-observation-matrix-report",
+        action="store_true",
+        help="собрать read-only Stage 7o2 observation matrix из уже сохранённых guided reports/snapshots",
     )
     parser.add_argument(
         "--pretls-probe-wait-seconds",
@@ -819,6 +833,22 @@ def main(argv: list[str] | None = None) -> int:
                 emit=print,
             )
             print(text)
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.discord_observation_matrix_plan:
+        try:
+            print(discord_observation_matrix_plan_to_text(profile_id=args.profile))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.discord_observation_matrix_report:
+        try:
+            print(discord_observation_matrix_report_to_text(profile_id=args.profile))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

@@ -1,0 +1,9 @@
+Stage 7o2 matrix rows:
+- no zapret baseline: endpoint-watch only, workflow stopped
+- diagnostic pktdebug: community-discord-pretls-diagnostic-pktdebug
+- current v2 strategy: community-discord-syndata-edge-flow-v2
+- kartavkun-like multisplit: reference-linux-general-multisplit-like
+- fake_tls_auto-like: reference-zapret2-generic-tls-fake
+- simple_fake-like: reference-flowseal-simple-fake-like
+
+The matrix is an evidence aggregator. It does not execute external scripts and does not promote a strategy by itself.
