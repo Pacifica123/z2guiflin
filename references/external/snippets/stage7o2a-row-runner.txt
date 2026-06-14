@@ -17,3 +17,5 @@ Safety:
   - does not auto-apply nft rules;
   - refuses root-owned strategy selection;
   - does not import or execute external scripts.
+
+Stage 7o2b note: baseline runner fixed endpoint-watch invocation to use keyword arguments, so `--discord-observation-matrix-run-row baseline` can enter the watch window instead of crashing.

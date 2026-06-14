@@ -1,47 +1,29 @@
-# v0.4-alpha Stage 7o2a — matrix row runner
+# v0.4-alpha Stage 7o2b — baseline row runner endpoint-watch fix
 
-## Intent
+## Why
 
-Stage 7o2 introduced a Discord observation matrix, but collecting rows still required the owner to remember the full sequence: select strategy, start Default workflow, run guided probe with sudo, launch Discord only at the prompt, stop workflow, then move to the next row. This was too error-prone and repeatedly produced `V0_WORKFLOW_NOT_RUNNING` reports.
+`--discord-observation-matrix-run-row baseline` crashed after the owner closed Discord because the row runner called `run_discord_endpoint_watch(root, seconds)` with positional arguments, while the endpoint watcher API is keyword-only: `run_discord_endpoint_watch(*, root=..., seconds=...)`.
 
-Stage 7o2a adds a state-aware row runner that simplifies one matrix row at a time without silently starting privileged firewall state.
+This made the simplified matrix runner fail before the baseline 45-second observation window could start.
 
-## Changes
+## What changed
 
-- Added CLI command:
+- Fixed the baseline row runner to call the endpoint watcher with keyword arguments.
+- Updated the row-runner stage marker to `v0.4-alpha_stage7o2b`.
+- Added a regression test that injects a keyword-only endpoint runner and verifies the baseline row completes.
+- Documented the fix in the row-runner notes/snippet.
 
-```bash
-PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row <row-id>
-```
+## What this does not do
 
-- Added row aliases:
-  - `baseline` -> `baseline-no-zapret`
-  - `pktdebug` -> `diagnostic-pktdebug`
-  - `v2` -> `current-v2-syndata`
-  - `multisplit` -> `reference-kartavkun-multisplit`
-  - `fake-tls` -> `reference-fake-tls-auto`
-  - `simple-fake` -> `reference-simple-fake`
-- Updated matrix plan commands to point to the row runner instead of raw low-level commands.
-- Added `docs/DISCORD_OBSERVATION_MATRIX_ROW_RUNNER.md`.
-- Added `references/external/snippets/stage7o2a-row-runner.txt`.
-- Added tests for row-runner strategy selection/preparation and CLI exposure.
+- Does not launch Discord automatically.
+- Does not start/stop Zap2 runtime automatically.
+- Does not mutate firewall/services.
+- Does not add a new Discord bypass strategy.
 
-## Safety
-
-The row runner does not:
-
-- launch Discord;
-- silently start/stop nft rules;
-- auto-confirm privileged workflow plans;
-- execute external scripts;
-- write strategy selection as root.
-
-It selects/prepares non-privileged state when safe, prints exact next owner-confirmed commands, and delegates to the existing guided probe only when the Default workflow is already running with the correct strategy.
-
-## Checks
+## Owner-facing retry
 
 ```bash
-PYTHONPATH=gui pytest tests/test_stage7o2_observation_matrix.py -q
-PYTHONPATH=gui pytest tests/test_stage7o1_external_reference_candidates.py tests/test_stage7o0_external_reference_audit.py tests/test_stage7n3_guided_pretls_endpoint_correlation.py -q
-python -m compileall -q gui tests
+PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row baseline
 ```
+
+Start with Discord closed and Zap2 runtime stopped. Open Discord only when the runner prints the `MANUAL ACTION WINDOW` prompt.

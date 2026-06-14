@@ -65,3 +65,8 @@ It does not:
 - mark any reference candidate as a final Discord solution.
 
 It only turns the matrix row collection loop into a state-aware guided runner so the owner no longer has to remember the full workflow from previous messages.
+
+
+## Stage 7o2b baseline runner fix
+
+The baseline row runner now calls the endpoint watcher through its keyword-only API (`root=...`, `seconds=...`). This fixes the baseline crash where `run_discord_endpoint_watch()` was called with positional arguments and failed before the 45 second watch window could start.

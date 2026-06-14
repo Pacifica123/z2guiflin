@@ -26,12 +26,12 @@ from ..project_paths import discover_layout
 
 
 MATRIX_STAGE = "v0.4-alpha_stage7o2"
-MATRIX_RUNNER_STAGE = "v0.4-alpha_stage7o2a"
+MATRIX_RUNNER_STAGE = "v0.4-alpha_stage7o2b"
 DEFAULT_MATRIX_ROW_SECONDS = 45
 
 Emit = Callable[[str], None]
 InputFunc = Callable[[str], str]
-EndpointWatchRunner = Callable[[Path | None, int], DiscordEndpointSnapshot]
+EndpointWatchRunner = Callable[..., DiscordEndpointSnapshot]
 
 
 @dataclass(frozen=True)
@@ -496,7 +496,7 @@ def _baseline_runner_text(
             emit("")
             emit("MANUAL ACTION WINDOW — do not type this into shell:")
             emit(f"  Open Discord now and wait for Checking for updates. The watcher will sample for {seconds} seconds.")
-    snapshot = endpoint_runner(root, seconds)
+    snapshot = endpoint_runner(root=root, seconds=seconds)
     lines = [
         "Discord observation matrix row runner",
         f"stage: {MATRIX_RUNNER_STAGE}",

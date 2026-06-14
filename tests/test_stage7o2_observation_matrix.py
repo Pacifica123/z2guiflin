@@ -152,7 +152,7 @@ def test_stage7o2a_row_runner_selects_and_prepares_strategy(tmp_path: Path, monk
         wait_seconds=0,
     )
 
-    assert "Stage 7o2a" in text or "stage7o2a" in text
+    assert "stage7o2b" in text
     assert "prepared-waiting-for-default-workflow" in text
     assert "community-discord-pretls-diagnostic-pktdebug" in text
     assert "--runtime-confirm runtime-default-community-discord-pretls-diagnostic-pktdebug-default-start-workflow-plan" in text
@@ -177,3 +177,36 @@ def test_stage7o2a_plan_points_to_row_runner() -> None:
     text = discord_observation_matrix_plan_to_text(ROOT)
     assert "--discord-observation-matrix-run-row diagnostic-pktdebug" in text
     assert "Simplified row runner" in text
+
+
+def test_stage7o2b_baseline_runner_calls_endpoint_watch_with_keywords(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+
+    from zap2_gui.adapters.discord_endpoint_discovery import DiscordEndpointSnapshot
+    from zap2_gui.adapters.discord_observation_matrix import discord_observation_matrix_run_row_to_text
+
+    calls: list[tuple[Path | None, int]] = []
+
+    def fake_endpoint_runner(*, root: Path | None = None, seconds: int = 0):
+        calls.append((root, seconds))
+        return DiscordEndpointSnapshot(
+            created_at="2026-06-13T10:00:00Z",
+            seconds=seconds,
+            samples=1,
+            observations=(),
+            process_lines=("16790 /home/noir/.config/discord/Discord",),
+            output_path=project / ".zap2" / "discord-discovery" / "endpoint-snapshot-test.json",
+        )
+
+    text = discord_observation_matrix_run_row_to_text(
+        "baseline",
+        root=project,
+        interactive=False,
+        wait_seconds=2,
+        endpoint_runner=fake_endpoint_runner,
+    )
+
+    assert calls == [(project, 2)]
+    assert "mode: endpoint-watch-only baseline" in text
+    assert "status: completed" in text
+    assert "endpoint-snapshot-test.json" in text
