@@ -18,15 +18,17 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .discord_endpoint_discovery import DiscordEndpointSnapshot, latest_discord_endpoint_snapshot, run_discord_endpoint_watch
-from .runtime_default import prepare_default_workflow_plan
+from .runtime_default import execute_default_workflow, prepare_default_workflow_plan
+from .runtime_default_build import execute_default_build, prepare_default_build_plan
 from .runtime_nft_state import runtime_nft_state_snapshot
+from .runtime_state import confirm_runtime_plan
 from .runtime_state import ensure_runtime_store
 from .workspace_profiles import load_strategy_catalog, load_workspace_catalog, select_workspace_strategy
 from ..project_paths import discover_layout
 
 
 MATRIX_STAGE = "v0.4-alpha_stage7o2"
-MATRIX_RUNNER_STAGE = "v0.4-alpha_stage7o2b"
+MATRIX_RUNNER_STAGE = "v0.4-alpha_stage7o2d"
 DEFAULT_MATRIX_ROW_SECONDS = 45
 
 Emit = Callable[[str], None]
@@ -515,6 +517,46 @@ def _baseline_runner_text(
     return "\n".join(lines)
 
 
+
+
+def _nfqws2_binary_path(root: Path) -> Path:
+    return root / "core" / "zapret2" / "nfq2" / "nfqws2"
+
+
+def _nfqws2_binary_is_ready(root: Path) -> bool:
+    path = _nfqws2_binary_path(root)
+    return path.exists() and os.access(path, os.X_OK)
+
+
+def _strategy_runner_build_needed_text(root: Path, row: ObservationMatrixPlanRow, profile_id: str) -> str:
+    build_plan = prepare_default_build_plan(root=root, profile_id=profile_id)
+    return "\n".join(
+        [
+            "Discord observation matrix row runner",
+            f"stage: {MATRIX_RUNNER_STAGE}",
+            f"row: {row.row_id} — {row.label}",
+            f"strategy: {row.strategy_id}",
+            "status: build-required",
+            "meaning: nfqws2 binary is missing or not executable, so this row cannot start runtime yet.",
+            f"binary: {_nfqws2_binary_path(root)}",
+            "MANUAL ACTION:",
+            "  Keep Discord closed. Do not launch Discord yet.",
+            "NEXT SHELL COMMANDS — copy/paste in this order:",
+            f"  PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm {build_plan.plan_id}",
+            f"  PYTHONPATH=gui python -m zap2_gui.app --default-build --confirm {build_plan.plan_id}",
+            f"  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id}",
+            "why no sudo here:",
+            "  - local build must run as the project owner, not root; it does not mutate firewall/services.",
+            "after build:",
+            "  - rerunning the same row command will prepare/start the Default workflow step.",
+            f"build plan id: {build_plan.plan_id}",
+            f"build plan file: {build_plan.plan_path}",
+            f"runtime log: {build_plan.log_path}",
+            "executes Discord now: no",
+            "applies firewall/services now: no",
+        ]
+    )
+
 def _strategy_runner_setup_text(root: Path, row: ObservationMatrixPlanRow, profile_id: str) -> str:
     plan = prepare_default_workflow_plan(root=root, action="start", profile_id=profile_id)
     start_plan_id = plan.plan_id
@@ -541,6 +583,161 @@ def _strategy_runner_setup_text(root: Path, row: ObservationMatrixPlanRow, profi
     )
 
 
+
+
+def _strategy_runner_auto_owner_setup_text(root: Path, row: ObservationMatrixPlanRow, profile_id: str) -> str:
+    """One-command-ish owner phase: select row, build if needed, prepare+confirm start plan."""
+
+    notes: list[str] = []
+    if not _nfqws2_binary_is_ready(root):
+        build_plan = prepare_default_build_plan(root=root, profile_id=profile_id)
+        confirm_runtime_plan(root=root, plan_id=build_plan.plan_id)
+        build_result = execute_default_build(root=root, profile_id=profile_id, confirm_plan_id=build_plan.plan_id)
+        notes.extend(
+            [
+                f"auto build plan: {build_plan.plan_id}",
+                f"auto build state: {build_result.state}",
+                f"auto build message: {build_result.message}",
+            ]
+        )
+        if build_result.state != "built" or not _nfqws2_binary_is_ready(root):
+            return "\n".join(
+                [
+                    "Discord observation matrix row runner",
+                    f"stage: {MATRIX_RUNNER_STAGE}",
+                    f"row: {row.row_id} — {row.label}",
+                    f"strategy: {row.strategy_id}",
+                    "status: auto-build-failed",
+                    *notes,
+                    "next branch: fix local build/dependencies before collecting this row.",
+                    "executes Discord now: no",
+                    "applies firewall/services now: no",
+                ]
+            )
+
+    start_plan = prepare_default_workflow_plan(root=root, action="start", profile_id=profile_id)
+    confirm_runtime_plan(root=root, plan_id=start_plan.plan_id)
+    notes.extend(
+        [
+            f"auto start plan prepared+confirmed: {start_plan.plan_id}",
+            f"start plan hash: {start_plan.plan_hash}",
+        ]
+    )
+    return "\n".join(
+        [
+            "Discord observation matrix row runner",
+            f"stage: {MATRIX_RUNNER_STAGE}",
+            f"row: {row.row_id} — {row.label}",
+            f"strategy: {row.strategy_id}",
+            "status: auto-owner-phase-ready-for-sudo",
+            "meaning: strategy is selected, nfqws2 is built, and the start workflow plan is prepared+confirmed.",
+            *notes,
+            "MANUAL ACTION:",
+            "  Keep Discord closed. Do not launch Discord yet.",
+            "NEXT SHELL COMMAND — one sudo phase:",
+            f"  sudo env PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id} --matrix-row-auto",
+            "what the sudo phase will do:",
+            "  - start Default workflow for this row using the already-confirmed plan if needed;",
+            "  - run the guided probe with nft counter access;",
+            "  - ask you to open Discord only at MANUAL ACTION.",
+            "executes Discord now: no",
+            "applies firewall/services now: no",
+        ]
+    )
+
+
+def _strategy_runner_auto_root_text(
+    root: Path,
+    row: ObservationMatrixPlanRow,
+    profile_id: str,
+    *,
+    wait_seconds: int,
+    interactive: bool,
+    emit: Emit | None,
+) -> str:
+    """Root phase: start workflow if needed, then enter guided probe."""
+
+    if not _nfqws2_binary_is_ready(root):
+        return "\n".join(
+            [
+                "Discord observation matrix row runner",
+                f"stage: {MATRIX_RUNNER_STAGE}",
+                f"row: {row.row_id} — {row.label}",
+                f"strategy: {row.strategy_id}",
+                "status: auto-root-blocked-build-missing",
+                "meaning: nfqws2 is missing, but the local build must run as the project owner, not root.",
+                "NEXT SHELL COMMAND:",
+                f"  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id} --matrix-row-auto",
+                "executes Discord now: no",
+                "applies firewall/services now: no",
+            ]
+        )
+
+    snapshot = runtime_nft_state_snapshot(root, profile_id=profile_id)
+    if snapshot.saved_state != "applied" or snapshot.session_state != "running":
+        plan = prepare_default_workflow_plan(root=root, action="start", profile_id=profile_id)
+        try:
+            confirm_runtime_plan(root=root, plan_id=plan.plan_id)
+        except Exception:
+            # If the owner phase already confirmed the same plan, this path should still
+            # fail loudly only if the plan is invalid.  Re-raising would reduce the runner
+            # to the old multi-step UX for a recoverable stale confirmation; prepare+confirm
+            # above refreshes the state in normal cases.
+            raise
+        start_result = execute_default_workflow(root=root, action="start", profile_id=profile_id, confirm_plan_id=plan.plan_id)
+        if start_result.state != "started":
+            return "\n".join(
+                [
+                    "Discord observation matrix row runner",
+                    f"stage: {MATRIX_RUNNER_STAGE}",
+                    f"row: {row.row_id} — {row.label}",
+                    f"strategy: {row.strategy_id}",
+                    "status: auto-start-failed",
+                    f"start state: {start_result.state}",
+                    f"message: {start_result.message}",
+                    "next branch: inspect runtime logs and owner-rules apply result before opening Discord.",
+                    "executes Discord now: no",
+                    "applies firewall/services now: attempted owner-confirmed start",
+                ]
+            )
+
+    snapshot = runtime_nft_state_snapshot(root, profile_id=profile_id)
+    if snapshot.active_strategy_id != row.strategy_id:
+        return "\n".join(
+            [
+                "Discord observation matrix row runner",
+                f"stage: {MATRIX_RUNNER_STAGE}",
+                f"row: {row.row_id} — {row.label}",
+                f"expected strategy: {row.strategy_id}",
+                f"active/applied strategy: {snapshot.active_strategy_id}",
+                "status: auto-root-blocked-active-strategy-mismatch",
+                "meaning: runtime is running, but not with this row strategy. Stop workflow and rerun the owner phase for the row.",
+                "executes Discord now: no",
+                "applies firewall/services now: no",
+            ]
+        )
+
+    from .discord_pretls_guided_probe import runtime_discord_pretls_guided_probe_to_text
+
+    text = runtime_discord_pretls_guided_probe_to_text(
+        root=root,
+        profile_id=profile_id,
+        wait_seconds=wait_seconds,
+        interactive=interactive,
+        emit=emit,
+    )
+    return "\n\n".join(
+        [
+            text,
+            "Matrix row runner auto post-step",
+            f"row: {row.row_id}",
+            "MANUAL ACTION:",
+            "  After the probe report is written, close Discord, then stop Default workflow before moving to the next row.",
+            "NEXT SHELL COMMAND:",
+            "  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-report",
+        ]
+    )
+
 def discord_observation_matrix_run_row_to_text(
     row_id: str,
     root: Path | None = None,
@@ -548,6 +745,7 @@ def discord_observation_matrix_run_row_to_text(
     *,
     wait_seconds: int = DEFAULT_MATRIX_ROW_SECONDS,
     interactive: bool = True,
+    auto: bool = False,
     emit: Emit | None = None,
     input_func: InputFunc = input,
     endpoint_runner: EndpointWatchRunner = run_discord_endpoint_watch,
@@ -585,15 +783,47 @@ def discord_observation_matrix_run_row_to_text(
                     "status: blocked-root-selection",
                     "reason: this command is running as root, but the row strategy is not selected. Refusing to write .zap2 strategy selection as root.",
                     "NEXT SHELL COMMAND:",
-                    f"  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id}",
+                    f"  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id}" + (" --matrix-row-auto" if auto else ""),
                     "executes Discord now: no",
                     "applies firewall/services now: no",
                 ]
+            )
+        if auto:
+            return _strategy_runner_auto_root_text(
+                layout.root,
+                row,
+                profile_id,
+                wait_seconds=wait_seconds,
+                interactive=interactive,
+                emit=emit,
             )
     else:
         selected = _selected_strategy_id(layout.root, profile_id)
         if selected != row.strategy_id:
             select_workspace_strategy(layout.root, strategy_id=row.strategy_id or "", profile_id=profile_id, reason=f"stage7o2a-matrix-row:{row.row_id}")
+        if auto:
+            return _strategy_runner_auto_owner_setup_text(layout.root, row, profile_id)
+
+    if not _nfqws2_binary_is_ready(layout.root):
+        if _is_root_process():
+            return "\n".join(
+                [
+                    "Discord observation matrix row runner",
+                    f"stage: {MATRIX_RUNNER_STAGE}",
+                    f"row: {row.row_id} — {row.label}",
+                    f"strategy: {row.strategy_id}",
+                    "status: build-required-under-root",
+                    "meaning: nfqws2 binary is missing, but local build must not be performed as root.",
+                    f"binary: {_nfqws2_binary_path(layout.root)}",
+                    "NEXT SHELL COMMAND:",
+                    f"  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row {row.row_id}",
+                    "MANUAL ACTION:",
+                    "  Keep Discord closed. Do not launch Discord yet.",
+                    "executes Discord now: no",
+                    "applies firewall/services now: no",
+                ]
+            )
+        return _strategy_runner_build_needed_text(layout.root, row, profile_id)
 
     snapshot = runtime_nft_state_snapshot(layout.root, profile_id=profile_id)
     if snapshot.saved_state != "applied" or snapshot.session_state != "running":

@@ -139,7 +139,7 @@ def test_stage7o2_docs_keep_matrix_non_executable() -> None:
     assert "no zapret baseline" in snippet
 
 
-def test_stage7o2a_row_runner_selects_and_prepares_strategy(tmp_path: Path, monkeypatch) -> None:
+def test_stage7o2c_row_runner_prepares_build_when_binary_missing(tmp_path: Path, monkeypatch) -> None:
     project = _copy_project(tmp_path)
     monkeypatch.setenv("ZAP2_MATRIX_ROW_ALLOW_ROOT_SELECTION", "1")
 
@@ -152,23 +152,45 @@ def test_stage7o2a_row_runner_selects_and_prepares_strategy(tmp_path: Path, monk
         wait_seconds=0,
     )
 
-    assert "stage7o2b" in text
-    assert "prepared-waiting-for-default-workflow" in text
+    assert "stage7o2c" in text
+    assert "build-required" in text
     assert "community-discord-pretls-diagnostic-pktdebug" in text
-    assert "--runtime-confirm runtime-default-community-discord-pretls-diagnostic-pktdebug-default-start-workflow-plan" in text
+    assert "--runtime-confirm runtime-default-community-discord-pretls-diagnostic-pktdebug-default-build-workflow-plan" in text
+    assert "--default-build --confirm runtime-default-community-discord-pretls-diagnostic-pktdebug-default-build-workflow-plan" in text
     selection = project / ".zap2" / "strategies" / "default.active-strategy.json"
     assert selection.exists()
     assert "community-discord-pretls-diagnostic-pktdebug" in selection.read_text(encoding="utf-8")
 
 
-def test_stage7o2a_cli_exposes_row_runner(capsys, tmp_path: Path, monkeypatch) -> None:
+def test_stage7o2c_row_runner_prepares_start_when_binary_exists(tmp_path: Path, monkeypatch) -> None:
+    project = _copy_project(tmp_path)
+    binary = project / "core" / "zapret2" / "nfq2" / "nfqws2"
+    binary.parent.mkdir(parents=True, exist_ok=True)
+    binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    binary.chmod(0o755)
+    monkeypatch.setenv("ZAP2_MATRIX_ROW_ALLOW_ROOT_SELECTION", "1")
+
+    from zap2_gui.adapters.discord_observation_matrix import discord_observation_matrix_run_row_to_text
+
+    text = discord_observation_matrix_run_row_to_text(
+        "diagnostic-pktdebug",
+        root=project,
+        interactive=False,
+        wait_seconds=0,
+    )
+
+    assert "prepared-waiting-for-default-workflow" in text
+    assert "--runtime-confirm runtime-default-community-discord-pretls-diagnostic-pktdebug-default-start-workflow-plan" in text
+
+
+def test_stage7o2c_cli_exposes_build_required_row_runner(capsys, tmp_path: Path, monkeypatch) -> None:
     _copy_project(tmp_path)
     monkeypatch.setenv("ZAP2_MATRIX_ROW_ALLOW_ROOT_SELECTION", "1")
     try:
         assert main(["--discord-observation-matrix-run-row", "diagnostic-pktdebug", "--matrix-row-no-wait", "--matrix-row-wait-seconds", "0"]) == 0
         out = capsys.readouterr().out
         assert "Discord observation matrix row runner" in out
-        assert "prepared-waiting-for-default-workflow" in out
+        assert "build-required" in out
     finally:
         shutil.rmtree(ROOT / ".zap2", ignore_errors=True)
 
@@ -210,3 +232,30 @@ def test_stage7o2b_baseline_runner_calls_endpoint_watch_with_keywords(tmp_path: 
     assert "mode: endpoint-watch-only baseline" in text
     assert "status: completed" in text
     assert "endpoint-snapshot-test.json" in text
+
+
+def test_stage7o2d_auto_row_owner_phase_prepares_start(tmp_path: Path, monkeypatch) -> None:
+    project = _copy_project(tmp_path)
+    binary = project / "core" / "zapret2" / "nfq2" / "nfqws2"
+    binary.parent.mkdir(parents=True, exist_ok=True)
+    binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    binary.chmod(0o755)
+    monkeypatch.setenv("ZAP2_MATRIX_ROW_ALLOW_ROOT_SELECTION", "1")
+
+    from zap2_gui.adapters.discord_observation_matrix import discord_observation_matrix_run_row_to_text
+
+    text = discord_observation_matrix_run_row_to_text(
+        "multisplit",
+        root=project,
+        interactive=False,
+        wait_seconds=0,
+        auto=True,
+    )
+
+    assert "stage7o2d" in text
+    assert "auto-owner-phase-ready-for-sudo" in text
+    assert "auto start plan prepared+confirmed" in text
+    assert "--matrix-row-auto" in text
+    assert "sudo env PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row reference-kartavkun-multisplit" in text
+    selection = project / ".zap2" / "strategies" / "default.active-strategy.json"
+    assert "reference-linux-general-multisplit-like" in selection.read_text(encoding="utf-8")

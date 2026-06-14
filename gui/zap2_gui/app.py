@@ -313,6 +313,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="не ждать Enter/manual action в matrix row runner; полезно для dry-run/CI",
     )
     parser.add_argument(
+        "--matrix-row-auto",
+        action="store_true",
+        help="Stage 7o2d: максимально автоматизировать строку матрицы: auto-build/confirm/prepare, а в sudo-фазе auto-start + guided probe",
+    )
+    parser.add_argument(
         "--pretls-probe-wait-seconds",
         type=int,
         default=DEFAULT_GUIDED_PROBE_WAIT_SECONDS,
@@ -880,6 +885,7 @@ def main(argv: list[str] | None = None) -> int:
                     profile_id=args.profile,
                     wait_seconds=args.matrix_row_wait_seconds,
                     interactive=not args.matrix_row_no_wait,
+                    auto=args.matrix_row_auto,
                     emit=print,
                 )
             )

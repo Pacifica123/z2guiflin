@@ -1,0 +1,16 @@
+Stage 7o2d adds an auto row-runner mode:
+
+  PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row <row> --matrix-row-auto
+
+Owner phase:
+- selects the row strategy;
+- builds nfqws2 if the executable is missing;
+- prepares and confirms the default start workflow plan;
+- prints one sudo command for the privileged phase.
+
+Sudo phase:
+- starts Default workflow if needed;
+- runs the guided Discord pre-TLS probe;
+- asks the user to open Discord only at MANUAL ACTION.
+
+It still does not launch Discord automatically and does not perform privileged firewall changes unless the user explicitly runs the sudo phase.

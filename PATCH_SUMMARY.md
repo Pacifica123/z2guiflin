@@ -1,29 +1,27 @@
-# v0.4-alpha Stage 7o2b — baseline row runner endpoint-watch fix
+# v0.4-alpha Stage 7o2d — auto observation matrix row runner
 
-## Why
+Stage 7o2d reduces the row-runner workflow from a plan-id maze to a two-phase
+owner/sudo flow.
 
-`--discord-observation-matrix-run-row baseline` crashed after the owner closed Discord because the row runner called `run_discord_endpoint_watch(root, seconds)` with positional arguments, while the endpoint watcher API is keyword-only: `run_discord_endpoint_watch(*, root=..., seconds=...)`.
+## Changed
 
-This made the simplified matrix runner fail before the baseline 45-second observation window could start.
+- `--discord-observation-matrix-run-row <row> --matrix-row-auto` added.
+- Owner phase now:
+  - selects the row strategy;
+  - builds `nfqws2` automatically if the executable is missing;
+  - prepares and confirms the default start workflow plan;
+  - prints one sudo command for the privileged phase.
+- Sudo phase now:
+  - starts Default workflow for the selected row if needed;
+  - then enters the existing guided Discord pre-TLS probe;
+  - asks the owner to open Discord only at `MANUAL ACTION`.
+- Existing non-auto mode is kept for conservative/manual operation.
+- Added docs/snippet for the auto row-runner mode.
 
-## What changed
-
-- Fixed the baseline row runner to call the endpoint watcher with keyword arguments.
-- Updated the row-runner stage marker to `v0.4-alpha_stage7o2b`.
-- Added a regression test that injects a keyword-only endpoint runner and verifies the baseline row completes.
-- Documented the fix in the row-runner notes/snippet.
-
-## What this does not do
+## Safety
 
 - Does not launch Discord automatically.
-- Does not start/stop Zap2 runtime automatically.
-- Does not mutate firewall/services.
-- Does not add a new Discord bypass strategy.
-
-## Owner-facing retry
-
-```bash
-PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row baseline
-```
-
-Start with Discord closed and Zap2 runtime stopped. Open Discord only when the runner prints the `MANUAL ACTION WINDOW` prompt.
+- Local build runs as the owner, not root.
+- Firewall/NFQUEUE changes only happen in the explicit sudo phase.
+- No external scripts are executed.
+- Matrix reports remain the source of truth for comparing candidates.

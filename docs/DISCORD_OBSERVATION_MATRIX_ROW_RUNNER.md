@@ -70,3 +70,20 @@ It only turns the matrix row collection loop into a state-aware guided runner so
 ## Stage 7o2b baseline runner fix
 
 The baseline row runner now calls the endpoint watcher through its keyword-only API (`root=...`, `seconds=...`). This fixes the baseline crash where `run_discord_endpoint_watch()` was called with positional arguments and failed before the 45 second watch window could start.
+
+## Stage 7o2c build-aware row runner
+
+The row runner now also handles the missing `nfqws2` binary state before it prepares a runtime start plan. If the binary is absent or not executable, it prepares the correct build plan for the currently selected row strategy and prints the exact owner-side commands:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm <build-plan-id>
+PYTHONPATH=gui python -m zap2_gui.app --default-build --confirm <build-plan-id>
+PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row <row-id>
+```
+
+This prevents the old confusing path where `--default-start` failed with a stale `manual-local` build-plan hint. Local build remains owner-confirmed and non-root; the runner still does not silently start firewall state, launch Discord, or execute external scripts.
+
+
+## Stage 7o2d auto mode
+
+Use `--matrix-row-auto` to collapse the owner-side build/confirm/start-plan preparation into one command and the privileged start+probe into one sudo rerun. Discord must still be opened only after the probe prints `MANUAL ACTION`.
