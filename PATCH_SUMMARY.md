@@ -1,27 +1,32 @@
-# v0.4-alpha Stage 7o2d — auto observation matrix row runner
+# v0.4-alpha Stage 7p0 — Discord SOCKS/VLESS tunnel technical plan
 
-Stage 7o2d reduces the row-runner workflow from a plan-id maze to a two-phase
-owner/sudo flow.
+Stage 7p0 adds a documentation-only plan for a new Discord tunnel lane alongside
+the current zapret/nfqws2 strategy lane.
 
-## Changed
+## Added
 
-- `--discord-observation-matrix-run-row <row> --matrix-row-auto` added.
-- Owner phase now:
-  - selects the row strategy;
-  - builds `nfqws2` automatically if the executable is missing;
-  - prepares and confirms the default start workflow plan;
-  - prints one sudo command for the privileged phase.
-- Sudo phase now:
-  - starts Default workflow for the selected row if needed;
-  - then enters the existing guided Discord pre-TLS probe;
-  - asks the owner to open Discord only at `MANUAL ACTION`.
-- Existing non-auto mode is kept for conservative/manual operation.
-- Added docs/snippet for the auto row-runner mode.
+- `docs/DISCORD_TUNNEL_SOCKS_VLESS_PLAN.md`
+  - explains the tunnel philosophy;
+  - defines connection profile selection;
+  - specifies SOCKS-first runtime design;
+  - treats update-only as a single proxied launch window, not proxy-then-restart;
+  - defines CLI/GUI/runtime stages and safety boundaries.
+- `docs/V2RAYNG_REFERENCE_NOTES.md`
+  - records inspected v2rayNG reference concepts;
+  - documents the GPL-3.0/reference-only boundary;
+  - maps Android concepts to Zap2-specific Linux runtime ideas.
+- `references/external/snippets/stage7p0-v2rayng-socks-vless-notes.txt`
+  - short reference digest for future implementation patches.
+- `tests/test_stage7p0_discord_tunnel_plan.py`
+  - checks that the plan exists;
+  - checks that the owner-provided sample UUID/IP are not committed;
+  - checks that v2rayNG remains reference-only.
+- `docs/V04_ALPHA_PATCH_ROADMAP.md` updated with the Stage 7p0 lane.
 
 ## Safety
 
-- Does not launch Discord automatically.
-- Local build runs as the owner, not root.
-- Firewall/NFQUEUE changes only happen in the explicit sudo phase.
-- No external scripts are executed.
-- Matrix reports remain the source of truth for comparing candidates.
+- No external binaries are downloaded or executed.
+- No firewall, service, nftables, or NFQUEUE state is changed.
+- No Discord process is launched.
+- No raw user VLESS connection string is stored in the repository.
+- v2rayNG is used as a conceptual reference only; no Android/Kotlin code is copied.

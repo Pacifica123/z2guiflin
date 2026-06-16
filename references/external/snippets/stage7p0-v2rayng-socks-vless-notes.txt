@@ -1,0 +1,19 @@
+Stage 7p0 v2rayNG reference notes
+
+Reference-only source: uploaded v2rayNG Android project.
+License boundary: GPL-3.0; do not copy implementation code into Zap2GUIfLin
+without an explicit licensing decision.
+
+Concepts worth borrowing:
+- parse vless:// share links into a neutral profile model;
+- generate core config separately from profile storage;
+- expose a loopback SOCKS inbound, commonly around 127.0.0.1:10808;
+- keep proxy-only and VPN/TUN modes separate;
+- treat per-app proxy as a product goal, not as portable Android code.
+
+Zap2 adaptation:
+- first MVP uses an owner-supplied external core binary;
+- generated configs and logs live under .zap2/tunnel;
+- local SOCKS binds to loopback only;
+- Discord launch wrapper/probe proves whether Discord actually uses SOCKS;
+- user connection strings are secrets and must be redacted from docs/tests/logs.

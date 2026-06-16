@@ -336,3 +336,36 @@ Adds active nft/NFQUEUE state reporting for Discord pre-TLS diagnostics: running
 ## Stage 7n2 — guided Discord pre-TLS probe harness
 
 Stage 7n2 turns the Stage 7n/7n1 observability pieces into one guided owner-facing run. It writes JSON/Markdown reports with nft counter deltas, nfqws2 health, qnum consistency, log/debug deltas, a verdict, and the next allowed branch. It intentionally does not add another Discord bypass strategy.
+
+## v0.4-alpha Stage 7p0 — Discord SOCKS/VLESS tunnel technical plan
+
+Stage 7p0 opens a second Discord recovery lane next to the existing zapret direct
+strategy work.  The new lane is not another desync preset: it is a plan for a
+Discord SOCKS/VLESS tunnel backend that can route Discord through a local proxy
+managed by Zap2GUIfLin.
+
+The planned split is:
+
+```text
+zapret direct strategy  -> keep Discord direct and alter/capture early packets
+Discord tunnel lane     -> use an external core and local SOCKS proxy
+```
+
+Stage 7p0 is documentation-only.  It records how connection strings will be
+imported, how secrets will be redacted, how v2rayNG can be used as a conceptual
+reference, why Zap2 should orchestrate an external core instead of implementing
+VLESS itself, and why update-only mode must be treated as a single proxied launch
+window rather than a proxy-then-restart trick.
+
+Safety boundary:
+
+```text
+no automatic external downloads
+no copied third-party Android/Kotlin implementation
+no committed owner connection string
+no firewall/service changes
+no Discord launch
+```
+
+The next implementation layer should be Stage 7p1: a pure VLESS URI parser and
+`.zap2/tunnel` connection-profile model with redaction tests.
