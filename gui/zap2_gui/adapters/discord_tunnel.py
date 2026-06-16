@@ -15,6 +15,7 @@ import shlex
 import shutil
 import signal
 import socket
+import ssl
 import subprocess
 import time
 import uuid
@@ -25,10 +26,10 @@ from typing import Any, Literal
 from urllib.parse import parse_qsl, unquote, urlsplit
 
 from .runtime_default import default_workflow_status
-from .runtime_state import ensure_runtime_store, plan_payload_hash
+from .runtime_state import confirm_runtime_plan, ensure_runtime_store, plan_payload_hash
 from ..project_paths import discover_layout
 
-TUNNEL_STAGE = "v0.4-alpha_stage7p1-7p4"
+TUNNEL_STAGE = "v0.4-alpha_stage7p5"
 TUNNEL_SCHEMA_VERSION = 1
 TUNNEL_MARKER = "zap2-discord-tunnel-v1"
 DEFAULT_PROFILE_ID = "default"
@@ -36,7 +37,7 @@ DEFAULT_SOCKS_HOST = "127.0.0.1"
 DEFAULT_SOCKS_PORT = 10808
 DEFAULT_CORE_KIND = "auto"
 SUPPORTED_CORE_KINDS = ("auto", "xray", "v2ray", "sing-box")
-SUPPORTED_LAUNCH_MODES = ("socks-updater-window", "socks-full-session")
+SUPPORTED_LAUNCH_MODES = ("socks-updater-window", "socks-full-session", "socks-env-only", "socks-flag-only")
 SECRET_KEYS = {"id", "uuid", "password", "rawUri"}
 KNOWN_VLESS_QUERY_KEYS = {
     "encryption",
@@ -1068,7 +1069,9 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
 
 def _discord_launch_argv(discord_binary: str, socks_host: str, socks_port: int, mode: str) -> tuple[str, ...]:
     proxy = f"socks5://{socks_host}:{socks_port}"
-    # Electron/Chromium candidate flag.  Environment variables are set separately.
+    # Electron/Chromium candidate flag. Environment variables are set separately.
+    if mode == "socks-env-only":
+        return (discord_binary,)
     return (discord_binary, f"--proxy-server={proxy}")
 
 
@@ -1090,7 +1093,8 @@ def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID
         raise ValueError("Discord binary не найден. Передайте --discord-binary /path/to/discord или установите binary в PATH.")
     proxy = f"socks5://{socks_host}:{socks_port}"
     env = dict(os.environ)
-    env.update({"ALL_PROXY": proxy, "HTTPS_PROXY": proxy, "HTTP_PROXY": proxy, "all_proxy": proxy, "https_proxy": proxy, "http_proxy": proxy})
+    if launch_mode != "socks-flag-only":
+        env.update({"ALL_PROXY": proxy, "HTTPS_PROXY": proxy, "HTTP_PROXY": proxy, "all_proxy": proxy, "https_proxy": proxy, "http_proxy": proxy})
     argv = _discord_launch_argv(resolved_discord, socks_host, socks_port, launch_mode)
     process = subprocess.Popen(argv, cwd=str(paths.root), env=env, start_new_session=True)
     discord_session = {
@@ -1122,5 +1126,337 @@ def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID
             "  If it stays on Checking for updates, run --discord-tunnel-probe and attach .zap2/tunnel/runtime + reports.",
             "executes Discord now: yes",
             "mutates firewall/services: no",
+        ]
+    )
+
+
+# ---- Stage 7p5: guided SOCKS/VLESS experiment helpers ----
+
+DEFAULT_TUNNEL_HTTPS_HOST = "updates.discord.com"
+DEFAULT_TUNNEL_HTTPS_PATH = "/"
+DEFAULT_TUNNEL_OBSERVE_SECONDS = 45
+SUPPORTED_UPDATER_RESULTS = ("passed", "stuck", "unknown")
+
+
+def _read_exact(sock: socket.socket, count: int) -> bytes:
+    data = b""
+    while len(data) < count:
+        chunk = sock.recv(count - len(data))
+        if not chunk:
+            raise OSError("SOCKS peer closed connection")
+        data += chunk
+    return data
+
+
+def _socks5_connect(sock: socket.socket, host: str, port: int) -> dict[str, Any]:
+    host_bytes = host.encode("idna")
+    if len(host_bytes) > 255:
+        raise ValueError("SOCKS target host is too long")
+    sock.sendall(b"\x05\x01\x00")
+    hello = _read_exact(sock, 2)
+    if hello != b"\x05\x00":
+        return {"ok": False, "stage": "socks-auth", "replyHex": hello.hex(), "message": "SOCKS5 no-auth was not accepted"}
+    request = b"\x05\x01\x00\x03" + bytes([len(host_bytes)]) + host_bytes + int(port).to_bytes(2, "big")
+    sock.sendall(request)
+    header = _read_exact(sock, 4)
+    if len(header) != 4 or header[0] != 5:
+        return {"ok": False, "stage": "socks-connect", "replyHex": header.hex(), "message": "SOCKS5 connect returned malformed header"}
+    atyp = header[3]
+    if atyp == 1:
+        _read_exact(sock, 4)
+    elif atyp == 3:
+        size = _read_exact(sock, 1)[0]
+        _read_exact(sock, size)
+    elif atyp == 4:
+        _read_exact(sock, 16)
+    else:
+        return {"ok": False, "stage": "socks-connect", "replyHex": header.hex(), "message": f"SOCKS5 connect returned unsupported ATYP {atyp}"}
+    _read_exact(sock, 2)
+    rep = header[1]
+    if rep != 0:
+        return {"ok": False, "stage": "socks-connect", "replyCode": rep, "message": f"SOCKS5 connect failed with REP={rep}"}
+    return {"ok": True, "stage": "socks-connect", "message": "SOCKS5 connect established"}
+
+
+def _https_head_through_socks(*, socks_host: str, socks_port: int, target_host: str, target_path: str, timeout: float) -> dict[str, Any]:
+    started = time.monotonic()
+    target_path = target_path if target_path.startswith("/") else f"/{target_path}"
+    with socket.create_connection((socks_host, int(socks_port)), timeout=timeout) as raw_sock:
+        raw_sock.settimeout(timeout)
+        socks_result = _socks5_connect(raw_sock, target_host, 443)
+        if not socks_result.get("ok"):
+            socks_result["elapsedMs"] = int((time.monotonic() - started) * 1000)
+            return socks_result
+        context = ssl.create_default_context()
+        with context.wrap_socket(raw_sock, server_hostname=target_host) as tls_sock:
+            tls_sock.settimeout(timeout)
+            request = (
+                f"HEAD {target_path} HTTP/1.1\r\n"
+                f"Host: {target_host}\r\n"
+                "User-Agent: Zap2GUIfLin-tunnel-probe/1\r\n"
+                "Connection: close\r\n\r\n"
+            ).encode("ascii")
+            tls_sock.sendall(request)
+            response = tls_sock.recv(768)
+    first_line = response.splitlines()[0].decode("iso-8859-1", errors="replace") if response else ""
+    status_code = None
+    if first_line.startswith("HTTP/"):
+        parts = first_line.split()
+        if len(parts) >= 2 and parts[1].isdigit():
+            status_code = int(parts[1])
+    ok = status_code is not None and 100 <= status_code < 600
+    return {
+        "ok": ok,
+        "stage": "https-head",
+        "statusLine": first_line,
+        "statusCode": status_code,
+        "elapsedMs": int((time.monotonic() - started) * 1000),
+        "message": "HTTPS HEAD through SOCKS completed" if ok else "HTTPS HEAD through SOCKS did not return an HTTP status line",
+    }
+
+
+def _load_running_tunnel_session(paths: TunnelStorePaths, profile_id: str) -> dict[str, Any]:
+    session_path = _session_path(paths, profile_id)
+    if not session_path.exists():
+        raise ValueError("Tunnel session не найден. Сначала запустите --discord-tunnel-start или --discord-tunnel-guided-run.")
+    session = _read_json(session_path)
+    pid = int(session.get("pid", 0) or 0)
+    if not _pid_running(pid):
+        raise ValueError("Tunnel core не running; сначала проверьте --discord-tunnel-status или перезапустите tunnel guided run.")
+    return session
+
+
+def discord_tunnel_https_probe_to_text(
+    *,
+    profile_id: str = DEFAULT_PROFILE_ID,
+    target_host: str = DEFAULT_TUNNEL_HTTPS_HOST,
+    target_path: str = DEFAULT_TUNNEL_HTTPS_PATH,
+    timeout_seconds: float = 8.0,
+    root: Path | None = None,
+) -> str:
+    """Run a harmless HTTPS HEAD through the managed local SOCKS listener."""
+
+    if timeout_seconds <= 0 or timeout_seconds > 60:
+        raise ValueError("--tunnel-probe-timeout должен быть в диапазоне 1..60 секунд")
+    paths = ensure_tunnel_store(root)
+    session = _load_running_tunnel_session(paths, profile_id)
+    socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
+    socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
+    report_base = {
+        "schemaVersion": TUNNEL_SCHEMA_VERSION,
+        "stage": TUNNEL_STAGE,
+        "createdAt": _utc_now(),
+        "profileId": profile_id,
+        "targetHost": target_host,
+        "targetPath": target_path,
+        "socksHost": socks_host,
+        "socksPort": socks_port,
+        "tunnelPid": int(session.get("pid", 0) or 0),
+    }
+    try:
+        result = _https_head_through_socks(
+            socks_host=socks_host,
+            socks_port=socks_port,
+            target_host=target_host,
+            target_path=target_path,
+            timeout=float(timeout_seconds),
+        )
+    except Exception as exc:  # deliberately captured into report for owner diagnosis
+        result = {"ok": False, "stage": "exception", "message": str(exc), "elapsedMs": None}
+    verdict = "T1_HTTPS_THROUGH_SOCKS_OK" if result.get("ok") else "T1_HTTPS_THROUGH_SOCKS_FAILED"
+    report = {**report_base, "result": result, "verdict": verdict}
+    reports_dir = paths.tunnel_root / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    report_path = reports_dir / f"{profile_id}.https-probe-{stamp}.json"
+    _write_json(report_path, report, secret=False)
+    _append_event(paths, profile_id, "tunnel-https-probed", "HTTPS-over-SOCKS tunnel probe completed", {"verdict": verdict, "targetHost": target_host, "stage": result.get("stage")})
+    return "\n".join(
+        [
+            "Discord tunnel HTTPS probe",
+            f"stage: {TUNNEL_STAGE}",
+            f"profile: {profile_id}",
+            f"target: https://{target_host}{target_path if target_path.startswith('/') else '/' + target_path}",
+            f"local socks: socks5://{socks_host}:{socks_port}",
+            f"verdict: {verdict}",
+            f"probe stage: {result.get('stage', 'n/a')}",
+            f"message: {result.get('message', 'n/a')}",
+            f"status line: {result.get('statusLine', 'n/a')}",
+            f"elapsed ms: {result.get('elapsedMs', 'n/a')}",
+            f"report: {report_path}",
+            "executes Discord now: no",
+            "mutates firewall/services: no",
+        ]
+    )
+
+
+def _updater_verdict_from_result(owner_result: str, https_verdict: str, discord_pid: int) -> str:
+    normalized = (owner_result or "unknown").strip().lower()
+    if normalized == "passed":
+        return "TU_UPDATER_PASSED_OWNER_OBSERVED"
+    if normalized == "stuck":
+        return "TU_UPDATER_STUCK_OWNER_OBSERVED"
+    if https_verdict == "T1_HTTPS_THROUGH_SOCKS_OK" and discord_pid > 0:
+        return "TU_DISCORD_LAUNCHED_TUNNEL_READY_OWNER_OBSERVATION_NEEDED"
+    return "TU_TUNNEL_NOT_READY_OR_DISCORD_NOT_CONFIRMED"
+
+
+def _prompt_updater_result(*, emit: Any | None = None) -> str:
+    message = (
+        "MANUAL OBSERVATION — type one word and press Enter:\n"
+        "  passed  — Discord reached the main window / updater passed\n"
+        "  stuck   — Discord is still on Checking for updates\n"
+        "  unknown — you cannot tell yet\n"
+        "Updater result [passed/stuck/unknown]: "
+    )
+    if emit is not None:
+        emit(message.rstrip())
+    try:
+        answer = input("Updater result [passed/stuck/unknown]: ").strip().lower()
+    except EOFError:
+        return "unknown"
+    return answer if answer in SUPPORTED_UPDATER_RESULTS else "unknown"
+
+
+def discord_tunnel_guided_run_to_text(
+    *,
+    profile_id: str = DEFAULT_PROFILE_ID,
+    core_binary: str | None = None,
+    core_kind: str = DEFAULT_CORE_KIND,
+    socks_port: int = DEFAULT_SOCKS_PORT,
+    discord_binary: str = "discord",
+    launch_mode: str = "socks-updater-window",
+    observe_seconds: int = DEFAULT_TUNNEL_OBSERVE_SECONDS,
+    updater_result: str = "unknown",
+    interactive: bool = True,
+    root: Path | None = None,
+    emit: Any | None = None,
+) -> str:
+    """One-command owner-phase for the Discord tunnel experiment.
+
+    This intentionally stays user-space only: no sudo, no nftables, no service mutation.
+    The command is explicit enough to auto-prepare and auto-confirm the local tunnel
+    start plan, then keep the tunnel running for the owner-observed Discord session.
+    """
+
+    if observe_seconds < 0 or observe_seconds > 600:
+        raise ValueError("--tunnel-observe-seconds должен быть 0..600")
+    if updater_result and updater_result not in SUPPORTED_UPDATER_RESULTS:
+        raise ValueError("--discord-updater-result должен быть: passed, stuck или unknown")
+    paths = ensure_tunnel_store(root)
+    plan_text = discord_tunnel_plan_to_text(
+        profile_id=profile_id,
+        core_binary=core_binary,
+        core_kind=core_kind,
+        socks_port=socks_port,
+        root=paths.root,
+    )
+    plan_id = _tunnel_plan_id(profile_id)
+    confirmation = confirm_runtime_plan(root=paths.root, plan_id=plan_id)
+    start_text = discord_tunnel_start_to_text(profile_id=profile_id, confirm_plan_id=plan_id, root=paths.root)
+    core_probe_text = discord_tunnel_probe_to_text(profile_id=profile_id, root=paths.root)
+    https_text = discord_tunnel_https_probe_to_text(profile_id=profile_id, root=paths.root)
+    launch_text = discord_launch_through_socks_to_text(profile_id=profile_id, discord_binary=discord_binary, launch_mode=launch_mode, root=paths.root)
+
+    discord_session = _read_json(_discord_session_path(paths, profile_id)) if _discord_session_path(paths, profile_id).exists() else {}
+    discord_pid = int(discord_session.get("pid", 0) or 0)
+    if observe_seconds and interactive:
+        if emit is not None:
+            emit(f"Observation window: keep Discord open for {observe_seconds} seconds before verdict prompt...")
+        time.sleep(observe_seconds)
+    observed_result = updater_result
+    if interactive and updater_result == "unknown":
+        observed_result = _prompt_updater_result(emit=emit)
+    https_verdict = "T1_HTTPS_THROUGH_SOCKS_OK" if "verdict: T1_HTTPS_THROUGH_SOCKS_OK" in https_text else "T1_HTTPS_THROUGH_SOCKS_FAILED"
+    verdict = _updater_verdict_from_result(observed_result, https_verdict, discord_pid)
+    report = {
+        "schemaVersion": TUNNEL_SCHEMA_VERSION,
+        "stage": TUNNEL_STAGE,
+        "createdAt": _utc_now(),
+        "profileId": profile_id,
+        "planId": plan_id,
+        "planHash": confirmation.plan_hash,
+        "launchMode": launch_mode,
+        "discordBinary": discord_binary,
+        "discordPid": discord_pid,
+        "observeSeconds": observe_seconds,
+        "ownerUpdaterResult": observed_result,
+        "httpsProbeVerdict": https_verdict,
+        "verdict": verdict,
+    }
+    reports_dir = paths.tunnel_root / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    report_path = reports_dir / f"{profile_id}.guided-run-{stamp}.json"
+    _write_json(report_path, report, secret=False)
+    _append_event(paths, profile_id, "tunnel-guided-run", "Discord tunnel guided run completed", {"verdict": verdict, "discordPid": discord_pid, "ownerUpdaterResult": observed_result})
+    return "\n".join(
+        [
+            "Discord tunnel guided run result",
+            f"stage: {TUNNEL_STAGE}",
+            f"profile: {profile_id}",
+            f"launch mode: {launch_mode}",
+            f"plan auto-confirmed: {plan_id}",
+            f"tunnel core: {'started/ready' if 'Discord tunnel start: started' in start_text or 'already-running' in start_text else 'check start output'}",
+            f"https probe verdict: {https_verdict}",
+            f"discord pid: {discord_pid if discord_pid else 'нет'}",
+            f"owner updater result: {observed_result}",
+            f"verdict: {verdict}",
+            f"report: {report_path}",
+            "",
+            "SUMMARY OF SUB-STEPS:",
+            _indent_block(plan_text, "  plan> "),
+            _indent_block(start_text, "  start> "),
+            _indent_block(core_probe_text, "  core-probe> "),
+            _indent_block(https_text, "  https-probe> "),
+            _indent_block(launch_text, "  launch> "),
+            "",
+            "NEXT:",
+            "  If Discord reached the main window, keep the tunnel running for this Discord process.",
+            "  When finished: PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-stop",
+            "  If stuck: attach .zap2/tunnel/runtime + .zap2/tunnel/reports.",
+            "mutates firewall/services: no",
+            "requires sudo: no",
+        ]
+    )
+
+
+def _indent_block(text: str, prefix: str) -> str:
+    return "\n".join(prefix + line for line in text.splitlines())
+
+
+def discord_tunnel_tun_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: Path | None = None) -> str:
+    paths = ensure_tunnel_store(root)
+    report = {
+        "schemaVersion": TUNNEL_SCHEMA_VERSION,
+        "stage": TUNNEL_STAGE,
+        "createdAt": _utc_now(),
+        "profileId": profile_id,
+        "mode": "tun-tproxy-research-plan-only",
+        "executesNow": False,
+        "requiresSudoForFutureImplementation": True,
+    }
+    reports_dir = paths.tunnel_root / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_path = reports_dir / f"{profile_id}.tun-tproxy-plan.json"
+    _write_json(report_path, report, secret=False)
+    return "\n".join(
+        [
+            "Discord tunnel TUN/TProxy research plan",
+            f"stage: {TUNNEL_STAGE}",
+            f"profile: {profile_id}",
+            "status: plan-only",
+            "why not implemented as a blind switch:",
+            "  SOCKS must prove whether Discord respects proxy flags/env first.",
+            "  TUN/TProxy needs root, DNS/routing policy, nft rollback, leak checks and conflict checks with zapret NFQUEUE.",
+            "future implementation gates:",
+            "  1. keep SOCKS/VLESS core as backend;",
+            "  2. add explicit DNS policy for Discord domains;",
+            "  3. add owner-confirmed nft routing plan;",
+            "  4. add rollback + kill-switch;",
+            "  5. prove no conflict with Default zapret workflow.",
+            f"report: {report_path}",
+            "executes now: no",
+            "applies firewall/services now: no",
         ]
     )

@@ -18,6 +18,7 @@ def test_navigation_sections_are_fixed_for_stage_5() -> None:
         "core",
         "strategies",
         "diagnostics",
+        "tunnel",
         "settings",
         "logs",
     ]
@@ -26,6 +27,7 @@ def test_navigation_sections_are_fixed_for_stage_5() -> None:
         "Ядро",
         "Стратегии",
         "Диагностика",
+        "Туннель",
         "Настройки",
         "Логи",
     ]
@@ -35,7 +37,7 @@ def test_navigation_sections_are_fixed_for_stage_5() -> None:
 def test_gui_shell_state_is_read_only_and_inventory_backed() -> None:
     state = load_gui_shell_state(ROOT)
 
-    assert len(state.sections) == 6
+    assert len(state.sections) == 7
     assert state.core_snapshot.vendor_file_count == 245
     assert [unit.name for unit in state.build_map.units] == ["nfqws2", "ip2net", "mdig"]
     assert state.build_map.automatic_checks_may_run_make is False
@@ -60,7 +62,7 @@ def test_pyqt_availability_probe_is_boolean() -> None:
 def test_gui_shell_documentation_lists_navigation_sections() -> None:
     doc = (ROOT / "docs/GUI_SHELL.md").read_text(encoding="utf-8")
 
-    for title in ("Обзор", "Ядро", "Стратегии", "Диагностика", "Настройки", "Логи"):
+    for title in ("Обзор", "Ядро", "Стратегии", "Диагностика", "Туннель", "Настройки", "Логи"):
         assert title in doc
 
 

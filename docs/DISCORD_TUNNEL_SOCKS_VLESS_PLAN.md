@@ -529,3 +529,59 @@ Current limitations:
   `--discord-launch-through-socks`;
 - GUI controls are not implemented yet;
 - TUN/TProxy remains a later research lane.
+
+## 19. Stage 7p5 implementation status
+
+Stage 7p5 moves the tunnel lane from a runnable MVP into a guided experiment.
+It still does not implement VLESS itself and still does not download external
+cores.  The owner must provide an installed `xray`, `v2ray`, or compatible
+binary.
+
+Implemented in Stage 7p5:
+
+- `--discord-tunnel-https-probe` performs a harmless HTTPS `HEAD` request through
+  the managed local SOCKS listener.  This tests the full local path:
+  Zap2GUIfLin -> SOCKS inbound -> external core -> remote VLESS outbound -> HTTPS
+  target.  It does not launch Discord.
+- `--discord-tunnel-guided-run` performs the owner-user-space tunnel sequence in
+  one command: prepare plan, auto-confirm the local plan, start the core, run the
+  SOCKS probe, run the HTTPS probe, launch Discord through SOCKS candidates, and
+  write a guided report.
+- updater verdicts are deliberately split into measured signals and owner
+  observation.  The program can automatically prove tunnel readiness and Discord
+  process launch; it cannot honestly see the desktop UI state without a fragile
+  screen/OCR dependency.  Therefore the final updater result is recorded as
+  `passed`, `stuck`, or `unknown` when the owner provides it.
+- `socks-env-only` and `socks-flag-only` launch modes were added so the owner can
+  compare whether Discord reacts better to proxy environment variables or the
+  Electron/Chromium proxy flag.
+- a lightweight PyQt `Туннель` tab now exposes read-only status, profile list,
+  SOCKS probe, HTTPS probe, and TUN/TProxy plan actions.
+- `--discord-tunnel-tun-plan` documents the future root-required TUN/TProxy lane
+  as plan-only.  It applies no nftables rules and starts no services.
+
+The practical first test is now:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --tunnel-connection-import-vless @/path/to/vless.txt
+PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-guided-run --tunnel-core-binary /path/to/xray
+```
+
+If Discord reaches the main window, rerun with an explicit result so the report
+captures the outcome:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-guided-run \
+  --tunnel-core-binary /path/to/xray \
+  --discord-updater-result passed \
+  --tunnel-observe-seconds 0
+```
+
+If Discord remains stuck:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-guided-run \
+  --tunnel-core-binary /path/to/xray \
+  --discord-updater-result stuck \
+  --tunnel-observe-seconds 0
+```

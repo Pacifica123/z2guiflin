@@ -44,6 +44,12 @@ def default_navigation_sections() -> tuple[NavigationSection, ...]:
             ready_state="blockcheck-backed",
         ),
         NavigationSection(
+            key="tunnel",
+            title="Туннель",
+            purpose="Экспериментальная SOCKS/VLESS-ветка для Discord: профили, probes и guided CLI.",
+            ready_state="tunnel-backed",
+        ),
+        NavigationSection(
             key="settings",
             title="Настройки",
             purpose="Язык, пути, политика подтверждений и будущие developer-oriented параметры.",

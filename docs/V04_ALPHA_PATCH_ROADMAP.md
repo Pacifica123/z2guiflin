@@ -385,3 +385,19 @@ firewall/service state, and refuses to run while the default zapret workflow is
 already active.  The next planned layer is Stage 7p5: a guided updater-window
 experiment that records whether Discord actually uses the local SOCKS listener
 and whether the updater passes.
+
+## v0.4-alpha Stage 7p5 — Guided Discord SOCKS/VLESS tunnel experiment
+
+Stage 7p5 continues the Stage 7p1-7p4 tunnel MVP with a stronger guided workflow:
+
+- harmless HTTPS-over-SOCKS probe for `updates.discord.com` or a custom target;
+- one-command owner-user-space guided run that prepares, confirms, starts,
+  probes, launches Discord, and writes a report;
+- additional launch modes for comparing env-only versus Chromium flag-only proxy
+  behavior;
+- a lightweight `Туннель` GUI tab for read-only status/probe actions;
+- plan-only TUN/TProxy research command, deliberately not a privileged executor.
+
+This stage still avoids copying v2rayNG code.  v2rayNG remains a reference for
+product patterns: profile list, proxy-only mode, VPN/TUN separation, and test
+service concepts.

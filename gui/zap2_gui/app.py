@@ -110,12 +110,19 @@ from .adapters.discord_tunnel import (
     SUPPORTED_CORE_KINDS,
     SUPPORTED_LAUNCH_MODES,
     DEFAULT_SOCKS_PORT,
+    DEFAULT_TUNNEL_HTTPS_HOST,
+    DEFAULT_TUNNEL_HTTPS_PATH,
+    DEFAULT_TUNNEL_OBSERVE_SECONDS,
+    SUPPORTED_UPDATER_RESULTS,
     discord_launch_through_socks_to_text,
+    discord_tunnel_guided_run_to_text,
+    discord_tunnel_https_probe_to_text,
     discord_tunnel_plan_to_text,
     discord_tunnel_probe_to_text,
     discord_tunnel_start_to_text,
     discord_tunnel_status_to_text,
     discord_tunnel_stop_to_text,
+    discord_tunnel_tun_plan_to_text,
     select_tunnel_connection,
     tunnel_connection_import_vless_to_text,
     tunnel_connections_to_text,
@@ -173,7 +180,7 @@ def describe_project() -> str:
             "default workflow: Stage 14 owner-confirmed start/stop",
             "GUI privileged start/stop: v0.4-alpha via graphical sudo askpass",
             "blockcheck lab: v0.4-alpha service targets plus Discord endpoint discovery diagnostics",
-            "discord tunnel lane: Stage 7p1-7p4 experimental SOCKS/VLESS external-core MVP",
+            "discord tunnel lane: Stage 7p5 SOCKS/VLESS guided experiment with HTTPS probe and GUI entry",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: v0.4-alpha documentation baseline; next cycle targets desktop Discord",
@@ -391,6 +398,54 @@ def build_parser() -> argparse.ArgumentParser:
         help="Stage 7p3: проверить running core и loopback SOCKS port; без запуска Discord",
     )
     parser.add_argument(
+        "--discord-tunnel-https-probe",
+        action="store_true",
+        help="Stage 7p5: выполнить harmless HTTPS HEAD через managed local SOCKS; без запуска Discord",
+    )
+    parser.add_argument(
+        "--tunnel-probe-host",
+        default=DEFAULT_TUNNEL_HTTPS_HOST,
+        help="host для --discord-tunnel-https-probe; по умолчанию updates.discord.com",
+    )
+    parser.add_argument(
+        "--tunnel-probe-path",
+        default=DEFAULT_TUNNEL_HTTPS_PATH,
+        help="path для --discord-tunnel-https-probe; по умолчанию /",
+    )
+    parser.add_argument(
+        "--tunnel-probe-timeout",
+        type=float,
+        default=8.0,
+        help="timeout секунд для SOCKS/HTTPS probe; 1..60",
+    )
+    parser.add_argument(
+        "--discord-tunnel-guided-run",
+        action="store_true",
+        help="Stage 7p5: one-command owner guided SOCKS/VLESS run: plan+confirm+start+probe+launch+verdict",
+    )
+    parser.add_argument(
+        "--tunnel-guided-no-wait",
+        action="store_true",
+        help="не ждать observation/manual verdict в --discord-tunnel-guided-run; полезно для dry-run/CI",
+    )
+    parser.add_argument(
+        "--tunnel-observe-seconds",
+        type=int,
+        default=DEFAULT_TUNNEL_OBSERVE_SECONDS,
+        help="сколько секунд ждать перед updater verdict prompt в guided tunnel run; 0..600",
+    )
+    parser.add_argument(
+        "--discord-updater-result",
+        choices=SUPPORTED_UPDATER_RESULTS,
+        default="unknown",
+        help="owner-observed updater result для guided tunnel report: passed, stuck, unknown",
+    )
+    parser.add_argument(
+        "--discord-tunnel-tun-plan",
+        action="store_true",
+        help="Stage 7p5: plan-only TUN/TProxy research lane; ничего не применяет",
+    )
+    parser.add_argument(
         "--discord-launch-through-socks",
         action="store_true",
         help="Stage 7p4: запустить Discord с SOCKS env/Chromium proxy candidates через active tunnel",
@@ -404,7 +459,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--discord-launch-mode",
         choices=SUPPORTED_LAUNCH_MODES,
         default="socks-updater-window",
-        help="режим запуска Discord через SOCKS: updater-window или full-session",
+        help="режим запуска Discord через SOCKS: updater-window, full-session, env-only или flag-only",
     )
     parser.add_argument(
         "--pretls-probe-wait-seconds",
@@ -869,6 +924,38 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.discord_tunnel_probe:
         print(discord_tunnel_probe_to_text(profile_id=args.profile))
+        return 0
+
+    if args.discord_tunnel_https_probe:
+        try:
+            print(discord_tunnel_https_probe_to_text(profile_id=args.profile, target_host=str(args.tunnel_probe_host), target_path=str(args.tunnel_probe_path), timeout_seconds=float(args.tunnel_probe_timeout)))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.discord_tunnel_guided_run:
+        try:
+            text = discord_tunnel_guided_run_to_text(
+                profile_id=args.profile,
+                core_binary=args.tunnel_core_binary,
+                core_kind=args.tunnel_core_kind,
+                socks_port=args.tunnel_socks_port,
+                discord_binary=str(args.discord_binary),
+                launch_mode=str(args.discord_launch_mode),
+                observe_seconds=args.tunnel_observe_seconds,
+                updater_result=str(args.discord_updater_result),
+                interactive=not args.tunnel_guided_no_wait,
+                emit=print,
+            )
+            print(text)
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.discord_tunnel_tun_plan:
+        print(discord_tunnel_tun_plan_to_text(profile_id=args.profile))
         return 0
 
     if args.discord_launch_through_socks:
