@@ -369,3 +369,19 @@ no Discord launch
 
 The next implementation layer should be Stage 7p1: a pure VLESS URI parser and
 `.zap2/tunnel` connection-profile model with redaction tests.
+
+
+## v0.4-alpha Stage 7p1-7p4 — Experimental Discord SOCKS/VLESS tunnel MVP
+
+Stage 7p1-7p4 turns the Stage 7p0 plan into the first CLI/runtime MVP for the
+new tunnel lane.  It adds VLESS URI import, redacted connection selection,
+external core config generation, owner-confirmed start/stop for an installed
+core, loopback SOCKS probing, and a Discord launch wrapper using proxy
+environment variables plus Chromium/Electron `--proxy-server` candidates.
+
+This lane is deliberately separate from the zapret/NFQUEUE lane.  It does not
+download cores, does not commit owner connection strings, does not modify
+firewall/service state, and refuses to run while the default zapret workflow is
+already active.  The next planned layer is Stage 7p5: a guided updater-window
+experiment that records whether Discord actually uses the local SOCKS listener
+and whether the updater passes.

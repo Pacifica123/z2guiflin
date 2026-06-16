@@ -482,3 +482,50 @@ The SOCKS/VLESS lane becomes useful when the app can do this safely:
 
 That MVP is enough to decide whether the new philosophy is worth promoting from
 experiment to real runtime backend.
+
+
+## 18. Stage 7p1-7p4 implementation status
+
+Stage 7p1 through the first practical part of Stage 7p4 are now implemented as
+CLI/runtime primitives.  This is still an experimental lane, but it is no longer
+documentation-only.
+
+Implemented pieces:
+
+```text
+connection import     -> --tunnel-connection-import-vless URI_OR_@FILE
+connection list       -> --tunnel-connections
+connection select     -> --tunnel-select-connection CONNECTION_ID
+core config plan      -> --discord-tunnel-plan [--tunnel-core-binary PATH]
+owner confirmation    -> --runtime-confirm PLAN_ID
+core start            -> --discord-tunnel-start --confirm PLAN_ID
+core status/probe     -> --discord-tunnel-status / --discord-tunnel-probe
+core stop             -> --discord-tunnel-stop
+Discord SOCKS launch  -> --discord-launch-through-socks
+```
+
+The implementation keeps these safety constraints from the plan:
+
+- no external core is downloaded automatically;
+- the owner supplies or installs `xray`, `v2ray`, or `sing-box`;
+- generated core config is written under `.zap2/tunnel/generated` with restrictive
+  permissions;
+- raw VLESS UUID/server values are stored only in `.zap2/tunnel`, not in project
+  files, docs, or normal CLI output;
+- the start plan goes through the same `--runtime-confirm` confirmation gate used
+  elsewhere in the project;
+- SOCKS binds to `127.0.0.1`;
+- the tunnel start path refuses to mix with an already-running default zapret
+  workflow;
+- stop kills only the PID recorded in `.zap2/tunnel/runtime/default.session.json`.
+
+Current limitations:
+
+- the first config generator targets VLESS over TCP with `security=none` and
+  `headerType=http`, plus basic TLS/WS shaping hooks;
+- SOCKS path probing only confirms core/process/loopback port readiness; it does
+  not yet perform a full HTTPS request through SOCKS;
+- Discord updater success is still manual observation after
+  `--discord-launch-through-socks`;
+- GUI controls are not implemented yet;
+- TUN/TProxy remains a later research lane.

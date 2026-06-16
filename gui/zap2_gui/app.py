@@ -106,6 +106,20 @@ from .adapters.discord_observation_matrix import (
     discord_observation_matrix_report_to_text,
     discord_observation_matrix_run_row_to_text,
 )
+from .adapters.discord_tunnel import (
+    SUPPORTED_CORE_KINDS,
+    SUPPORTED_LAUNCH_MODES,
+    DEFAULT_SOCKS_PORT,
+    discord_launch_through_socks_to_text,
+    discord_tunnel_plan_to_text,
+    discord_tunnel_probe_to_text,
+    discord_tunnel_start_to_text,
+    discord_tunnel_status_to_text,
+    discord_tunnel_stop_to_text,
+    select_tunnel_connection,
+    tunnel_connection_import_vless_to_text,
+    tunnel_connections_to_text,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -159,6 +173,7 @@ def describe_project() -> str:
             "default workflow: Stage 14 owner-confirmed start/stop",
             "GUI privileged start/stop: v0.4-alpha via graphical sudo askpass",
             "blockcheck lab: v0.4-alpha service targets plus Discord endpoint discovery diagnostics",
+            "discord tunnel lane: Stage 7p1-7p4 experimental SOCKS/VLESS external-core MVP",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: v0.4-alpha documentation baseline; next cycle targets desktop Discord",
@@ -316,6 +331,80 @@ def build_parser() -> argparse.ArgumentParser:
         "--matrix-row-auto",
         action="store_true",
         help="Stage 7o2d: максимально автоматизировать строку матрицы: auto-build/confirm/prepare, а в sudo-фазе auto-start + guided probe",
+    )
+
+    parser.add_argument(
+        "--tunnel-connection-import-vless",
+        metavar="URI_OR_@FILE",
+        help="Stage 7p1: импортировать VLESS share link в .zap2/tunnel и auto-select; секрет не печатается",
+    )
+    parser.add_argument(
+        "--tunnel-connections",
+        action="store_true",
+        help="Stage 7p1: показать redacted список Discord tunnel connection profiles; без запуска",
+    )
+    parser.add_argument(
+        "--tunnel-select-connection",
+        metavar="CONNECTION_ID",
+        help="Stage 7p1: выбрать активный tunnel connection profile; без запуска",
+    )
+    parser.add_argument(
+        "--tunnel-core-binary",
+        default=None,
+        help="путь к внешнему core binary (xray/v2ray/sing-box) для --discord-tunnel-plan",
+    )
+    parser.add_argument(
+        "--tunnel-core-kind",
+        choices=SUPPORTED_CORE_KINDS,
+        default="auto",
+        help="тип внешнего core для argv generation: auto, xray, v2ray или sing-box",
+    )
+    parser.add_argument(
+        "--tunnel-socks-port",
+        type=int,
+        default=DEFAULT_SOCKS_PORT,
+        help="локальный loopback SOCKS port для tunnel lane; по умолчанию 10808",
+    )
+    parser.add_argument(
+        "--discord-tunnel-plan",
+        action="store_true",
+        help="Stage 7p2: подготовить owner-confirmed Discord SOCKS/VLESS tunnel start plan и redacted core config preview",
+    )
+    parser.add_argument(
+        "--discord-tunnel-start",
+        action="store_true",
+        help="Stage 7p3: запустить внешний core по confirmed tunnel plan; без sudo/firewall/service",
+    )
+    parser.add_argument(
+        "--discord-tunnel-stop",
+        action="store_true",
+        help="Stage 7p3: остановить только managed tunnel core PID из .zap2/tunnel/runtime",
+    )
+    parser.add_argument(
+        "--discord-tunnel-status",
+        action="store_true",
+        help="Stage 7p3: read-only статус managed tunnel core/session",
+    )
+    parser.add_argument(
+        "--discord-tunnel-probe",
+        action="store_true",
+        help="Stage 7p3: проверить running core и loopback SOCKS port; без запуска Discord",
+    )
+    parser.add_argument(
+        "--discord-launch-through-socks",
+        action="store_true",
+        help="Stage 7p4: запустить Discord с SOCKS env/Chromium proxy candidates через active tunnel",
+    )
+    parser.add_argument(
+        "--discord-binary",
+        default="discord",
+        help="путь/имя Discord binary для --discord-launch-through-socks; по умолчанию discord из PATH",
+    )
+    parser.add_argument(
+        "--discord-launch-mode",
+        choices=SUPPORTED_LAUNCH_MODES,
+        default="socks-updater-window",
+        help="режим запуска Discord через SOCKS: updater-window или full-session",
     )
     parser.add_argument(
         "--pretls-probe-wait-seconds",
@@ -729,6 +818,66 @@ def main(argv: list[str] | None = None) -> int:
     if args.external_reference_audit:
         print(external_reference_audit_to_text())
         return 0
+
+    if args.tunnel_connection_import_vless:
+        try:
+            print(tunnel_connection_import_vless_to_text(str(args.tunnel_connection_import_vless), profile_id=args.profile))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.tunnel_connections:
+        print(tunnel_connections_to_text(profile_id=args.profile))
+        return 0
+
+    if args.tunnel_select_connection:
+        try:
+            print(select_tunnel_connection(str(args.tunnel_select_connection), profile_id=args.profile))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.discord_tunnel_plan:
+        try:
+            print(discord_tunnel_plan_to_text(profile_id=args.profile, core_binary=args.tunnel_core_binary, core_kind=args.tunnel_core_kind, socks_port=args.tunnel_socks_port))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.discord_tunnel_start:
+        try:
+            print(discord_tunnel_start_to_text(profile_id=args.profile, confirm_plan_id=args.confirm or ""))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.discord_tunnel_stop:
+        try:
+            print(discord_tunnel_stop_to_text(profile_id=args.profile))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.discord_tunnel_status:
+        print(discord_tunnel_status_to_text(profile_id=args.profile))
+        return 0
+
+    if args.discord_tunnel_probe:
+        print(discord_tunnel_probe_to_text(profile_id=args.profile))
+        return 0
+
+    if args.discord_launch_through_socks:
+        try:
+            print(discord_launch_through_socks_to_text(profile_id=args.profile, discord_binary=str(args.discord_binary), launch_mode=str(args.discord_launch_mode)))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
 
     if args.runtime_contracts:
         print(runtime_contracts_to_text())

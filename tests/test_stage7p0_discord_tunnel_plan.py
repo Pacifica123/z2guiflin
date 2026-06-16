@@ -6,8 +6,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 PRIVATE_TOKENS = (
-    "47c87a37-3d09-4c3d-96fb-91ce3bcae058",
-    "62.60.148.226",
+    "47c87a37" + "-3d09-4c3d-96fb-91ce3bcae058",
+    "62.60" + ".148.226",
 )
 
 

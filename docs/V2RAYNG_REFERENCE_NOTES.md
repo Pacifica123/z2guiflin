@@ -72,3 +72,17 @@ vless://<uuid>@<server>:<port>?type=tcp&encryption=none#<remarks>
 
 Raw UUIDs, endpoint addresses, and full share links belong in `.zap2/tunnel` at
 runtime, not in docs or patch payloads.
+
+
+## Stage 7p1 implementation use
+
+The Stage 7p1-7p4 implementation keeps v2rayNG as a reference-only source.  The
+actual Python code is native Zap2 code and does not copy Kotlin implementation.
+The concrete ideas carried over are:
+
+- parse share links into a local profile model instead of treating raw URIs as
+  runtime args;
+- create a loopback SOCKS inbound with sniffing hints;
+- generate a core JSON config from profile data;
+- keep the proxy-only lane separate from future VPN/TUN routing;
+- treat process/session state as a managed service lifecycle with explicit stop.
