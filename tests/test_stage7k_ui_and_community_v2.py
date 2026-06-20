@@ -6,17 +6,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_blockcheck_lab_is_scrollable_and_not_fixed_to_broken_stage7j_width() -> None:
+def test_blockcheck_lab_is_scrollable_and_uses_two_pane_stage7r_layout() -> None:
     source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
 
     assert "QScrollArea" in source
     assert "blockcheckLabScrollArea" in source
     assert "scroll.setWidgetResizable(True)" in source
-    assert "BLOCKCHECK_LAB_CONTENT_WIDTH = 940" in source
-    assert "BLOCKCHECK_LAB_OUTPUT_MIN_HEIGHT = 320" in source
+    assert "BLOCKCHECK_LAB_CONTENT_WIDTH = 1080" in source
+    assert "BLOCKCHECK_LAB_OUTPUT_MIN_HEIGHT = 220" in source
+    assert "BLOCKCHECK_LAB_SIDE_MIN_WIDTH = 320" in source
     assert "form_box.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)" in source
-    assert "actions_box.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)" in source
-    assert "output.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)" in source
+    assert "actions_box.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)" in source
+    assert "output.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)" in source
+    assert "blockcheckTwoPaneBody" in source
+    assert "blockcheckRightColumn" in source
+    assert "layout.addWidget(body, 1, QtCore.Qt.AlignmentFlag.AlignHCenter)" in source
     assert "form_box.setMinimumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)" not in source
     assert "output.setMinimumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)" not in source
 

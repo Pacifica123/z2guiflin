@@ -21,7 +21,8 @@ def test_blockcheck_lab_layout_is_less_edge_stretched() -> None:
     assert "target_preset_combo.setMaximumWidth(760)" in source
     assert "domains_edit.setMaximumWidth(760)" in source
     assert "scan_mode_combo.setMaximumWidth(760)" in source
-    assert "target_preset_hint.setMinimumHeight(42)" in source
+    assert "target_preset_hint.setMinimumHeight(34)" in source
+    assert "target_preset_hint.setMaximumHeight(58)" in source
 
 
 def test_main_window_stage7f_size_is_roomier() -> None:

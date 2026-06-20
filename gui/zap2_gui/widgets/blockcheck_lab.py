@@ -49,9 +49,10 @@ from ..models.service_targets import (
 from ..qt_compat import require_pyqt
 
 
-BLOCKCHECK_LAB_CONTENT_WIDTH = 940
-BLOCKCHECK_LAB_SECTION_MIN_WIDTH = 720
-BLOCKCHECK_LAB_OUTPUT_MIN_HEIGHT = 320
+BLOCKCHECK_LAB_CONTENT_WIDTH = 1080
+BLOCKCHECK_LAB_SECTION_MIN_WIDTH = 560
+BLOCKCHECK_LAB_SIDE_MIN_WIDTH = 320
+BLOCKCHECK_LAB_OUTPUT_MIN_HEIGHT = 220
 
 
 def make_blockcheck_lab_page(root: Path | None = None) -> Any:
@@ -77,7 +78,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     content.setObjectName("blockcheckLabContent")
     scroll.setWidget(content)
     layout = QtWidgets.QVBoxLayout(content)
-    layout.setContentsMargins(14, 12, 14, 16)
+    layout.setContentsMargins(18, 12, 18, 14)
     layout.setSpacing(8)
 
     title = QtWidgets.QLabel("Диагностика: Blockcheck lab")
@@ -92,12 +93,12 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
     form_box = QtWidgets.QGroupBox("Параметры scan")
     form = QtWidgets.QGridLayout(form_box)
-    form.setHorizontalSpacing(12)
-    form.setVerticalSpacing(10)
+    form.setHorizontalSpacing(10)
+    form.setVerticalSpacing(6)
 
     target_preset_combo = QtWidgets.QComboBox()
     target_preset_combo.setObjectName("blockcheckServiceTargetPreset")
-    target_preset_combo.setMinimumHeight(38)
+    target_preset_combo.setMinimumHeight(34)
     target_preset_combo.setMinimumWidth(280)
     target_preset_combo.setMaximumWidth(760)
     target_preset_combo.setMinimumContentsLength(24)
@@ -111,21 +112,21 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     target_preset_hint = QtWidgets.QLabel("")
     target_preset_hint.setObjectName("mutedText")
     target_preset_hint.setWordWrap(True)
-    target_preset_hint.setMinimumHeight(42)
-    target_preset_hint.setMaximumHeight(72)
+    target_preset_hint.setMinimumHeight(34)
+    target_preset_hint.setMaximumHeight(58)
     target_preset_hint.setMaximumWidth(760)
 
     domains_edit = QtWidgets.QLineEdit(DEFAULT_BLOCKCHECK_TARGET_STRING)
     domains_edit.setObjectName("blockcheckDomainsEdit")
     domains_edit.setPlaceholderText(DEFAULT_BLOCKCHECK_TARGET_STRING)
-    domains_edit.setMinimumHeight(38)
+    domains_edit.setMinimumHeight(34)
     domains_edit.setMinimumWidth(280)
     domains_edit.setMaximumWidth(760)
     domains_edit.setToolTip("Registry-owned presets keep this field read-only; Custom manual targets makes it editable.")
 
     scan_mode_combo = QtWidgets.QComboBox()
     scan_mode_combo.setObjectName("blockcheckCandidateScanMode")
-    scan_mode_combo.setMinimumHeight(38)
+    scan_mode_combo.setMinimumHeight(34)
     scan_mode_combo.setMinimumWidth(280)
     scan_mode_combo.setMaximumWidth(760)
     scan_mode_combo.addItem("Stop after first AVAILABLE", BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE)
@@ -142,7 +143,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     ip_combo.addItems(["4", "6", "46"])
 
     for compact_combo in (test_combo, scan_combo, ip_combo):
-        compact_combo.setMinimumHeight(36)
+        compact_combo.setMinimumHeight(32)
         compact_combo.setMinimumWidth(160)
         compact_combo.setMaximumWidth(260)
 
@@ -161,7 +162,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     timeout_spin.setValue(3)
     timeout_spin.setSuffix(" сек")
     for compact_spin in (repeats_spin, timeout_spin, phase_budget_spin):
-        compact_spin.setMinimumHeight(36)
+        compact_spin.setMinimumHeight(32)
         compact_spin.setMinimumWidth(130)
 
     http_check = QtWidgets.QCheckBox("HTTP")
@@ -203,26 +204,24 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     form.addWidget(http3_check, 7, 3)
     form.addWidget(dns_check, 8, 0, 1, 2)
     form.addWidget(dead_guard_check, 8, 2, 1, 2)
-    form.setColumnMinimumWidth(0, 116)
-    form.setColumnMinimumWidth(1, 240)
-    form.setColumnMinimumWidth(2, 104)
-    form.setColumnMinimumWidth(3, 240)
+    form.setColumnMinimumWidth(0, 96)
+    form.setColumnMinimumWidth(1, 168)
+    form.setColumnMinimumWidth(2, 88)
+    form.setColumnMinimumWidth(3, 168)
     form.setColumnStretch(0, 0)
     form.setColumnStretch(1, 2)
     form.setColumnStretch(2, 0)
     form.setColumnStretch(3, 2)
     form_box.setMinimumHeight(0)
     form_box.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)
-    form_box.setMaximumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)
+    form_box.setMaximumWidth(620)
 
     actions_box = QtWidgets.QGroupBox("Actions")
-    actions_box.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)
-    actions_box.setMaximumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)
-    actions_layout = QtWidgets.QVBoxLayout(actions_box)
+    actions_box.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)
+    actions_layout = QtWidgets.QGridLayout(actions_box)
     actions_layout.setContentsMargins(8, 8, 8, 8)
-    actions_layout.setSpacing(6)
-    buttons = QtWidgets.QHBoxLayout()
-    secondary_buttons = QtWidgets.QHBoxLayout()
+    actions_layout.setHorizontalSpacing(6)
+    actions_layout.setVerticalSpacing(6)
     preflight_button = QtWidgets.QPushButton("Preflight")
     build_plan_button = QtWidgets.QPushButton("Binaries plan")
     build_button = QtWidgets.QPushButton("Build binaries")
@@ -245,29 +244,31 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         preflight_button, build_plan_button, build_button, plan_button, run_button, stop_button,
         export_button, coverage_button, policy_button, tournament_button, verify_button, endpoint_button, log_button,
     ):
-        action_button.setMinimumHeight(36)
-        action_button.setMinimumWidth(88)
-        action_button.setMaximumWidth(160)
-    run_button.setFixedWidth(44)
-    stop_button.setFixedWidth(44)
-    export_button.setMinimumWidth(124)
-    buttons.addWidget(preflight_button)
-    buttons.addWidget(plan_button)
-    buttons.addWidget(run_button)
-    buttons.addWidget(stop_button)
-    buttons.addWidget(export_button)
-    buttons.addWidget(coverage_button)
-    buttons.addStretch(1)
-    secondary_buttons.addWidget(build_plan_button)
-    secondary_buttons.addWidget(build_button)
-    secondary_buttons.addWidget(policy_button)
-    secondary_buttons.addWidget(tournament_button)
-    secondary_buttons.addWidget(verify_button)
-    secondary_buttons.addWidget(endpoint_button)
-    secondary_buttons.addWidget(log_button)
-    secondary_buttons.addStretch(1)
-    actions_layout.addLayout(buttons)
-    actions_layout.addLayout(secondary_buttons)
+        action_button.setMinimumHeight(32)
+        action_button.setMinimumWidth(76)
+        action_button.setMaximumWidth(150)
+    run_button.setFixedWidth(40)
+    stop_button.setFixedWidth(40)
+    export_button.setMinimumWidth(118)
+    action_grid = (
+        (preflight_button, 0, 0, 1, 1),
+        (plan_button, 0, 1, 1, 1),
+        (run_button, 0, 2, 1, 1),
+        (stop_button, 0, 3, 1, 1),
+        (export_button, 1, 0, 1, 2),
+        (coverage_button, 1, 2, 1, 2),
+        (build_plan_button, 2, 0, 1, 2),
+        (build_button, 2, 2, 1, 2),
+        (policy_button, 3, 0, 1, 1),
+        (tournament_button, 3, 1, 1, 1),
+        (verify_button, 3, 2, 1, 1),
+        (endpoint_button, 3, 3, 1, 1),
+        (log_button, 4, 0, 1, 4),
+    )
+    for button, row, column, row_span, column_span in action_grid:
+        actions_layout.addWidget(button, row, column, row_span, column_span)
+    for column in range(4):
+        actions_layout.setColumnStretch(column, 1)
 
     status = QtWidgets.QLabel("Статус: idle")
     status.setObjectName("blockcheckStatusPill")
@@ -961,8 +962,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     log_button.clicked.connect(lambda _checked=False: run_action("Последний лог", lambda: last_blockcheck_log_to_text(root=root)))
 
     output.setMinimumHeight(BLOCKCHECK_LAB_OUTPUT_MIN_HEIGHT)
-    output.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)
-    output.setMaximumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)
+    output.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)
     try:
         output.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
@@ -970,18 +970,50 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         )
     except Exception:  # pragma: no cover - PyQt compatibility
         pass
+
+    body = QtWidgets.QWidget()
+    body.setObjectName("blockcheckTwoPaneBody")
+    body.setMinimumWidth(900)
+    body.setMaximumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)
+    try:
+        body.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
+    except Exception:  # pragma: no cover - PyQt compatibility
+        pass
+    body_layout = QtWidgets.QHBoxLayout(body)
+    body_layout.setContentsMargins(0, 0, 0, 0)
+    body_layout.setSpacing(10)
+
+    right_column = QtWidgets.QWidget()
+    right_column.setObjectName("blockcheckRightColumn")
+    right_column.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)
+    try:
+        right_column.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
+    except Exception:  # pragma: no cover - PyQt compatibility
+        pass
+    right_layout = QtWidgets.QVBoxLayout(right_column)
+    right_layout.setContentsMargins(0, 0, 0, 0)
+    right_layout.setSpacing(8)
+    right_layout.addWidget(actions_box, 0)
+    right_layout.addWidget(status, 0)
+    right_layout.addWidget(output, 1)
+
+    body_layout.addWidget(form_box, 0)
+    body_layout.addWidget(right_column, 1)
+
     title.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)
     title.setMaximumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)
     intro.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)
     intro.setMaximumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)
-    status.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)
-    status.setMaximumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)
+    status.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)
     layout.addWidget(title, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
     layout.addWidget(intro, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
-    layout.addWidget(form_box, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
-    layout.addWidget(actions_box, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
-    layout.addWidget(status, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
-    layout.addWidget(output, 1, QtCore.Qt.AlignmentFlag.AlignHCenter)
+    layout.addWidget(body, 1, QtCore.Qt.AlignmentFlag.AlignHCenter)
 
     page.setStyleSheet(
         """
