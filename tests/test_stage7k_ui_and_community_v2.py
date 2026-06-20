@@ -18,6 +18,7 @@ def test_blockcheck_lab_is_scrollable_and_uses_two_pane_stage7r_layout() -> None
     assert "form_box.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)" in source
     assert "actions_box.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)" in source
     assert "output.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)" in source
+    assert "BLOCKCHECK_LAB_SECTION_MIN_WIDTH = 560" in source
     assert "blockcheckTwoPaneBody" in source
     assert "blockcheckRightColumn" in source
     assert "layout.addWidget(body, 1)" in source

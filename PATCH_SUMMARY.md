@@ -1,31 +1,35 @@
-# v0.4-alpha Stage 7s — Diagnostics spacing and header reflow polish
+# v0.4-alpha Stage 7t — Compact Scan Parameters polish
 
-Stage 7s is a follow-up UI-only patch for the Diagnostics / Blockcheck lab page.
-It focuses on the remaining visual defects seen after Stage 7r:
-- the explanatory intro text could still look clipped/tight under the page title;
-- the left scan form still had awkward dead space around labels and the preset hint row;
-- the scan rows felt too loose vertically;
-- the right log pane needed a bit more guaranteed height to stay comfortable.
+Stage 7t is a small follow-up UI-only patch for the Diagnostics / Blockcheck lab page.
+After Stage 7s the overall two-pane layout was close to acceptable, but the
+left `Параметры scan` area still looked looser and bulkier than the `Actions`
+panel. This patch compacts the scan-parameter area while preserving all current
+blockcheck behavior and control semantics.
 
 ## Updated
 
-- Increased the effective Diagnostics content lane from `1080px` to `1160px`.
-- Increased the right-side minimum width from `320px` to `360px`.
-- Increased the log/output minimum height from `220px` to `300px`.
-- Reworked the content wrapper margins/spacing to reduce the cramped header feeling.
-- Stopped centering the entire Diagnostics body; the page now lays out naturally in the content lane instead of floating with odd side balance.
-- Tightened the form grid with explicit inner margins and smaller vertical spacing.
-- Reduced the label-column widths and right-aligned labels so controls read as a tighter block.
-- Moved the service-target preset hint row to span the full form width, eliminating the awkward empty pocket under the first label column.
-- Slightly widened the left form box and widened long combo/input maximum widths.
-- Slightly reduced compact-control and action-button heights to make the parameter stack denser.
-- Preserved the Stage 7r two-pane structure, scroll fallback, and all blockcheck execution behavior.
-- Updated source-level UI tests to lock the new Stage 7s sizing contract.
+- Tightened the internal `Параметры scan` grid margins and row spacing.
+- Reduced the height of the larger top controls (`Service target`, `Домены/URI`,
+  `Candidate mode`) from `34px` to `32px`.
+- Reduced compact combo/spin heights from `30px` to `28px`.
+- Reduced compact combo/spin minimum widths so the two-column parameter pairs
+  read as a denser, neater block.
+- Reduced the label-column minimum widths and kept right-aligned labels so the
+  left form reads more like a compact settings sheet and less like a sparse form.
+- Reduced the preset hint height and width slightly and kept it spanning the full
+  form width.
+- Slightly narrowed the scan form maximum width and section minimum width so the
+  overall left pane feels more balanced next to the `Actions` pane.
+- Added a small style hook for the scan group box and slightly smaller helper-text
+  styling for the preset hint.
+- Preserved the Stage 7s/7r two-pane structure, status pill, output pane, scroll
+  fallback, and all blockcheck/tunnel/runtime logic unchanged.
 
 ## Scope
 
-- No changes to blockcheck execution, sudo flow, tunnel/runtime behavior, strategy logic, service-target logic, or zapret2 core.
-- This patch only affects Diagnostics layout polish and the source-level tests that describe it.
+- No changes to blockcheck execution, sudo flow, target selection, strategy export,
+  tournament logic, tunnel logic, or zapret2 core.
+- Only the Diagnostics UI layout density and related source-level UI tests changed.
 
 ## Checks
 

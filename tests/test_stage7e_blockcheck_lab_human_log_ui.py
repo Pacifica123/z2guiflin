@@ -8,11 +8,13 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_blockcheck_lab_has_more_compact_two_pane_control_sizing() -> None:
     source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
 
-    assert "setMinimumHeight(34)" in source
-    assert "form.setContentsMargins(12, 16, 12, 12)" in source
-    assert "form.setColumnMinimumWidth(1, 148)" in source
+    assert "target_preset_combo.setMinimumHeight(32)" in source
+    assert "domains_edit.setMinimumHeight(32)" in source
+    assert "form.setContentsMargins(10, 14, 10, 10)" in source
+    assert "form.setColumnMinimumWidth(1, 128)" in source
     assert "form_box.setMinimumHeight(0)" in source
     assert "action_button.setMinimumHeight(30)" in source
+    assert "compact_combo.setMinimumHeight(28)" in source
     assert "body_layout = QtWidgets.QHBoxLayout(body)" in source
     assert "Raw log" in source
 
