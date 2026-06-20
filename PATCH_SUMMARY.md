@@ -1,45 +1,41 @@
-# v0.4-alpha Stage 7p5 — Guided Discord SOCKS/VLESS tunnel experiment
+# v0.4-alpha Stage 7q — Compact diagnostics tab visual pass
 
-Stage 7p5 extends the Stage 7p1-7p4 tunnel MVP into a more usable experiment lane.
-It keeps the same security boundary: Zap2GUIfLin does not implement VLESS itself,
-does not download external cores, does not mutate firewall/service state, and does
-not require sudo for SOCKS mode.
-
-## Added
-
-- `--discord-tunnel-https-probe`: harmless HTTPS `HEAD` through the managed local
-  SOCKS listener, with JSON report under `.zap2/tunnel/reports`.
-- `--discord-tunnel-guided-run`: one-command owner/user-space flow that prepares
-  and confirms the tunnel start plan, starts the external core, runs SOCKS and
-  HTTPS probes, launches Discord through SOCKS candidates, and writes a guided
-  report.
-- `--discord-updater-result passed|stuck|unknown` and `--tunnel-observe-seconds`
-  for recording updater outcomes without pretending the CLI can see the desktop
-  UI by itself.
-- `socks-env-only` and `socks-flag-only` Discord launch modes for comparing proxy
-  environment variables against the Electron/Chromium proxy flag.
-- `--discord-tunnel-tun-plan`: plan-only TUN/TProxy research note; it applies no
-  nftables rules and starts no service.
-- A lightweight PyQt `Туннель` tab for redacted connection profiles, tunnel
-  status, SOCKS probe, HTTPS probe, and TUN/TProxy plan access.
+Stage 7q is a UI-only pause from the Discord tunnel work. It cleans up the
+Diagnostics / Blockcheck lab page so it is less wide, the log area is usable,
+and the main run/stop controls are visually distinct without changing the
+blockcheck execution logic.
 
 ## Updated
 
-- GUI navigation now includes a dedicated `Туннель` section.
-- Discord tunnel docs and v0.4-alpha roadmap include Stage 7p5 usage notes.
-- The tunnel stage marker is advanced to `v0.4-alpha_stage7p5`.
+- Reduced the main window default size from `1320x900` to `1240x840` and the
+  minimum size from `1060x720` to `960x680`, keeping the app usable on smaller
+  screens.
+- Narrowed the Blockcheck lab content lane to `940px` and introduced a shared
+  `720px` section minimum for header, form, actions, status, and output.
+- Made the Diagnostics output pane expand to the same section width instead of
+  collapsing into a tiny narrow textbox.
+- Replaced the text-heavy Blockcheck run/stop buttons with compact `▶` and `■`
+  controls and object names for styling.
+- Added lightweight page-local styling for the diagnostics title, group boxes,
+  status pill, primary run button, stop button, and monospace log output.
+- Updated source-level UI tests to lock in the compact layout and bounded window
+  sizing.
 
-## Safety notes
+## Scope
 
-- No user VLESS URI is committed to project files.
-- External core binaries are still supplied manually by the owner via
-  `--tunnel-core-binary` or `ZAP2_TUNNEL_CORE`.
-- Guided SOCKS mode auto-confirms only the local user-space tunnel plan. It does
-  not use sudo, nftables, NFQUEUE, systemd, or hidden downloads.
-- Final updater verdict remains owner-observed: the program records `passed`,
-  `stuck`, or `unknown`, while automatic probes measure tunnel readiness.
+- No runtime, tunnel, zapret2 core, strategy, firewall, service, sudo, or network
+  behavior is changed.
+- This patch only affects the PyQt diagnostics layout, main-window sizing, and
+  tests that assert those visual contracts.
 
 ## Checks
 
-- `PYTHONPATH=gui python -m pytest tests/test_gui_shell_skeleton.py tests/test_stage7p0_discord_tunnel_plan.py tests/test_stage7p1_discord_tunnel.py tests/test_stage7p5_discord_tunnel_guided.py -q`
-- `python -m compileall -q gui tests`
+- `python -m py_compile gui/zap2_gui/widgets/blockcheck_lab.py gui/zap2_gui/windows/main_window.py`
+- `PYTHONPATH=gui pytest -q tests/test_gui_shell_skeleton.py tests/test_blockcheck_gui_lab.py tests/test_stage7d_blockcheck_guard_and_ui.py tests/test_stage7e_blockcheck_lab_human_log_ui.py tests/test_stage7f_blockcheck_budget_ui.py tests/test_stage7g_blockcheck_ui_layout.py tests/test_stage7k_ui_and_community_v2.py tests/test_nfqws_privilege_order_and_gui_compact.py`
+
+## Note
+
+A full-suite pytest run still reaches an unrelated pre-existing vendored-core
+inventory snapshot mismatch: the current tree contains `core/zapret2/lua/custom_funcs.lua`
+while `CORE_INVENTORY.json` still records the older 245-file snapshot. This UI
+patch does not touch that snapshot.

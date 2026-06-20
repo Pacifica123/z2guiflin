@@ -12,11 +12,11 @@ def test_blockcheck_lab_is_scrollable_and_not_fixed_to_broken_stage7j_width() ->
     assert "QScrollArea" in source
     assert "blockcheckLabScrollArea" in source
     assert "scroll.setWidgetResizable(True)" in source
-    assert "BLOCKCHECK_LAB_CONTENT_WIDTH = 1040" in source
-    assert "BLOCKCHECK_LAB_OUTPUT_MIN_HEIGHT = 280" in source
-    assert "form_box.setMinimumWidth(0)" in source
-    assert "actions_box.setMinimumWidth(0)" in source
-    assert "output.setMinimumWidth(0)" in source
+    assert "BLOCKCHECK_LAB_CONTENT_WIDTH = 940" in source
+    assert "BLOCKCHECK_LAB_OUTPUT_MIN_HEIGHT = 320" in source
+    assert "form_box.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)" in source
+    assert "actions_box.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)" in source
+    assert "output.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)" in source
     assert "form_box.setMinimumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)" not in source
     assert "output.setMinimumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)" not in source
 
@@ -24,8 +24,8 @@ def test_blockcheck_lab_is_scrollable_and_not_fixed_to_broken_stage7j_width() ->
 def test_main_window_stage7k_size_keeps_diagnostics_roomy() -> None:
     source = (ROOT / "gui" / "zap2_gui" / "windows" / "main_window.py").read_text(encoding="utf-8")
 
-    assert "self.resize(1320, 900)" in source
-    assert "self.setMinimumSize(1060, 720)" in source
+    assert "self.resize(1240, 840)" in source
+    assert "self.setMinimumSize(960, 680)" in source
 
 
 def test_community_discord_syndata_edge_flow_v2_is_registered() -> None:

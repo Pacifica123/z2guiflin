@@ -267,7 +267,7 @@ def test_blockcheck_lab_widget_uses_qprocess_live_streaming() -> None:
 
     assert "QtCore.QProcess" in source
     assert "readyReadStandardOutput" in source
-    assert "■ Stop" in source
+    assert "blockcheckStopButton" in source
     assert "candidate_targets" in source
     assert "Auto-skip dead target" in source
     assert "BLOCKCHECK_DEAD_TARGET_GUARD_OBSERVE_ONLY" in source

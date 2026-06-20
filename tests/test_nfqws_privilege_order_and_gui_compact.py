@@ -29,5 +29,5 @@ def test_runtime_overview_uses_compact_primary_button() -> None:
 
 def test_main_window_default_width_is_blockcheck_friendly_but_bounded() -> None:
     source = (ROOT / "gui" / "zap2_gui" / "windows" / "main_window.py").read_text(encoding="utf-8")
-    assert "self.resize(1280, 860)" in source
-    assert "self.setMinimumSize(1040, 700)" in source
+    assert "self.resize(1240, 840)" in source
+    assert "self.setMinimumSize(960, 680)" in source

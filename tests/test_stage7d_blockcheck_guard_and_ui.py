@@ -31,8 +31,8 @@ def test_blockcheck_lab_ui_exposes_guard_and_compact_action_groups() -> None:
     assert "Auto-skip dead target" in source
     assert "actions_box = QtWidgets.QGroupBox(\"Actions\")" in source
     assert "secondary_buttons" in source
-    assert "▶ Run" in source
-    assert "■ Stop" in source
+    assert "blockcheckPrimaryRunButton" in source
+    assert "blockcheckStopButton" in source
     assert "dead_guard_check.setChecked(False)" in source
     assert "prepared.command.options.dead_target_guard == BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP" in source
 
