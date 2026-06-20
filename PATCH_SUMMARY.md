@@ -1,44 +1,33 @@
-# v0.4-alpha Stage 7r — Two-pane Diagnostics layout polish
+# v0.4-alpha Stage 7s — Diagnostics spacing and header reflow polish
 
-Stage 7r is a follow-up UI-only patch for the Diagnostics / Blockcheck lab page.
-It addresses the visual issues seen after Stage 7q: the output pane was still
-pushed below the visible area, the intro/header area felt clipped, and the
-single narrow centered column left large empty side margins.
+Stage 7s is a follow-up UI-only patch for the Diagnostics / Blockcheck lab page.
+It focuses on the remaining visual defects seen after Stage 7r:
+- the explanatory intro text could still look clipped/tight under the page title;
+- the left scan form still had awkward dead space around labels and the preset hint row;
+- the scan rows felt too loose vertically;
+- the right log pane needed a bit more guaranteed height to stay comfortable.
 
 ## Updated
 
-- Reworked the Diagnostics page into a compact two-pane layout:
-  - left pane: Blockcheck scan parameters;
-  - right pane: action buttons, status pill, and output/log pane.
-- Increased the usable content lane from `940px` to `1080px`, while keeping a
-  bounded maximum width so the page does not become edge-to-edge on large screens.
-- Reduced the parameter form width from the Stage 7q wide single-column layout
-  to a `560px` minimum / `620px` maximum pane.
-- Reduced vertical control heights and grid spacing so the form no longer pushes
-  the output pane off the bottom of a 768px-tall window.
-- Converted the action buttons from two horizontal rows into a compact grid in
-  the right pane.
-- Reduced the output minimum height from `320px` to `220px` and removed the old
-  output maximum width so it can expand inside the right pane.
-- Kept the scroll area as a safety fallback for smaller windows, but the normal
-  1240px-ish manual-test window should now show header, controls, status, and a
-  usable log pane without the bottom being cut off.
-- Updated source-level UI tests to lock in the two-pane Diagnostics contract.
+- Increased the effective Diagnostics content lane from `1080px` to `1160px`.
+- Increased the right-side minimum width from `320px` to `360px`.
+- Increased the log/output minimum height from `220px` to `300px`.
+- Reworked the content wrapper margins/spacing to reduce the cramped header feeling.
+- Stopped centering the entire Diagnostics body; the page now lays out naturally in the content lane instead of floating with odd side balance.
+- Tightened the form grid with explicit inner margins and smaller vertical spacing.
+- Reduced the label-column widths and right-aligned labels so controls read as a tighter block.
+- Moved the service-target preset hint row to span the full form width, eliminating the awkward empty pocket under the first label column.
+- Slightly widened the left form box and widened long combo/input maximum widths.
+- Slightly reduced compact-control and action-button heights to make the parameter stack denser.
+- Preserved the Stage 7r two-pane structure, scroll fallback, and all blockcheck execution behavior.
+- Updated source-level UI tests to lock the new Stage 7s sizing contract.
 
 ## Scope
 
-- No blockcheck execution, sudo, tunnel, firewall, strategy, service, zapret2
-  core, or network behavior is changed.
-- This patch only affects PyQt Diagnostics layout/source-level UI tests.
+- No changes to blockcheck execution, sudo flow, tunnel/runtime behavior, strategy logic, service-target logic, or zapret2 core.
+- This patch only affects Diagnostics layout polish and the source-level tests that describe it.
 
 ## Checks
 
 - `python -m py_compile gui/zap2_gui/widgets/blockcheck_lab.py gui/zap2_gui/windows/main_window.py`
 - `PYTHONPATH=gui python -m pytest -q tests/test_gui_shell_skeleton.py tests/test_blockcheck_gui_lab.py tests/test_stage7d_blockcheck_guard_and_ui.py tests/test_stage7e_blockcheck_lab_human_log_ui.py tests/test_stage7f_blockcheck_budget_ui.py tests/test_stage7g_blockcheck_ui_layout.py tests/test_stage7k_ui_and_community_v2.py tests/test_nfqws_privilege_order_and_gui_compact.py`
-
-## Note
-
-A full-suite `pytest -q -x` still stops on the pre-existing vendored-core
-inventory mismatch: the tree has `core/zapret2/lua/custom_funcs.lua`, while the
-committed `CORE_INVENTORY.json` snapshot still records the older 245-file core.
-This UI patch does not change that snapshot.

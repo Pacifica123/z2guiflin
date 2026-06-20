@@ -18,9 +18,9 @@ def test_phase_gated_runner_has_check_budget_auto_stop() -> None:
 def test_blockcheck_lab_layout_is_less_edge_stretched() -> None:
     source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
 
-    assert "target_preset_combo.setMaximumWidth(760)" in source
-    assert "domains_edit.setMaximumWidth(760)" in source
-    assert "scan_mode_combo.setMaximumWidth(760)" in source
+    assert "target_preset_combo.setMaximumWidth(900)" in source
+    assert "domains_edit.setMaximumWidth(900)" in source
+    assert "scan_mode_combo.setMaximumWidth(900)" in source
     assert "target_preset_hint.setMinimumHeight(34)" in source
     assert "target_preset_hint.setMaximumHeight(58)" in source
 
