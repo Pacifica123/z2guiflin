@@ -22,6 +22,7 @@ def test_blockcheck_lab_is_scrollable_and_uses_two_pane_stage7r_layout() -> None
     assert "blockcheckTwoPaneBody" in source
     assert "blockcheckRightColumn" in source
     assert "layout.addWidget(body, 1)" in source
+    assert "body_layout.addWidget(form_box, 3, QtCore.Qt.AlignmentFlag.AlignTop)" in source
     assert "form_box.setMinimumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)" not in source
     assert "output.setMinimumWidth(BLOCKCHECK_LAB_CONTENT_WIDTH)" not in source
 

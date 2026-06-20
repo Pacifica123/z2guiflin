@@ -1,35 +1,30 @@
-# v0.4-alpha Stage 7t — Compact Scan Parameters polish
+# v0.4-alpha Stage 7u — Scan form no-stretch compaction
 
-Stage 7t is a small follow-up UI-only patch for the Diagnostics / Blockcheck lab page.
-After Stage 7s the overall two-pane layout was close to acceptable, but the
-left `Параметры scan` area still looked looser and bulkier than the `Actions`
-panel. This patch compacts the scan-parameter area while preserving all current
-blockcheck behavior and control semantics.
+Stage 7t reduced some widget sizes, but the visual screenshot showed the real
+problem: the `Параметры scan` group box was still stretching vertically to match
+its right-hand neighbor, so the scan controls looked almost unchanged and the
+rows stayed too far apart.
+
+Stage 7u fixes that directly.
 
 ## Updated
 
-- Tightened the internal `Параметры scan` grid margins and row spacing.
-- Reduced the height of the larger top controls (`Service target`, `Домены/URI`,
-  `Candidate mode`) from `34px` to `32px`.
-- Reduced compact combo/spin heights from `30px` to `28px`.
-- Reduced compact combo/spin minimum widths so the two-column parameter pairs
-  read as a denser, neater block.
-- Reduced the label-column minimum widths and kept right-aligned labels so the
-  left form reads more like a compact settings sheet and less like a sparse form.
-- Reduced the preset hint height and width slightly and kept it spanning the full
-  form width.
-- Slightly narrowed the scan form maximum width and section minimum width so the
-  overall left pane feels more balanced next to the `Actions` pane.
-- Added a small style hook for the scan group box and slightly smaller helper-text
-  styling for the preset hint.
-- Preserved the Stage 7s/7r two-pane structure, status pill, output pane, scroll
-  fallback, and all blockcheck/tunnel/runtime logic unchanged.
+- Prevented the `Параметры scan` group box from vertically stretching with the
+  taller output/log pane.
+- Added a maximum height for the scan group box so its controls stay packed near
+  the top instead of being spread across the full page height.
+- Set the scan group box vertical size policy to `Maximum`.
+- Added the scan group box to the two-pane body with `AlignTop`.
+- Kept the Stage 7t smaller control sizes, tighter grid margins, smaller helper
+  text, and narrower label/control columns.
+- Preserved the right `Actions` pane, status pill, output pane, scroll fallback,
+  and all blockcheck behavior unchanged.
 
 ## Scope
 
+- UI-only patch for Diagnostics layout density.
 - No changes to blockcheck execution, sudo flow, target selection, strategy export,
   tournament logic, tunnel logic, or zapret2 core.
-- Only the Diagnostics UI layout density and related source-level UI tests changed.
 
 ## Checks
 

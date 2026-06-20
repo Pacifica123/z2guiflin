@@ -235,6 +235,14 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     form_box.setMinimumHeight(0)
     form_box.setMinimumWidth(BLOCKCHECK_LAB_SECTION_MIN_WIDTH)
     form_box.setMaximumWidth(650)
+    form_box.setMaximumHeight(390)
+    try:
+        form_box.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Maximum,
+        )
+    except Exception:  # pragma: no cover - PyQt compatibility
+        pass
 
     actions_box = QtWidgets.QGroupBox("Actions")
     actions_box.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)
@@ -1023,7 +1031,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     right_layout.addWidget(status, 0)
     right_layout.addWidget(output, 1)
 
-    body_layout.addWidget(form_box, 3)
+    body_layout.addWidget(form_box, 3, QtCore.Qt.AlignmentFlag.AlignTop)
     body_layout.addWidget(right_column, 2)
 
     title.setMinimumWidth(0)
@@ -1046,6 +1054,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         }
         QGroupBox#blockcheckScanBox {
             padding-top: 8px;
+            margin-bottom: 0;
         }
         QGroupBox {
             margin-top: 8px;

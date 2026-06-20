@@ -13,6 +13,9 @@ def test_blockcheck_lab_has_more_compact_two_pane_control_sizing() -> None:
     assert "form.setContentsMargins(10, 14, 10, 10)" in source
     assert "form.setColumnMinimumWidth(1, 128)" in source
     assert "form_box.setMinimumHeight(0)" in source
+    assert "form_box.setMaximumHeight(390)" in source
+    assert "QtWidgets.QSizePolicy.Policy.Maximum" in source
+    assert "body_layout.addWidget(form_box, 3, QtCore.Qt.AlignmentFlag.AlignTop)" in source
     assert "action_button.setMinimumHeight(30)" in source
     assert "compact_combo.setMinimumHeight(28)" in source
     assert "body_layout = QtWidgets.QHBoxLayout(body)" in source
