@@ -11,6 +11,7 @@
     "strategies/read-only-diagnostics.json",
     "strategies/community-discord-youtube-edge-flow.json",
     "strategies/community-discord-syndata-edge-flow-v2.json",
+    "strategies/community-discord-syndata-edge-flow-v2b.json",
     "strategies/community-discord-hostfakesplit-5222-minimal.json",
     "strategies/community-discord-pretls-diagnostic-pktdebug.json",
     "strategies/reference-zapret2-generic-tls-fake.json",

@@ -36,6 +36,7 @@ class WorkspaceStrategy:
     source_preset: dict[str, Any] | None = None
     service_target: dict[str, Any] | None = None
     capture_policy: dict[str, Any] | None = None
+    diagnostic_hints: dict[str, Any] | None = None
 
     @property
     def capture_policy_label(self) -> str:

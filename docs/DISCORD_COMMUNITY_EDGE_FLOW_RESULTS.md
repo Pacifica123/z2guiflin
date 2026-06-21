@@ -50,3 +50,24 @@ If the bad sign persists, the next investigation should focus on nft hook scope/
 
 A second owner-provided Discord-only community preset exposed TCP `5222` in its Windows `--wf-tcp-out` capture envelope. Because Linux does not execute WinDivert `--wf-*` options, Stage 7m adds `community-discord-hostfakesplit-5222-minimal` with `5222` made explicit in `--filter-tcp`. This is intentionally a separate strategy so owner tests can compare the mixed Discord+YouTube bridge, the v2 phase-zero seed and the clean Discord-only 5222 seed without changing defaults.
 
+
+## Stage 7v v2b follow-up
+
+A later owner retest of `community-discord-syndata-edge-flow-v2` showed a real
+phase shift: the Flatpak Discord socket reached `ESTAB` on
+`162.159.130.233:443`, but the webapp then failed to load
+`https://discordapp.com/app?...` with `ERR_TIMED_OUT` after TLS ClientHello.
+
+Stage 7v therefore adds `community-discord-syndata-edge-flow-v2b`, a small
+strategy variant that keeps the v2 phase-zero branches but adds
+`discordapp.com` and `www.discordapp.com` to Discord hostlist branches. The
+expected diagnostic ladder is now:
+
+```text
+SYN-SENT -> ESTAB -> TLS ClientHello -> TLS ServerHello -> HTTP/
+```
+
+The purpose of v2b is to check whether the missing webapp host was the next
+blocking detail after v2 moved the failure from TCP connect timeout to TLS
+ClientHello timeout. If v2b still stops at `ESTAB` + `TLS ClientHello`, the next
+suspect is no longer host coverage alone.

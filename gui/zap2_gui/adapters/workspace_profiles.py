@@ -241,7 +241,37 @@ def _parse_strategy(path: Path) -> WorkspaceStrategy:
         source_preset=dict(data["sourcePreset"]) if isinstance(data.get("sourcePreset"), dict) else None,
         service_target=dict(data["serviceTarget"]) if isinstance(data.get("serviceTarget"), dict) else None,
         capture_policy=dict(data["capturePolicy"]) if isinstance(data.get("capturePolicy"), dict) else None,
+        diagnostic_hints=dict(data["diagnosticHints"]) if isinstance(data.get("diagnosticHints"), dict) else None,
     )
+
+
+def _strategy_diagnostic_hints_to_lines(strategy: WorkspaceStrategy) -> list[str]:
+    hints = strategy.diagnostic_hints
+    if not hints:
+        return []
+    lines = ["diagnostic hints:"]
+    observed_url = str(hints.get("observedDiscordUrl") or "").strip()
+    observed_host = str(hints.get("observedDiscordHost") or "").strip()
+    hostlist_required = [str(item) for item in hints.get("hostlistMustInclude", []) if str(item).strip()]
+    phase_ladder = [str(item) for item in hints.get("phaseLadder", []) if str(item).strip()]
+    owner_result = [str(item) for item in hints.get("ownerObservedV2Result", []) if str(item).strip()]
+    manual_checks = [str(item) for item in hints.get("recommendedManualChecks", []) if str(item).strip()]
+    args_text = "\n".join(strategy.runtime_args)
+    hostlist_ok = all(host in args_text for host in hostlist_required) if hostlist_required else False
+    if observed_url:
+        lines.append(f"  observed Discord URL: {observed_url}")
+    if observed_host:
+        lines.append(f"  observed Discord host: {observed_host}")
+    if hostlist_required:
+        lines.append(f"  required hostlist hosts: {', '.join(hostlist_required)}")
+        lines.append(f"  required hosts present in runtime args: {'yes' if hostlist_ok else 'no'}")
+    if phase_ladder:
+        lines.append(f"  phase ladder: {' -> '.join(phase_ladder)}")
+    for item in owner_result:
+        lines.append(f"  owner observed v2 result: {item}")
+    for item in manual_checks:
+        lines.append(f"  manual check: {item}")
+    return lines
 
 
 def _parse_profile(path: Path) -> WorkspaceProfile:
@@ -448,8 +478,7 @@ def workspace_strategy_to_text(strategy_id: str, root: Path | None = None) -> st
     source_name = str(source.get("name", "не указан"))
     source_level = str(source.get("portingLevel", "не указан"))
     runtime_args = "\n".join(f"  - {arg}" for arg in strategy.runtime_args) or "  - нет"
-    return "\n".join(
-        [
+    lines = [
             f"Workspace strategy: {strategy.strategy_id}",
             f"title: {strategy.title}",
             f"summary: {strategy.summary}",
@@ -462,6 +491,12 @@ def workspace_strategy_to_text(strategy_id: str, root: Path | None = None) -> st
             f"source preset: {source_name} ({source_level})",
             "runtime args:",
             runtime_args,
+        ]
+    diagnostic_lines = _strategy_diagnostic_hints_to_lines(strategy)
+    if diagnostic_lines:
+        lines.extend(diagnostic_lines)
+    lines.extend(
+        [
             "executes automatically: no",
             "requires sudo at Stage 7: no",
             "mutates services/firewall at Stage 7: no",
@@ -469,3 +504,4 @@ def workspace_strategy_to_text(strategy_id: str, root: Path | None = None) -> st
             notes,
         ]
     )
+    return "\n".join(lines)
