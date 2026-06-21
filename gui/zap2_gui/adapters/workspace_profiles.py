@@ -255,6 +255,8 @@ def _strategy_diagnostic_hints_to_lines(strategy: WorkspaceStrategy) -> list[str
     hostlist_required = [str(item) for item in hints.get("hostlistMustInclude", []) if str(item).strip()]
     phase_ladder = [str(item) for item in hints.get("phaseLadder", []) if str(item).strip()]
     owner_result = [str(item) for item in hints.get("ownerObservedV2Result", []) if str(item).strip()]
+    owner_result_v2b = [str(item) for item in hints.get("ownerObservedV2bResult", []) if str(item).strip()]
+    matrix_variant = str(hints.get("matrixVariant") or "").strip()
     manual_checks = [str(item) for item in hints.get("recommendedManualChecks", []) if str(item).strip()]
     args_text = "\n".join(strategy.runtime_args)
     hostlist_ok = all(host in args_text for host in hostlist_required) if hostlist_required else False
@@ -267,8 +269,12 @@ def _strategy_diagnostic_hints_to_lines(strategy: WorkspaceStrategy) -> list[str
         lines.append(f"  required hosts present in runtime args: {'yes' if hostlist_ok else 'no'}")
     if phase_ladder:
         lines.append(f"  phase ladder: {' -> '.join(phase_ladder)}")
+    if matrix_variant:
+        lines.append(f"  matrix variant: {matrix_variant}")
     for item in owner_result:
         lines.append(f"  owner observed v2 result: {item}")
+    for item in owner_result_v2b:
+        lines.append(f"  owner observed v2b result: {item}")
     for item in manual_checks:
         lines.append(f"  manual check: {item}")
     return lines

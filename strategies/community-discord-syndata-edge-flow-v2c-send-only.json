@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "id": "community-discord-syndata-edge-flow-v2c-send-only",
+  "title": "Community Discord SYN-data edge-flow v2c send-only",
+  "summary": "Stage 7w matrix branch: keeps v2b early empty-payload send profile but removes the edge syndata/rndsni phase to test whether SYN-data is what stalls TLS ServerHello.",
+  "philosophy": "windows-inspired-phase-zero-matrix-send-only",
+  "intendedFor": [
+    "ручная проверка Discord Linux/Flatpak после v2b: update-check проходит, main webapp грузит https://discordapp.com/app, но curl/Discord зависают после TLS ClientHello",
+    "сравнение phase-zero вариантов без автоматического включения; владелец выбирает один вариант во вкладке Стратегии",
+    "YouTube fallback сохранён только как контроль текущей рабочей ветки; голос Discord/UDP не входит в цель Stage 7w"
+  ],
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-discord-v2c-send-only"
+  ],
+  "capabilities": {
+    "readsProfiles": true,
+    "readsHostlists": true,
+    "usesLocalBuildPlan": true,
+    "executesAutomatically": false,
+    "requiresSudoAtStage7": false,
+    "mutatesServicesOrFirewallAtStage7": false
+  },
+  "notes": [
+    "v2b correctly included discordapp.com but still timed out after TLS ClientHello; this branch isolates the earliest send profile.",
+    "The Discord edge IP branch keeps payload=empty + send:tcp_md5, but the second edge syndata/rndsni branch is intentionally absent.",
+    "If this reaches ServerHello/HTTP while v2b does not, the suspect becomes the edge syndata/rndsni phase.",
+    "YouTube fallback is retained for continuity; this strategy remains owner-selected and plan-only."
+  ],
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--lua-init=@core/zapret2/lua/zapret-auto.lua",
+    "--lua-init=@core/zapret2/lua/custom_funcs.lua",
+    "--ctrack-disable=0",
+    "--ipcache-lifetime=8400",
+    "--ipcache-hostname=1",
+    "--filter-tcp=443",
+    "--ipset-ip=162.159.128.233,162.159.135.232,162.159.136.232,162.159.137.232,162.159.138.232,162.159.129.233,162.159.130.233,162.159.133.233,162.159.134.233,162.159.135.233,162.159.130.234,162.159.133.234,162.159.134.234,162.159.135.234,162.159.136.234",
+    "--payload=empty",
+    "--out-range=<s1",
+    "--lua-desync=send:tcp_md5:repeats=2",
+    "--new",
+    "--filter-tcp=443",
+    "--hostlist-domains=updates.discord.com,discord.com,discordapp.com,www.discordapp.com",
+    "--out-range=-d10",
+    "--lua-desync=send:repeats=2",
+    "--lua-desync=syndata:blob=fake_default_tls:tls_mod=rnd,dupsid,sni=google.com",
+    "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2",
+    "--new",
+    "--filter-tcp=80,443,1080,2053,2083,2087,2096,5222,8443",
+    "--hostlist-domains=discord.media,discordapp.com,www.discordapp.com",
+    "--out-range=-d10",
+    "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2",
+    "--new",
+    "--filter-tcp=80,443,1080,2053,2083,2087,2096,5222,8443",
+    "--hostlist-domains=discord.com,discordapp.com,www.discordapp.com,gateway.discord.gg,cdn.discordapp.com,media.discordapp.net,discord.gg,discordapp.net,updates.discord.com,stable.dl2.discordapp.net",
+    "--out-range=-d10",
+    "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2",
+    "--new",
+    "--filter-tcp=80,443",
+    "--hostlist-domains=youtube.com,www.youtube.com,googlevideo.com,ytimg.com,youtu.be",
+    "--out-range=-d8",
+    "--lua-desync=multidisorder:pos=1,host+2,sld+2,sld+5,sniext+1,sniext+2,endhost-2:seqovl=1",
+    "--new",
+    "--filter-udp=443",
+    "--ipset-ip=142.250.0.0/15,172.217.0.0/16,172.253.0.0/16,173.194.0.0/16,74.125.0.0/16",
+    "--out-range=-n8",
+    "--payload=all",
+    "--lua-desync=fake:repeats=6:blob=fake_default_quic"
+  ],
+  "serviceTarget": {
+    "presetId": "discord-desktop",
+    "title": "Discord desktop non-voice + YouTube fallback",
+    "nonVoice": true,
+    "summary": "Stage 7w matrix branch: keeps v2b early empty-payload send profile but removes the edge syndata/rndsni phase to test whether SYN-data is what stalls TLS ServerHello."
+  },
+  "sourcePreset": {
+    "id": "community-discord-syndata-edge-flow-v2b-source",
+    "name": "Owner-provided community Windows preset extract with Linux phase-zero adjustments",
+    "engine": "winws2/community",
+    "sourcePath": "strategies/imported/community-discord-youtube-edge-flow.txt",
+    "metadataPath": "strategies/imported/community-discord-youtube-edge-flow.json",
+    "portingLevel": "experimental-linux-phase-zero-v2c-matrix",
+    "windowsOptionsExecuted": false
+  },
+  "diagnosticHints": {
+    "observedDiscordUrl": "https://discordapp.com/app",
+    "observedDiscordHost": "discordapp.com",
+    "hostlistMustInclude": [
+      "discordapp.com",
+      "www.discordapp.com"
+    ],
+    "phaseLadder": [
+      "SYN-SENT",
+      "ESTAB",
+      "TLS ClientHello",
+      "TLS ServerHello",
+      "HTTP/"
+    ],
+    "matrixVariant": "send-only",
+    "ownerObservedV2bResult": [
+      "v2b runtime args correctly included discordapp.com/www.discordapp.com",
+      "curl to discordapp.com via 162.159.130.233 still timed out after TLS ClientHello",
+      "Flatpak Discord reached launching/main-window attempts, then ERR_TIMED_OUT on https://discordapp.com/app"
+    ],
+    "recommendedManualChecks": [
+      "flatpak kill com.discordapp.Discord; pgrep -a 'Discord|com.discordapp|zypak|bwrap'",
+      "grep -nE 'discordapp\\.com|www\\.discordapp\\.com|hostlist-domains' .zap2/runtime/sessions/default.nfqws2.args",
+      "curl -4vk --connect-timeout 8 --max-time 20 --resolve discordapp.com:443:162.159.130.233 https://discordapp.com/app -o /dev/null",
+      "watch -n 0.2 \"ss -tanp | grep -E '162\\.159\\.130\\.233:443|SYN-SENT|ESTAB'\""
+    ]
+  }
+}

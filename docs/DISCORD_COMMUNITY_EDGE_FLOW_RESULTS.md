@@ -71,3 +71,22 @@ The purpose of v2b is to check whether the missing webapp host was the next
 blocking detail after v2 moved the failure from TCP connect timeout to TLS
 ClientHello timeout. If v2b still stops at `ESTAB` + `TLS ClientHello`, the next
 suspect is no longer host coverage alone.
+
+## Stage 7w — v2c phase-zero matrix
+
+Owner testing of the corrected v2b runtime confirmed that `discordapp.com` and
+`www.discordapp.com` were present in `.zap2/runtime/sessions/default.nfqws2.args`.
+However, both `curl --resolve discordapp.com:443:162.159.130.233` and Flatpak
+Discord still timed out after TLS ClientHello while loading
+`https://discordapp.com/app?...`.
+
+Stage 7w therefore adds four manual, owner-selected matrix branches:
+
+- `community-discord-syndata-edge-flow-v2c-send-only`;
+- `community-discord-syndata-edge-flow-v2c-fixed-sni`;
+- `community-discord-syndata-edge-flow-v2c-no-md5`;
+- `community-discord-syndata-edge-flow-v2c-host-first`.
+
+These branches do not claim to fix Discord. They isolate whether the remaining
+blocker is the edge `syndata` phase, `rndsni`, `tcp_md5`, or filter ordering
+between hostlist and Cloudflare edge-IP branches.
