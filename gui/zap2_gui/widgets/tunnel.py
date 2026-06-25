@@ -12,6 +12,7 @@ from ..adapters.discord_tunnel import (
     discord_tunnel_tun_plan_to_text,
     discord_launch_through_socks_to_text,
     discord_proxy_route_plan_to_text,
+    discord_stop_launched_to_text,
     FLATPAK_DISCORD_COMMAND,
     SUPPORTED_LAUNCH_MODES,
     preview_vless_import_text_to_text,
@@ -125,7 +126,8 @@ def make_tunnel_page(root: Path | None = None) -> Any:
 
     route_hint = QtWidgets.QLabel(
         "VLESS tunnel сам по себе только открывает локальный SOCKS. Discord, Firefox или Flatpak не начнут использовать его автоматически. "
-        "Для Flatpak Discord укажи команду ниже и нажми «Запустить Discord через SOCKS»."
+        "Для Flatpak Discord укажи команду ниже и нажми «Запустить Discord через SOCKS». "
+        "Вывод Discord пишется в .zap2/tunnel/logs, а не спамит в терминал GUI."
     )
     route_hint.setWordWrap(True)
 
@@ -149,10 +151,12 @@ def make_tunnel_page(root: Path | None = None) -> Any:
         pass
     route_plan_button = QtWidgets.QPushButton("План маршрута")
     launch_button = QtWidgets.QPushButton("Запустить Discord через SOCKS")
+    stop_discord_button = QtWidgets.QPushButton("Остановить Discord launch")
     mode_row.addWidget(mode_label)
     mode_row.addWidget(mode_combo)
     mode_row.addWidget(route_plan_button)
     mode_row.addWidget(launch_button)
+    mode_row.addWidget(stop_discord_button)
     mode_row.addStretch(1)
 
     route_plan_button.clicked.connect(lambda _checked=False: run_action("План маршрута", lambda: discord_proxy_route_plan_to_text(root=root)))
@@ -166,6 +170,7 @@ def make_tunnel_page(root: Path | None = None) -> Any:
             ),
         )
     )
+    stop_discord_button.clicked.connect(lambda _checked=False: run_action("Остановить Discord launch", lambda: discord_stop_launched_to_text(root=root)))
 
     launch_layout.addWidget(route_hint)
     launch_layout.addLayout(command_row)

@@ -150,3 +150,16 @@ This is intentionally separate from `Комбинированный запуск
 selected components; it does not automatically reroute already-open applications.
 The Tunnel tab route block is the explicit “start this client through this local
 SOCKS” step.
+
+## v0.4-alpha Stage 8b: safer Discord launch lifecycle
+
+После проверки Flatpak Discord через SOCKS вкладка `Туннель` получила более жёсткий launch gate. Кнопка запуска Discord через SOCKS сначала проверяет, что tunnel session реально running и что локальный SOCKS отвечает на минимальный SOCKS5 handshake. Если proxy не готов, Discord не запускается.
+
+Вывод Flatpak/Electron больше не остаётся прикреплённым к терминалу GUI/CLI. Для запущенного через эту панель Discord создаются отдельные файлы:
+
+```text
+.zap2/tunnel/logs/default.discord.stdout.log
+.zap2/tunnel/logs/default.discord.stderr.log
+```
+
+Там же появилась кнопка `Остановить Discord launch`. Она останавливает только recorded Discord process group из `.zap2/tunnel/runtime/default.discord-session.json`; tunnel core и Zapret остаются отдельными компонентами.

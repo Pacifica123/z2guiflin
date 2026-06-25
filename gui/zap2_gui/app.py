@@ -129,6 +129,7 @@ from .adapters.discord_tunnel import (
     SUPPORTED_UPDATER_RESULTS,
     discord_launch_through_socks_to_text,
     discord_proxy_route_plan_to_text,
+    discord_stop_launched_to_text,
     discord_tunnel_guided_run_to_text,
     discord_tunnel_https_probe_to_text,
     discord_tunnel_plan_to_text,
@@ -500,6 +501,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--discord-launch-through-socks",
         action="store_true",
         help="Stage 7p4/8a: запустить Discord command с SOCKS env/Chromium proxy candidates через active tunnel",
+    )
+    parser.add_argument(
+        "--discord-stop-launched",
+        action="store_true",
+        help="Stage 8b: остановить Discord process group, запущенный через --discord-launch-through-socks",
     )
     parser.add_argument(
         "--discord-binary",
@@ -1080,6 +1086,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.discord_launch_through_socks:
         try:
             print(discord_launch_through_socks_to_text(profile_id=args.profile, discord_binary=str(args.discord_binary), launch_mode=str(args.discord_launch_mode)))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.discord_stop_launched:
+        try:
+            print(discord_stop_launched_to_text(profile_id=args.profile))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

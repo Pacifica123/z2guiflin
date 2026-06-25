@@ -474,3 +474,16 @@ Reserved placeholders:
 The composer exposes status, plan, start, and stop actions. Status/plan are read-only. Start refuses planned components, prepares and confirms the required child plans, and then runs supported components in a stable order. Stop reverses that order.
 
 Combination policy changed only for explicit composer experiments: tunnel start can allow a running Zapret workflow when the composer selected both components. The direct tunnel lane remains conservative by default.
+
+## v0.4-alpha Stage 8b — tunnel launch lifecycle guard
+
+Stage 8b fixes the failure mode observed after Stage 8a: Discord was correctly launched with a SOCKS proxy flag, but the managed tunnel core had already been stopped, so Electron reported `ERR_PROXY_CONNECTION_FAILED` and kept retrying in the terminal.
+
+Changes:
+
+- launch-through-SOCKS now checks stored session state, non-zombie process state, and a SOCKS5 handshake before starting Discord;
+- launched Discord stdout/stderr are redirected into `.zap2/tunnel/logs`;
+- `--discord-stop-launched` and the GUI `Остановить Discord launch` button stop only the recorded Discord process group;
+- VLESS Reality links now generate `realitySettings` from `sni/fp/pbk/sid/spx/alpn` instead of producing an incomplete Reality stream config.
+
+This keeps the composer responsible for components and keeps the Tunnel tab responsible for client routing. The next useful test is: start `tunnel-vless`, run SOCKS probe, run HTTPS probe, then launch Flatpak Discord only if both the local SOCKS and upstream path are ready.

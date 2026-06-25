@@ -650,3 +650,42 @@ If the SOCKS handshake passes but HTTPS-through-SOCKS fails, the problem is the
 upstream tunnel path/profile, not the local listener. If HTTPS-through-SOCKS
 passes but Discord still times out, the likely problem is client routing: Discord
 or the browser was not actually using the SOCKS listener.
+
+## 13. Stage 8b — launch lifecycle guard после ERR_PROXY_CONNECTION_FAILED
+
+Новые owner-логи показали другую развилку:
+
+```text
+Discord argv contains --proxy-server=socks5://127.0.0.1:10808
+Discord fails with ERR_PROXY_CONNECTION_FAILED
+.zap2 says the tunnel had already been stopped before Discord was launched
+```
+
+Это означает, что Flatpak/Electron proxy flag был принят. Ошибка была не в
+routing flag, а в lifecycle: Discord был запущен в мёртвый или уже остановленный
+локальный SOCKS.
+
+Stage 8b меняет поведение в трёх местах:
+
+1. `--discord-launch-through-socks` больше не запускает Discord только по
+   сохранённому PID. Перед запуском он проверяет session state, живой non-zombie
+   process и минимальный SOCKS5 handshake. Если handshake не проходит, Discord
+   не запускается, чтобы не плодить `ERR_PROXY_CONNECTION_FAILED`.
+2. Discord stdout/stderr теперь пишутся в `.zap2/tunnel/logs/default.discord.*.log`.
+   Запущенный Flatpak больше не спамит в терминал после возврата CLI-команды.
+3. Добавлена остановка именно запущенного Discord process group:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-stop-launched
+```
+
+GUI вкладка `Туннель` получила кнопку `Остановить Discord launch`. Она не трогает
+VLESS core, Zapret, nftables или systemd; она останавливает только process group,
+записанную в `.zap2/tunnel/runtime/default.discord-session.json`.
+
+Отдельно исправлена генерация VLESS Reality config. Раньше `security=reality`
+попадал в `streamSettings`, но `realitySettings` из query (`sni`, `fp`, `pbk`,
+`sid`, `spx`, `alpn`) не переносились в core config. Такие profiles могли
+импортироваться и запускать core, но upstream VLESS path оставался фактически
+неполным. Теперь Reality-поля сохраняются в generated config под `.zap2/tunnel`
+с секретными правами и не печатаются в owner output.

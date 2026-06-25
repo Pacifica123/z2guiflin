@@ -554,6 +554,14 @@ def _stderr_path(paths: TunnelStorePaths, profile_id: str) -> Path:
     return paths.logs_dir / f"{profile_id}.core.stderr.log"
 
 
+def _discord_stdout_path(paths: TunnelStorePaths, profile_id: str) -> Path:
+    return paths.logs_dir / f"{profile_id}.discord.stdout.log"
+
+
+def _discord_stderr_path(paths: TunnelStorePaths, profile_id: str) -> Path:
+    return paths.logs_dir / f"{profile_id}.discord.stderr.log"
+
+
 def _load_connections(paths: TunnelStorePaths, profile_id: str) -> list[VlessConnectionProfile]:
     path = _connections_path(paths, profile_id)
     if not path.exists():
@@ -759,6 +767,27 @@ def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
             tls["alpn"] = list(profile.alpn)
         if tls:
             stream["tlsSettings"] = tls
+    elif security == "reality":
+        reality: dict[str, Any] = {}
+        server_name = profile.sni or profile.host
+        public_key = profile.raw_query.get("pbk", "")
+        fingerprint = profile.raw_query.get("fp", "")
+        short_id = profile.raw_query.get("sid", "")
+        spider_x = profile.raw_query.get("spx", "")
+        if server_name:
+            reality["serverName"] = server_name
+        if public_key:
+            reality["publicKey"] = public_key
+        if fingerprint:
+            reality["fingerprint"] = fingerprint
+        if short_id:
+            reality["shortId"] = short_id
+        if spider_x:
+            reality["spiderX"] = spider_x
+        if profile.alpn:
+            reality["alpn"] = list(profile.alpn)
+        if reality:
+            stream["realitySettings"] = reality
     if network == "tcp" and profile.header_type and profile.header_type != "none":
         header: dict[str, Any] = {"type": profile.header_type}
         if profile.header_type == "http" and profile.host:
@@ -818,6 +847,16 @@ def _redact_core_config(config: dict[str, Any]) -> dict[str, Any]:
         for user in vnext.get("users", []):
             if "id" in user:
                 user["id"] = _redact_uuid(str(user["id"]))
+        reality = redacted["outbounds"][0].get("streamSettings", {}).get("realitySettings", {})
+        if "serverName" in reality:
+            reality["serverName"] = _redact_host(str(reality["serverName"]))
+        if "publicKey" in reality:
+            reality["publicKey"] = str(reality["publicKey"])[:8] + "…"
+        if "shortId" in reality:
+            reality["shortId"] = str(reality["shortId"])[:4] + "…"
+        tls = redacted["outbounds"][0].get("streamSettings", {}).get("tlsSettings", {})
+        if "serverName" in tls:
+            tls["serverName"] = _redact_host(str(tls["serverName"]))
     except (KeyError, IndexError, TypeError):
         pass
     return redacted
@@ -1019,16 +1058,32 @@ def _load_confirmed_tunnel_plan(paths: TunnelStorePaths, profile_id: str, plan_i
     return plan
 
 
+def _proc_state(pid: int) -> str:
+    if pid <= 0:
+        return "none"
+    stat_path = Path("/proc") / str(pid) / "stat"
+    try:
+        text = stat_path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return "missing"
+    # /proc/<pid>/stat format: pid (comm) state ...; comm can contain spaces.
+    tail = text.rsplit(")", 1)[-1].strip().split()
+    return tail[0] if tail else "unknown"
+
+
 def _pid_running(pid: int) -> bool:
     if pid <= 0:
         return False
     try:
         os.kill(pid, 0)
-        return True
     except ProcessLookupError:
         return False
     except PermissionError:
         return True
+    # os.kill(pid, 0) is still true for zombies. Treat zombies as not running
+    # because they no longer listen on SOCKS and cannot serve Discord traffic.
+    state = _proc_state(pid)
+    return state not in {"Z", "X", "x", "missing"}
 
 
 def _read_cmdline(pid: int) -> str:
@@ -1048,10 +1103,14 @@ def discord_tunnel_status_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root:
     else:
         session = _read_json(session_path)
         pid = int(session.get("pid", 0) or 0)
-        running = _pid_running(pid)
+        stored_state = str(session.get("state", "running" if pid else "not-started"))
+        proc_state = _proc_state(pid) if pid else "none"
+        running = stored_state == "running" and _pid_running(pid)
         lines.extend(
             [
-                f"state: {'running' if running else 'stale'}",
+                f"state: {'running' if running else stored_state if stored_state in {'stopped', 'failed'} else 'stale'}",
+                f"stored state: {stored_state}",
+                f"proc state: {proc_state}",
                 f"pid: {pid if pid else 'нет'}",
                 f"core running: {'yes' if running else 'no'}",
                 f"connection: {session.get('connectionId', 'нет')}",
@@ -1097,7 +1156,8 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
     if session_path.exists():
         session = _read_json(session_path)
         pid = int(session.get("pid", 0) or 0)
-        if _pid_running(pid):
+        stored_state = str(session.get("state", "running" if pid else "not-started"))
+        if stored_state == "running" and _pid_running(pid):
             return "\n".join(
                 [
                     "Discord tunnel start: already-running",
@@ -1145,6 +1205,7 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         "stdoutLog": str(stdout_path),
         "stderrLog": str(stderr_path),
         "runningAfterGrace": running,
+        "state": "running" if running else "failed",
     }
     _write_json(session_path, session_payload, secret=True)
     log_path = _append_event(paths, profile_id, "tunnel-started" if running else "tunnel-start-failed", "External tunnel core launched" if running else "External tunnel core exited during start grace", {"pid": process.pid, "running": running, "connection": connection.redacted_dict()})
@@ -1254,6 +1315,17 @@ def _socks5_handshake_probe(host: str, port: int, timeout: float = 2.0) -> dict[
     }
 
 
+def _wait_for_socks5_handshake(host: str, port: int, *, deadline_seconds: float = 2.5, timeout: float = 0.5) -> dict[str, Any]:
+    deadline = time.monotonic() + max(0.1, deadline_seconds)
+    last: dict[str, Any] = {"ok": False, "message": "probe not started"}
+    while time.monotonic() < deadline:
+        last = _socks5_handshake_probe(host, port, timeout=timeout)
+        if bool(last.get("ok")):
+            return last
+        time.sleep(0.1)
+    return last
+
+
 def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: Path | None = None) -> str:
     paths = ensure_tunnel_store(root)
     session_path = _session_path(paths, profile_id)
@@ -1263,7 +1335,8 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
         return "\n".join(lines)
     session = _read_json(session_path)
     pid = int(session.get("pid", 0) or 0)
-    running = _pid_running(pid)
+    stored_state = str(session.get("state", "running" if pid else "not-started"))
+    running = stored_state == "running" and _pid_running(pid)
     socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
     socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
     socks_probe = _socks5_handshake_probe(socks_host, socks_port)
@@ -1282,6 +1355,8 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
         "profileId": profile_id,
         "pid": pid,
         "coreRunning": running,
+        "storedState": stored_state,
+        "procState": _proc_state(pid) if pid else "none",
         "socksHost": socks_host,
         "socksPort": socks_port,
         "socksPortOpen": port_open,
@@ -1298,6 +1373,8 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
     lines.extend(
         [
             f"pid: {pid if pid else 'нет'}",
+            f"stored state: {stored_state}",
+            f"proc state: {_proc_state(pid) if pid else 'none'}",
             f"core running: {'yes' if running else 'no'}",
             f"local socks: socks5://{socks_host}:{socks_port}",
             f"socks port open: {'yes' if port_open else 'no'}",
@@ -1356,7 +1433,8 @@ def discord_proxy_route_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, ro
         socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
         socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
         pid = int(session.get("pid", 0) or 0)
-        state = "running" if _pid_running(pid) else "stale"
+        stored_state = str(session.get("state", "running" if pid else "not-started"))
+        state = "running" if stored_state == "running" and _pid_running(pid) else stored_state if stored_state in {"stopped", "failed"} else "stale"
     proxy = f"socks5://{socks_host}:{socks_port}"
     return "\n".join(
         [
@@ -1396,17 +1474,39 @@ def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID
         raise ValueError("Tunnel session не найден. Сначала запустите --discord-tunnel-start.")
     session = _read_json(session_path)
     pid = int(session.get("pid", 0) or 0)
-    if not _pid_running(pid):
-        raise ValueError("Tunnel core не running; сначала проверьте --discord-tunnel-status/--discord-tunnel-start.")
+    stored_state = str(session.get("state", "running" if pid else "not-started"))
+    if stored_state != "running" or not _pid_running(pid):
+        raise ValueError(
+            "Tunnel core не running. Сейчас session state="
+            f"{stored_state}, pid={pid if pid else 'нет'}, proc={_proc_state(pid) if pid else 'none'}. "
+            "Сначала выполните --discord-tunnel-start, затем --discord-tunnel-probe."
+        )
     socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
     socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
+    socks_probe = _wait_for_socks5_handshake(socks_host, socks_port)
+    if not bool(socks_probe.get("ok")):
+        raise ValueError(
+            "Tunnel core process найден, но SOCKS handshake не прошёл: "
+            f"{socks_probe.get('message', 'unknown')}. Discord не будет запущен, чтобы не получить ERR_PROXY_CONNECTION_FAILED. "
+            "Запустите --discord-tunnel-probe и проверьте core stdout/stderr."
+        )
     proxy = f"socks5://{socks_host}:{socks_port}"
     env = dict(os.environ)
     if launch_mode != "socks-flag-only":
         env.update({"ALL_PROXY": proxy, "HTTPS_PROXY": proxy, "HTTP_PROXY": proxy, "all_proxy": proxy, "https_proxy": proxy, "http_proxy": proxy})
     argv, raw_command = _discord_launch_argv(discord_binary, socks_host, socks_port, launch_mode)
     flatpak = _is_flatpak_command(argv)
-    process = subprocess.Popen(argv, cwd=str(paths.root), env=env, start_new_session=True)
+    stdout_path = _discord_stdout_path(paths, profile_id)
+    stderr_path = _discord_stderr_path(paths, profile_id)
+    stdout_handle = stdout_path.open("ab")
+    stderr_handle = stderr_path.open("ab")
+    try:
+        process = subprocess.Popen(argv, cwd=str(paths.root), env=env, stdout=stdout_handle, stderr=stderr_handle, start_new_session=True)
+    finally:
+        stdout_handle.close()
+        stderr_handle.close()
+    time.sleep(0.3)
+    discord_running = _pid_running(process.pid)
     discord_session = {
         "schemaVersion": TUNNEL_SCHEMA_VERSION,
         "stage": TUNNEL_STAGE,
@@ -1419,10 +1519,14 @@ def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID
         "proxy": proxy,
         "tunnelSession": str(session_path),
         "flatpakCommand": flatpak,
+        "state": "running" if discord_running else "exited-after-launch",
+        "stdoutLog": str(stdout_path),
+        "stderrLog": str(stderr_path),
+        "runningAfterGrace": discord_running,
     }
     discord_session_path = _discord_session_path(paths, profile_id)
     _write_json(discord_session_path, discord_session, secret=False)
-    _append_event(paths, profile_id, "discord-launched-through-socks", "Discord launched with SOCKS env/flag candidates", {"pid": process.pid, "launchMode": launch_mode, "socks": proxy})
+    _append_event(paths, profile_id, "discord-launched-through-socks", "Discord launched with SOCKS env/flag candidates", {"pid": process.pid, "launchMode": launch_mode, "socks": proxy, "runningAfterGrace": discord_running})
     return "\n".join(
         [
             "Discord launch through SOCKS: started",
@@ -1430,10 +1534,13 @@ def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID
             f"launch mode: {launch_mode}",
             f"discord command: {raw_command}",
             f"discord pid: {process.pid}",
+            f"discord running after grace: {'yes' if discord_running else 'no'}",
             f"argv: {shlex.join(argv)}",
             f"proxy env: {proxy}",
             f"flatpak command: {'yes' if flatpak else 'no'}",
             f"discord session: {discord_session_path}",
+            f"discord stdout: {stdout_path}",
+            f"discord stderr: {stderr_path}",
             "ROUTING NOTE:",
             "  The tunnel is not transparent. Discord must be launched/configured through SOCKS; already-open app/browser windows are not rerouted.",
             "MANUAL ACTION:",
@@ -1443,6 +1550,74 @@ def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID
             "mutates firewall/services: no",
         ]
     )
+
+
+def discord_stop_launched_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: Path | None = None) -> str:
+    """Stop only the Discord process group launched by this tunnel adapter."""
+
+    paths = ensure_tunnel_store(root)
+    session_path = _discord_session_path(paths, profile_id)
+    if not session_path.exists():
+        return "\n".join([
+            "Discord launched-through-SOCKS stop: not-started",
+            f"profile: {profile_id}",
+            f"discord session: {session_path}",
+            "stops now: no",
+        ])
+    session = _read_json(session_path)
+    pid = int(session.get("pid", 0) or 0)
+    argv = [str(item) for item in session.get("argv", [])]
+    cmdline = _read_cmdline(pid) if pid else ""
+    running = _pid_running(pid)
+    if not pid or not running:
+        session["state"] = "stale"
+        session["stoppedAt"] = _utc_now()
+        _write_json(session_path, session, secret=False)
+        return "\n".join([
+            "Discord launched-through-SOCKS stop: stale",
+            f"profile: {profile_id}",
+            f"pid: {pid if pid else 'нет'}",
+            f"proc state: {_proc_state(pid) if pid else 'none'}",
+            f"discord session: {session_path}",
+        ])
+    first = Path(argv[0]).name if argv else ""
+    if cmdline and first and first not in cmdline and "flatpak" not in cmdline and "Discord" not in cmdline and "discord" not in cmdline.lower():
+        raise ValueError("Recorded Discord PID command line no longer looks like the managed Discord launcher; refusing to kill it.")
+    try:
+        os.killpg(pid, signal.SIGTERM)
+        kill_scope = "process-group"
+    except ProcessLookupError:
+        kill_scope = "already-gone"
+    except OSError:
+        os.kill(pid, signal.SIGTERM)
+        kill_scope = "pid"
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        if not _pid_running(pid):
+            break
+        time.sleep(0.1)
+    if _pid_running(pid):
+        try:
+            os.killpg(pid, signal.SIGKILL)
+            kill_scope = f"{kill_scope}+sigkill-group"
+        except OSError:
+            os.kill(pid, signal.SIGKILL)
+            kill_scope = f"{kill_scope}+sigkill-pid"
+    session["state"] = "stopped"
+    session["stoppedAt"] = _utc_now()
+    session["killScope"] = kill_scope
+    _write_json(session_path, session, secret=False)
+    log_path = _append_event(paths, profile_id, "discord-launched-stop", "Managed launched Discord process stopped", {"pid": pid, "killScope": kill_scope})
+    return "\n".join([
+        "Discord launched-through-SOCKS stop: stopped",
+        f"profile: {profile_id}",
+        f"pid: {pid}",
+        f"kill scope: {kill_scope}",
+        f"discord session: {session_path}",
+        f"tunnel log: {log_path}",
+        "kills only recorded launched Discord process: yes",
+        "mutates firewall/services: no",
+    ])
 
 
 # ---- Stage 7p5: guided SOCKS/VLESS experiment helpers ----
@@ -1671,7 +1846,17 @@ def discord_tunnel_guided_run_to_text(
     start_text = discord_tunnel_start_to_text(profile_id=profile_id, confirm_plan_id=plan_id, root=paths.root)
     core_probe_text = discord_tunnel_probe_to_text(profile_id=profile_id, root=paths.root)
     https_text = discord_tunnel_https_probe_to_text(profile_id=profile_id, root=paths.root)
-    launch_text = discord_launch_through_socks_to_text(profile_id=profile_id, discord_binary=discord_binary, launch_mode=launch_mode, root=paths.root)
+    try:
+        launch_text = discord_launch_through_socks_to_text(profile_id=profile_id, discord_binary=discord_binary, launch_mode=launch_mode, root=paths.root)
+    except ValueError as exc:
+        launch_text = "\n".join(
+            [
+                "Discord launch through SOCKS: blocked",
+                f"reason: {exc}",
+                "executes Discord now: no",
+                "next: fix tunnel/core readiness before launching Discord through SOCKS",
+            ]
+        )
 
     discord_session = _read_json(_discord_session_path(paths, profile_id)) if _discord_session_path(paths, profile_id).exists() else {}
     discord_pid = int(discord_session.get("pid", 0) or 0)

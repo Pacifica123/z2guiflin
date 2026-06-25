@@ -27,6 +27,12 @@ SAMPLE_VLESS = (
     "?security=&encryption=none&host=www.example.org&headerType=http&type=tcp#Sample%20Profile"
 )
 
+REALITY_VLESS = (
+    "vless://11111111-2222-4333-8444-555555555555@203.0.113.10:8443"
+    "?security=reality&encryption=none&type=tcp&flow=xtls-rprx-vision"
+    "&sni=storage.example.net&fp=firefox&pbk=PUBLICKEY123&sid=0905b6e16602f326&spx=%2F#Reality"
+)
+
 
 def test_vless_parser_redacts_and_preserves_transport_fields() -> None:
     profile = parse_vless_uri(SAMPLE_VLESS)
@@ -59,6 +65,20 @@ def test_vless_config_generates_loopback_socks_and_http_header() -> None:
     assert outbound["streamSettings"]["network"] == "tcp"
     assert outbound["streamSettings"]["tcpSettings"]["header"]["type"] == "http"
     assert outbound["streamSettings"]["tcpSettings"]["header"]["request"]["headers"]["Host"] == ["www.example.org"]
+
+
+def test_vless_config_preserves_reality_settings_for_openray_links() -> None:
+    profile = parse_vless_uri(REALITY_VLESS)
+    config = generate_xray_vless_socks_config(profile, socks_port=19081)
+    stream = config["outbounds"][0]["streamSettings"]
+
+    assert stream["security"] == "reality"
+    assert stream["network"] == "tcp"
+    assert stream["realitySettings"]["serverName"] == "storage.example.net"
+    assert stream["realitySettings"]["fingerprint"] == "firefox"
+    assert stream["realitySettings"]["publicKey"] == "PUBLICKEY123"
+    assert stream["realitySettings"]["shortId"] == "0905b6e16602f326"
+    assert stream["realitySettings"]["spiderX"] == "/"
 
 
 def test_import_list_and_plan_do_not_print_raw_secret(tmp_path: Path) -> None:

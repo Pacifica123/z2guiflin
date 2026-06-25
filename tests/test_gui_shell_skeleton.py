@@ -83,3 +83,5 @@ def test_stage8a_tunnel_gui_has_route_controls() -> None:
     assert "flatpak run com.discordapp.Discord" in source
     assert "discord_launch_through_socks_to_text" in source
     assert "discord_proxy_route_plan_to_text" in source
+    assert "discord_stop_launched_to_text" in source
+    assert "Остановить Discord launch" in source
