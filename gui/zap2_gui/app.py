@@ -134,6 +134,7 @@ from .adapters.discord_tunnel import (
     discord_tunnel_https_probe_to_text,
     discord_tunnel_plan_to_text,
     discord_tunnel_probe_to_text,
+    discord_tunnel_route_diagnose_to_text,
     discord_tunnel_start_to_text,
     discord_tunnel_status_to_text,
     discord_tunnel_stop_to_text,
@@ -450,6 +451,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Stage 7p5: выполнить harmless HTTPS HEAD через managed local SOCKS; без запуска Discord",
     )
     parser.add_argument(
+        "--discord-tunnel-route-diagnose",
+        action="store_true",
+        help="Stage 8c: свести tunnel/SOCKS/upstream/Discord logs в короткий route verdict; read-only",
+    )
+    parser.add_argument(
         "--tunnel-probe-host",
         default=DEFAULT_TUNNEL_HTTPS_HOST,
         help="host для --discord-tunnel-https-probe; по умолчанию updates.discord.com",
@@ -501,6 +507,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--discord-launch-through-socks",
         action="store_true",
         help="Stage 7p4/8a: запустить Discord command с SOCKS env/Chromium proxy candidates через active tunnel",
+    )
+    parser.add_argument(
+        "--discord-launch-preflight",
+        action="store_true",
+        help="Stage 8c: перед запуском Discord проверить HTTPS через SOCKS; при провале launch блокируется",
+    )
+    parser.add_argument(
+        "--discord-launch-allow-failed-preflight",
+        action="store_true",
+        help="Stage 8c: разрешить ручной launch даже если --discord-launch-preflight failed",
     )
     parser.add_argument(
         "--discord-stop-launched",
@@ -1055,6 +1071,10 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 2
 
+    if args.discord_tunnel_route_diagnose:
+        print(discord_tunnel_route_diagnose_to_text(profile_id=args.profile))
+        return 0
+
     if args.discord_tunnel_guided_run:
         try:
             text = discord_tunnel_guided_run_to_text(
@@ -1085,7 +1105,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.discord_launch_through_socks:
         try:
-            print(discord_launch_through_socks_to_text(profile_id=args.profile, discord_binary=str(args.discord_binary), launch_mode=str(args.discord_launch_mode)))
+            print(discord_launch_through_socks_to_text(
+                profile_id=args.profile,
+                discord_binary=str(args.discord_binary),
+                launch_mode=str(args.discord_launch_mode),
+                upstream_preflight=bool(args.discord_launch_preflight),
+                preflight_host=str(args.tunnel_probe_host),
+                preflight_path=str(args.tunnel_probe_path),
+                preflight_timeout=float(args.tunnel_probe_timeout),
+                allow_failed_preflight=bool(args.discord_launch_allow_failed_preflight),
+            ))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

@@ -9,6 +9,7 @@ from ..adapters.discord_tunnel import (
     discord_tunnel_status_to_text,
     discord_tunnel_probe_to_text,
     discord_tunnel_https_probe_to_text,
+    discord_tunnel_route_diagnose_to_text,
     discord_tunnel_tun_plan_to_text,
     discord_launch_through_socks_to_text,
     discord_proxy_route_plan_to_text,
@@ -127,6 +128,7 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     route_hint = QtWidgets.QLabel(
         "VLESS tunnel сам по себе только открывает локальный SOCKS. Discord, Firefox или Flatpak не начнут использовать его автоматически. "
         "Для Flatpak Discord укажи команду ниже и нажми «Запустить Discord через SOCKS». "
+        "Перед запуском GUI делает upstream HTTPS-preflight; если VLESS route закрывает TLS, Discord не запускается в retry-loop. "
         "Вывод Discord пишется в .zap2/tunnel/logs, а не спамит в терминал GUI."
     )
     route_hint.setWordWrap(True)
@@ -150,16 +152,19 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     except Exception:  # pragma: no cover
         pass
     route_plan_button = QtWidgets.QPushButton("План маршрута")
+    route_diagnose_button = QtWidgets.QPushButton("Диагноз маршрута")
     launch_button = QtWidgets.QPushButton("Запустить Discord через SOCKS")
     stop_discord_button = QtWidgets.QPushButton("Остановить Discord launch")
     mode_row.addWidget(mode_label)
     mode_row.addWidget(mode_combo)
     mode_row.addWidget(route_plan_button)
+    mode_row.addWidget(route_diagnose_button)
     mode_row.addWidget(launch_button)
     mode_row.addWidget(stop_discord_button)
     mode_row.addStretch(1)
 
     route_plan_button.clicked.connect(lambda _checked=False: run_action("План маршрута", lambda: discord_proxy_route_plan_to_text(root=root)))
+    route_diagnose_button.clicked.connect(lambda _checked=False: run_action("Диагноз маршрута", lambda: discord_tunnel_route_diagnose_to_text(root=root)))
     launch_button.clicked.connect(
         lambda _checked=False: run_action(
             "Запустить Discord через SOCKS",
@@ -167,6 +172,7 @@ def make_tunnel_page(root: Path | None = None) -> Any:
                 root=root,
                 discord_binary=command_input.text().strip() or FLATPAK_DISCORD_COMMAND,
                 launch_mode=str(mode_combo.currentText()),
+                upstream_preflight=True,
             ),
         )
     )
@@ -186,6 +192,7 @@ def make_tunnel_page(root: Path | None = None) -> Any:
         ("Профили", lambda: tunnel_connections_to_text(root=root)),
         ("SOCKS probe", lambda: discord_tunnel_probe_to_text(root=root)),
         ("HTTPS probe", lambda: discord_tunnel_https_probe_to_text(root=root)),
+        ("Диагноз route", lambda: discord_tunnel_route_diagnose_to_text(root=root)),
         ("TUN/TProxy план", lambda: discord_tunnel_tun_plan_to_text(root=root)),
     )
     for index, (caption, callback) in enumerate(actions):

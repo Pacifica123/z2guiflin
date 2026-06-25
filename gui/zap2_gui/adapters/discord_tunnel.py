@@ -1465,7 +1465,18 @@ def discord_proxy_route_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, ro
     )
 
 
-def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, discord_binary: str = DEFAULT_DISCORD_COMMAND, launch_mode: str = "socks-updater-window", root: Path | None = None) -> str:
+def discord_launch_through_socks_to_text(
+    *,
+    profile_id: str = DEFAULT_PROFILE_ID,
+    discord_binary: str = DEFAULT_DISCORD_COMMAND,
+    launch_mode: str = "socks-updater-window",
+    root: Path | None = None,
+    upstream_preflight: bool = False,
+    preflight_host: str = "updates.discord.com",
+    preflight_path: str = "/",
+    preflight_timeout: float = 8.0,
+    allow_failed_preflight: bool = False,
+) -> str:
     if launch_mode not in SUPPORTED_LAUNCH_MODES:
         raise ValueError(f"Unsupported launch mode: {launch_mode}")
     paths = ensure_tunnel_store(root)
@@ -1490,6 +1501,56 @@ def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID
             f"{socks_probe.get('message', 'unknown')}. Discord не будет запущен, чтобы не получить ERR_PROXY_CONNECTION_FAILED. "
             "Запустите --discord-tunnel-probe и проверьте core stdout/stderr."
         )
+    preflight_result: dict[str, Any] | None = None
+    preflight_report_path: Path | None = None
+    if upstream_preflight:
+        try:
+            preflight_result = _https_head_through_socks(
+                socks_host=socks_host,
+                socks_port=socks_port,
+                target_host=preflight_host,
+                target_path=preflight_path,
+                timeout=float(preflight_timeout),
+            )
+        except Exception as exc:  # captured into report so the owner can attach it
+            preflight_result = {"ok": False, "stage": "exception", "message": str(exc), "elapsedMs": None}
+        reports_dir = paths.tunnel_root / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        preflight_report_path = reports_dir / f"{profile_id}.launch-preflight-{stamp}.json"
+        _write_json(
+            preflight_report_path,
+            {
+                "schemaVersion": TUNNEL_SCHEMA_VERSION,
+                "stage": TUNNEL_STAGE,
+                "createdAt": _utc_now(),
+                "profileId": profile_id,
+                "targetHost": preflight_host,
+                "targetPath": preflight_path,
+                "socksHost": socks_host,
+                "socksPort": socks_port,
+                "result": preflight_result,
+                "verdict": "T1_HTTPS_THROUGH_SOCKS_OK" if preflight_result.get("ok") else "T1_HTTPS_THROUGH_SOCKS_FAILED",
+            },
+            secret=False,
+        )
+        if not bool(preflight_result.get("ok")) and not allow_failed_preflight:
+            _append_event(
+                paths,
+                profile_id,
+                "discord-launch-blocked-upstream-preflight",
+                "Discord launch blocked because HTTPS-over-SOCKS preflight failed",
+                {"targetHost": preflight_host, "stage": preflight_result.get("stage"), "report": str(preflight_report_path)},
+            )
+            raise ValueError(
+                "Upstream preflight не прошёл, поэтому Discord не запущен. "
+                f"target=https://{preflight_host}{preflight_path if preflight_path.startswith('/') else '/' + preflight_path}; "
+                f"stage={preflight_result.get('stage', 'n/a')}; message={preflight_result.get('message', 'n/a')}. "
+                f"report: {preflight_report_path}. "
+                "Это защищает от запуска Electron в заведомо сломанный VLESS route. "
+                "Для ручного эксперимента можно повторить с --discord-launch-allow-failed-preflight."
+            )
+
     proxy = f"socks5://{socks_host}:{socks_port}"
     env = dict(os.environ)
     if launch_mode != "socks-flag-only":
@@ -1523,10 +1584,19 @@ def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID
         "stdoutLog": str(stdout_path),
         "stderrLog": str(stderr_path),
         "runningAfterGrace": discord_running,
+        "upstreamPreflight": {
+            "enabled": bool(upstream_preflight),
+            "targetHost": preflight_host if upstream_preflight else "",
+            "targetPath": preflight_path if upstream_preflight else "",
+            "ok": bool(preflight_result.get("ok")) if preflight_result else None,
+            "stage": preflight_result.get("stage") if preflight_result else "",
+            "report": str(preflight_report_path) if preflight_report_path else "",
+            "allowFailed": bool(allow_failed_preflight),
+        },
     }
     discord_session_path = _discord_session_path(paths, profile_id)
     _write_json(discord_session_path, discord_session, secret=False)
-    _append_event(paths, profile_id, "discord-launched-through-socks", "Discord launched with SOCKS env/flag candidates", {"pid": process.pid, "launchMode": launch_mode, "socks": proxy, "runningAfterGrace": discord_running})
+    _append_event(paths, profile_id, "discord-launched-through-socks", "Discord launched with SOCKS env/flag candidates", {"pid": process.pid, "launchMode": launch_mode, "socks": proxy, "runningAfterGrace": discord_running, "upstreamPreflight": bool(upstream_preflight), "upstreamPreflightOk": bool(preflight_result.get("ok")) if preflight_result else None})
     return "\n".join(
         [
             "Discord launch through SOCKS: started",
@@ -1541,6 +1611,8 @@ def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID
             f"discord session: {discord_session_path}",
             f"discord stdout: {stdout_path}",
             f"discord stderr: {stderr_path}",
+            f"upstream preflight: {'ok' if preflight_result and preflight_result.get('ok') else 'skipped' if not upstream_preflight else 'failed-but-allowed'}",
+            f"preflight report: {preflight_report_path if preflight_report_path else 'нет'}",
             "ROUTING NOTE:",
             "  The tunnel is not transparent. Discord must be launched/configured through SOCKS; already-open app/browser windows are not rerouted.",
             "MANUAL ACTION:",
@@ -1778,6 +1850,181 @@ def discord_tunnel_https_probe_to_text(
             "mutates firewall/services: no",
         ]
     )
+
+
+
+def _read_log_tail(path: Path, *, max_bytes: int = 262144) -> str:
+    try:
+        if not path.exists() or not path.is_file():
+            return ""
+        with path.open("rb") as handle:
+            if path.stat().st_size > max_bytes:
+                handle.seek(-max_bytes, os.SEEK_END)
+            return handle.read().decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _last_matching_line(text: str, patterns: tuple[str, ...]) -> str:
+    lowered = tuple(item.lower() for item in patterns)
+    for line in reversed(text.splitlines()):
+        sample = line.lower()
+        if any(pattern in sample for pattern in lowered):
+            return line.strip()
+    return ""
+
+
+def _count_contains(text: str, needle: str) -> int:
+    return text.lower().count(needle.lower())
+
+
+def _latest_report_path(paths: TunnelStorePaths, profile_id: str, suffix_glob: str) -> Path | None:
+    reports_dir = paths.tunnel_root / "reports"
+    if not reports_dir.exists():
+        return None
+    matches = sorted(reports_dir.glob(f"{profile_id}.{suffix_glob}"), key=lambda item: item.stat().st_mtime, reverse=True)
+    return matches[0] if matches else None
+
+
+def _report_verdict(path: Path | None) -> str:
+    if path is None:
+        return "нет"
+    try:
+        data = _read_json(path)
+        verdict = str(data.get("verdict", "unknown"))
+        result = data.get("result", {}) if isinstance(data.get("result"), dict) else {}
+        stage = str(result.get("stage", ""))
+        message = str(result.get("message", ""))
+        tail = f"; stage={stage}; message={message}" if stage or message else ""
+        return f"{verdict}{tail}; report={path}"
+    except Exception:
+        return f"unreadable; report={path}"
+
+
+def discord_tunnel_route_diagnose_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: Path | None = None) -> str:
+    """Summarize local SOCKS, upstream probe, managed Discord launch, and log symptoms."""
+
+    paths = ensure_tunnel_store(root)
+    session_path = _session_path(paths, profile_id)
+    discord_session_path = _discord_session_path(paths, profile_id)
+    socks_host = DEFAULT_SOCKS_HOST
+    socks_port = DEFAULT_SOCKS_PORT
+    tunnel_state = "not-started"
+    tunnel_pid = 0
+    socks_probe: dict[str, Any] = {"ok": False, "message": "no tunnel session"}
+    if session_path.exists():
+        session = _read_json(session_path)
+        tunnel_pid = int(session.get("pid", 0) or 0)
+        stored = str(session.get("state", "running" if tunnel_pid else "not-started"))
+        socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
+        socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
+        tunnel_state = "running" if stored == "running" and _pid_running(tunnel_pid) else stored if stored in {"stopped", "failed"} else "stale"
+        socks_probe = _socks5_handshake_probe(socks_host, socks_port)
+
+    discord_state = "not-started"
+    discord_pid = 0
+    discord_command = ""
+    if discord_session_path.exists():
+        discord_session = _read_json(discord_session_path)
+        discord_pid = int(discord_session.get("pid", 0) or 0)
+        stored_discord = str(discord_session.get("state", "running" if discord_pid else "not-started"))
+        discord_state = "running" if stored_discord == "running" and _pid_running(discord_pid) else stored_discord if stored_discord in {"stopped", "failed", "exited-after-launch", "stale"} else "stale"
+        discord_command = str(discord_session.get("discordCommand", ""))
+
+    core_stdout = _read_log_tail(_stdout_path(paths, profile_id))
+    core_stderr = _read_log_tail(_stderr_path(paths, profile_id))
+    discord_stdout = _read_log_tail(_discord_stdout_path(paths, profile_id))
+    discord_stderr = _read_log_tail(_discord_stderr_path(paths, profile_id))
+    discord_logs = f"{discord_stdout}\n{discord_stderr}"
+    core_logs = f"{core_stdout}\n{core_stderr}"
+
+    accepted_discord = _count_contains(core_logs, "accepted tcp:discordapp.com:443") + _count_contains(core_logs, "accepted tcp:discord.com:443")
+    accepted_gateway = _count_contains(core_logs, "accepted tcp:gateway.discord.gg:443")
+    accepted_telegram = _count_contains(core_logs, "accepted tcp:149.154.") + _count_contains(core_logs, "accepted tcp:91.108.")
+    socks_eof = _count_contains(core_logs, "proxy/socks: insufficient header")
+    err_proxy_failed = _count_contains(discord_logs, "ERR_PROXY_CONNECTION_FAILED")
+    err_closed = _count_contains(discord_logs, "ERR_CONNECTION_CLOSED")
+    err_timed_out = _count_contains(discord_logs, "ERR_TIMED_OUT")
+    ssl_net_error_100 = _count_contains(discord_logs, "net_error -100")
+    retry_lines = _count_contains(discord_logs, "retrying load https://discordapp.com/app")
+    last_error = _last_matching_line(discord_logs, ("ERR_PROXY_CONNECTION_FAILED", "ERR_CONNECTION_CLOSED", "ERR_TIMED_OUT", "net_error -100", "did-fail-load"))
+
+    latest_https = _latest_report_path(paths, profile_id, "https-probe-*.json")
+    latest_preflight = _latest_report_path(paths, profile_id, "launch-preflight-*.json")
+
+    if not session_path.exists():
+        verdict = "TD_NO_TUNNEL_SESSION"
+        meaning = "tunnel core ещё не запускался"
+        next_step = "импортируй/выбери VLESS, затем tunnel plan -> confirm -> start"
+    elif (tunnel_state != "running" or not bool(socks_probe.get("ok"))) and (err_closed or ssl_net_error_100) and accepted_discord:
+        verdict = "TD_LAST_RUN_ROUTED_BUT_UPSTREAM_TLS_CLOSED"
+        meaning = "сейчас SOCKS уже не готов, но в последнем запуске Discord был направлен через tunnel и TLS/HTTPS закрывался"
+        next_step = "перезапусти tunnel и сначала выполни HTTPS/preflight probe; если он failed, меняй VLESS профиль или параметры upstream"
+    elif (tunnel_state != "running" or not bool(socks_probe.get("ok"))) and err_proxy_failed:
+        verdict = "TD_LAST_RUN_PROXY_WAS_UNAVAILABLE"
+        meaning = "сейчас SOCKS не готов, а последний Discord launch падал на недоступном proxy"
+        next_step = "перезапусти tunnel, дождись SOCKS probe ok и запускай только с upstream preflight"
+    elif tunnel_state != "running" or not bool(socks_probe.get("ok")):
+        verdict = "TD_SOCKS_NOT_READY"
+        meaning = "локальный SOCKS сейчас не готов"
+        next_step = "перезапусти tunnel и проверь --discord-tunnel-probe"
+    elif not discord_session_path.exists():
+        verdict = "TD_TUNNEL_READY_APP_NOT_LAUNCHED"
+        meaning = "SOCKS жив, но managed Discord launch ещё не запускался"
+        next_step = "сначала выполни HTTPS/preflight probe, потом launch через SOCKS"
+    elif err_proxy_failed:
+        verdict = "TD_APP_USED_PROXY_BUT_SOCKS_FAILED"
+        meaning = "Discord получил proxy flag, но proxy был недоступен в момент загрузки"
+        next_step = "останови managed Discord, перезапусти tunnel, затем запускай с upstream preflight"
+    elif (err_closed or ssl_net_error_100) and accepted_discord:
+        verdict = "TD_APP_ROUTED_BUT_UPSTREAM_TLS_CLOSED"
+        meaning = "Discord был направлен через SOCKS, core видел discordapp.com:443, но TLS/HTTPS соединение закрывалось"
+        next_step = "проверь VLESS профиль через HTTPS probe на несколько host; вероятнее всего проблема в upstream-профиле или его маршруте"
+    elif accepted_discord or accepted_gateway:
+        verdict = "TD_APP_ROUTED_OBSERVE_RESULT"
+        meaning = "Discord-трафик виден в tunnel core; нужен owner-result по окну Discord"
+        next_step = "если окно не открылось, запусти route diagnose после свежего HTTPS probe"
+    elif discord_session_path.exists():
+        verdict = "TD_APP_LAUNCHED_NO_DISCORD_PROXY_TRAFFIC"
+        meaning = "managed launch был, но в core-логе нет Discord destination"
+        next_step = "проверь launch mode и Flatpak/Electron proxy flags"
+    else:
+        verdict = "TD_UNKNOWN"
+        meaning = "данных недостаточно"
+        next_step = "приложи .zap2/tunnel/runtime, logs и reports"
+
+    lines = [
+        "Discord tunnel route diagnosis",
+        f"stage: {TUNNEL_STAGE}",
+        f"profile: {profile_id}",
+        f"verdict: {verdict}",
+        f"meaning: {meaning}",
+        "",
+        "State:",
+        f"  tunnel: {tunnel_state}; pid={tunnel_pid if tunnel_pid else 'нет'}; proc={_proc_state(tunnel_pid) if tunnel_pid else 'none'}",
+        f"  socks: socks5://{socks_host}:{socks_port}; handshake={'ok' if socks_probe.get('ok') else 'no'}; message={socks_probe.get('message', 'n/a')}",
+        f"  Discord launch: {discord_state}; pid={discord_pid if discord_pid else 'нет'}; command={discord_command or 'нет'}",
+        "",
+        "Evidence from recent logs:",
+        f"  core accepted Discord destinations: {accepted_discord + accepted_gateway}",
+        f"  core accepted Telegram-like destinations: {accepted_telegram}",
+        f"  harmless SOCKS EOF probe noise: {socks_eof}",
+        f"  Discord ERR_PROXY_CONNECTION_FAILED: {err_proxy_failed}",
+        f"  Discord ERR_CONNECTION_CLOSED / net_error -100: {err_closed + ssl_net_error_100}",
+        f"  Discord ERR_TIMED_OUT: {err_timed_out}",
+        f"  Discord retry lines: {retry_lines}",
+        f"  last error line: {last_error or 'нет'}",
+        "",
+        "Latest upstream probes:",
+        f"  HTTPS probe: {_report_verdict(latest_https)}",
+        f"  launch preflight: {_report_verdict(latest_preflight)}",
+        "",
+        f"Next: {next_step}",
+        "read-only: yes",
+        "executes Discord now: no",
+        "mutates firewall/services: no",
+    ]
+    return "\n".join(lines)
 
 
 def _updater_verdict_from_result(owner_result: str, https_verdict: str, discord_pid: int) -> str:

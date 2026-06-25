@@ -487,3 +487,17 @@ Changes:
 - VLESS Reality links now generate `realitySettings` from `sni/fp/pbk/sid/spx/alpn` instead of producing an incomplete Reality stream config.
 
 This keeps the composer responsible for components and keeps the Tunnel tab responsible for client routing. The next useful test is: start `tunnel-vless`, run SOCKS probe, run HTTPS probe, then launch Flatpak Discord only if both the local SOCKS and upstream path are ready.
+
+### Stage 8c — tunnel route diagnosis и launch preflight
+
+Цель Stage 8c — убрать путаницу между тремя разными состояниями: `туннель запущен`, `SOCKS отвечает`, `Discord реально загрузился через рабочий upstream`. В предыдущих проверках владелец видел, что GUI пишет о запуске, но окно Discord оставалось на retry. Логи показали более точную картину: Flatpak Discord получил `--proxy-server`, V2Ray видел `accepted tcp:discordapp.com:443 [proxy]`, но Electron получал `ERR_CONNECTION_CLOSED`.
+
+Изменение Stage 8c:
+
+- добавить `--discord-tunnel-route-diagnose` для короткого verdict по runtime/logs/reports;
+- добавить upstream HTTPS preflight перед Discord launch;
+- блокировать обычный GUI launch, если preflight не прошёл;
+- оставить force-флаг только для ручного эксперимента;
+- явно объяснить в GUI, что launch composer запускает компоненты, а не клиентские приложения.
+
+Критерий готовности Stage 8c: после свежего `.zap2` владелец должен видеть не общий статус `не работает`, а конкретную категорию: SOCKS dead, app not routed, upstream TLS closed или owner observation needed.

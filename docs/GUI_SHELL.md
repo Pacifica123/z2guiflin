@@ -163,3 +163,17 @@ SOCKS” step.
 ```
 
 Там же появилась кнопка `Остановить Discord launch`. Она останавливает только recorded Discord process group из `.zap2/tunnel/runtime/default.discord-session.json`; tunnel core и Zapret остаются отдельными компонентами.
+
+## Stage 8c: понятная диагностика маршрута SOCKS/VLESS
+
+Во вкладке `Туннель` блок `Маршрут через SOCKS` теперь не ограничивается кнопкой запуска Discord. Добавлен отдельный action `Диагноз маршрута`. Он показывает, где именно находится сбой:
+
+- tunnel core не running;
+- SOCKS-порт не отвечает;
+- Discord запущен, но proxy недоступен;
+- Discord реально направлен через SOCKS, но upstream VLESS закрывает TLS;
+- Discord-трафик виден в core-логе, но нужен ручной результат по окну приложения.
+
+Кнопка `Запустить Discord через SOCKS` в GUI теперь делает upstream HTTPS-preflight перед запуском. Если VLESS route не проходит базовый HTTPS-тест, Discord не запускается. Это уменьшает шум от Electron retry-loop и делает состояние GUI понятнее: зелёный запуск tunnel core не означает, что Discord уже успешно прошёл через upstream.
+
+Комбинированный запуск на вкладке `Обзор` остаётся запуском компонентов, а не запуском приложений. `Zapret default` и `VLESS tunnel` — это инфраструктурные компоненты. Flatpak Discord через SOCKS запускается отдельно во вкладке `Туннель`, потому что это уже клиентский маршрут, а не сам tunnel core.

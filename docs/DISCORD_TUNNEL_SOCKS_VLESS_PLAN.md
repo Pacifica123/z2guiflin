@@ -689,3 +689,54 @@ VLESS core, Zapret, nftables или systemd; она останавливает �
 импортироваться и запускать core, но upstream VLESS path оставался фактически
 неполным. Теперь Reality-поля сохраняются в generated config под `.zap2/tunnel`
 с секретными правами и не печатаются в owner output.
+
+## Stage 8c: route diagnosis и upstream preflight
+
+После Stage 8b стало видно, что одна проверка `SOCKS handshake ok` недостаточна. Она доказывает только то, что локальный порт `127.0.0.1:10808` отвечает как SOCKS5. Она не доказывает, что выбранный VLESS-профиль может открыть HTTPS-соединение до Discord.
+
+Stage 8c разделяет маршрут на четыре простые зоны:
+
+1. `tunnel core` — внешний `xray`/`v2ray` процесс жив.
+2. `local SOCKS` — loopback-порт отвечает на SOCKS5 greeting.
+3. `upstream VLESS` — через SOCKS проходит HTTPS HEAD до выбранного host.
+4. `Discord app route` — Flatpak/Electron реально отправляет `discordapp.com:443` в SOCKS.
+
+Новая команда сводит эти зоны в один короткий verdict:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-route-diagnose
+```
+
+Она читает только локальные `.zap2/tunnel/runtime`, `.zap2/tunnel/logs` и `.zap2/tunnel/reports`. Команда не запускает Discord, не меняет firewall, не останавливает процессы и не печатает VLESS URI.
+
+Типичные verdict:
+
+- `TD_SOCKS_NOT_READY` — локальный SOCKS не готов. Discord запускать нельзя.
+- `TD_APP_USED_PROXY_BUT_SOCKS_FAILED` — Discord получил proxy flag, но proxy был недоступен в момент загрузки.
+- `TD_APP_ROUTED_BUT_UPSTREAM_TLS_CLOSED` — Discord был направлен через SOCKS, core видел `discordapp.com:443`, но TLS/HTTPS закрывался. Это указывает не на кнопку запуска, а на upstream VLESS route или выбранный профиль.
+- `TD_TUNNEL_READY_APP_NOT_LAUNCHED` — tunnel готов, но managed Discord launch ещё не запускался.
+
+Для запуска Discord добавлен optional upstream preflight:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app \
+  --discord-launch-through-socks \
+  --discord-launch-preflight \
+  --discord-binary "flatpak run com.discordapp.Discord"
+```
+
+Если HTTPS-over-SOCKS preflight падает, launch блокируется до запуска Electron. Это защищает от ситуации, где Discord попадает в бесконечный retry-loop с `ERR_CONNECTION_CLOSED` или `ERR_PROXY_CONNECTION_FAILED`.
+
+Для ручного эксперимента блокировку можно обойти:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app \
+  --discord-launch-through-socks \
+  --discord-launch-preflight \
+  --discord-launch-allow-failed-preflight \
+  --discord-binary "flatpak run com.discordapp.Discord"
+```
+
+Такой запуск нужен только для диагностики. Нормальный GUI-путь использует preflight и не запускает Discord, если upstream route уже выглядит сломанным.
+
+Если `.zap2` приложен уже после остановки процессов, диагностика всё равно читает последние логи. В этом случае verdict может начинаться с `TD_LAST_RUN_...`. Это не текущее состояние порта, а вывод по последнему recorded launch. Например, `TD_LAST_RUN_ROUTED_BUT_UPSTREAM_TLS_CLOSED` означает: сейчас SOCKS уже не слушает, но в последнем запуске core видел Discord destinations, а Electron получал закрытие TLS/HTTPS.
