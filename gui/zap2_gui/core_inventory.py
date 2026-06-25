@@ -23,6 +23,9 @@ class CoreInventory:
 class CoreInventorySnapshot:
     upstream_name: str
     vendor_file_count: int
+    upstream_imported_file_count: int
+    project_local_core_file_count: int
+    project_local_core_files: tuple[str, ...]
     extension_counts: dict[str, int]
     top_level_file_counts: dict[str, int]
     primary_makefiles: tuple[str, ...]
@@ -74,6 +77,9 @@ def load_core_inventory_snapshot(root: Path | None = None) -> CoreInventorySnaps
     return CoreInventorySnapshot(
         upstream_name=str(upstream["name"]),
         vendor_file_count=int(counts["vendorFileCount"]),
+        upstream_imported_file_count=int(counts.get("upstreamImportedFileCount", counts["vendorFileCount"])),
+        project_local_core_file_count=int(counts.get("projectLocalCoreFileCount", 0)),
+        project_local_core_files=tuple(str(item.get("path", "")) for item in data.get("projectLocalCoreFiles", []) if isinstance(item, dict)),
         extension_counts={str(k): int(v) for k, v in counts["extensionCounts"].items()},
         top_level_file_counts={str(k): int(v) for k, v in counts["topLevelFileCounts"].items()},
         primary_makefiles=tuple(str(item) for item in notable["primaryMakefiles"]),

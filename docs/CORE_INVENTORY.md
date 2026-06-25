@@ -19,7 +19,7 @@ Stage 4 делает только инвентаризацию:
 
 ## Сводка дерева
 
-По снимку Stage 4 в vendored-ядре зафиксировано **245 файлов** upstream-импорта. Это число намеренно совпадает с `importedFileCount` из `core/zapret2/UPSTREAM_IMPORT.json` и не включает наши служебные файлы `CORE_INVENTORY.json`, `BUILD_MAP.json`, `UPSTREAM_IMPORT.json`, `UPSTREAM_IMPORT.md`.
+По текущему снимку в `core/zapret2/` зафиксировано **246 core-файлов**. Из них **245** остаются upstream import count из `core/zapret2/UPSTREAM_IMPORT.json`, а **1** файл является project-local helper: `lua/custom_funcs.lua`. Он лежит рядом с Lua-скриптами, потому что runtime подключает его как обычный `--lua-init`, но он не меняет смысл upstream-архива и не должен подменять `importedFileCount`. Служебные файлы `CORE_INVENTORY.json`, `BUILD_MAP.json`, `UPSTREAM_IMPORT.json`, `UPSTREAM_IMPORT.md` в эти числа не входят.
 
 Крупнейшие области дерева:
 
@@ -32,9 +32,13 @@ Stage 4 делает только инвентаризацию:
 | `ipset/` | 20 | сценарии и заготовки списков |
 | `docs/` | 20 | upstream-документация и compile notes |
 | `common/` | 13 | общие shell-библиотеки upstream-сценариев |
-| `lua/` | 6 | Lua-логика стратегий/профилей |
+| `lua/` | 7 | upstream Lua-логика плюс project-local compatibility helper |
 | `ip2net/` | 4 | helper для обработки IP/net данных |
 | `mdig/` | 2 | DNS-helper |
+
+## Project-local файл внутри core
+
+`lua/custom_funcs.lua` добавлен проектом как compatibility shim для community Windows preset helpers. Инвентаризация считает его core-файлом, потому что runtime должен видеть его рядом с остальными Lua input files. При этом `UPSTREAM_IMPORT.json` продолжает считать только upstream-файлы из исходного архива. Проверка сравнивает `upstreamImportedFileCount` с `importedFileCount`, а общий `vendorFileCount` показывает фактическое дерево, которое видит приложение.
 
 ## Типы файлов
 
@@ -50,7 +54,7 @@ Stage 4 делает только инвентаризацию:
 | `.c` | 32 | C-исходники |
 | `<none>` | 34 | исполняемые/текстовые файлы без расширения, в том числе init/custom examples |
 | `.txt` | 22 | списки, readme и примеры |
-| `.lua` | 6 | Lua-стратегии и библиотечные сценарии |
+| `.lua` | 7 | Lua-стратегии, библиотечные сценарии и локальный compatibility shim |
 | `.service` / `.timer` | 4 | systemd-шаблоны и таймер |
 
 ## Makefile и исходники

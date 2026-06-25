@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 from . import PRODUCT_LABEL
@@ -94,6 +95,11 @@ from .adapters.discord_endpoint_discovery import (
     discord_endpoint_watch_to_text,
     discord_netlog_plan_to_text,
 )
+from .adapters.discord_har_discovery import (
+    discord_har_analyze_to_text,
+    discord_har_plan_to_text,
+    discord_har_report_to_text,
+)
 from .adapters.discord_dns_edge_diagnostics import (
     DEFAULT_DNS_EDGE_RESOLVERS,
     discord_dns_edge_check_to_text,
@@ -168,7 +174,7 @@ def describe_project() -> str:
             f"Zap2 GUI Linux {PRODUCT_LABEL}",
             f"root: {layout.root}",
             f"core: {inventory.upstream_name} ({inventory.imported_files} imported files)",
-            f"inventory: {snapshot.vendor_file_count} vendored files",
+            f"inventory: {snapshot.vendor_file_count} core files ({snapshot.project_local_core_file_count} project-local)",
             f"build units: {units}",
             f"local build adapter: plan-only ({len(build_plan.expected_artifacts)} expected artifacts)",
             f"workspace profiles: {len(workspace_catalog.profiles)}; strategies: {len(workspace_catalog.strategies)}",
@@ -626,6 +632,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="показать privacy-aware owner plan для optional Chromium netlog диагностики Discord",
     )
     parser.add_argument(
+        "--discord-har-plan",
+        action="store_true",
+        help="показать privacy-aware план анализа HAR Discord; без чтения файла",
+    )
+    parser.add_argument(
+        "--discord-har-analyze",
+        metavar="HAR_OR_ZIP",
+        help="прочитать HAR/.zip локально и сохранить sanitized host/path/status summary без секретов",
+    )
+    parser.add_argument(
+        "--discord-har-report",
+        action="store_true",
+        help="показать последний sanitized Discord HAR summary",
+    )
+    parser.add_argument(
         "--discord-endpoint-seconds",
         type=int,
         default=DEFAULT_DISCOVERY_SECONDS,
@@ -860,6 +881,22 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.discord_netlog_plan:
         print(discord_netlog_plan_to_text())
+        return 0
+
+    if args.discord_har_plan:
+        print(discord_har_plan_to_text())
+        return 0
+
+    if args.discord_har_analyze:
+        try:
+            print(discord_har_analyze_to_text(str(args.discord_har_analyze)))
+            return 0
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"Discord HAR analyze failed: {exc}", file=sys.stderr)
+            return 2
+
+    if args.discord_har_report:
+        print(discord_har_report_to_text())
         return 0
 
     if args.discord_dns_edge_plan:

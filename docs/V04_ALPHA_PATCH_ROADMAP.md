@@ -401,3 +401,17 @@ Stage 7p5 continues the Stage 7p1-7p4 tunnel MVP with a stronger guided workflow
 This stage still avoids copying v2rayNG code.  v2rayNG remains a reference for
 product patterns: profile list, proxy-only mode, VPN/TUN separation, and test
 service concepts.
+
+
+### Stage 7x — HAR discovery/reporting cleanup
+
+Этот patch закрывает две технические задачи перед дальнейшими Discord-итерациями.
+Первая — инвентаризация core больше не падает из-за `lua/custom_funcs.lua`: общий
+core count и upstream import count разделены явно. Вторая — browser HAR теперь
+можно использовать безопасно: анализатор строит sanitized host/path/status
+summary, показывает категории и coverage gaps, но не сохраняет секретные headers,
+cookies, query strings, bodies, WebSocket payloads или server IP values.
+
+Ожидаемый результат: следующий stage получает более чистый evidence слой. HAR
+помогает понять web-surface Discord, но не подменяет Blockcheck, endpoint watch и
+pre-TLS probe для текущего ClientHello/no-ServerHello blocker.

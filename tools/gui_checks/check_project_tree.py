@@ -504,8 +504,9 @@ def main() -> int:
 
     inventory = json.loads((ROOT / "core/zapret2/CORE_INVENTORY.json").read_text(encoding="utf-8"))
     build_map = json.loads((ROOT / "core/zapret2/BUILD_MAP.json").read_text(encoding="utf-8"))
-    if inventory["counts"]["vendorFileCount"] != int(manifest["importedFileCount"]):
-        print("Инвентаризация ядра не совпадает с манифестом импорта")
+    upstream_count = int(inventory["counts"].get("upstreamImportedFileCount", inventory["counts"]["vendorFileCount"]))
+    if upstream_count != int(manifest["importedFileCount"]):
+        print("Инвентаризация upstream-части ядра не совпадает с манифестом импорта")
         return 1
     unit_names = {unit["name"] for unit in build_map["units"]}
     if unit_names != {"nfqws2", "ip2net", "mdig"}:

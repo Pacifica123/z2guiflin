@@ -11,3 +11,9 @@
 Исключённые файлы — это CI metadata или compiled/binary artifacts из переданного upstream-архива. Они перечислены в `UPSTREAM_IMPORT.json`, чтобы будущий патч мог осознанно пересмотреть это решение.
 
 GUI-слой должен считать эту директорию source input. Он не должен небрежно переписывать её и не должен выполнять installer scripts в рамках автоматической валидации.
+
+
+Примечание: `lua/custom_funcs.lua` является project-local compatibility helper,
+добавленным после upstream-импорта для поддержки community preset args. Поэтому
+он отображается в `CORE_INVENTORY.json` как core-файл, но не входит в
+`importedFileCount` и не меняет upstream content digest.

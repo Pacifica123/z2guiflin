@@ -65,3 +65,10 @@ The watcher remains read-only: it samples `ss`, `pgrep` and DNS metadata, does n
 ### v0.4-alpha Stage 7i — Discord DNS edge diagnosis
 
 Stage 7i переносит идею Windows GUI DNS-проверок в read-only Linux diagnostic. Команды `--discord-dns-edge-plan` и `--discord-dns-edge-check` сравнивают system/Cloudflare/Google/Quad9/AdGuard/OpenDNS resolvers и проверяют TCP/443 для возвращённых Discord edge IP. Это не меняет DNS и не требует sudo. Если найден `connect-ok` edge, DNS/hosts steering можно рассматривать как owner-confirmed эксперимент. Если все edge IP timeout, то текущий Discord updater blocker шире, чем DNS-подмена, и обычные TLS Blockcheck-стратегии всё ещё не упражняются на SYN-SENT socket.
+
+
+### v0.4-alpha Stage 7x — HAR discovery/reporting
+
+Stage 7x добавляет второй read-only источник evidence: browser HAR, снятый владельцем вручную. Новый анализатор не хранит заголовки, cookies, query strings, request/response bodies или WebSocket payloads. Он сохраняет только sanitized summary: hosts, категории, методы, статусы, path-шаблоны без id/token/query и coverage-сравнение с `discord-desktop` preset и `default.hosts`.
+
+Это полезно для discovery и отчётности: HAR может показать web/API/gateway/CDN/upload hosts, которые endpoint watch не видит как hostname. Но HAR не заменяет pre-TLS probes, потому что capture начинается уже после того, как браузер дошёл до HTTP/WebSocket уровня. Missing hosts из HAR сначала считаются discovery candidates, а не автоматическими runtime strategy changes.

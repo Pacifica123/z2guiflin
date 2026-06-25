@@ -24,6 +24,12 @@ SNAPSHOT_METADATA_FILES = {
     "BUILD_MAP.json",
 }
 
+# Files intentionally kept under core/zapret2 because nfqws2 loads them as
+# local runtime inputs, but not imported from the upstream source archive.
+PROJECT_LOCAL_CORE_FILES = {
+    "lua/custom_funcs.lua": "project-local compatibility shim for community Windows preset helpers",
+}
+
 PRIMARY_MAKEFILES = [
     "Makefile",
     "nfq2/Makefile",
@@ -88,12 +94,24 @@ BUILD_UNITS: list[dict[str, Any]] = [
 ]
 
 
-def _vendor_files() -> list[Path]:
+def _core_files() -> list[Path]:
     return sorted(
         path
         for path in CORE_ROOT.rglob("*")
         if path.is_file() and path.name not in SNAPSHOT_METADATA_FILES
     )
+
+
+def _vendor_files() -> list[Path]:
+    return _core_files()
+
+
+def _upstream_vendor_files() -> list[Path]:
+    return [path for path in _core_files() if _rel(path) not in PROJECT_LOCAL_CORE_FILES]
+
+
+def _project_local_files() -> list[Path]:
+    return [path for path in _core_files() if _rel(path) in PROJECT_LOCAL_CORE_FILES]
 
 
 def _rel(path: Path) -> str:
@@ -130,6 +148,8 @@ def _targets_from_makefile(rel_path: str) -> list[str]:
 def compute_core_inventory() -> dict[str, Any]:
     upstream = json.loads(UPSTREAM_IMPORT_PATH.read_text(encoding="utf-8"))
     files = _vendor_files()
+    upstream_files = _upstream_vendor_files()
+    project_local_files = _project_local_files()
     top_dirs = Counter(_top_level(path) for path in files)
     extensions = Counter(_suffix(path) for path in files)
     source_dirs = Counter(
@@ -178,10 +198,16 @@ def compute_core_inventory() -> dict[str, Any]:
         },
         "counts": {
             "vendorFileCount": len(files),
+            "upstreamImportedFileCount": len(upstream_files),
+            "projectLocalCoreFileCount": len(project_local_files),
             "extensionCounts": dict(sorted(extensions.items())),
             "topLevelFileCounts": dict(sorted(top_dirs.items())),
             "sourceDirectoryCounts": dict(sorted(source_dirs.items())),
         },
+        "projectLocalCoreFiles": [
+            {"path": _rel(path), "reason": PROJECT_LOCAL_CORE_FILES[_rel(path)]}
+            for path in project_local_files
+        ],
         "notablePaths": {
             "primaryMakefiles": PRIMARY_MAKEFILES,
             "allMakefiles": makefiles,

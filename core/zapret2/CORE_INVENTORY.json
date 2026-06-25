@@ -18,7 +18,9 @@
     "contentDigestSha256": "9d57e8fdee29938d560a390f976def49d4692f8dfda7e59c7df4a48fffe773d5"
   },
   "counts": {
-    "vendorFileCount": 245,
+    "vendorFileCount": 246,
+    "upstreamImportedFileCount": 245,
+    "projectLocalCoreFileCount": 1,
     "extensionCounts": {
       ".bin": 46,
       ".c": 32,
@@ -26,7 +28,7 @@
       ".h": 35,
       ".helper": 1,
       ".inc": 2,
-      ".lua": 6,
+      ".lua": 7,
       ".manifest": 1,
       ".md": 3,
       ".rc": 1,
@@ -47,13 +49,13 @@
       "init.d": 36,
       "ip2net": 4,
       "ipset": 20,
-      "lua": 6,
+      "lua": 7,
       "mdig": 2,
       "nfq2": 68
     },
     "sourceDirectoryCounts": {
       "ip2net": 3,
-      "lua": 6,
+      "lua": 7,
       "mdig": 1,
       "nfq2": 41,
       "nfq2/andr": 4,
@@ -63,6 +65,12 @@
       "nfq2/windows/windivert": 1
     }
   },
+  "projectLocalCoreFiles": [
+    {
+      "path": "lua/custom_funcs.lua",
+      "reason": "project-local compatibility shim for community Windows preset helpers"
+    }
+  ],
   "notablePaths": {
     "primaryMakefiles": [
       "Makefile",
@@ -92,6 +100,7 @@
       "ipset/zapret-hosts-user-exclude.txt.default"
     ],
     "luaScripts": [
+      "lua/custom_funcs.lua",
       "lua/zapret-antidpi.lua",
       "lua/zapret-auto.lua",
       "lua/zapret-lib.lua",

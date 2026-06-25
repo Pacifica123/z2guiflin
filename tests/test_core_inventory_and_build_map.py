@@ -29,7 +29,16 @@ def test_core_inventory_snapshot_matches_import_manifest() -> None:
     assert inventory["schemaVersion"] == 1
     assert inventory["policy"]["doesNotBuildCore"] is True
     assert inventory["policy"]["doesNotRequireSudo"] is True
-    assert inventory["counts"]["vendorFileCount"] == manifest["importedFileCount"] == 245
+    assert manifest["importedFileCount"] == 245
+    assert inventory["counts"]["vendorFileCount"] == 246
+    assert inventory["counts"]["upstreamImportedFileCount"] == 245
+    assert inventory["counts"]["projectLocalCoreFileCount"] == 1
+    assert inventory["projectLocalCoreFiles"] == [
+        {
+            "path": "lua/custom_funcs.lua",
+            "reason": "project-local compatibility shim for community Windows preset helpers",
+        }
+    ]
     assert inventory["counts"]["topLevelFileCounts"]["nfq2"] == 68
     assert inventory["counts"]["extensionCounts"][".c"] == 32
     assert inventory["notablePaths"]["primaryMakefiles"] == [
@@ -68,7 +77,10 @@ def test_gui_layer_can_read_inventory_and_build_map() -> None:
     build_map = load_core_build_map(ROOT)
 
     assert snapshot.upstream_name == "bol-van/zapret2"
-    assert snapshot.vendor_file_count == 245
+    assert snapshot.vendor_file_count == 246
+    assert snapshot.upstream_imported_file_count == 245
+    assert snapshot.project_local_core_file_count == 1
+    assert snapshot.project_local_core_files == ("lua/custom_funcs.lua",)
     assert "nfq2/Makefile" in snapshot.primary_makefiles
     assert "common/linux_fw.sh" in snapshot.privilege_touchpoints
 
