@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import os
 import stat
 import time
@@ -13,6 +14,8 @@ from zap2_gui.adapters.discord_tunnel import (
     discord_tunnel_stop_to_text,
     generate_xray_vless_socks_config,
     parse_vless_uri,
+    preview_vless_import_text_to_text,
+    tunnel_connection_import_vless_text_to_text,
     tunnel_connection_import_vless_to_text,
     tunnel_connections_to_text,
 )
@@ -118,3 +121,44 @@ def test_stage7p1_tree_does_not_commit_user_example_secret() -> None:
         for needle in forbidden:
             assert needle not in text, f"secret leaked in {path}"
     assert checked
+
+
+def test_stage7y_imports_vless_batch_text_and_base64_without_printing_secrets(tmp_path: Path) -> None:
+    second = (
+        "vless://aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee@second.example.net:443"
+        "?security=tls&encryption=none&type=ws&path=%2Fws&sni=edge.example.org#Second"
+    )
+    payload = f"note before\n{SAMPLE_VLESS}\n{second}\n"
+    encoded_payload = base64.b64encode(payload.encode("utf-8")).decode("ascii")
+
+    preview_text = preview_vless_import_text_to_text(encoded_payload, source="test-clipboard")
+    assert "valid: 2" in preview_text
+    assert "writes files now: no" in preview_text
+    assert "11111111-2222-4333-8444-555555555555" not in preview_text
+    assert "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" not in preview_text
+    assert "example.net" not in preview_text
+
+    import_text = tunnel_connection_import_vless_text_to_text(encoded_payload, source="test-clipboard", root=tmp_path)
+    assert "Tunnel VLESS batch import" in import_text
+    assert "imported valid profiles: 2" in import_text
+    assert "auto-selected: vless-" in import_text
+    assert "11111111-2222-4333-8444-555555555555" not in import_text
+    assert "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" not in import_text
+    assert "example.net" not in import_text
+    assert "second.example.net" not in import_text
+
+    list_text = tunnel_connections_to_text(root=tmp_path)
+    assert "Sample Profile" in list_text
+    assert "Second" in list_text
+    assert "example.net" not in list_text
+
+
+def test_stage7y_tunnel_gui_source_exposes_clipboard_import_without_runtime_launch() -> None:
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "gui" / "zap2_gui" / "widgets" / "tunnel.py").read_text(encoding="utf-8")
+
+    assert "Импорт из буфера" in source
+    assert "QApplication.clipboard" in source
+    assert "preview_vless_import_text_to_text" in source
+    assert "tunnel_connection_import_vless_text_to_text" in source
+    assert "GUI не скачивает core" in source

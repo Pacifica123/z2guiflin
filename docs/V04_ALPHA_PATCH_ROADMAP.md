@@ -415,3 +415,27 @@ cookies, query strings, bodies, WebSocket payloads или server IP values.
 Ожидаемый результат: следующий stage получает более чистый evidence слой. HAR
 помогает понять web-surface Discord, но не подменяет Blockcheck, endpoint watch и
 pre-TLS probe для текущего ClientHello/no-ServerHello blocker.
+
+
+## v0.4-alpha Stage 7y — GUI VLESS clipboard import
+
+Stage 7y makes the existing SOCKS/VLESS tunnel lane usable from the GUI instead
+of forcing every connection-profile import through the terminal. The `Туннель`
+tab now has a dedicated `VLESS import` block:
+
+```text
+Import from clipboard  -> one-click import of copied vless:// text
+Preview field          -> parse/redact without writing files
+Import from field      -> manual paste fallback
+Import from file       -> local text/subscription file fallback
+Profiles and probes    -> separate status/probe action block
+```
+
+The adapter also accepts base64 subscription text and multiple VLESS links in one
+payload. Import still does not start the external core, does not launch Discord,
+does not use sudo, and does not mutate firewall/systemd state. Raw VLESS URI
+values stay out of GUI output and repository files; runtime profile storage
+remains under `.zap2/tunnel` with secret file permissions where possible.
+
+The v2rayNG reference was used only for the product pattern: direct clipboard
+import plus batch/base64 parsing. No Android/Kotlin implementation code is copied.

@@ -23,6 +23,9 @@ V2rayNG/app/src/main/java/com/v2ray/ang/core/CoreOutboundBuilder.kt
 V2rayNG/app/src/main/java/com/v2ray/ang/service/CoreProxyOnlyService.kt
 V2rayNG/app/src/main/java/com/v2ray/ang/service/CoreVpnService.kt
 V2rayNG/app/src/main/java/com/v2ray/ang/ui/PerAppProxyActivity.kt
+V2rayNG/app/src/main/java/com/v2ray/ang/ui/MainActivity.kt
+V2rayNG/app/src/main/java/com/v2ray/ang/handler/AngConfigManager.kt
+V2rayNG/app/src/main/java/com/v2ray/ang/util/Utils.kt
 ```
 
 ## Useful ideas for Zap2GUIfLin
@@ -60,6 +63,28 @@ v2rayNG proxy-only mode   -> Zap2 external-core proxy-only runtime
 v2rayNG VPN mode          -> future Zap2 TUN/TProxy research lane
 v2rayNG per-app proxy     -> future Linux Discord launcher/routing mode
 ```
+
+
+## Clipboard import pattern used in Stage 7y
+
+v2rayNG exposes `import_clipboard` as a direct menu action. The useful pattern is
+simple: read clipboard text, try batch import, show a count, then refresh the
+profile list. Its batch importer also tries base64-decoded subscription text
+before giving up.
+
+Zap2 adapts only that product pattern:
+
+```text
+clipboard text       -> extract vless:// links
+base64 subscription  -> decode, then extract links
+multiple links       -> import as a batch
+GUI output           -> redacted summary only
+raw profile storage  -> .zap2/tunnel, chmod 0600 where possible
+```
+
+No Android/Kotlin implementation code is copied. The GUI button calls native
+Python adapter code and preserves the existing Zap2 safety boundary: importing a
+profile does not start a core, launch Discord, use sudo, or change firewall rules.
 
 ## Secret handling rule
 

@@ -186,7 +186,7 @@ def describe_project() -> str:
             "default workflow: Stage 14 owner-confirmed start/stop",
             "GUI privileged start/stop: v0.4-alpha via graphical sudo askpass",
             "blockcheck lab: v0.4-alpha service targets plus Discord endpoint discovery diagnostics",
-            "discord tunnel lane: Stage 7p5 SOCKS/VLESS guided experiment with HTTPS probe and GUI entry",
+            "discord tunnel lane: Stage 7y SOCKS/VLESS guided experiment with GUI clipboard import",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: v0.4-alpha documentation baseline; next cycle targets desktop Discord",

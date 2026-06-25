@@ -92,15 +92,19 @@ capture traffic.  A connection profile describes where the tunnel goes.
 
 ## 5. VLESS URI import model
 
-The owner may paste a connection string in the UI or pass it through a CLI import
-command.  The parser must support a redacted/generic shape like this:
+The owner may paste a connection string in the UI, import it directly from the
+clipboard, load it from a text file, or pass it through a CLI import command.
+The parser must support a redacted/generic shape like this:
 
 ```text
 vless://<uuid>@<server>:<port>?security=<mode>&encryption=none&type=tcp&host=<host>&headerType=http#<remarks>
 ```
 
 The user's real value must never be committed into docs, tests, strategy files,
-or patch summaries.  Runtime logs must redact secrets.
+or patch summaries.  Runtime logs must redact secrets. Stage 7y adds a GUI-friendly batch import path:
+plain text, multiple `vless://` lines, and base64 subscription text are accepted.
+The GUI output shows only a categorized redacted summary and clears the manual
+input field after a successful import.
 
 ### 5.1 Parsed fields
 

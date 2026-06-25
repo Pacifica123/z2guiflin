@@ -8,7 +8,10 @@ recorded in Zap2's local tunnel session file.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
+import re
 import json
 import os
 import shlex
@@ -57,6 +60,9 @@ KNOWN_VLESS_QUERY_KEYS = {
     "mode",
     "authority",
 }
+VLESS_URI_RE = re.compile(r"vless://[^\s<>\"']+", re.IGNORECASE)
+MAX_VLESS_IMPORT_TEXT_BYTES = 256 * 1024
+MAX_VLESS_IMPORT_CANDIDATES = 64
 
 
 @dataclass(frozen=True)
@@ -240,6 +246,48 @@ class VlessConnectionProfile:
         }
 
 
+
+
+@dataclass(frozen=True)
+class VlessImportPreview:
+    candidate_count: int
+    valid_profiles: tuple[VlessConnectionProfile, ...]
+    rejected: tuple[str, ...]
+    source: str
+
+    @property
+    def valid_count(self) -> int:
+        return len(self.valid_profiles)
+
+    def to_text(self) -> str:
+        lines = [
+            "VLESS import preview",
+            f"source: {self.source}",
+            f"candidates: {self.candidate_count}",
+            f"valid: {self.valid_count}",
+            f"rejected: {len(self.rejected)}",
+        ]
+        if self.valid_profiles:
+            lines.append("profiles:")
+            for index, profile in enumerate(self.valid_profiles, start=1):
+                redacted = profile.redacted_dict()
+                lines.extend(
+                    [
+                        f"  {index}. {profile.connection_id}",
+                        f"     remarks: {profile.remarks}",
+                        f"     destination: {redacted['server']}:{profile.port}",
+                        f"     transport: {profile.network}/{profile.header_type}; security={profile.security}; encryption={profile.encryption}",
+                        f"     host override: {redacted['host'] or 'нет'}",
+                    ]
+                )
+        if self.rejected:
+            lines.append("rejected samples:")
+            for item in self.rejected[:5]:
+                lines.append(f"  - {item}")
+        lines.extend(["writes files now: no", "raw uri printed now: no"])
+        return "\n".join(lines)
+
+
 def _redact_uuid(value: str) -> str:
     value = str(value)
     if len(value) <= 8:
@@ -325,6 +373,151 @@ def parse_vless_uri(uri_text: str, *, source: str = "manual") -> VlessConnection
         imported_at=_utc_now(),
         source=source,
     )
+
+
+def _ensure_import_text_is_small(text: str) -> str:
+    if len(text.encode("utf-8")) > MAX_VLESS_IMPORT_TEXT_BYTES:
+        raise ValueError(f"VLESS import text is too large; limit is {MAX_VLESS_IMPORT_TEXT_BYTES} bytes")
+    return text
+
+
+def _try_decode_base64_text(text: str) -> str:
+    compact = "".join(text.strip().split())
+    if not compact or len(compact) < 16:
+        return ""
+    padded = compact + ("=" * ((4 - len(compact) % 4) % 4))
+    for decoder in (base64.b64decode, base64.urlsafe_b64decode):
+        try:
+            decoded = decoder(padded.encode("ascii"))
+        except (ValueError, UnicodeEncodeError, binascii.Error):
+            continue
+        try:
+            text_decoded = decoded.decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+        if "vless://" in text_decoded.lower():
+            return text_decoded
+    return ""
+
+
+def _clean_vless_candidate(value: str) -> str:
+    # Chat messages and copied lists often leave trailing punctuation outside the URI.
+    return value.strip().rstrip(".,;)]}")
+
+
+def extract_vless_uris_from_text(text: str) -> list[str]:
+    """Extract unique VLESS share links from plain text or base64 subscription text."""
+
+    raw_text = _ensure_import_text_is_small(text or "")
+    sources = [raw_text]
+    decoded = _try_decode_base64_text(raw_text)
+    if decoded and decoded not in sources:
+        sources.append(_ensure_import_text_is_small(decoded))
+
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for source_text in sources:
+        for match in VLESS_URI_RE.findall(source_text):
+            candidate = _clean_vless_candidate(match)
+            if not candidate or candidate in seen:
+                continue
+            seen.add(candidate)
+            candidates.append(candidate)
+            if len(candidates) >= MAX_VLESS_IMPORT_CANDIDATES:
+                return candidates
+    return candidates
+
+
+def preview_vless_import_text(text: str, *, source: str = "manual-text") -> VlessImportPreview:
+    candidates = extract_vless_uris_from_text(text)
+    valid: list[VlessConnectionProfile] = []
+    rejected: list[str] = []
+    for index, candidate in enumerate(candidates, start=1):
+        try:
+            valid.append(parse_vless_uri(candidate, source=source))
+        except ValueError as exc:
+            rejected.append(f"candidate {index}: {exc}")
+    return VlessImportPreview(
+        candidate_count=len(candidates),
+        valid_profiles=tuple(valid),
+        rejected=tuple(rejected),
+        source=source,
+    )
+
+
+def preview_vless_import_text_to_text(text: str, *, source: str = "manual-text") -> str:
+    preview = preview_vless_import_text(text, source=source)
+    if preview.candidate_count == 0:
+        return "\n".join(
+            [
+                "VLESS import preview",
+                f"source: {source}",
+                "candidates: 0",
+                "valid: 0",
+                "status: no vless:// URI found",
+                "writes files now: no",
+                "raw uri printed now: no",
+            ]
+        )
+    return preview.to_text()
+
+
+def tunnel_connection_import_vless_text_to_text(text: str, *, profile_id: str = DEFAULT_PROFILE_ID, source: str = "manual-text", root: Path | None = None) -> str:
+    """Import one or more VLESS links from a clipboard/text/file payload."""
+
+    paths = ensure_tunnel_store(root)
+    preview = preview_vless_import_text(text, source=source)
+    if preview.candidate_count == 0:
+        raise ValueError("VLESS import text does not contain a vless:// URI")
+    if not preview.valid_profiles:
+        details = "; ".join(preview.rejected[:3]) if preview.rejected else "unknown parse error"
+        raise ValueError(f"No valid VLESS profiles found: {details}")
+
+    existing = [item for item in _load_connections(paths, profile_id)]
+    by_id = {item.connection_id: item for item in existing}
+    imported_ids: list[str] = []
+    for profile in preview.valid_profiles:
+        by_id[profile.connection_id] = profile
+        imported_ids.append(profile.connection_id)
+    connections = list(by_id.values())
+    connections_path = _save_connections(paths, profile_id, connections)
+    selected_id = imported_ids[0]
+    select_text = select_tunnel_connection(selected_id, profile_id=profile_id, root=paths.root)
+    for profile in preview.valid_profiles:
+        _append_event(paths, profile_id, "connection-imported", "VLESS tunnel connection imported from text source", profile.redacted_dict())
+
+    lines = [
+        "Tunnel VLESS batch import",
+        f"profile: {profile_id}",
+        f"source: {source}",
+        f"candidates: {preview.candidate_count}",
+        f"imported valid profiles: {preview.valid_count}",
+        f"rejected candidates: {len(preview.rejected)}",
+        f"connections file: {connections_path}",
+        "raw uri printed now: no",
+        "raw uri committed to repo: no",
+        f"auto-selected: {selected_id}",
+        "",
+        "Imported profiles:",
+    ]
+    for index, profile in enumerate(preview.valid_profiles, start=1):
+        redacted = profile.redacted_dict()
+        lines.extend(
+            [
+                f"  {index}. {profile.connection_id}",
+                f"     remarks: {profile.remarks}",
+                f"     destination: {redacted['server']}:{profile.port}",
+                f"     transport: {profile.network}/{profile.header_type}; security={profile.security}; encryption={profile.encryption}",
+                f"     host override: {redacted['host'] or 'нет'}",
+                f"     unknown query keys: {', '.join(redacted['unknownQueryKeys']) if redacted['unknownQueryKeys'] else 'нет'}",
+            ]
+        )
+    if preview.rejected:
+        lines.append("Rejected candidates:")
+        for item in preview.rejected[:5]:
+            lines.append(f"  - {item}")
+    lines.extend(["", select_text])
+    return "\n".join(lines)
 
 
 def _connections_path(paths: TunnelStorePaths, profile_id: str) -> Path:

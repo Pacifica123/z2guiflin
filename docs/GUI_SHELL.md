@@ -87,6 +87,22 @@ preflight и plan доступны как read-only действия без из
 ## v0.4-alpha Stage 7p5: вкладка «Туннель»
 
 Stage 7p5 добавляет отдельную вкладку `Туннель` для новой SOCKS/VLESS-ветки Discord.
-Вкладка намеренно не вставляет приватную VLESS-строку в GUI и не скачивает внешний core.
 Она показывает статус, redacted connection profiles, SOCKS probe, HTTPS-over-SOCKS probe и plan-only TUN/TProxy заметку.
 Полный guided запуск остаётся CLI-командой, чтобы не прятать запуск внешнего core и Discord за неявной кнопкой.
+
+## v0.4-alpha Stage 7y: VLESS import в GUI
+
+Stage 7y делает вкладку `Туннель` пригодной для обычного импорта connection profile:
+
+```text
+VLESS import       -> импорт из буфера, поля или файла
+Профили и probes  -> статус, список профилей, SOCKS/HTTPS checks
+Guided CLI hint    -> команда для owner-confirmed запуска внешнего core
+Output             -> только redacted summary без raw URI
+```
+
+Кнопка `Импорт из буфера` повторяет удобный сценарий v2rayNG: пользователь
+копирует `vless://...`, нажимает одну кнопку, а GUI сам импортирует профиль и
+выбирает его активным. Поддерживаются plain text, несколько строк и base64
+subscription text. Поле ручного ввода очищается после импорта. GUI не печатает
+UUID, полный host, raw query string или исходный VLESS URI в output.
