@@ -439,3 +439,22 @@ remains under `.zap2/tunnel` with secret file permissions where possible.
 
 The v2rayNG reference was used only for the product pattern: direct clipboard
 import plus batch/base64 parsing. No Android/Kotlin implementation code is copied.
+
+## v0.4-alpha Stage 7z — GUI launch composer
+
+Stage 7z adds the first composition layer above separate Zapret and tunnel lanes. The goal is a GUI panel where the owner can choose an experiment set instead of hunting for isolated buttons.
+
+Implemented components:
+
+- `zapret-default`: current default workflow, still owner-confirmed and privileged through GUI sudo-askpass;
+- `tunnel-vless`: current VLESS external-core lane, still user-space and managed by `.zap2/tunnel` PID state.
+
+Reserved placeholders:
+
+- `socks5`;
+- `mtproto`;
+- `custom`.
+
+The composer exposes status, plan, start, and stop actions. Status/plan are read-only. Start refuses planned components, prepares and confirms the required child plans, and then runs supported components in a stable order. Stop reverses that order.
+
+Combination policy changed only for explicit composer experiments: tunnel start can allow a running Zapret workflow when the composer selected both components. The direct tunnel lane remains conservative by default.

@@ -1077,9 +1077,10 @@ def _assert_zapret_workflow_not_running(profile_id: str) -> None:
         )
 
 
-def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confirm_plan_id: str = "", root: Path | None = None) -> str:
+def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confirm_plan_id: str = "", root: Path | None = None, allow_parallel_with_zapret: bool = False) -> str:
     paths = ensure_tunnel_store(root)
-    _assert_zapret_workflow_not_running(profile_id)
+    if not allow_parallel_with_zapret:
+        _assert_zapret_workflow_not_running(profile_id)
     plan = _load_confirmed_tunnel_plan(paths, profile_id, confirm_plan_id)
     connection = _load_active_connection(paths, profile_id)
     if connection.connection_id != str(plan.get("connectionId")):
@@ -1159,6 +1160,7 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
             "owner confirmation verified: yes",
             "requires sudo: no",
             "mutates firewall/services: no",
+            f"parallel with zapret allowed: {'yes' if allow_parallel_with_zapret else 'no'}",
             "executes Discord now: no",
             "NEXT: PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-probe",
         ]

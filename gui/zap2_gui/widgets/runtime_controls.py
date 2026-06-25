@@ -22,6 +22,17 @@ from ..adapters.gui_runtime_controls import (
     gui_runtime_logs,
     gui_toggle_default_workflow,
 )
+from ..adapters.launch_composer import (
+    COMPONENT_CUSTOM,
+    COMPONENT_MTPROTO,
+    COMPONENT_SOCKS5,
+    COMPONENT_TUNNEL_VLESS,
+    COMPONENT_ZAPRET_DEFAULT,
+    launch_composer_plan_to_text,
+    launch_composer_start_to_text,
+    launch_composer_status_to_text,
+    launch_composer_stop_to_text,
+)
 from ..qt_compat import require_pyqt
 
 
@@ -45,9 +56,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     title = QtWidgets.QLabel("Обзор")
     title.setObjectName("pageTitle")
     intro = QtWidgets.QLabel(
-        "Главная кнопка запускает или останавливает Default workflow целиком: "
-        "проверка, сборка при необходимости, план, подтверждение и графический sudo-запрос. "
-        "Подробные шаги и ошибки выводятся ниже и во вкладке «Логи»."
+        "Панель запуска позволяет выбрать, что именно пробовать вместе: Zapret default, VLESS tunnel, "
+        "а позже SOCKS5/MTProto/custom adapters. Старый Default workflow остаётся ниже как отдельный ручной блок."
     )
     intro.setWordWrap(True)
 
@@ -88,7 +98,141 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         pass
     output.setPlainText(gui_default_status(root=root))
 
-    details_box = QtWidgets.QGroupBox("Диагностика и ручные шаги")
+    composer_box = QtWidgets.QGroupBox("Комбинированный запуск")
+    composer_layout = QtWidgets.QVBoxLayout(composer_box)
+    composer_layout.setSpacing(8)
+
+    composer_hint = QtWidgets.QLabel(
+        "Отметь компоненты, которые нужно пробовать вместе. Supported сейчас: Zapret default и VLESS tunnel. "
+        "План/статус ничего не запускают. Start запускает только отмеченные supported-компоненты в понятном порядке."
+    )
+    composer_hint.setWordWrap(True)
+
+    component_grid = QtWidgets.QGridLayout()
+    component_grid.setHorizontalSpacing(12)
+    component_grid.setVerticalSpacing(6)
+
+    zapret_check = QtWidgets.QCheckBox("Zapret default")
+    zapret_check.setObjectName("launchComponentZapretDefault")
+    zapret_check.setChecked(True)
+    zapret_check.setToolTip("Default workflow: nfqws2 + owner-rules через существующий sudo-askpass путь")
+
+    vless_check = QtWidgets.QCheckBox("VLESS tunnel")
+    vless_check.setObjectName("launchComponentTunnelVless")
+    vless_check.setToolTip("External core + loopback SOCKS; нужен импортированный VLESS profile и путь к core binary")
+
+    socks5_check = QtWidgets.QCheckBox("SOCKS5 upstream")
+    socks5_check.setEnabled(False)
+    socks5_check.setToolTip("Planned placeholder")
+    mtproto_check = QtWidgets.QCheckBox("MTProto")
+    mtproto_check.setEnabled(False)
+    mtproto_check.setToolTip("Planned placeholder")
+    custom_check = QtWidgets.QCheckBox("Custom")
+    custom_check.setEnabled(False)
+    custom_check.setToolTip("Planned placeholder")
+
+    component_grid.addWidget(zapret_check, 0, 0)
+    component_grid.addWidget(vless_check, 0, 1)
+    component_grid.addWidget(socks5_check, 0, 2)
+    component_grid.addWidget(mtproto_check, 1, 0)
+    component_grid.addWidget(custom_check, 1, 1)
+
+    core_row = QtWidgets.QHBoxLayout()
+    core_label = QtWidgets.QLabel("VLESS core binary:")
+    core_input = QtWidgets.QLineEdit()
+    core_input.setObjectName("launchComposerCoreBinary")
+    core_input.setPlaceholderText("/path/to/xray, v2ray или sing-box")
+    core_browse = QtWidgets.QPushButton("Выбрать…")
+    core_browse.setMaximumWidth(100)
+    core_row.addWidget(core_label)
+    core_row.addWidget(core_input, 1)
+    core_row.addWidget(core_browse)
+
+    composer_buttons = QtWidgets.QHBoxLayout()
+    composer_status_button = QtWidgets.QPushButton("Статус выбранного")
+    composer_plan_button = QtWidgets.QPushButton("План выбранного")
+    composer_start_button = QtWidgets.QPushButton("Запустить выбранное")
+    composer_stop_button = QtWidgets.QPushButton("Остановить выбранное")
+    for button in (composer_status_button, composer_plan_button, composer_start_button, composer_stop_button):
+        composer_buttons.addWidget(button)
+    composer_buttons.addStretch(1)
+
+    def selected_components() -> str:
+        selected: list[str] = []
+        if zapret_check.isChecked():
+            selected.append(COMPONENT_ZAPRET_DEFAULT)
+        if vless_check.isChecked():
+            selected.append(COMPONENT_TUNNEL_VLESS)
+        if socks5_check.isChecked():
+            selected.append(COMPONENT_SOCKS5)
+        if mtproto_check.isChecked():
+            selected.append(COMPONENT_MTPROTO)
+        if custom_check.isChecked():
+            selected.append(COMPONENT_CUSTOM)
+        return ",".join(selected)
+
+    def composer_core_binary() -> str | None:
+        value = core_input.text().strip()
+        return value or None
+
+    def browse_core_binary() -> None:
+        filename, _selected_filter = QtWidgets.QFileDialog.getOpenFileName(
+            page,
+            "Выбрать tunnel core binary",
+            "",
+            "Executables (*)",
+        )
+        if filename:
+            core_input.setText(filename)
+
+    def run_composer_start() -> None:
+        question = QtWidgets.QMessageBox.question(
+            page,
+            "Комбинированный запуск",
+            (
+                "Запустить отмеченные supported-компоненты?\n\n"
+                "Zapret default может открыть графический sudo-запрос. "
+                "VLESS tunnel запускает только внешний core без sudo. "
+                "План и подробный вывод будут показаны ниже."
+            ),
+        )
+        if question != QtWidgets.QMessageBox.StandardButton.Yes:
+            output.setPlainText("Launch composer start: отменено пользователем")
+            refresh_visual_state()
+            return
+        run_action(
+            "Launch composer start",
+            lambda: launch_composer_start_to_text(
+                root=root,
+                components=selected_components(),
+                core_binary=composer_core_binary(),
+            ),
+        )
+
+    def run_composer_stop() -> None:
+        question = QtWidgets.QMessageBox.question(
+            page,
+            "Комбинированная остановка",
+            "Остановить отмеченные supported-компоненты в безопасном обратном порядке?",
+        )
+        if question != QtWidgets.QMessageBox.StandardButton.Yes:
+            output.setPlainText("Launch composer stop: отменено пользователем")
+            refresh_visual_state()
+            return
+        run_action("Launch composer stop", lambda: launch_composer_stop_to_text(root=root, components=selected_components()))
+
+    core_browse.clicked.connect(lambda _checked=False: browse_core_binary())
+    composer_status_button.clicked.connect(lambda _checked=False: run_action("Launch composer status", lambda: launch_composer_status_to_text(root=root, components=selected_components(), core_binary=composer_core_binary())))
+    composer_plan_button.clicked.connect(lambda _checked=False: run_action("Launch composer plan", lambda: launch_composer_plan_to_text(root=root, components=selected_components(), core_binary=composer_core_binary())))
+    composer_start_button.clicked.connect(lambda _checked=False: run_composer_start())
+    composer_stop_button.clicked.connect(lambda _checked=False: run_composer_stop())
+
+    composer_layout.addWidget(composer_hint)
+    composer_layout.addLayout(component_grid)
+    composer_layout.addLayout(core_row)
+    composer_layout.addLayout(composer_buttons)
+
+    details_box = QtWidgets.QGroupBox("Default workflow: Диагностика и ручные шаги")
     details_layout = QtWidgets.QGridLayout(details_box)
     details_layout.setHorizontalSpacing(8)
     details_layout.setVerticalSpacing(8)
@@ -159,6 +303,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
 
     layout.addWidget(title)
     layout.addWidget(intro)
+    layout.addWidget(composer_box)
     layout.addLayout(status_row)
     layout.addWidget(details_box)
     layout.addWidget(output, 1)

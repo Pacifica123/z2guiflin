@@ -66,3 +66,28 @@ Stage 6 исправляет UX-проблему Stage 5: раньше во вк
 ## v0.3-beta stage 7: toggle-first UX
 
 Основной путь в GUI теперь должен идти через одну кнопку `Включить Default` / `Выключить Default`. Она агрегирует подготовку планов, подтверждения и privileged start/stop через sudo askpass, а подробный результат отправляет в основной вывод и вкладку `Логи`. Старые отдельные кнопки остаются как диагностический/developer fallback.
+
+## v0.4-alpha Stage 7z: launch composer
+
+Вкладка `Обзор` теперь получает отдельную панель `Комбинированный запуск`. Она нужна для сценария, где владелец хочет быстро выбрать состав эксперимента:
+
+```text
+[x] Zapret default      supported, требует GUI sudo-askpass
+[ ] VLESS tunnel        supported, user-space external core
+[ ] SOCKS5 upstream     planned placeholder
+[ ] MTProto             planned placeholder
+[ ] Custom              planned placeholder
+```
+
+Кнопки панели разделены по смыслу:
+
+```text
+Статус выбранного       read-only snapshot всех компонентов
+План выбранного         порядок запуска/остановки и readiness без исполнения
+Запустить выбранное     только supported components, в порядке composer
+Остановить выбранное    supported components в обратном порядке
+```
+
+`zapret-default` продолжает использовать существующий workflow: plan -> confirmation -> `sudo -A/SUDO_ASKPASS`. `tunnel-vless` продолжает использовать `.zap2/tunnel`: plan -> confirmation -> внешний core PID, без sudo и без firewall/service mutation.
+
+Комбинация `zapret-default + tunnel-vless` теперь разрешена только через явный composer-сценарий. Это сделано намеренно: старый tunnel-only путь остаётся чистым экспериментом и по умолчанию не стартует, если Zapret уже running. Composer же показывает предупреждение, запускает Zapret первым, затем tunnel с явным parallel flag, а останавливает в обратном порядке.

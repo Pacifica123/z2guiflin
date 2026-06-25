@@ -106,3 +106,25 @@ Output             -> только redacted summary без raw URI
 выбирает его активным. Поддерживаются plain text, несколько строк и base64
 subscription text. Поле ручного ввода очищается после импорта. GUI не печатает
 UUID, полный host, raw query string или исходный VLESS URI в output.
+
+## v0.4-alpha Stage 7z: панель комбинированного запуска
+
+Вкладка `Обзор` больше не ограничивается одной кнопкой Default workflow. В верхней части страницы появилась панель `Комбинированный запуск`, где можно отметить launch components и получить plan/status перед действием.
+
+Текущие supported components:
+
+- `zapret-default` — существующий Default workflow с owner confirmation и GUI sudo-askpass;
+- `tunnel-vless` — внешний VLESS core с loopback SOCKS, без sudo.
+
+Заготовки `socks5`, `mtproto` и `custom` видны как disabled placeholders. Они нужны, чтобы GUI уже имел стабильную форму для будущих транспортов, но не создавал ложного ощущения, что эти адаптеры реализованы.
+
+CLI-дублёры панели:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --launch-composer-status --launch-components zapret-default,tunnel-vless
+PYTHONPATH=gui python -m zap2_gui.app --launch-composer-plan --launch-components zapret-default,tunnel-vless --tunnel-core-binary /path/to/xray
+PYTHONPATH=gui python -m zap2_gui.app --launch-composer-start --launch-components tunnel-vless --tunnel-core-binary /path/to/xray
+PYTHONPATH=gui python -m zap2_gui.app --launch-composer-stop --launch-components tunnel-vless
+```
+
+План и статус не запускают процессов. Start/stop применимы только к supported components. Planned placeholders блокируются с явным сообщением.

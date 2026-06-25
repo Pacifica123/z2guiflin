@@ -589,3 +589,22 @@ PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-guided-run \
   --discord-updater-result stuck \
   --tunnel-observe-seconds 0
 ```
+
+## 20. Stage 7z composer exception
+
+The direct tunnel lane remains conservative: `--discord-tunnel-start` still does
+not mix with an already-running default Zapret workflow unless an explicit
+parallel flag is used. Stage 7z adds that exception only for the new launch
+composer, where the owner has visibly selected both components.
+
+Composer policy:
+
+```text
+zapret-default + tunnel-vless selected -> allowed as explicit experiment
+start order                         -> zapret-default, then tunnel-vless
+stop order                          -> tunnel-vless, then zapret-default
+direct tunnel-only default           -> still conservative
+```
+
+This keeps clean tunnel experiments clean, while giving the GUI a controlled way
+to try combined paths when the owner wants to compare them.

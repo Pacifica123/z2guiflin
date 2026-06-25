@@ -84,6 +84,13 @@ from .adapters.gui_privilege import (
     SUPPORTED_GUI_PRIVILEGED_ACTIONS,
     gui_privileged_command_to_text,
 )
+from .adapters.launch_composer import (
+    KNOWN_LAUNCH_COMPONENTS,
+    launch_composer_plan_to_text,
+    launch_composer_start_to_text,
+    launch_composer_status_to_text,
+    launch_composer_stop_to_text,
+)
 from .adapters.discord_verification import (
     discord_non_voice_verification_plan_to_text,
     write_discord_non_voice_report_template_to_text,
@@ -187,6 +194,7 @@ def describe_project() -> str:
             "GUI privileged start/stop: v0.4-alpha via graphical sudo askpass",
             "blockcheck lab: v0.4-alpha service targets plus Discord endpoint discovery diagnostics",
             "discord tunnel lane: Stage 7y SOCKS/VLESS guided experiment with GUI clipboard import",
+            "launch composer: Stage 7z GUI panel for combining Zapret and tunnel components",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
             "status: v0.4-alpha documentation baseline; next cycle targets desktop Discord",
@@ -228,6 +236,32 @@ def build_parser() -> argparse.ArgumentParser:
         "--profile",
         default="default",
         help="workspace-профиль для --runtime-plan; по умолчанию default",
+    )
+
+    parser.add_argument(
+        "--launch-components",
+        default="zapret-default",
+        help="компоненты для launch composer через запятую: " + ",".join(KNOWN_LAUNCH_COMPONENTS),
+    )
+    parser.add_argument(
+        "--launch-composer-plan",
+        action="store_true",
+        help="Stage 7z: показать read-only план комбинированного запуска выбранных компонентов",
+    )
+    parser.add_argument(
+        "--launch-composer-status",
+        action="store_true",
+        help="Stage 7z: показать read-only статус launch composer и всех launch components",
+    )
+    parser.add_argument(
+        "--launch-composer-start",
+        action="store_true",
+        help="Stage 7z: запустить выбранные supported components в порядке composer; Zapret требует GUI sudo-askpass",
+    )
+    parser.add_argument(
+        "--launch-composer-stop",
+        action="store_true",
+        help="Stage 7z: остановить выбранные supported components в обратном порядке composer",
     )
     parser.add_argument(
         "--validate-runtime-contracts",
@@ -387,6 +421,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--discord-tunnel-start",
         action="store_true",
         help="Stage 7p3: запустить внешний core по confirmed tunnel plan; без sudo/firewall/service",
+    )
+    parser.add_argument(
+        "--tunnel-allow-zapret-parallel",
+        action="store_true",
+        help="разрешить tunnel start при уже running default zapret workflow; только для explicit launch composer experiments",
     )
     parser.add_argument(
         "--discord-tunnel-stop",
@@ -859,6 +898,39 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
 
+    if args.launch_composer_status:
+        try:
+            print(launch_composer_status_to_text(components=args.launch_components, profile_id=args.profile, core_binary=args.tunnel_core_binary))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.launch_composer_plan:
+        try:
+            print(launch_composer_plan_to_text(components=args.launch_components, profile_id=args.profile, core_binary=args.tunnel_core_binary, core_kind=args.tunnel_core_kind, socks_port=args.tunnel_socks_port))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.launch_composer_start:
+        try:
+            print(launch_composer_start_to_text(components=args.launch_components, profile_id=args.profile, core_binary=args.tunnel_core_binary, core_kind=args.tunnel_core_kind, socks_port=args.tunnel_socks_port))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.launch_composer_stop:
+        try:
+            print(launch_composer_stop_to_text(components=args.launch_components, profile_id=args.profile))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+
     if args.discord_verification_plan:
         print(discord_non_voice_verification_plan_to_text())
         return 0
@@ -941,7 +1013,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.discord_tunnel_start:
         try:
-            print(discord_tunnel_start_to_text(profile_id=args.profile, confirm_plan_id=args.confirm or ""))
+            print(discord_tunnel_start_to_text(profile_id=args.profile, confirm_plan_id=args.confirm or "", allow_parallel_with_zapret=bool(args.tunnel_allow_zapret_parallel)))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
