@@ -128,3 +128,25 @@ PYTHONPATH=gui python -m zap2_gui.app --launch-composer-stop --launch-components
 ```
 
 План и статус не запускают процессов. Start/stop применимы только к supported components. Planned placeholders блокируются с явным сообщением.
+
+## v0.4-alpha Stage 8a: SOCKS route clarity for Flatpak Discord
+
+The Tunnel tab now has a `Маршрут через SOCKS` block. It keeps a separate command
+field for launching Discord through the managed SOCKS listener. The default hint
+uses Flatpak because the current owner test used:
+
+```bash
+flatpak run com.discordapp.Discord
+```
+
+The GUI command field accepts the same shape and passes a Chromium/Electron proxy
+candidate flag:
+
+```bash
+flatpak run com.discordapp.Discord --proxy-server=socks5://127.0.0.1:10808
+```
+
+This is intentionally separate from `Комбинированный запуск`. The composer starts
+selected components; it does not automatically reroute already-open applications.
+The Tunnel tab route block is the explicit “start this client through this local
+SOCKS” step.

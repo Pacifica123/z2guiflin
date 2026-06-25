@@ -128,6 +128,7 @@ from .adapters.discord_tunnel import (
     DEFAULT_TUNNEL_OBSERVE_SECONDS,
     SUPPORTED_UPDATER_RESULTS,
     discord_launch_through_socks_to_text,
+    discord_proxy_route_plan_to_text,
     discord_tunnel_guided_run_to_text,
     discord_tunnel_https_probe_to_text,
     discord_tunnel_plan_to_text,
@@ -491,14 +492,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Stage 7p5: plan-only TUN/TProxy research lane; ничего не применяет",
     )
     parser.add_argument(
+        "--discord-proxy-route-plan",
+        action="store_true",
+        help="Stage 8a: объяснить, как направить Discord/браузер через managed local SOCKS; без запуска",
+    )
+    parser.add_argument(
         "--discord-launch-through-socks",
         action="store_true",
-        help="Stage 7p4: запустить Discord с SOCKS env/Chromium proxy candidates через active tunnel",
+        help="Stage 7p4/8a: запустить Discord command с SOCKS env/Chromium proxy candidates через active tunnel",
     )
     parser.add_argument(
         "--discord-binary",
         default="discord",
-        help="путь/имя Discord binary для --discord-launch-through-socks; по умолчанию discord из PATH",
+        help="Discord command для --discord-launch-through-socks; примеры: discord или 'flatpak run com.discordapp.Discord'",
     )
     parser.add_argument(
         "--discord-launch-mode",
@@ -1065,6 +1071,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.discord_tunnel_tun_plan:
         print(discord_tunnel_tun_plan_to_text(profile_id=args.profile))
+        return 0
+
+    if args.discord_proxy_route_plan:
+        print(discord_proxy_route_plan_to_text(profile_id=args.profile))
         return 0
 
     if args.discord_launch_through_socks:

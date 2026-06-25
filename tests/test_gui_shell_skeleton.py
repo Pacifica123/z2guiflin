@@ -73,3 +73,13 @@ def test_main_window_default_size_is_blockcheck_friendly() -> None:
 
     assert "self.resize(1240, 840)" in source
     assert "self.setMinimumSize(960, 680)" in source
+
+
+def test_stage8a_tunnel_gui_has_route_controls() -> None:
+    source = (ROOT / "gui" / "zap2_gui" / "widgets" / "tunnel.py").read_text(encoding="utf-8")
+
+    assert "Маршрут через SOCKS" in source
+    assert "discordSocksCommand" in source
+    assert "flatpak run com.discordapp.Discord" in source
+    assert "discord_launch_through_socks_to_text" in source
+    assert "discord_proxy_route_plan_to_text" in source

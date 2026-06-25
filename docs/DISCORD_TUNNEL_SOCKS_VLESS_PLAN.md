@@ -608,3 +608,45 @@ direct tunnel-only default           -> still conservative
 
 This keeps clean tunnel experiments clean, while giving the GUI a controlled way
 to try combined paths when the owner wants to compare them.
+
+## 12. Stage 8a — route diagnostics after real owner logs
+
+The owner logs showed a useful split:
+
+```text
+V2Ray started
+SOCKS listener accepted Telegram TCP connections
+Discord Flatpak still loaded https://discordapp.com/app directly and timed out
+```
+
+The conclusion is narrow: a running local SOCKS listener is not a transparent
+route. Starting `tunnel-vless` only opens `socks5://127.0.0.1:10808`. It does not
+force Firefox, Telegram, Discord, or Flatpak applications to use that listener.
+A client must either be launched with proxy flags/env or configured manually.
+
+Stage 8a therefore adds three owner-facing guardrails:
+
+- `--discord-tunnel-probe` now performs a minimal SOCKS5 no-auth handshake instead
+  of only opening and closing TCP. This avoids confusing `proxy/socks:
+  insufficient header > EOF` log noise and separates “port open” from “speaks
+  SOCKS”.
+- `--discord-proxy-route-plan` explains the missing client-routing step and gives
+  concrete Flatpak/native/browser commands without starting anything.
+- `--discord-launch-through-socks --discord-binary "flatpak run
+  com.discordapp.Discord"` is supported as a command, not just as a single binary
+  path.
+
+Telegram reporting the proxy as unavailable while V2Ray logs `accepted` means the
+local SOCKS entry point received Telegram traffic. It does not prove that the
+remote VLESS profile can reach Telegram or Discord targets. The next useful
+check is the HTTPS probe:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-probe
+PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-https-probe --tunnel-probe-host updates.discord.com
+```
+
+If the SOCKS handshake passes but HTTPS-through-SOCKS fails, the problem is the
+upstream tunnel path/profile, not the local listener. If HTTPS-through-SOCKS
+passes but Discord still times out, the likely problem is client routing: Discord
+or the browser was not actually using the SOCKS listener.

@@ -62,6 +62,7 @@ def test_stage7z_status_and_plan_are_readable_and_categorized(tmp_path: Path) ->
     assert "start order: zapret-default -> tunnel-vless" in plan
     assert "stop order: tunnel-vless -> zapret-default" in plan
     assert "Combination note" in plan
+    assert "does not transparently route Discord" in plan
     assert "readiness: core binary missing" in plan or "readiness: needs VLESS profile" in plan
 
 

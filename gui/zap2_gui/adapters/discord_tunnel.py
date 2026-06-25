@@ -41,6 +41,8 @@ DEFAULT_SOCKS_PORT = 10808
 DEFAULT_CORE_KIND = "auto"
 SUPPORTED_CORE_KINDS = ("auto", "xray", "v2ray", "sing-box")
 SUPPORTED_LAUNCH_MODES = ("socks-updater-window", "socks-full-session", "socks-env-only", "socks-flag-only")
+DEFAULT_DISCORD_COMMAND = "discord"
+FLATPAK_DISCORD_COMMAND = "flatpak run com.discordapp.Discord"
 SECRET_KEYS = {"id", "uuid", "password", "rawUri"}
 KNOWN_VLESS_QUERY_KEYS = {
     "encryption",
@@ -879,7 +881,9 @@ class TunnelPlan:
                     f"  PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm {self.plan_id}",
                     f"  PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-start --confirm {self.plan_id}",
                     "  PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-probe",
-                    "  PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks",
+                    "  PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-https-probe",
+                    "  PYTHONPATH=gui python -m zap2_gui.app --discord-proxy-route-plan",
+                    "  PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks --discord-binary \"flatpak run com.discordapp.Discord\"",
                 ]
             )
         return "\n".join(lines)
@@ -1216,6 +1220,40 @@ def _connect_loopback(host: str, port: int, timeout: float = 2.0) -> bool:
         return False
 
 
+def _socks5_handshake_probe(host: str, port: int, timeout: float = 2.0) -> dict[str, Any]:
+    """Verify that the loopback listener speaks no-auth SOCKS5.
+
+    A plain TCP connect followed by close makes v2ray/xray log
+    `proxy/socks: insufficient header > EOF`, which looks scarier than it is.
+    The handshake probe sends the minimal SOCKS5 greeting instead, so the report
+    can separate "port is open" from "this is a usable SOCKS listener".
+    """
+
+    started = time.monotonic()
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(b"\x05\x01\x00")
+            response = sock.recv(2)
+    except OSError as exc:
+        return {
+            "ok": False,
+            "portOpen": False,
+            "stage": "connect",
+            "message": str(exc),
+            "elapsedMs": int((time.monotonic() - started) * 1000),
+        }
+    ok = response == b"\x05\x00"
+    return {
+        "ok": ok,
+        "portOpen": True,
+        "stage": "socks5-greeting",
+        "responseHex": response.hex(),
+        "message": "SOCKS5 no-auth greeting accepted" if ok else "loopback port did not return SOCKS5 no-auth greeting",
+        "elapsedMs": int((time.monotonic() - started) * 1000),
+    }
+
+
 def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: Path | None = None) -> str:
     paths = ensure_tunnel_store(root)
     session_path = _session_path(paths, profile_id)
@@ -1228,8 +1266,15 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
     running = _pid_running(pid)
     socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
     socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
-    port_open = _connect_loopback(socks_host, socks_port)
-    verdict = "T0_CORE_ONLY" if running and port_open else "T0_CORE_NOT_READY"
+    socks_probe = _socks5_handshake_probe(socks_host, socks_port)
+    port_open = bool(socks_probe.get("portOpen"))
+    handshake_ok = bool(socks_probe.get("ok"))
+    if running and handshake_ok:
+        verdict = "T0_SOCKS_READY"
+    elif running and port_open:
+        verdict = "T0_PORT_OPEN_NOT_SOCKS"
+    else:
+        verdict = "T0_CORE_NOT_READY"
     report = {
         "schemaVersion": TUNNEL_SCHEMA_VERSION,
         "stage": TUNNEL_STAGE,
@@ -1240,21 +1285,28 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
         "socksHost": socks_host,
         "socksPort": socks_port,
         "socksPortOpen": port_open,
+        "socksHandshakeOk": handshake_ok,
+        "socksHandshake": socks_probe,
+        "upstreamTested": False,
         "verdict": verdict,
     }
     reports_dir = paths.tunnel_root / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
     report_path = reports_dir / f"{profile_id}.tunnel-probe.json"
     _write_json(report_path, report, secret=False)
-    _append_event(paths, profile_id, "tunnel-probed", "Tunnel core probe completed", report)
+    _append_event(paths, profile_id, "tunnel-probed", "Tunnel SOCKS handshake probe completed", {"verdict": verdict, "socksPortOpen": port_open, "socksHandshakeOk": handshake_ok})
     lines.extend(
         [
             f"pid: {pid if pid else 'нет'}",
             f"core running: {'yes' if running else 'no'}",
             f"local socks: socks5://{socks_host}:{socks_port}",
             f"socks port open: {'yes' if port_open else 'no'}",
+            f"socks handshake: {'ok' if handshake_ok else 'no'}",
+            f"probe message: {socks_probe.get('message', 'n/a')}",
+            "upstream tested: no",
             f"verdict: {verdict}",
             f"report: {report_path}",
+            "NEXT: run --discord-tunnel-https-probe to test the VLESS upstream path through this SOCKS listener.",
             "executes Discord now: no",
             "mutates firewall/services: no",
         ]
@@ -1262,15 +1314,80 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
     return "\n".join(lines)
 
 
-def _discord_launch_argv(discord_binary: str, socks_host: str, socks_port: int, mode: str) -> tuple[str, ...]:
+def _resolve_discord_launch_command(discord_command: str) -> tuple[tuple[str, ...], str]:
+    raw = (discord_command or DEFAULT_DISCORD_COMMAND).strip()
+    if not raw:
+        raise ValueError("Discord command пустой. Передайте --discord-binary discord или --discord-binary 'flatpak run com.discordapp.Discord'.")
+    parts = tuple(shlex.split(raw)) if any(ch.isspace() for ch in raw) else (raw,)
+    if not parts:
+        raise ValueError("Discord command пустой после parsing.")
+    first = parts[0]
+    resolved_first = shutil.which(first) or str(Path(first).expanduser())
+    if not resolved_first or not Path(resolved_first).exists():
+        raise ValueError(
+            "Discord command не найден. Примеры: --discord-binary discord или --discord-binary 'flatpak run com.discordapp.Discord'."
+        )
+    return (resolved_first, *parts[1:]), raw
+
+
+def _discord_launch_argv(discord_command: str, socks_host: str, socks_port: int, mode: str) -> tuple[tuple[str, ...], str]:
+    base_argv, raw = _resolve_discord_launch_command(discord_command)
     proxy = f"socks5://{socks_host}:{socks_port}"
     # Electron/Chromium candidate flag. Environment variables are set separately.
     if mode == "socks-env-only":
-        return (discord_binary,)
-    return (discord_binary, f"--proxy-server={proxy}")
+        return base_argv, raw
+    return (*base_argv, f"--proxy-server={proxy}"), raw
 
 
-def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, discord_binary: str = "discord", launch_mode: str = "socks-updater-window", root: Path | None = None) -> str:
+def _is_flatpak_command(argv: tuple[str, ...]) -> bool:
+    return bool(argv) and Path(argv[0]).name == "flatpak" and "run" in argv[:3]
+
+
+def discord_proxy_route_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: Path | None = None) -> str:
+    """Explain the missing routing step between local SOCKS and Discord."""
+
+    paths = ensure_tunnel_store(root)
+    session_path = _session_path(paths, profile_id)
+    socks_host = DEFAULT_SOCKS_HOST
+    socks_port = DEFAULT_SOCKS_PORT
+    state = "not-started"
+    if session_path.exists():
+        session = _read_json(session_path)
+        socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
+        socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
+        pid = int(session.get("pid", 0) or 0)
+        state = "running" if _pid_running(pid) else "stale"
+    proxy = f"socks5://{socks_host}:{socks_port}"
+    return "\n".join(
+        [
+            "Discord proxy route plan",
+            f"stage: {TUNNEL_STAGE}",
+            f"profile: {profile_id}",
+            f"tunnel session state: {state}",
+            f"local socks: {proxy}",
+            "",
+            "What this means:",
+            "- Starting VLESS tunnel only opens a local SOCKS listener.",
+            "- It does not transparently route Discord, Firefox, Telegram, or Flatpak apps by itself.",
+            "- Zapret owner-rules and SOCKS tunnel are separate lanes unless a client is explicitly launched/configured to use SOCKS.",
+            "",
+            "Useful commands:",
+            f"- Flatpak Discord: PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks --discord-binary \"{FLATPAK_DISCORD_COMMAND}\"",
+            f"- Native Discord:  PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks --discord-binary discord",
+            f"- Curl check:      curl --socks5-hostname {socks_host}:{socks_port} -I https://updates.discord.com/",
+            "",
+            "Firefox/web Discord:",
+            f"- Set manual SOCKS v5 host={socks_host}, port={socks_port}, and enable remote DNS through SOCKS if available.",
+            "- Browser windows opened without that proxy setting will keep using the normal direct route.",
+            "",
+            "Telegram note:",
+            "- If Telegram shows the proxy as unavailable while the SOCKS handshake is OK, the local port is alive but the upstream VLESS path or target reachability still needs HTTPS/TCP testing.",
+            "read-only: yes",
+        ]
+    )
+
+
+def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, discord_binary: str = DEFAULT_DISCORD_COMMAND, launch_mode: str = "socks-updater-window", root: Path | None = None) -> str:
     if launch_mode not in SUPPORTED_LAUNCH_MODES:
         raise ValueError(f"Unsupported launch mode: {launch_mode}")
     paths = ensure_tunnel_store(root)
@@ -1283,26 +1400,25 @@ def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID
         raise ValueError("Tunnel core не running; сначала проверьте --discord-tunnel-status/--discord-tunnel-start.")
     socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
     socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
-    resolved_discord = shutil.which(discord_binary) or str(Path(discord_binary).expanduser())
-    if not resolved_discord or not Path(resolved_discord).exists():
-        raise ValueError("Discord binary не найден. Передайте --discord-binary /path/to/discord или установите binary в PATH.")
     proxy = f"socks5://{socks_host}:{socks_port}"
     env = dict(os.environ)
     if launch_mode != "socks-flag-only":
         env.update({"ALL_PROXY": proxy, "HTTPS_PROXY": proxy, "HTTP_PROXY": proxy, "all_proxy": proxy, "https_proxy": proxy, "http_proxy": proxy})
-    argv = _discord_launch_argv(resolved_discord, socks_host, socks_port, launch_mode)
+    argv, raw_command = _discord_launch_argv(discord_binary, socks_host, socks_port, launch_mode)
+    flatpak = _is_flatpak_command(argv)
     process = subprocess.Popen(argv, cwd=str(paths.root), env=env, start_new_session=True)
     discord_session = {
         "schemaVersion": TUNNEL_SCHEMA_VERSION,
         "stage": TUNNEL_STAGE,
         "profileId": profile_id,
         "launchMode": launch_mode,
-        "discordBinary": resolved_discord,
+        "discordCommand": raw_command,
         "argv": list(argv),
         "pid": process.pid,
         "startedAt": _utc_now(),
         "proxy": proxy,
         "tunnelSession": str(session_path),
+        "flatpakCommand": flatpak,
     }
     discord_session_path = _discord_session_path(paths, profile_id)
     _write_json(discord_session_path, discord_session, secret=False)
@@ -1312,10 +1428,14 @@ def discord_launch_through_socks_to_text(*, profile_id: str = DEFAULT_PROFILE_ID
             "Discord launch through SOCKS: started",
             f"profile: {profile_id}",
             f"launch mode: {launch_mode}",
+            f"discord command: {raw_command}",
             f"discord pid: {process.pid}",
             f"argv: {shlex.join(argv)}",
             f"proxy env: {proxy}",
+            f"flatpak command: {'yes' if flatpak else 'no'}",
             f"discord session: {discord_session_path}",
+            "ROUTING NOTE:",
+            "  The tunnel is not transparent. Discord must be launched/configured through SOCKS; already-open app/browser windows are not rerouted.",
             "MANUAL ACTION:",
             "  Watch Discord. If it reaches the main window, keep the tunnel running and record that result.",
             "  If it stays on Checking for updates, run --discord-tunnel-probe and attach .zap2/tunnel/runtime + reports.",

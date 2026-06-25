@@ -11,6 +11,7 @@ from zap2_gui.adapters.discord_tunnel import (
     discord_tunnel_plan_to_text,
     discord_tunnel_probe_to_text,
     discord_tunnel_start_to_text,
+    discord_proxy_route_plan_to_text,
     discord_tunnel_stop_to_text,
     generate_xray_vless_socks_config,
     parse_vless_uri,
@@ -100,8 +101,20 @@ def test_confirm_start_probe_stop_with_fake_core(tmp_path: Path) -> None:
     probe_text = discord_tunnel_probe_to_text(root=tmp_path)
     # The fake core does not open SOCKS, but the probe must return a clear report instead of crashing.
     assert "verdict: T0_CORE_NOT_READY" in probe_text
+    assert "socks handshake: no" in probe_text
+    assert "upstream tested: no" in probe_text
     stop_text = discord_tunnel_stop_to_text(root=tmp_path)
     assert "Discord tunnel stop: stopped" in stop_text
+
+
+def test_stage8a_proxy_route_plan_explains_non_transparent_socks(tmp_path: Path) -> None:
+    text = discord_proxy_route_plan_to_text(root=tmp_path)
+
+    assert "Discord proxy route plan" in text
+    assert "Starting VLESS tunnel only opens a local SOCKS listener" in text
+    assert "flatpak run com.discordapp.Discord" in text
+    assert "Firefox/web Discord" in text
+    assert "read-only: yes" in text
 
 
 def test_stage7p1_tree_does_not_commit_user_example_secret() -> None:

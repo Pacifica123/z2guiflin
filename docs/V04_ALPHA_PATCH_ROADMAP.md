@@ -170,6 +170,22 @@ Stage 3 всё ещё не меняет runtime apply и hostlist.
 Ожидаемый результат: Discord non-voice становится достаточно воспроизводимым для
 перехода к beta-кандидату или к voice-исследованию.
 
+### Stage 8a — SOCKS route diagnostics before voice/UDP
+
+Реальные логи показали, что `tunnel-vless` может быть running и принимать
+локальные SOCKS connections, но Discord всё равно может идти direct route и
+падать на `ERR_TIMED_OUT`. Поэтому перед voice/UDP добавляется короткий
+диагностический stage:
+
+- SOCKS probe проверяет настоящий SOCKS5 handshake, а не только TCP port open;
+- GUI показывает отдельный блок `Маршрут через SOCKS`;
+- `--discord-proxy-route-plan` объясняет, что tunnel не является прозрачным route;
+- `--discord-launch-through-socks` принимает command string, например
+  `flatpak run com.discordapp.Discord`.
+
+Ожидаемый результат: владелец может отличить три случая: local SOCKS не поднялся,
+upstream VLESS не ходит наружу, Discord/браузер не был направлен через SOCKS.
+
 ### Stage 8 — optional Discord voice/UDP investigation
 
 Не начинать до подтверждения non-voice слоя. Voice требует отдельного подхода:

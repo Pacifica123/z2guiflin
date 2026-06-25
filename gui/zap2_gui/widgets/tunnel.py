@@ -10,6 +10,10 @@ from ..adapters.discord_tunnel import (
     discord_tunnel_probe_to_text,
     discord_tunnel_https_probe_to_text,
     discord_tunnel_tun_plan_to_text,
+    discord_launch_through_socks_to_text,
+    discord_proxy_route_plan_to_text,
+    FLATPAK_DISCORD_COMMAND,
+    SUPPORTED_LAUNCH_MODES,
     preview_vless_import_text_to_text,
     tunnel_connection_import_vless_text_to_text,
     tunnel_connections_to_text,
@@ -115,6 +119,58 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     import_layout.addWidget(manual_input)
     import_layout.addLayout(import_buttons)
 
+    launch_box = QtWidgets.QGroupBox("Маршрут через SOCKS")
+    launch_layout = QtWidgets.QVBoxLayout(launch_box)
+    launch_layout.setSpacing(8)
+
+    route_hint = QtWidgets.QLabel(
+        "VLESS tunnel сам по себе только открывает локальный SOCKS. Discord, Firefox или Flatpak не начнут использовать его автоматически. "
+        "Для Flatpak Discord укажи команду ниже и нажми «Запустить Discord через SOCKS»."
+    )
+    route_hint.setWordWrap(True)
+
+    command_row = QtWidgets.QHBoxLayout()
+    command_label = QtWidgets.QLabel("Discord command:")
+    command_input = QtWidgets.QLineEdit()
+    command_input.setObjectName("discordSocksCommand")
+    command_input.setText(FLATPAK_DISCORD_COMMAND)
+    command_input.setPlaceholderText("discord или flatpak run com.discordapp.Discord")
+    command_row.addWidget(command_label)
+    command_row.addWidget(command_input, 1)
+
+    mode_row = QtWidgets.QHBoxLayout()
+    mode_label = QtWidgets.QLabel("Launch mode:")
+    mode_combo = QtWidgets.QComboBox()
+    mode_combo.setObjectName("discordSocksLaunchMode")
+    mode_combo.addItems(list(SUPPORTED_LAUNCH_MODES))
+    try:
+        mode_combo.setCurrentText("socks-updater-window")
+    except Exception:  # pragma: no cover
+        pass
+    route_plan_button = QtWidgets.QPushButton("План маршрута")
+    launch_button = QtWidgets.QPushButton("Запустить Discord через SOCKS")
+    mode_row.addWidget(mode_label)
+    mode_row.addWidget(mode_combo)
+    mode_row.addWidget(route_plan_button)
+    mode_row.addWidget(launch_button)
+    mode_row.addStretch(1)
+
+    route_plan_button.clicked.connect(lambda _checked=False: run_action("План маршрута", lambda: discord_proxy_route_plan_to_text(root=root)))
+    launch_button.clicked.connect(
+        lambda _checked=False: run_action(
+            "Запустить Discord через SOCKS",
+            lambda: discord_launch_through_socks_to_text(
+                root=root,
+                discord_binary=command_input.text().strip() or FLATPAK_DISCORD_COMMAND,
+                launch_mode=str(mode_combo.currentText()),
+            ),
+        )
+    )
+
+    launch_layout.addWidget(route_hint)
+    launch_layout.addLayout(command_row)
+    launch_layout.addLayout(mode_row)
+
     actions_box = QtWidgets.QGroupBox("Профили и probes")
     actions_layout = QtWidgets.QGridLayout(actions_box)
     actions_layout.setHorizontalSpacing(8)
@@ -146,6 +202,7 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     layout.addWidget(title)
     layout.addWidget(intro)
     layout.addWidget(import_box)
+    layout.addWidget(launch_box)
     layout.addWidget(actions_box)
     layout.addWidget(commands)
     layout.addWidget(output, 1)
@@ -156,6 +213,7 @@ def make_tunnel_page(root: Path | None = None) -> Any:
         QLabel#pageTitle { font-size: 20px; font-weight: 700; }
         QLabel#commandHint { padding: 8px; border-radius: 8px; background: rgba(127, 127, 127, 0.12); }
         QPlainTextEdit#vlessImportInput { font-family: monospace; }
+        QLineEdit#discordSocksCommand { font-family: monospace; }
         """
     )
     return page

@@ -1,32 +1,48 @@
-# Stage 7w — Discord SYN-data v2c matrix
+# Stage 8a — SOCKS route diagnostics for Flatpak Discord
 
-This patch follows the owner-confirmed v2b result: the real runtime args now do
-include `discordapp.com`/`www.discordapp.com`, but Flatpak Discord and curl still
-stop after TLS ClientHello while loading `https://discordapp.com/app`.
+This patch responds to owner logs where the VLESS core was running and receiving
+local SOCKS connections, but Flatpak Discord still timed out on
+`https://discordapp.com/app`.
 
-## Added strategies
+## Diagnosis captured by the patch
 
-- `community-discord-syndata-edge-flow-v2c-send-only`
-- `community-discord-syndata-edge-flow-v2c-fixed-sni`
-- `community-discord-syndata-edge-flow-v2c-no-md5`
-- `community-discord-syndata-edge-flow-v2c-host-first`
+A managed VLESS tunnel opens a local listener such as `socks5://127.0.0.1:10808`.
+That is not a transparent route. Discord, Firefox, Telegram, and Flatpak apps do
+not start using it unless they are launched or configured with proxy settings.
 
-All four remain owner-selected, plan-only strategies. They preserve the YouTube
-fallback lane and do not change firewall/service behavior automatically.
+The logs also showed many `proxy/socks: insufficient header > EOF` lines. Those
+are consistent with clients/probes opening the SOCKS port and closing without a
+complete SOCKS greeting. They do not by themselves prove that the tunnel is dead.
 
-## Diagnostic intent
+## Runtime/CLI changes
 
-The matrix isolates the remaining TLS-stage suspect after v2b:
+- `--discord-tunnel-probe` now performs a minimal SOCKS5 no-auth handshake.
+  It distinguishes:
+  - core not ready;
+  - TCP port open but not a SOCKS5 listener;
+  - local SOCKS ready.
+- Added `--discord-proxy-route-plan`, a read-only explanation of the missing
+  client-routing step with Flatpak/native/browser examples.
+- `--discord-launch-through-socks` now accepts command strings such as:
 
-- edge `syndata`/`rndsni` may be stalling ServerHello;
-- fixed fake SNI may behave differently from random SNI;
-- `tcp_md5` may be unsafe on this Linux route;
-- broad Cloudflare edge-IP filters may shadow hostlist-specific Discord webapp
-  filters.
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks --discord-binary "flatpak run com.discordapp.Discord"
+```
+
+## GUI changes
+
+The `Туннель` tab now has a `Маршрут через SOCKS` block:
+
+- command field, defaulting to `flatpak run com.discordapp.Discord`;
+- launch mode selector;
+- route-plan button;
+- launch-through-SOCKS button.
+
+The launch composer plan now states explicitly that starting `tunnel-vless` only
+starts a local SOCKS listener. It does not reroute already-open clients.
 
 ## Docs/tests
 
-- Added `docs/DISCORD_SYN_DATA_EDGE_FLOW_V2C_MATRIX.md`.
-- Updated the community edge-flow results document.
-- Added targeted tests covering catalog registration, runtime-args generation,
-  variant differences, diagnostics, and generated session args.
+Updated tunnel, GUI shell, and roadmap docs. Added tests for Flatpak command-string
+launching, route-plan text, SOCKS handshake probe text, GUI route controls, and
+composer routing warnings.

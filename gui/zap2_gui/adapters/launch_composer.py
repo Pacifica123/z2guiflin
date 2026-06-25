@@ -303,6 +303,7 @@ def launch_composer_plan_to_text(
                 f"- core binary: {'set' if core_binary else 'not set'}",
                 f"- socks port: {socks_port}",
                 f"- readiness: {ready}",
+                "- route: local SOCKS listener only; client apps must be launched/configured to use it",
             ]
         )
     if COMPONENT_ZAPRET_DEFAULT in selected and COMPONENT_TUNNEL_VLESS in selected:
@@ -313,6 +314,7 @@ def launch_composer_plan_to_text(
                 "- zapret-default + tunnel-vless is allowed only as an explicit composer experiment.",
                 "- Start order keeps Zapret first, then starts the user-space tunnel with an explicit parallel flag.",
                 "- Stop order is reversed: tunnel first, then Zapret.",
+                "- This still does not transparently route Discord into SOCKS; use the Tunnel tab route controls or --discord-launch-through-socks.",
             ]
         )
     lines.extend(
