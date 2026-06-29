@@ -63,7 +63,7 @@ def create_main_window(root: object | None = None) -> Any:
                     page = make_runtime_logs_page(root)
                 else:
                     page = make_placeholder_page(section)
-                tabs.addTab(section_icon(section.key), page, section.title)
+                tabs.addTab(page, section_icon(section.key), section.title)
             self.setCentralWidget(tabs)
 
     return MainWindow()

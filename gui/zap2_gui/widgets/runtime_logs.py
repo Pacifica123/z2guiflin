@@ -36,8 +36,8 @@ def make_runtime_logs_page(root: Path | None = None) -> Any:
     runtime_output.setReadOnly(True)
     runtime_output.setPlainText(gui_runtime_logs(root=root))
 
-    tabs.addTab(misc_icon("logs-overview"), overview_output, "Overview actions")
-    tabs.addTab(misc_icon("logs-runtime"), runtime_output, "Runtime")
+    tabs.addTab(overview_output, misc_icon("logs-overview"), "Overview actions")
+    tabs.addTab(runtime_output, misc_icon("logs-runtime"), "Runtime")
 
     buttons = QtWidgets.QHBoxLayout()
     refresh_button = QtWidgets.QPushButton(misc_icon("refresh"), "Обновить логи")
