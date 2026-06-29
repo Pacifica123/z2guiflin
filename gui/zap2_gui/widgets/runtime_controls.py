@@ -24,8 +24,8 @@ from ..adapters.gui_runtime_controls import (
     gui_overview_action_output_to_text,
     gui_privileged_discord_pretls_probe,
     write_gui_overview_action_output,
-    gui_toggle_default_workflow,
 )
+from ..adapters.launch_error_classifier import LaunchIssue, classify_launch_issue
 from ..adapters.launch_composer import (
     COMPONENT_CUSTOM,
     COMPONENT_MTPROTO,
@@ -112,6 +112,35 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     status_row.addWidget(probe_button)
     status_row.addWidget(refresh_button)
     status_row.addWidget(logs_button)
+
+    launch_issue: dict[str, str] = {"short": "", "full": ""}
+    launch_issue_banner = QtWidgets.QFrame()
+    launch_issue_banner.setObjectName("launchIssueBanner")
+    launch_issue_banner.setVisible(False)
+    launch_issue_layout = QtWidgets.QHBoxLayout(launch_issue_banner)
+    launch_issue_layout.setContentsMargins(10, 8, 8, 8)
+    launch_issue_layout.setSpacing(8)
+    launch_issue_code = QtWidgets.QLabel()
+    launch_issue_code.setObjectName("launchIssueCode")
+    launch_issue_message = QtWidgets.QLabel()
+    launch_issue_message.setObjectName("launchIssueMessage")
+    launch_issue_message.setWordWrap(True)
+    copy_issue_short_button = QtWidgets.QPushButton(misc_icon("copy"), "")
+    copy_issue_short_button.setIconSize(_QtCore.QSize(16, 16))
+    copy_issue_short_button.setFixedWidth(30)
+    copy_issue_short_button.setToolTip("Копировать короткий код ошибки")
+    copy_issue_full_button = QtWidgets.QPushButton(misc_icon("details"), "")
+    copy_issue_full_button.setIconSize(_QtCore.QSize(16, 16))
+    copy_issue_full_button.setFixedWidth(30)
+    copy_issue_full_button.setToolTip("Копировать полный текст ошибки")
+    close_issue_button = QtWidgets.QPushButton("×")
+    close_issue_button.setFixedWidth(28)
+    close_issue_button.setToolTip("Скрыть плашку")
+    launch_issue_layout.addWidget(launch_issue_code)
+    launch_issue_layout.addWidget(launch_issue_message, 1)
+    launch_issue_layout.addWidget(copy_issue_short_button)
+    launch_issue_layout.addWidget(copy_issue_full_button)
+    launch_issue_layout.addWidget(close_issue_button)
 
     developer_mode = QtWidgets.QCheckBox("Developer mode: raw plans/nft/log commands")
     developer_mode.setObjectName("overviewDeveloperMode")
@@ -348,6 +377,41 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     def copy_last_action_output() -> None:
         copy_text_to_clipboard(gui_overview_action_output_to_text(root=root), "последний подробный вывод")
 
+    def show_launch_issue(issue: LaunchIssue) -> None:
+        launch_issue["short"] = issue.short_text()
+        launch_issue["full"] = issue.full_text()
+        launch_issue_code.setText(issue.code)
+        launch_issue_message.setText(issue.message)
+        launch_issue_banner.setProperty("severity", issue.severity)
+        launch_issue_banner.setVisible(True)
+        page.style().unpolish(launch_issue_banner)
+        page.style().polish(launch_issue_banner)
+
+    def hide_launch_issue() -> None:
+        launch_issue_banner.setVisible(False)
+        launch_issue["short"] = ""
+        launch_issue["full"] = ""
+
+    def copy_launch_issue_short() -> None:
+        if launch_issue["short"]:
+            copy_text_to_clipboard(launch_issue["short"], "короткая ошибка запуска")
+
+    def copy_launch_issue_full() -> None:
+        if launch_issue["full"]:
+            copy_text_to_clipboard(launch_issue["full"], "полная ошибка запуска")
+
+    def classify_current_action(label: str, *, text: str = "", error: str = "") -> LaunchIssue | None:
+        try:
+            return classify_launch_issue(
+                action=label,
+                text=text,
+                error=error,
+                selected_status=selected_components_status_summary(),
+                all_selected_running=selected_components_all_running(),
+            )
+        except Exception:
+            return None
+
     def refresh_visual_state() -> None:
         try:
             overview = gui_first_runtime_overview(root=root)
@@ -383,15 +447,28 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
 
     def run_action(label: str, func: Callable[[], str]) -> None:
         message = ""
+        issue: LaunchIssue | None = None
         try:
             text = func()
             path = write_gui_overview_action_output(root, "default", label, text)
-            message = f"{label}: подробный вывод перенесён во вкладку «Логи» ({path.name})"
+            issue = classify_current_action(label, text=text)
+            if issue:
+                message = f"{label}: {issue.code}; подробности во вкладке «Логи» ({path.name})"
+            else:
+                message = f"{label}: подробный вывод перенесён во вкладку «Логи» ({path.name})"
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
-            path = write_gui_overview_action_output(root, "default", label, f"{label}: ошибка\n{exc}")
+            error_text = f"{label}: ошибка\n{exc}"
+            path = write_gui_overview_action_output(root, "default", label, error_text)
+            issue = classify_current_action(label, text=error_text, error=str(exc))
             message = f"{label}: ошибка; подробности во вкладке «Логи» ({path.name})"
+            if issue:
+                message = f"{label}: {issue.code}; подробности во вкладке «Логи» ({path.name})"
         finally:
             refresh_visual_state()
+            if issue:
+                show_launch_issue(issue)
+            elif label in {"Combined toggle start", "Launch composer start"}:
+                hide_launch_issue()
             if message:
                 status_text.setText(message)
 
@@ -449,6 +526,9 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             lambda: gui_privileged_discord_pretls_probe(root=root, wait_seconds=30),
         )
 
+    copy_issue_short_button.clicked.connect(lambda _checked=False: copy_launch_issue_short())
+    copy_issue_full_button.clicked.connect(lambda _checked=False: copy_launch_issue_full())
+    close_issue_button.clicked.connect(lambda _checked=False: hide_launch_issue())
     toggle_button.clicked.connect(lambda _checked=False: run_toggle())
     probe_button.clicked.connect(lambda _checked=False: run_discord_readiness_probe())
     refresh_button.clicked.connect(lambda _checked=False: run_overview_state())
@@ -480,6 +560,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
 
     layout.addWidget(title)
     layout.addWidget(intro)
+    layout.addWidget(launch_issue_banner)
     layout.addWidget(composer_box)
     layout.addLayout(status_row)
     layout.addWidget(overview_table_box)
@@ -501,6 +582,21 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         }
         QTableWidget#guiFirstOverviewTable {
             gridline-color: rgba(90, 90, 90, 0.10);
+        }
+        QFrame#launchIssueBanner {
+            border: 1px solid rgba(220, 170, 40, 0.65);
+            border-radius: 8px;
+            background: rgba(220, 170, 40, 0.16);
+        }
+        QLabel#launchIssueCode {
+            font-family: monospace;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 5px;
+            background: rgba(220, 170, 40, 0.25);
+        }
+        QLabel#launchIssueMessage {
+            font-weight: 600;
         }
         QLabel#runtimeStatusIndicator {
             font-weight: 700;

@@ -2,22 +2,18 @@
 
 ## Title
 
-Rework Tunnel tab into profile/core/route tabs and unify Overview toggle
+Add Overview launch error banner and classifier
 
 ## What changed
 
-- replaced the cramped Tunnel tab stack with three sub-tabs:
-  - `Профили VLESS`
-  - `Tunnel core`
-  - `Discord через SOCKS`
-- added a redacted VLESS profile table similar to the Strategies table workflow;
-- added `Сделать активным` for selecting a connection directly from the table;
-- removed the visible guided CLI hint from the Tunnel tab;
-- kept detailed route/core output in the lower output pane;
-- changed the Overview main start/stop button to use selected Launch Composer components;
-- the Overview indicator now says `Всё запущено` only when all selected supported components are actually running;
-- added tests for redacted tunnel table rows, the tabbed Tunnel layout, and the unified Overview toggle contract.
+- added `launch_error_classifier.py` with stable launch issue codes;
+- added a yellow dismissable issue banner to Overview;
+- added icon-only copy buttons for short and full issue text;
+- added close button for the banner;
+- wired Overview actions to classify both exceptions and partial combined starts;
+- documented the error code classifier in `docs/LAUNCH_ERROR_CLASSIFIER.md`;
+- added regression tests for classifier behavior and banner UI contract.
 
 ## Why
 
-The previous Tunnel UI was too crowded and made it unclear whether VLESS core was actually started. The main Overview button also did not match the component selection UI. This patch makes both flows explicit.
+After the unified launch toggle, the GUI made it visible that Zapret and VLESS did not always start together, but the reason was still buried in long logs. The Overview now surfaces the failure reason directly while preserving full copyable diagnostics for analysis.
