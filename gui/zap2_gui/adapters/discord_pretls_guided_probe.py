@@ -28,6 +28,15 @@ from ..project_paths import discover_layout
 
 DEFAULT_GUIDED_PROBE_WAIT_SECONDS = 30
 PRETLS_DIAGNOSTIC_STRATEGY_ID = "community-discord-pretls-diagnostic-pktdebug"
+WINDOWS_V3_2_BRIDGE_STRATEGY_ID = "windows-all-tcp-udp-v3-2-linux-bridge"
+PRETLS_COMPATIBLE_CAPTURE_KINDS = {"desktop-early-flow-v1", "external-reference-first-data-v1", "windows-all-tcp-udp-v3-2-owner-wide-v1"}
+
+
+def _strategy_compatible(active_strategy_id: str, capture_policy_kind: str) -> bool:
+    return (
+        active_strategy_id in {PRETLS_DIAGNOSTIC_STRATEGY_ID, WINDOWS_V3_2_BRIDGE_STRATEGY_ID}
+        or capture_policy_kind in PRETLS_COMPATIBLE_CAPTURE_KINDS
+    )
 
 Emit = Callable[[str], None]
 InputFunc = Callable[[str], str]
@@ -53,6 +62,7 @@ class ProbeNftCounters:
     tcp_out: CounterValue
     tcp_in_synack: CounterValue
     tcp_in_fin_rst: CounterValue
+    udp_out: CounterValue
     raw_length: int
 
     def to_dict(self) -> dict[str, Any]:
@@ -63,6 +73,7 @@ class ProbeNftCounters:
             "tcpOut": self.tcp_out.to_dict(),
             "tcpInSynAck": self.tcp_in_synack.to_dict(),
             "tcpInFinRst": self.tcp_in_fin_rst.to_dict(),
+            "udpOut": self.udp_out.to_dict(),
             "rawLength": self.raw_length,
         }
 
@@ -236,7 +247,7 @@ class DiscordPretlsGuidedProbeReport:
             "| rule | before packets | after packets | delta packets | before bytes | after bytes | delta bytes |",
             "|---|---:|---:|---:|---:|---:|---:|",
         ]
-        for key, label in (("tcpOut", "tcp-out"), ("tcpInSynAck", "tcp-in-synack"), ("tcpInFinRst", "tcp-in-fin-rst")):
+        for key, label in (("tcpOut", "tcp-out"), ("tcpInSynAck", "tcp-in-synack"), ("tcpInFinRst", "tcp-in-fin-rst"), ("udpOut", "udp-out")):
             packets = delta.get(f"{key}Packets", ProbeDelta(None, None, None))
             bytes_ = delta.get(f"{key}Bytes", ProbeDelta(None, None, None))
             lines.append(
@@ -513,6 +524,7 @@ def _parse_nft_counters(stdout: str, table_name: str) -> ProbeNftCounters:
         "tcp_out": f"zap2:{table_name}:tcp-out",
         "tcp_in_synack": f"zap2:{table_name}:tcp-in-synack",
         "tcp_in_fin_rst": f"zap2:{table_name}:tcp-in-fin-rst",
+        "udp_out": f"zap2:{table_name}:udp-out",
     }
     try:
         payload = json.loads(stdout)
@@ -524,6 +536,7 @@ def _parse_nft_counters(stdout: str, table_name: str) -> ProbeNftCounters:
             tcp_out=_find_rule_counter_from_text(stdout, markers["tcp_out"]),
             tcp_in_synack=_find_rule_counter_from_text(stdout, markers["tcp_in_synack"]),
             tcp_in_fin_rst=_find_rule_counter_from_text(stdout, markers["tcp_in_fin_rst"]),
+            udp_out=_find_rule_counter_from_text(stdout, markers["udp_out"]),
             raw_length=len(stdout),
         )
     return ProbeNftCounters(
@@ -533,6 +546,7 @@ def _parse_nft_counters(stdout: str, table_name: str) -> ProbeNftCounters:
         tcp_out=_find_rule_counter_from_json(payload, markers["tcp_out"]),
         tcp_in_synack=_find_rule_counter_from_json(payload, markers["tcp_in_synack"]),
         tcp_in_fin_rst=_find_rule_counter_from_json(payload, markers["tcp_in_fin_rst"]),
+        udp_out=_find_rule_counter_from_json(payload, markers["udp_out"]),
         raw_length=len(stdout),
     )
 
@@ -563,6 +577,7 @@ def read_nft_counters(table_name: str, runner: NftRunner = default_nft_runner) -
             tcp_out=_zero_counter(),
             tcp_in_synack=_zero_counter(),
             tcp_in_fin_rst=_zero_counter(),
+            udp_out=_zero_counter(),
             raw_length=len(stdout),
         )
     return _parse_nft_counters(stdout, table_name)
@@ -604,6 +619,8 @@ def _make_counter_deltas(before: ProbeNftCounters | None, after: ProbeNftCounter
             "tcpInSynAckBytes": none,
             "tcpInFinRstPackets": none,
             "tcpInFinRstBytes": none,
+            "udpOutPackets": none,
+            "udpOutBytes": none,
         }
     return {
         "tcpOutPackets": _counter_delta(before.tcp_out, after.tcp_out, "packets"),
@@ -612,6 +629,8 @@ def _make_counter_deltas(before: ProbeNftCounters | None, after: ProbeNftCounter
         "tcpInSynAckBytes": _counter_delta(before.tcp_in_synack, after.tcp_in_synack, "bytes"),
         "tcpInFinRstPackets": _counter_delta(before.tcp_in_fin_rst, after.tcp_in_fin_rst, "packets"),
         "tcpInFinRstBytes": _counter_delta(before.tcp_in_fin_rst, after.tcp_in_fin_rst, "bytes"),
+        "udpOutPackets": _counter_delta(before.udp_out, after.udp_out, "packets"),
+        "udpOutBytes": _counter_delta(before.udp_out, after.udp_out, "bytes"),
     }
 
 
@@ -684,7 +703,14 @@ def _verdict(
             "before/after counters are unavailable, so the guided run did not reduce the capture unknown.",
             "Fix nft counter reading or attach manual before/after output.",
         )
+    udp_delta = _delta_int(counter_deltas, "udpOutPackets")
     if out_delta <= 0:
+        if udp_delta is not None and udp_delta > 0:
+            return (
+                "V3_ONLY_UDP_COUNTER_DELTA",
+                "the observation window increased only the UDP outbound counter, not the TCP pre-TLS counter; this can explain browser/YouTube QUIC activity but not Discord webapp TCP timeout by itself.",
+                "Keep the report and run a TCP-focused Discord launch window; if Discord still shows only UDP, inspect process/endpoint correlation and capture scope.",
+            )
         if endpoint_summary is not None and endpoint_summary.established > 0:
             return (
                 "V3_NO_OUT_COUNTER_DELTA_WITH_ESTAB_ENDPOINT",
@@ -767,9 +793,9 @@ def run_discord_pretls_guided_probe(
     session_record = _read_json(paths.sessions_dir / f"{profile_id}.session.json")
     nfqueue_session = _session_nfqueue(paths.root, profile_id)
     nfqueue_match = nfqueue_session == snapshot_before.nfqueue_num if nfqueue_session is not None else False
-    strategy_compatible = (
-        snapshot_before.active_strategy_id == PRETLS_DIAGNOSTIC_STRATEGY_ID
-        or snapshot_before.capture_policy_kind in {"desktop-early-flow-v1", "external-reference-first-data-v1"}
+    strategy_compatible = _strategy_compatible(
+        snapshot_before.active_strategy_id,
+        snapshot_before.capture_policy_kind,
     )
     log_before = _log_sizes(snapshot_before)
     counters_before: ProbeNftCounters | None = None

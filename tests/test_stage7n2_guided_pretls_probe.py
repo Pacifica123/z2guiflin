@@ -95,11 +95,12 @@ def _write_running_session(project: Path, *, qnum: int = 421) -> subprocess.Pope
     return proc
 
 
-def _nft_text(out_packets: int, out_bytes: int = 0, synack_packets: int = 0) -> str:
+def _nft_text(out_packets: int, out_bytes: int = 0, synack_packets: int = 0, udp_packets: int = 0) -> str:
     return f'''
 table inet zap2_default {{
     chain local_out {{
         ip daddr {{ 162.159.128.233 }} tcp dport {{ 443, 5222 }} counter packets {out_packets} bytes {out_bytes} queue flags bypass to 421 comment "zap2:zap2_default:tcp-out" # handle 5
+        udp dport {{ 80, 443-65535 }} counter packets {udp_packets} bytes 0 queue flags bypass to 421 comment "zap2:zap2_default:udp-out" # handle 6
     }}
     chain local_in {{
         ip saddr {{ 162.159.128.233 }} tcp sport {{ 443, 5222 }} counter packets {synack_packets} bytes 0 queue flags bypass to 421 comment "zap2:zap2_default:tcp-in-synack" # handle 8
@@ -116,6 +117,7 @@ def test_stage7n2_nft_counter_parser_supports_text_output() -> None:
     assert counters.tcp_out.packets == 11
     assert counters.tcp_out.bytes == 660
     assert counters.tcp_in_synack.packets == 0
+    assert counters.udp_out.packets == 0
 
 
 def test_stage7n2_guided_probe_refuses_when_workflow_not_running(tmp_path: Path) -> None:
@@ -237,6 +239,59 @@ def test_stage7n3_guided_probe_correlates_estab_sendq_endpoint(tmp_path: Path) -
     assert payload["stage"] == "v0.4-alpha_stage7n3"
     assert payload["endpointSummary"]["establishedWithSendQ"] == 1
 
+
+
+
+def _write_windows_v3_owner_rules(project: Path, *, qnum: int = 421) -> None:
+    sessions = project / ".zap2" / "runtime" / "sessions"
+    sessions.mkdir(parents=True, exist_ok=True)
+    (sessions / "default.owner-rules.json").write_text(
+        json.dumps(
+            {
+                "state": "applied",
+                "strategyId": "windows-all-tcp-udp-v3-2-linux-bridge",
+                "nftTable": "zap2_default",
+                "nfqueueNum": qnum,
+                "queuedTcpPorts": ["80", "443-65535"],
+                "queuedUdpPorts": ["80", "443-65535"],
+                "queuedEdgeIps": [],
+                "capturePolicy": {"kind": "windows-all-tcp-udp-v3-2-owner-wide-v1"},
+                "queueInputSynAck": True,
+                "queueInputFinRst": True,
+                "ownerUid": 1000,
+                "ownerUidSource": "current-user",
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_stage7n3_guided_probe_accepts_windows_v3_bridge_and_udp_counter(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    select_workspace_strategy(project, "windows-all-tcp-udp-v3-2-linux-bridge", profile_id="default")
+    _write_windows_v3_owner_rules(project)
+    proc = _write_running_session(project)
+    calls = iter([(0, _nft_text(0, udp_packets=0), ""), (0, _nft_text(0, udp_packets=7), "")])
+
+    try:
+        report = run_discord_pretls_guided_probe(
+            project,
+            interactive=False,
+            wait_seconds=0,
+            nft_runner=lambda table: next(calls),
+            endpoint_watch_runner=None,
+        )
+    finally:
+        proc.terminate()
+        proc.wait(timeout=5)
+
+    assert report.strategy_compatible is True
+    assert report.active_strategy_id == "windows-all-tcp-udp-v3-2-linux-bridge"
+    assert report.verdict == "V3_ONLY_UDP_COUNTER_DELTA"
+    assert report.counter_deltas["udpOutPackets"].delta == 7
+    payload = json.loads(report.report_json_path.read_text(encoding="utf-8"))
+    assert payload["countersAfter"]["udpOut"]["packets"] == 7
 
 def test_stage7n2_cli_exposes_guided_probe_no_wait(capsys) -> None:
     assert main(["--runtime-discord-pretls-guided-probe", "--pretls-probe-no-wait"]) == 0
