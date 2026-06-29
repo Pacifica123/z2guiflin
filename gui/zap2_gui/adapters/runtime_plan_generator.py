@@ -156,6 +156,24 @@ class GeneratedRuntimePlan:
         )
 
 
+def _hostlists_for_strategy(profile: WorkspaceProfile, strategy: WorkspaceStrategy) -> tuple[HostlistRef, ...]:
+    """Return profile hostlists that should be passed to nfqws2 for a strategy.
+
+    Most strategies inherit the owner-maintained profile hostlist.  A broad
+    Windows-style all-sites port must be able to act on SYN packets before any
+    hostname is known; a regular --hostlist would make such SYN packets fail
+    profile matching.  Such strategies opt out explicitly through
+    capturePolicy.profileHostlists="omit" or by declaring readsHostlists=false.
+    """
+
+    capture_policy = strategy.capture_policy or {}
+    if str(capture_policy.get("profileHostlists") or "").lower() in {"omit", "none", "disabled"}:
+        return ()
+    if not strategy.capabilities.reads_hostlists:
+        return ()
+    return profile.hostlists
+
+
 def _runtime_relative_paths(profile_id: str, action: str, plan_id: str) -> tuple[tuple[RuntimePlanFileRef, ...], tuple[RuntimePlanFileRef, ...]]:
     session_files = (
         RuntimePlanFileRef(
@@ -369,12 +387,13 @@ def create_runtime_plan(root: Path | None = None, action: str = "start", profile
         rollback_notes=_rollback_notes_for_action(action, profile.profile_id),
         source_path=None,
     )
+    runtime_hostlists = _hostlists_for_strategy(profile, strategy)
     return GeneratedRuntimePlan(
         action=action,
         profile=profile,
         strategy=strategy,
         binary_relative_path=binary_relative_path,
-        hostlists=profile.hostlists,
+        hostlists=runtime_hostlists,
         required_artifacts=required_artifacts,
         required_artifacts_exist=artifact_exists,
         session_files=session_files,

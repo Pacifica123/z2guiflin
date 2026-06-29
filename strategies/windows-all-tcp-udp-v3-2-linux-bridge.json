@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "windows-all-tcp-udp-v3-2-linux-bridge",
   "title": "Windows ALL TCP & UDP v3_2 Linux bridge",
-  "summary": "Linux/nfqws2 bridge of the owner-provided Windows winws2 preset ALL TCP & UDP v3_2: broad owner-scoped TCP first-payload syndata and UDP QUIC fake handling, without WinDivert-only wf/raw-part options.",
+  "summary": "Linux/nfqws2 bridge of the owner-provided Windows winws2 preset ALL TCP & UDP v3_2: broad owner-scoped TCP first-payload syndata and UDP QUIC fake handling, without WinDivert-only wf/raw-part options. This revision omits profile hostlists so SYN-level syndata is not blocked before hostname discovery and queues inbound TCP SYN/ACK/FIN/RST for Linux seq/ack handling.",
   "philosophy": "faithful-windows-v3-2-port-with-linux-capture-policy",
   "intendedFor": [
     "проверка гипотезы, что на этом операторе работает не Discord-specific ветка, а широкий all-sites first-data профиль из Windows GUI",
@@ -19,7 +19,7 @@
   ],
   "capabilities": {
     "readsProfiles": true,
-    "readsHostlists": true,
+    "readsHostlists": false,
     "usesLocalBuildPlan": true,
     "executesAutomatically": false,
     "requiresSudoAtStage7": false,
@@ -33,7 +33,9 @@
     "Blob files are loaded from core/zapret2/files/fake and copied to public runtime inputs by the session runner before nfqws2 drops privileges.",
     "Linux safety fix 2026-06-29: keep tcp_flags_unset=ack only on the rawsend duplicate created by send; do not run standalone pktmod on accepted owner packets.",
     "Linux route fix 2026-06-29: enable --bind-fix4/--bind-fix6 because this strategy relies on rawsend/syndata replacing the original SYN with a raw SYN+data packet; without bind-fix the raw packet can leave through the wrong interface or fail to mirror the kernel route on setups with policy routing, VPN, namespaces or Flatpak-adjacent routing.",
-    "Linux fidelity fix 2026-06-29: UDP capture/filter now includes port 80 as in the source --wf-udp-out=80,443-65535; the previous bridge only queued 443-65535."
+    "Linux fidelity fix 2026-06-29: UDP capture/filter now includes port 80 as in the source --wf-udp-out=80,443-65535; the previous bridge only queued 443-65535.",
+    "Linux fidelity fix 2026-06-29 #2: this Windows all-sites preset must not inherit the profile hostlist. A regular --hostlist makes SYN packets with no known hostname fail profile matching, so the SYN-level syndata step can be skipped before TLS SNI exists.",
+    "Linux fidelity fix 2026-06-29 #2: enable inbound SYN/ACK and FIN/RST queueing for the source ports covered by --wf-tcp-out. Windows winws2 captures the reverse side of outbound TCP flows; nfqws2 needs that path for early-flow bookkeeping and syndata seq/ack handling."
   ],
   "capturePolicy": {
     "kind": "windows-all-tcp-udp-v3-2-owner-wide-v1",
@@ -48,12 +50,14 @@
     ],
     "packetWindowHint": {
       "tcpOriginalPackets": "1-8",
-      "udpOriginalPackets": "1-4"
+      "udpOriginalPackets": "1-4",
+      "tcpIn": "synack+finrst"
     },
     "edgeIpScoped": false,
     "edgeIps": [],
-    "queueInputSynAck": false,
-    "queueInputFinRst": false
+    "queueInputSynAck": true,
+    "queueInputFinRst": true,
+    "profileHostlists": "omit"
   },
   "runtimeArgs": [
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
@@ -113,7 +117,9 @@
       "sudo nft list table inet zap2_default -a | sed -n '/zap2:zap2_default/p'",
       "curl -4vk --connect-timeout 8 --max-time 20 https://www.youtube.com/ -o /dev/null",
       "grep -nE 'bind-fix|filter-udp|filter-tcp|syndata|send:repeats' .zap2/runtime/sessions/default.nfqws2.args",
-      "sudo nft -a list table inet zap2_default | sed -n '/zap2:zap2_default/p'"
+      "sudo nft -a list table inet zap2_default | sed -n '/zap2:zap2_default/p'",
+      "grep -n -- '--hostlist=' .zap2/runtime/sessions/default.nfqws2.args || true",
+      "sudo nft -a list table inet zap2_default | grep -E 'tcp-in-synack|tcp-in-fin-rst|tcp-out|udp-out'"
     ]
   }
 }

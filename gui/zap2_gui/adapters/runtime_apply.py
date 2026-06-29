@@ -571,7 +571,7 @@ def create_runtime_apply_plan(root: Path | None = None, action: RuntimeApplyActi
         commands=commands,
         rollback_notes=rollback_notes,
         binary_relative_path=start_plan.binary_relative_path,
-        hostlists=tuple(hostlist.path for hostlist in profile.hostlists),
+        hostlists=tuple(hostlist.path for hostlist in start_plan.hostlists),
     )
 
 
