@@ -37,9 +37,11 @@ def test_windows_all_tcp_udp_v3_2_bridge_registered() -> None:
     assert "--blob=tls_google:@core/zapret2/files/fake/tls_clienthello_www_google_com.bin" in strategy.runtime_args
     assert "--lua-desync=pktmod:tcp_flags_unset=ack" not in strategy.runtime_args
     assert "--lua-desync=send:repeats=2:tcp_flags_unset=ack" in strategy.runtime_args
+    assert "--bind-fix4" in strategy.runtime_args
+    assert "--bind-fix6" in strategy.runtime_args
     assert strategy.capture_policy is not None
     assert strategy.capture_policy["tcpOutPorts"] == ["80", "443-65535"]
-    assert strategy.capture_policy["udpOutPorts"] == ["443-65535"]
+    assert strategy.capture_policy["udpOutPorts"] == ["80", "443-65535"]
 
 
 def test_windows_v3_2_apply_plan_uses_wide_owner_ports(tmp_path: Path) -> None:
@@ -48,10 +50,10 @@ def test_windows_v3_2_apply_plan_uses_wide_owner_ports(tmp_path: Path) -> None:
 
     plan = create_runtime_apply_plan(project, action="apply", profile_id="default")
     assert plan.queued_tcp_ports == ("80", "443-65535")
-    assert plan.queued_udp_ports == ("443-65535",)
+    assert plan.queued_udp_ports == ("80", "443-65535")
     nft_text = "\n".join(" ".join(command.argv) for command in plan.commands)
     assert "tcp dport { 80, 443-65535 }" in nft_text
-    assert "udp dport { 443-65535 }" in nft_text
+    assert "udp dport { 80, 443-65535 }" in nft_text
 
 
 def test_runtime_session_copies_blob_inputs_for_windows_v3_2_bridge(tmp_path: Path, monkeypatch) -> None:
@@ -71,3 +73,6 @@ def test_runtime_session_copies_blob_inputs_for_windows_v3_2_bridge(tmp_path: Pa
     assert not any("@core/zapret2/files/fake/" in arg for arg in blob_args)
     assert "--lua-desync=pktmod:tcp_flags_unset=ack" not in config.runtime_args
     assert "--lua-desync=send:repeats=2:tcp_flags_unset=ack" in config.runtime_args
+    assert "--bind-fix4" in config.runtime_args
+    assert "--bind-fix6" in config.runtime_args
+    assert "--filter-udp=80,443-65535" in config.runtime_args

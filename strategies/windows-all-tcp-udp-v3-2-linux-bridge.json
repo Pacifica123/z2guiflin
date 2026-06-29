@@ -31,7 +31,9 @@
     "Source preset excludes lists/ipset-ru.txt, lists/ipset-dns.txt and lists/ipset-exclude.txt. These lists are not present in the uploaded Linux project, so this bridge intentionally avoids --ipset-exclude rather than adding broken file references.",
     "The capture envelope is deliberately broad: owner UID TCP 80 and 443-65535, UDP 443-65535, first original packets only. This can affect unrelated owner traffic while enabled. The Linux bridge no longer applies standalone pktmod/tcp_flags_unset=ack to accepted packets because nfqws2 pktmod mutates the real packet and can blackhole TLS/HTTP traffic.",
     "Blob files are loaded from core/zapret2/files/fake and copied to public runtime inputs by the session runner before nfqws2 drops privileges.",
-    "Linux safety fix 2026-06-29: keep tcp_flags_unset=ack only on the rawsend duplicate created by send; do not run standalone pktmod on accepted owner packets."
+    "Linux safety fix 2026-06-29: keep tcp_flags_unset=ack only on the rawsend duplicate created by send; do not run standalone pktmod on accepted owner packets.",
+    "Linux route fix 2026-06-29: enable --bind-fix4/--bind-fix6 because this strategy relies on rawsend/syndata replacing the original SYN with a raw SYN+data packet; without bind-fix the raw packet can leave through the wrong interface or fail to mirror the kernel route on setups with policy routing, VPN, namespaces or Flatpak-adjacent routing.",
+    "Linux fidelity fix 2026-06-29: UDP capture/filter now includes port 80 as in the source --wf-udp-out=80,443-65535; the previous bridge only queued 443-65535."
   ],
   "capturePolicy": {
     "kind": "windows-all-tcp-udp-v3-2-owner-wide-v1",
@@ -41,6 +43,7 @@
       "443-65535"
     ],
     "udpOutPorts": [
+      "80",
       "443-65535"
     ],
     "packetWindowHint": {
@@ -60,6 +63,8 @@
     "--ctrack-disable=0",
     "--ipcache-lifetime=8400",
     "--ipcache-hostname=1",
+    "--bind-fix4",
+    "--bind-fix6",
     "--blob=tls_google:@core/zapret2/files/fake/tls_clienthello_www_google_com.bin",
     "--blob=quic_google:@core/zapret2/files/fake/quic_initial_www_google_com.bin",
     "--new",
@@ -68,7 +73,7 @@
     "--lua-desync=send:repeats=2:tcp_flags_unset=ack",
     "--lua-desync=syndata:blob=tls_google",
     "--new",
-    "--filter-udp=443-65535",
+    "--filter-udp=80,443-65535",
     "--out-range=-d8",
     "--payload=all",
     "--lua-desync=fake:blob=quic_google:ip_autottl=-2,3-20:ip6_autottl=-2,3-20:repeats=10:payload=all"
@@ -106,7 +111,9 @@
       "flatpak kill com.discordapp.Discord; flatpak run com.discordapp.Discord",
       "grep -nE 'pktmod|tcp_flags_unset=ack|send:repeats=2' .zap2/runtime/sessions/default.nfqws2.args",
       "sudo nft list table inet zap2_default -a | sed -n '/zap2:zap2_default/p'",
-      "curl -4vk --connect-timeout 8 --max-time 20 https://www.youtube.com/ -o /dev/null"
+      "curl -4vk --connect-timeout 8 --max-time 20 https://www.youtube.com/ -o /dev/null",
+      "grep -nE 'bind-fix|filter-udp|filter-tcp|syndata|send:repeats' .zap2/runtime/sessions/default.nfqws2.args",
+      "sudo nft -a list table inet zap2_default | sed -n '/zap2:zap2_default/p'"
     ]
   }
 }
