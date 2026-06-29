@@ -28,3 +28,11 @@ PYTHONPATH=gui pytest -q tests/test_gui_first_overview.py tests/test_gui_toggle_
 - Updated Overview tab to render selected/prepared/running/firewall state as a `QTableWidget`.
 - Added `Копировать таблицу` and `Копировать вывод` buttons.
 - Kept raw workflow controls behind Developer mode.
+
+## 2026-06-29 GUI-first privileged probe and logs split
+
+- Discord probe button now runs the read-only guided probe through GUI sudo-askpass so nft counters can be read without terminal commands.
+- Overview no longer renders the old verbose text dump inline.
+- Verbose Overview action output is stored in `.zap2/runtime/logs/default.overview-action-output.log`.
+- Logs tab now shows separate `Overview actions` and `Runtime` sub-tabs with copy support.
+- Overview table remains copyable as TSV/plain text.

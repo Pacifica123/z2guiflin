@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
-from ..adapters.discord_pretls_guided_probe import runtime_discord_pretls_guided_probe_to_text
 from ..adapters.gui_first_overview import gui_first_runtime_overview, gui_first_runtime_overview_to_text, gui_first_runtime_overview_to_table_text
 from ..adapters.gui_runtime_controls import (
     gui_confirm_default_build,
@@ -22,6 +21,9 @@ from ..adapters.gui_runtime_controls import (
     gui_privileged_default_stop_command,
     gui_runtime_commands,
     gui_runtime_logs,
+    gui_overview_action_output_to_text,
+    gui_privileged_discord_pretls_probe,
+    write_gui_overview_action_output,
     gui_toggle_default_workflow,
 )
 from ..adapters.launch_composer import (
@@ -67,8 +69,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     title = QtWidgets.QLabel("Обзор")
     title.setObjectName("pageTitle")
     intro = QtWidgets.QLabel(
-        "Overview теперь ведёт Default workflow как GUI-first сценарий: выбранная стратегия, подготовленный plan, "
-        "running session и firewall/NFQUEUE показываются одним состоянием. Plan id, nft и raw commands спрятаны в Developer mode."
+        "Overview ведёт Default workflow как GUI-first сценарий: выбранная стратегия, подготовленный plan, "
+        "running session и firewall/NFQUEUE показываются таблицей. Подробный текст действий перенесён во вкладку «Логи»."
     )
     intro.setWordWrap(True)
 
@@ -92,7 +94,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     refresh_button.setToolTip("Обновить статус")
 
     probe_button = QtWidgets.QPushButton("Проверить Discord")
-    probe_button.setToolTip("Read-only guided probe. Если workflow не запущен, GUI покажет это без shell-команд.")
+    probe_button.setToolTip("Privileged read-only guided probe через sudo-askpass: нужен только для чтения nft counters.")
 
     logs_button = QtWidgets.QPushButton("Логи")
     logs_button.setFixedWidth(72)
@@ -104,17 +106,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     status_row.addWidget(refresh_button)
     status_row.addWidget(logs_button)
 
-    output = QtWidgets.QPlainTextEdit()
-    output.setReadOnly(True)
-    output.setMinimumHeight(260)
-    try:
-        output.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.WidgetWidth)
-    except Exception:  # pragma: no cover - compatibility with older Qt bindings
-        pass
     developer_mode = QtWidgets.QCheckBox("Developer mode: raw plans/nft/log commands")
     developer_mode.setObjectName("overviewDeveloperMode")
-    output.setPlainText(gui_first_runtime_overview_to_text(root=root, developer=False))
-
     overview_table = QtWidgets.QTableWidget(0, 4)
     overview_table.setObjectName("guiFirstOverviewTable")
     overview_table.setHorizontalHeaderLabels(["Раздел", "Поле", "Значение", "Статус"])
@@ -141,10 +134,10 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     table_actions = QtWidgets.QHBoxLayout()
     copy_table_button = QtWidgets.QPushButton("Копировать таблицу")
     copy_table_button.setToolTip("Скопировать видимую таблицу как plain text/TSV")
-    copy_output_button = QtWidgets.QPushButton("Копировать вывод")
-    copy_output_button.setToolTip("Скопировать текст из нижнего окна вывода")
+    copy_last_action_button = QtWidgets.QPushButton("Копировать последний вывод")
+    copy_last_action_button.setToolTip("Скопировать последний подробный вывод из вкладки «Логи»")
     table_actions.addWidget(copy_table_button)
-    table_actions.addWidget(copy_output_button)
+    table_actions.addWidget(copy_last_action_button)
     table_actions.addStretch(1)
     overview_table_layout.addWidget(overview_table)
     overview_table_layout.addLayout(table_actions)
@@ -248,7 +241,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             ),
         )
         if question != QtWidgets.QMessageBox.StandardButton.Yes:
-            output.setPlainText("Launch composer start: отменено пользователем")
+            write_gui_overview_action_output(root, "default", "Launch composer start", "Launch composer start: отменено пользователем")
+            status_text.setText("Отменено: подробности во вкладке «Логи»")
             refresh_visual_state()
             return
         run_action(
@@ -267,7 +261,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             "Остановить отмеченные supported-компоненты в безопасном обратном порядке?",
         )
         if question != QtWidgets.QMessageBox.StandardButton.Yes:
-            output.setPlainText("Launch composer stop: отменено пользователем")
+            write_gui_overview_action_output(root, "default", "Launch composer stop", "Launch composer stop: отменено пользователем")
+            status_text.setText("Отменено: подробности во вкладке «Логи»")
             refresh_visual_state()
             return
         run_action("Launch composer stop", lambda: launch_composer_stop_to_text(root=root, components=selected_components()))
@@ -314,10 +309,10 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
                 "таблица состояния",
             )
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
-            output.setPlainText(f"Копирование таблицы: ошибка\n{exc}")
+            status_text.setText(f"Копирование таблицы: ошибка: {exc}")
 
-    def copy_current_output() -> None:
-        copy_text_to_clipboard(output.toPlainText(), "нижний текстовый вывод")
+    def copy_last_action_output() -> None:
+        copy_text_to_clipboard(gui_overview_action_output_to_text(root=root), "последний подробный вывод")
 
     def refresh_visual_state() -> None:
         try:
@@ -339,12 +334,18 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         page.style().polish(indicator)
 
     def run_action(label: str, func: Callable[[], str]) -> None:
+        message = ""
         try:
-            output.setPlainText(func())
+            text = func()
+            path = write_gui_overview_action_output(root, "default", label, text)
+            message = f"{label}: подробный вывод перенесён во вкладку «Логи» ({path.name})"
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
-            output.setPlainText(f"{label}: ошибка\n{exc}")
+            path = write_gui_overview_action_output(root, "default", label, f"{label}: ошибка\n{exc}")
+            message = f"{label}: ошибка; подробности во вкладке «Логи» ({path.name})"
         finally:
             refresh_visual_state()
+            if message:
+                status_text.setText(message)
 
     def run_toggle() -> None:
         question = QtWidgets.QMessageBox.question(
@@ -359,7 +360,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             ),
         )
         if question != QtWidgets.QMessageBox.StandardButton.Yes:
-            output.setPlainText("Default toggle: отменено пользователем")
+            write_gui_overview_action_output(root, "default", "Default toggle", "Default toggle: отменено пользователем")
+            status_text.setText("Отменено: подробности во вкладке «Логи»")
             refresh_visual_state()
             return
         run_action("Default toggle", lambda: gui_toggle_default_workflow(root=root))
@@ -368,9 +370,23 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         run_action("GUI overview state", lambda: gui_first_runtime_overview_to_text(root=root, developer=developer_mode.isChecked()))
 
     def run_discord_readiness_probe() -> None:
+        question = QtWidgets.QMessageBox.question(
+            page,
+            "Проверка Discord",
+            (
+                "Запустить read-only Discord probe через графический sudo-запрос?\n\n"
+                "Повышенные права нужны только для чтения nft counters. Firewall и сервисы probe не меняет.\n"
+                "После подтверждения открой Discord и оставь его открытым около 30 секунд."
+            ),
+        )
+        if question != QtWidgets.QMessageBox.StandardButton.Yes:
+            write_gui_overview_action_output(root, "default", "Discord readiness probe", "Discord readiness probe: отменено пользователем")
+            status_text.setText("Discord probe отменён; подробности во вкладке «Логи»")
+            refresh_visual_state()
+            return
         run_action(
             "Discord readiness probe",
-            lambda: runtime_discord_pretls_guided_probe_to_text(root=root, wait_seconds=0, interactive=False),
+            lambda: gui_privileged_discord_pretls_probe(root=root, wait_seconds=30),
         )
 
     toggle_button.clicked.connect(lambda _checked=False: run_toggle())
@@ -378,12 +394,12 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     refresh_button.clicked.connect(lambda _checked=False: run_overview_state())
     logs_button.clicked.connect(lambda _checked=False: run_action("Runtime logs", lambda: gui_runtime_logs(root=root)))
     copy_table_button.clicked.connect(lambda _checked=False: copy_current_table())
-    copy_output_button.clicked.connect(lambda _checked=False: copy_current_output())
+    copy_last_action_button.clicked.connect(lambda _checked=False: copy_last_action_output())
     developer_mode.toggled.connect(lambda _checked=False: (details_box.setVisible(developer_mode.isChecked()), refresh_visual_state()))
 
     actions: tuple[tuple[str, Callable[[], str]], ...] = (
         ("GUI состояние", lambda: gui_first_runtime_overview_to_text(root=root, developer=developer_mode.isChecked())),
-        ("Проверить Discord", lambda: runtime_discord_pretls_guided_probe_to_text(root=root, wait_seconds=0, interactive=False)),
+        ("Проверить Discord", lambda: gui_privileged_discord_pretls_probe(root=root, wait_seconds=30)),
         ("Зависимости", lambda: gui_default_build_deps(root=root)),
         ("План сборки", lambda: gui_prepare_default_build(root=root)),
         ("Подтвердить сборку", lambda: gui_confirm_default_build(root=root)),
@@ -409,7 +425,6 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     layout.addWidget(overview_table_box)
     layout.addWidget(developer_mode)
     layout.addWidget(details_box)
-    layout.addWidget(output, 1)
 
     page.setStyleSheet(
         """

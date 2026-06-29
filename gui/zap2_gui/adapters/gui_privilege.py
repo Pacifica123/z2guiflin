@@ -109,6 +109,85 @@ class GuiPrivilegedResult:
         return "\n".join(lines)
 
 
+@dataclass(frozen=True)
+class GuiPrivilegedProbeCommand:
+    """Read-only diagnostic command executed through GUI sudo askpass."""
+
+    probe: str
+    profile_id: str
+    wait_seconds: int
+    argv: tuple[str, ...]
+    cwd: Path
+    env_overrides: dict[str, str] = field(default_factory=dict)
+    backend: str = "sudo-askpass"
+    asks_password_in_terminal: bool = False
+    stores_password: bool = False
+    mutates_firewall_or_services: bool = False
+
+    @property
+    def uses_sudo_askpass(self) -> bool:
+        return self.backend == "sudo-askpass"
+
+    def to_text(self) -> str:
+        return "\n".join(
+            [
+                f"GUI privileged read-only probe: {self.probe}",
+                f"profile: {self.profile_id}",
+                f"wait seconds: {self.wait_seconds}",
+                f"cwd: {self.cwd}",
+                f"command: {' '.join(self.argv)}",
+                "uses sudo askpass: yes",
+                "uses pkexec/polkit: no",
+                "asks password in terminal: no",
+                "stores password: no",
+                "read-only probe: yes",
+                "applies firewall/services now: no",
+                f"askpass helper: {self.env_overrides.get('SUDO_ASKPASS', 'auto')}",
+            ]
+        )
+
+
+@dataclass(frozen=True)
+class GuiPrivilegedProbeResult:
+    """Result of a GUI privileged read-only diagnostic probe."""
+
+    probe: str
+    profile_id: str
+    wait_seconds: int
+    returncode: int
+    stdout: str
+    stderr: str
+    command: GuiPrivilegedProbeCommand
+    skipped_reason: str = ""
+
+    @property
+    def ok(self) -> bool:
+        return self.returncode == 0 and not self.skipped_reason
+
+    def to_text(self) -> str:
+        lines = [
+            f"GUI privileged read-only probe {self.probe}: {'OK' if self.ok else 'FAILED'}",
+            f"profile: {self.profile_id}",
+            f"wait seconds: {self.wait_seconds}",
+            f"return code: {self.returncode}",
+            "uses sudo askpass: yes",
+            "asks password in terminal: no",
+            "stores password: no",
+            "read-only: yes",
+            "applies firewall/services now: no",
+        ]
+        if self.skipped_reason:
+            lines.append(f"message: {self.skipped_reason}")
+        if self.stdout.strip():
+            lines.extend(["", "stdout:", self.stdout.rstrip()])
+        if self.stderr.strip():
+            lines.extend(["", "stderr:", self.stderr.rstrip()])
+        if not self.stdout.strip() and not self.stderr.strip() and not self.skipped_reason:
+            lines.append("message: команда завершилась без вывода")
+        return "\n".join(lines)
+
+
+
 def default_plan_id_for_action(root: Path | None = None, action: str = "start", profile_id: str = "default") -> str:
     if action not in SUPPORTED_GUI_PRIVILEGED_ACTIONS:
         raise ValueError(f"Неподдерживаемое GUI privileged action: {action}")
@@ -219,6 +298,98 @@ def gui_privileged_command_to_text(
         profile_id=profile_id,
         confirm_plan_id=confirm_plan_id,
     ).to_text()
+
+
+def build_gui_privileged_discord_probe_command(
+    *,
+    root: Path | None = None,
+    profile_id: str = "default",
+    wait_seconds: int = 30,
+) -> GuiPrivilegedProbeCommand:
+    """Build a read-only Discord guided probe command for GUI sudo askpass."""
+
+    layout = discover_layout(root)
+    wait_seconds = max(0, min(int(wait_seconds), 600))
+    pythonpath = str(layout.root / "gui")
+    executable = str(Path(sys.executable))
+    askpass = ensure_sudo_askpass_helper(layout.root)
+    argv = (
+        "sudo",
+        "-A",
+        "env",
+        f"PYTHONPATH={pythonpath}",
+        "ZAP2_GUI_PRIVILEGE_BRIDGE=sudo-askpass",
+        executable,
+        "-m",
+        "zap2_gui.app",
+        "--runtime-discord-pretls-guided-probe",
+        "--profile",
+        profile_id,
+        "--pretls-probe-no-wait",
+        "--pretls-probe-wait-seconds",
+        str(wait_seconds),
+    )
+    return GuiPrivilegedProbeCommand(
+        probe="discord-pretls-guided-probe",
+        profile_id=profile_id,
+        wait_seconds=wait_seconds,
+        argv=argv,
+        cwd=layout.root,
+        env_overrides={"SUDO_ASKPASS": str(askpass)},
+    )
+
+
+def execute_gui_privileged_discord_probe(
+    *,
+    root: Path | None = None,
+    profile_id: str = "default",
+    wait_seconds: int = 30,
+    timeout_seconds: int = 420,
+) -> GuiPrivilegedProbeResult:
+    """Run the read-only Discord probe through graphical sudo askpass."""
+
+    command = build_gui_privileged_discord_probe_command(root=root, profile_id=profile_id, wait_seconds=wait_seconds)
+    if not is_sudo_available():
+        return GuiPrivilegedProbeResult(
+            probe=command.probe,
+            profile_id=profile_id,
+            wait_seconds=command.wait_seconds,
+            returncode=127,
+            stdout="",
+            stderr="",
+            command=command,
+            skipped_reason=(
+                "sudo не найден. Для privileged read-only probe нужен sudo -A/SUDO_ASKPASS; "
+                "терминальный ввод пароля намеренно не используется."
+            ),
+        )
+
+    completed = subprocess.run(
+        list(command.argv),
+        cwd=command.cwd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        timeout=timeout_seconds,
+        env=_desktop_env_for_askpass(command),
+    )
+    stderr = completed.stderr
+    if completed.returncode != 0 and "no askpass program" in stderr.lower():
+        stderr += (
+            "\n\nПодсказка: sudo не смог запустить SUDO_ASKPASS helper. "
+            "Проверьте, что GUI запущен в desktop-сессии с DISPLAY/WAYLAND_DISPLAY."
+        )
+    return GuiPrivilegedProbeResult(
+        probe=command.probe,
+        profile_id=profile_id,
+        wait_seconds=command.wait_seconds,
+        returncode=completed.returncode,
+        stdout=completed.stdout,
+        stderr=stderr,
+        command=command,
+    )
+
 
 
 def _desktop_env_for_askpass(command: GuiPrivilegedCommand) -> dict[str, str]:

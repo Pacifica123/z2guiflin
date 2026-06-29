@@ -10,18 +10,20 @@ apply. Непривилегированные действия выполняю�
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .runtime_default import default_workflow_status, prepare_default_workflow_plan
 from .runtime_default_build import execute_default_build, prepare_default_build_plan
 from .runtime_logs import runtime_log_snapshot_to_text
 from .build_dependencies import run_build_dependency_preflight
-from .runtime_state import confirm_runtime_plan
+from .runtime_state import confirm_runtime_plan, ensure_runtime_store
 from .gui_first_overview import gui_first_runtime_overview_to_text
 from .gui_privilege import (
     default_plan_id_for_action,
     gui_privileged_command_to_text,
     execute_gui_privileged_workflow,
+    execute_gui_privileged_discord_probe,
 )
 from .workspace_profiles import load_workspace_catalog
 from ..project_paths import discover_layout
@@ -44,6 +46,73 @@ def current_default_plan_id(root: Path | None = None, action: str = "start", pro
     if action == "build":
         return default_build_plan_id(root, profile_id)
     return default_plan_id_for_action(root, action=action, profile_id=profile_id)
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def gui_overview_action_output_path(root: Path | None = None, profile_id: str = "default") -> Path:
+    """Path for the last verbose Overview action output moved to Logs tab."""
+
+    paths = ensure_runtime_store(root)
+    return paths.logs_dir / f"{profile_id}.overview-action-output.log"
+
+
+def write_gui_overview_action_output(root: Path | None, profile_id: str, label: str, text: str) -> Path:
+    """Store verbose Overview action output so Overview can stay table-first."""
+
+    path = gui_overview_action_output_path(root=root, profile_id=profile_id)
+    path.write_text(
+        "\n".join(
+            [
+                f"createdAt: {_utc_now()}",
+                f"source: Runtime Overview",
+                f"action: {label}",
+                "",
+                text.rstrip(),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def gui_overview_action_output_to_text(root: Path | None = None, profile_id: str = "default") -> str:
+    """Read the last verbose Overview action output for the Logs tab."""
+
+    path = gui_overview_action_output_path(root=root, profile_id=profile_id)
+    if not path.exists():
+        return "\n".join(
+            [
+                "Overview action output",
+                f"path: {path}",
+                "status: нет сохранённого вывода",
+                "read-only: yes",
+            ]
+        )
+    return "\n".join(
+        [
+            "Overview action output",
+            f"path: {path}",
+            "",
+            path.read_text(encoding="utf-8", errors="replace").rstrip(),
+            "",
+            "read-only: yes",
+        ]
+    )
+
+
+def gui_runtime_logs_with_overview_output(root: Path | None = None, profile_id: str = "default") -> str:
+    """Combined Logs tab text: last Overview output plus normal runtime logs."""
+
+    return "\n\n".join(
+        [
+            gui_overview_action_output_to_text(root=root, profile_id=profile_id),
+            gui_runtime_logs(root=root, profile_id=profile_id),
+        ]
+    )
 
 
 def gui_runtime_logs(root: Path | None = None, profile_id: str = "default") -> str:
@@ -292,6 +361,18 @@ def gui_privileged_default_stop(root: Path | None = None, profile_id: str = "def
         confirm_plan_id=confirm_plan_id or current_default_plan_id(root, "stop", profile_id),
     ).to_text()
     return _with_status_after_action(root, profile_id, "stop", result)
+
+
+def gui_privileged_discord_pretls_probe(root: Path | None = None, profile_id: str = "default", wait_seconds: int = 30) -> str:
+    """Run Discord guided probe through sudo-askpass so nft counters are readable."""
+
+    result = execute_gui_privileged_discord_probe(
+        root=root,
+        profile_id=profile_id,
+        wait_seconds=wait_seconds,
+    ).to_text()
+    return _with_status_after_action(root, profile_id, "discord privileged probe", result)
+
 
 
 def gui_privileged_default_start_command(root: Path | None = None, profile_id: str = "default") -> str:

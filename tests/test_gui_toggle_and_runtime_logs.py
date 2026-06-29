@@ -75,3 +75,38 @@ def test_gui_toggle_label_is_stable() -> None:
     label = gui_default_toggle_label()
     assert label in {"Включить Default", "Выключить Default"}
     assert "Runtime logs" in gui_runtime_logs()
+
+
+def test_gui_privileged_discord_probe_uses_sudo_askpass() -> None:
+    from zap2_gui.adapters.gui_privilege import build_gui_privileged_discord_probe_command
+
+    command = build_gui_privileged_discord_probe_command(wait_seconds=30)
+    assert command.argv[0] == "sudo"
+    assert "-A" in command.argv
+    assert "--runtime-discord-pretls-guided-probe" in command.argv
+    assert "--pretls-probe-no-wait" in command.argv
+    assert "--pretls-probe-wait-seconds" in command.argv
+    assert "30" in command.argv
+    assert command.uses_sudo_askpass is True
+    assert command.mutates_firewall_or_services is False
+    assert "SUDO_ASKPASS" in command.env_overrides
+
+
+def test_overview_action_output_moves_verbose_text_to_logs(tmp_path: Path) -> None:
+    from zap2_gui.adapters.gui_runtime_controls import (
+        gui_overview_action_output_to_text,
+        gui_runtime_logs_with_overview_output,
+        write_gui_overview_action_output,
+    )
+
+    project = tmp_path / "project"
+    project.mkdir()
+    write_gui_overview_action_output(project, "default", "Probe", "line one\nline two")
+    text = gui_overview_action_output_to_text(project)
+
+    assert "Overview action output" in text
+    assert "action: Probe" in text
+    assert "line two" in text
+    combined = gui_runtime_logs_with_overview_output(project)
+    assert "Runtime logs" in combined
+    assert "action: Probe" in combined
