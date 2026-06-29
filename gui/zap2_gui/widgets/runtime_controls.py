@@ -80,6 +80,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
 
     toggle_button = QtWidgets.QPushButton()
     toggle_button.setIcon(misc_icon("toggle-start"))
+    toggle_button.setIconSize(_QtCore.QSize(24, 24))
     toggle_button.setFixedSize(46, 46)
     toggle_button.setObjectName("primaryRunButton")
     toggle_button.setToolTip("Включить/выключить Default workflow")
@@ -92,13 +93,16 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     status_text.setWordWrap(True)
 
     refresh_button = QtWidgets.QPushButton(misc_icon("refresh"), "")
+    refresh_button.setIconSize(_QtCore.QSize(16, 16))
     refresh_button.setFixedWidth(38)
     refresh_button.setToolTip("Обновить статус")
 
     probe_button = QtWidgets.QPushButton(misc_icon("probe"), "Проверить Discord")
+    probe_button.setIconSize(_QtCore.QSize(16, 16))
     probe_button.setToolTip("Privileged read-only guided probe через sudo-askpass: нужен только для чтения nft counters.")
 
     logs_button = QtWidgets.QPushButton(section_icon("logs"), "Логи")
+    logs_button.setIconSize(_QtCore.QSize(16, 16))
     logs_button.setFixedWidth(72)
 
     status_row.addWidget(toggle_button)
@@ -135,8 +139,10 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     overview_table_layout.setSpacing(6)
     table_actions = QtWidgets.QHBoxLayout()
     copy_table_button = QtWidgets.QPushButton(misc_icon("copy"), "Копировать таблицу")
+    copy_table_button.setIconSize(_QtCore.QSize(16, 16))
     copy_table_button.setToolTip("Скопировать видимую таблицу как plain text/TSV")
     copy_last_action_button = QtWidgets.QPushButton(misc_icon("details"), "Копировать последний вывод")
+    copy_last_action_button.setIconSize(_QtCore.QSize(16, 16))
     copy_last_action_button.setToolTip("Скопировать последний подробный вывод из вкладки «Логи»")
     table_actions.addWidget(copy_table_button)
     table_actions.addWidget(copy_last_action_button)
@@ -320,14 +326,16 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         try:
             overview = gui_first_runtime_overview(root=root)
             started = overview.is_running
-            toggle_button.setText("■" if started else "▶")
+            toggle_button.setText("")
+            toggle_button.setIcon(misc_icon("toggle-stop") if started else misc_icon("toggle-start"))
             indicator.setText("● Запущен" if started else ("! Требует внимания" if overview.has_mismatch else "○ Остановлен"))
             indicator.setProperty("state", "running" if started else ("mismatch" if overview.has_mismatch else "stopped"))
             toggle_button.setToolTip(overview.primary_action_label)
             status_text.setText(_status_label_text(root))
             render_overview_table()
         except Exception:
-            toggle_button.setText("▶")
+            toggle_button.setText("")
+            toggle_button.setIcon(misc_icon("toggle-start"))
             indicator.setText("? Неизвестно")
             indicator.setProperty("state", "unknown")
             status_text.setText("Статус не прочитан")

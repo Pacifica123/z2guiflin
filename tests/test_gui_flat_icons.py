@@ -22,3 +22,19 @@ def test_misc_icons_exist_for_overview_and_logs_actions() -> None:
         "details.svg",
     ):
         assert (_ICON_ROOT / name).exists(), name
+
+
+def test_flat_icons_do_not_use_pastel_background_boxes() -> None:
+    for path in _ICON_ROOT.glob("*.svg"):
+        source = path.read_text()
+        assert 'width="20" height="20" rx="6" fill=' not in source, path.name
+        assert '<circle cx="12" cy="12" r="10" fill=' not in source, path.name
+        assert 'filter=' not in source, path.name
+        assert 'linearGradient' not in source, path.name
+
+
+def test_runtime_start_button_is_icon_only_not_text_triangle() -> None:
+    source = (Path(__file__).resolve().parents[1] / "gui/zap2_gui/widgets/runtime_controls.py").read_text()
+    assert 'toggle_button.setText("■" if started else "▶")' not in source
+    assert 'toggle_button.setText("▶")' not in source
+    assert 'toggle_button.setText("")' in source

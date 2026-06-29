@@ -2,14 +2,18 @@
 
 ## Title
 
-Fix QTabWidget icon overload order
+Redesign GUI icons as minimal line icons
 
 ## What changed
 
-- fixed top-level tab creation to call `QTabWidget.addTab(widget, icon, label)`;
-- fixed Logs sub-tabs to use the same PyQt overload order;
-- added a regression test for the icon tab argument order.
+- replaced the previous boxed pastel icons with simpler line-style SVG icons;
+- removed colored background boxes and dense inner details from all GUI icons;
+- kept one calm pastel stroke color per icon;
+- fixed the Overview start/stop button so the old text symbol `▶/■` no longer overlaps the new SVG icon;
+- added icon sizes for Overview and Logs action buttons;
+- documented the revised visual rule in `docs/GUI_FLAT_PASTEL_ICONS.md`;
+- added regression checks for background-box icons and the start button text/icon overlap.
 
 ## Why
 
-The flat pastel icon patch used the wrong overload order: `addTab(icon, widget, label)`. PyQt expects the widget first, so the GUI crashed on startup.
+The first icon patch was too decorative and visually noisy. The reference style is closer to small flat line icons used as navigation/action hints, not standalone pictograms.
