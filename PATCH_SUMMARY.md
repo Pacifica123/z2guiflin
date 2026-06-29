@@ -2,18 +2,22 @@
 
 ## Title
 
-Clarify Tunnel core start UX and xhttp/core mismatch
+Rework Tunnel tab into profile/core/route tabs and unify Overview toggle
 
 ## What changed
 
-- added a visible `Tunnel core` block in the Tunnel tab;
-- added Core binary field and buttons for plan/start/stop/SOCKS probe;
-- changed the route hint so `Запустить Discord через SOCKS` no longer looks like it starts the core;
-- added xhttp/splithttp compatibility warnings for V2Ray core;
-- blocked obviously incompatible `v2ray + xhttp/splithttp` starts before creating a failed session;
-- included last core stderr/stdout details in tunnel status, probe, and launch errors;
-- added tests for xhttp/core UX and failed-session diagnostics.
+- replaced the cramped Tunnel tab stack with three sub-tabs:
+  - `Профили VLESS`
+  - `Tunnel core`
+  - `Discord через SOCKS`
+- added a redacted VLESS profile table similar to the Strategies table workflow;
+- added `Сделать активным` for selecting a connection directly from the table;
+- removed the visible guided CLI hint from the Tunnel tab;
+- kept detailed route/core output in the lower output pane;
+- changed the Overview main start/stop button to use selected Launch Composer components;
+- the Overview indicator now says `Всё запущено` only when all selected supported components are actually running;
+- added tests for redacted tunnel table rows, the tabbed Tunnel layout, and the unified Overview toggle contract.
 
 ## Why
 
-The previous UX told the user to start/probe again even when the real problem was visible in `.zap2/tunnel/logs/default.core.stderr.log`: `unknown transport protocol: xhttp`. The GUI needed to expose the real order and the real failure cause.
+The previous Tunnel UI was too crowded and made it unclear whether VLESS core was actually started. The main Overview button also did not match the component selection UI. This patch makes both flows explicit.

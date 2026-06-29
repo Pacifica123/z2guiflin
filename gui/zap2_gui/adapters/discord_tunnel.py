@@ -745,6 +745,37 @@ def tunnel_connection_import_vless_to_text(value: str, *, profile_id: str = DEFA
     )
 
 
+
+def tunnel_connections_table_rows(*, profile_id: str = DEFAULT_PROFILE_ID, root: Path | None = None) -> tuple[dict[str, str], ...]:
+    """Return redacted rows for GUI table rendering of imported tunnel profiles."""
+
+    paths = ensure_tunnel_store(root)
+    connections = _load_connections(paths, profile_id)
+    active_id = ""
+    active_path = _active_connection_path(paths, profile_id)
+    if active_path.exists():
+        try:
+            active_id = str(_read_json(active_path).get("connectionId", ""))
+        except Exception:
+            active_id = ""
+    rows: list[dict[str, str]] = []
+    for item in connections:
+        redacted = item.redacted_dict()
+        rows.append(
+            {
+                "active": "yes" if item.connection_id == active_id else "no",
+                "connectionId": item.connection_id,
+                "remarks": item.remarks,
+                "destination": f"{redacted['server']}:{item.port}",
+                "transport": f"{item.network}/{item.header_type}",
+                "security": f"{item.security}; enc={item.encryption}",
+                "host": redacted["host"] or "нет",
+                "fingerprint": redacted["fingerprint"],
+            }
+        )
+    return tuple(rows)
+
+
 def tunnel_connections_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: Path | None = None) -> str:
     paths = ensure_tunnel_store(root)
     connections = _load_connections(paths, profile_id)

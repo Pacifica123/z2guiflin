@@ -32,6 +32,7 @@ from ..adapters.launch_composer import (
     COMPONENT_SOCKS5,
     COMPONENT_TUNNEL_VLESS,
     COMPONENT_ZAPRET_DEFAULT,
+    launch_component_views,
     launch_composer_plan_to_text,
     launch_composer_start_to_text,
     launch_composer_status_to_text,
@@ -227,6 +228,28 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         value = core_input.text().strip()
         return value or None
 
+    def selected_component_rows():
+        return tuple(
+            row
+            for row in launch_component_views(
+                components=selected_components(),
+                root=root,
+                core_binary=composer_core_binary(),
+            )
+            if row.selected
+        )
+
+    def selected_components_all_running() -> bool:
+        rows = selected_component_rows()
+        supported_rows = [row for row in rows if row.spec.supported]
+        return bool(supported_rows) and all(row.status == "running" for row in supported_rows)
+
+    def selected_components_status_summary() -> str:
+        rows = selected_component_rows()
+        if not rows:
+            return "Ничего не выбрано для запуска"
+        return "; ".join(f"{row.spec.title}: {row.status}/{row.ready}" for row in rows if row.spec.supported)
+
     def browse_core_binary() -> None:
         filename, _selected_filter = QtWidgets.QFileDialog.getOpenFileName(
             page,
@@ -280,6 +303,9 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     composer_plan_button.clicked.connect(lambda _checked=False: run_action("Launch composer plan", lambda: launch_composer_plan_to_text(root=root, components=selected_components(), core_binary=composer_core_binary())))
     composer_start_button.clicked.connect(lambda _checked=False: run_composer_start())
     composer_stop_button.clicked.connect(lambda _checked=False: run_composer_stop())
+    zapret_check.toggled.connect(lambda _checked=False: refresh_visual_state())
+    vless_check.toggled.connect(lambda _checked=False: refresh_visual_state())
+    core_input.textChanged.connect(lambda _text="": refresh_visual_state())
 
     composer_layout.addWidget(composer_hint)
     composer_layout.addLayout(component_grid)
@@ -325,13 +351,25 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     def refresh_visual_state() -> None:
         try:
             overview = gui_first_runtime_overview(root=root)
-            started = overview.is_running
+            all_selected_running = selected_components_all_running()
+            selected_summary = selected_components_status_summary()
             toggle_button.setText("")
-            toggle_button.setIcon(misc_icon("toggle-stop") if started else misc_icon("toggle-start"))
-            indicator.setText("● Запущен" if started else ("! Требует внимания" if overview.has_mismatch else "○ Остановлен"))
-            indicator.setProperty("state", "running" if started else ("mismatch" if overview.has_mismatch else "stopped"))
-            toggle_button.setToolTip(overview.primary_action_label)
-            status_text.setText(_status_label_text(root))
+            toggle_button.setIcon(misc_icon("toggle-stop") if all_selected_running else misc_icon("toggle-start"))
+            if all_selected_running:
+                indicator.setText("● Всё запущено")
+                indicator.setProperty("state", "running")
+                toggle_button.setToolTip("Остановить выбранные компоненты")
+                status_text.setText("Выбранные компоненты running: " + selected_summary)
+            elif overview.has_mismatch:
+                indicator.setText("! Требует внимания")
+                indicator.setProperty("state", "mismatch")
+                toggle_button.setToolTip("Запустить выбранные компоненты после исправления состояния")
+                status_text.setText("Состояние Default workflow требует внимания; выбранные компоненты: " + selected_summary)
+            else:
+                indicator.setText("○ Остановлен")
+                indicator.setProperty("state", "stopped")
+                toggle_button.setToolTip("Запустить выбранные компоненты")
+                status_text.setText("Выбранные компоненты не все running: " + selected_summary)
             render_overview_table()
         except Exception:
             toggle_button.setText("")
@@ -358,23 +396,35 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
                 status_text.setText(message)
 
     def run_toggle() -> None:
+        all_selected_running = selected_components_all_running()
+        action_label = "Остановить выбранное" if all_selected_running else "Запустить выбранное"
         question = QtWidgets.QMessageBox.question(
             page,
-            "Default workflow",
+            "Комбинированный запуск",
             (
-                "Выполнить полный Default workflow одной кнопкой?\n\n"
-                "Если выключено: GUI проверит зависимости, соберёт nfqws2 при необходимости, "
-                "создаст и подтвердит start-plan, затем покажет графический sudo-запрос.\n"
-                "Если включено: GUI создаст и подтвердит stop-plan, затем покажет графический sudo-запрос.\n\n"
+                f"{action_label}: {selected_components()}?\n\n"
+                "Главная кнопка работает по выбранным компонентам в блоке «Комбинированный запуск». "
+                "Индикатор «Всё запущено» появляется только когда все выбранные supported-компоненты реально running.\n\n"
+                "Zapret default может запросить sudo через графический askpass. VLESS tunnel стартует внешний core без sudo. "
                 "Пароль не сохраняется приложением."
             ),
         )
         if question != QtWidgets.QMessageBox.StandardButton.Yes:
-            write_gui_overview_action_output(root, "default", "Default toggle", "Default toggle: отменено пользователем")
+            write_gui_overview_action_output(root, "default", "Combined toggle", "Combined toggle: отменено пользователем")
             status_text.setText("Отменено: подробности во вкладке «Логи»")
             refresh_visual_state()
             return
-        run_action("Default toggle", lambda: gui_toggle_default_workflow(root=root))
+        if all_selected_running:
+            run_action("Combined toggle stop", lambda: launch_composer_stop_to_text(root=root, components=selected_components()))
+        else:
+            run_action(
+                "Combined toggle start",
+                lambda: launch_composer_start_to_text(
+                    root=root,
+                    components=selected_components(),
+                    core_binary=composer_core_binary(),
+                ),
+            )
 
     def run_overview_state() -> None:
         run_action("GUI overview state", lambda: gui_first_runtime_overview_to_text(root=root, developer=developer_mode.isChecked()))
