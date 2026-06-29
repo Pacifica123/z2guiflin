@@ -2,18 +2,20 @@
 
 ## Title
 
-Add Overview launch error banner and classifier
+Add specific Zapret readiness blocker for combined launch
 
 ## What changed
 
-- added `launch_error_classifier.py` with stable launch issue codes;
-- added a yellow dismissable issue banner to Overview;
-- added icon-only copy buttons for short and full issue text;
-- added close button for the banner;
-- wired Overview actions to classify both exceptions and partial combined starts;
-- documented the error code classifier in `docs/LAUNCH_ERROR_CLASSIFIER.md`;
-- added regression tests for classifier behavior and banner UI contract.
+- Launch Composer now checks selected supported components before starting anything.
+- If `zapret-default` is selected but `core/zapret2/nfq2/nfqws2` is missing or not executable, combined start is blocked before starting VLESS.
+- Added explicit readiness values for Zapret:
+  - `needs nfqws2 build`
+  - `nfqws2 not executable`
+  - `ready`
+- Added classifier code `Z2-ZAPRET-BINARY-MISSING`.
+- Updated launch error classifier documentation.
+- Added regression tests for the precheck and classifier priority.
 
 ## Why
 
-After the unified launch toggle, the GUI made it visible that Zapret and VLESS did not always start together, but the reason was still buried in long logs. The Overview now surfaces the failure reason directly while preserving full copyable diagnostics for analysis.
+The previous behavior correctly reported `Z2-LAUNCH-PARTIAL`, but the real cause was more specific: Zapret did not start because `nfqws2` was missing. The GUI should show that cause directly and avoid starting only the VLESS half of a selected combined launch.

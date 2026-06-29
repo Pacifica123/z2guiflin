@@ -163,6 +163,19 @@ def _zapret_state(root: Path | None, profile_id: str) -> str:
         return f"unknown:{exc}"
 
 
+def _zapret_ready(root: Path | None) -> str:
+    try:
+        layout = discover_layout(root)
+        binary = layout.root / "core" / "zapret2" / "nfq2" / "nfqws2"
+        if not binary.is_file():
+            return "needs nfqws2 build"
+        if not bool(binary.stat().st_mode & 0o111):
+            return "nfqws2 not executable"
+        return "ready"
+    except Exception as exc:  # pragma: no cover - defensive GUI path
+        return f"unknown:{exc}"
+
+
 def _tunnel_state(root: Path | None, profile_id: str) -> str:
     text = discord_tunnel_status_to_text(root=root, profile_id=profile_id)
     if "state: running" in text and "core running: yes" in text:
@@ -211,7 +224,7 @@ def launch_component_views(
         spec = COMPONENT_SPECS[component_id]
         if component_id == COMPONENT_ZAPRET_DEFAULT:
             status = _zapret_state(root, profile_id)
-            ready = "unknown" if status.startswith("unknown") else "ready"
+            ready = _zapret_ready(root)
         elif component_id == COMPONENT_TUNNEL_VLESS:
             status = _tunnel_state(root, profile_id)
             ready = _tunnel_ready(root, profile_id, core_binary)
@@ -329,6 +342,18 @@ def launch_composer_plan_to_text(
     return "\n".join(lines)
 
 
+def _start_blockers(rows: tuple[LaunchComponentView, ...]) -> tuple[str, ...]:
+    blockers: list[str] = []
+    for row in rows:
+        if not row.selected or not row.spec.supported:
+            continue
+        if row.status == "running":
+            continue
+        if row.ready != "ready":
+            blockers.append(f"{row.spec.component_id}: {row.ready}")
+    return tuple(blockers)
+
+
 def launch_composer_start_to_text(
     *,
     components: str | Iterable[str] | None = None,
@@ -344,6 +369,22 @@ def launch_composer_start_to_text(
         raise ValueError(f"Unsupported planned components selected: {', '.join(unsupported)}")
     parts: list[str] = [launch_composer_plan_to_text(components=selected, profile_id=profile_id, core_binary=core_binary, core_kind=core_kind, socks_port=socks_port, root=root)]
     parts.append("\nLaunch composer start")
+    rows = launch_component_views(components=selected, profile_id=profile_id, core_binary=core_binary, root=root)
+    blockers = _start_blockers(rows)
+    if blockers:
+        parts.extend(
+            [
+                "Launch composer start: blocked",
+                "reason: selected components are not ready",
+                "blockers:",
+                *(f"- {item}" for item in blockers),
+                "",
+                "No components were started. Fix the blocker, then press the main Overview button again.",
+            ]
+        )
+        parts.append("\nFinal status")
+        parts.append(launch_composer_status_to_text(components=selected, profile_id=profile_id, core_binary=core_binary, root=root))
+        return "\n\n".join(parts)
     for component_id in selected:
         if component_id == COMPONENT_ZAPRET_DEFAULT:
             if _zapret_state(root, profile_id) == "running":

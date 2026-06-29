@@ -32,6 +32,7 @@ Z2-LAUNCH-PARTIAL: Не все выбранные компоненты стал�
 | --- | --- |
 | `Z2-LAUNCH-PARTIAL` | Комбинированный запуск завершился, но не все выбранные supported-компоненты стали `running`. |
 | `Z2-LAUNCH-PLAN-ONLY` | План был подготовлен/подтверждён, но сам action ещё не был исполнен. |
+| `Z2-ZAPRET-BINARY-MISSING` | Выбран Zapret default, но `core/zapret2/nfq2/nfqws2` отсутствует или не executable. Нужен build workflow. |
 | `Z2-TUNNEL-PROFILE-MISSING` | Выбран VLESS tunnel, но активный VLESS profile отсутствует. |
 | `Z2-TUNNEL-CORE-MISSING` | Выбран VLESS tunnel, но core binary не указан, не найден или не executable. |
 | `Z2-TUNNEL-NOT-RUNNING` | Tunnel core не `running`, поэтому SOCKS route недоступен. |

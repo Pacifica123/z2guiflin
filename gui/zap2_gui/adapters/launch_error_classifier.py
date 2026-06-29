@@ -50,6 +50,13 @@ def classify_launch_issue(
     lower = combined.lower()
     details = combined.strip()
 
+    if "nfqws2 binary отсутств" in lower or "needs nfqws2 build" in lower or "nfqws2 not executable" in lower:
+        return LaunchIssue(
+            code="Z2-ZAPRET-BINARY-MISSING",
+            severity="warning",
+            message="Zapret не запущен: nfqws2 не собран или не executable.",
+            details=details,
+        )
     if "unknown transport protocol: xhttp" in lower:
         return LaunchIssue(
             code="Z2-TUNNEL-XHTTP-CORE",
