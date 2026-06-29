@@ -125,3 +125,18 @@ def test_gui_first_overview_cli_is_read_only(capsys) -> None:
     assert "GUI-first runtime overview" in out
     assert "read-only: yes" in out
     assert "executes now: no" in out
+
+
+def test_gui_first_overview_table_rows_are_copyable_text(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    overview = gui_first_runtime_overview(project)
+    rows = overview.table_rows()
+    table_text = overview.to_table_text()
+
+    assert rows
+    assert rows[0].as_tuple() == ("Профиль", "Workspace profile", "default", "info")
+    assert any(row.section == "Стратегия" and row.field == "Выбрана в GUI" for row in rows)
+    assert table_text.startswith("section\tfield\tvalue\tstatus")
+    assert "\nСтратегия\tВыбрана в GUI\t" in table_text
+    assert "PYTHONPATH=" not in table_text
+    assert "sudo nft" not in table_text

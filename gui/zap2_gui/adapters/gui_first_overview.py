@@ -20,6 +20,19 @@ from ..project_paths import discover_layout
 
 
 @dataclass(frozen=True)
+class GuiFirstRuntimeOverviewRow:
+    """Single user-facing row for the Overview status table."""
+
+    section: str
+    field: str
+    value: str
+    status: str
+
+    def as_tuple(self) -> tuple[str, str, str, str]:
+        return (self.section, self.field, self.value, self.status)
+
+
+@dataclass(frozen=True)
 class GuiFirstRuntimeOverview:
     """One-screen state for the user-facing Overview tab."""
 
@@ -50,6 +63,71 @@ class GuiFirstRuntimeOverview:
     @property
     def has_mismatch(self) -> bool:
         return self.state in {"mismatch", "partial", "stale"}
+
+
+    def table_rows(self, *, developer: bool = False) -> tuple[GuiFirstRuntimeOverviewRow, ...]:
+        """Rows for the GUI table view.
+
+        The table is intentionally redundant with ``to_text``: the GUI can show
+        a compact visual view while the neighbouring copy button still exposes a
+        plain-text representation that is easy to paste into an issue or chat.
+        """
+
+        plan_status = "ok"
+        if self.prepared_start_plan_state == "none":
+            plan_status = "missing"
+        elif self.prepared_start_plan_state == "stale":
+            plan_status = "stale"
+        elif self.prepared_start_plan_state == "ready-unconfirmed":
+            plan_status = "needs-confirmation"
+
+        running_value = self.running_strategy_id or "нет"
+        running_status = "ok" if self.running_strategy_id in {"", self.selected_strategy_id} else "mismatch"
+        session_value = self.session_state
+        if self.session_pid is not None:
+            session_value = f"{self.session_state} / pid {self.session_pid}"
+        session_status = "ok" if self.session_state == "running" else ("stopped" if self.session_state in {"stopped", "not-started"} else "attention")
+        owner_status = "ok" if self.owner_rules_state == "applied" else ("stopped" if self.owner_rules_state in {"reverted", "not-applied"} else "attention")
+        owner_strategy_status = "ok" if self.owner_rules_strategy_id in {"", self.selected_strategy_id} else "mismatch"
+        overall_status = "ok" if self.state == "running" else ("stopped" if self.state == "stopped" else "attention")
+
+        rows: list[GuiFirstRuntimeOverviewRow] = [
+            GuiFirstRuntimeOverviewRow("Профиль", "Workspace profile", self.profile_id, "info"),
+            GuiFirstRuntimeOverviewRow("Стратегия", "Выбрана в GUI", self.selected_strategy_id, "ok"),
+            GuiFirstRuntimeOverviewRow("Стратегия", "Start-plan", self.prepared_start_plan_strategy_id or "нет", plan_status),
+            GuiFirstRuntimeOverviewRow("Стратегия", "Запущена", running_value, running_status),
+            GuiFirstRuntimeOverviewRow("Workflow", "Default workflow", self.workflow_state, "ok" if self.workflow_state == "started" else "stopped"),
+            GuiFirstRuntimeOverviewRow("Workflow", "nfqws2 session", session_value, session_status),
+            GuiFirstRuntimeOverviewRow("Firewall", "Owner-rules", self.owner_rules_state, owner_status),
+            GuiFirstRuntimeOverviewRow("Firewall", "Owner-rules strategy", self.owner_rules_strategy_id or "нет", owner_strategy_status),
+            GuiFirstRuntimeOverviewRow("Firewall", "NFQUEUE", f"{self.nfqueue_num} / inet {self.nft_table}", "info"),
+            GuiFirstRuntimeOverviewRow("Итог", "Состояние", self.state, overall_status),
+            GuiFirstRuntimeOverviewRow("Итог", "Следующее действие", self.next_gui_action, "action"),
+        ]
+        if self.issues:
+            for index, issue in enumerate(self.issues, start=1):
+                rows.append(GuiFirstRuntimeOverviewRow("Проблемы", f"Issue {index}", issue, "attention"))
+        else:
+            rows.append(GuiFirstRuntimeOverviewRow("Проблемы", "Issues", "нет", "ok"))
+        if developer:
+            rows.extend(
+                [
+                    GuiFirstRuntimeOverviewRow("Dev", "Start plan id", self.prepared_start_plan_id or "нет", "info"),
+                    GuiFirstRuntimeOverviewRow("Dev", "Session pid", str(self.session_pid) if self.session_pid is not None else "нет", "info"),
+                    GuiFirstRuntimeOverviewRow("Dev", "Hint", self.developer_hint, "info"),
+                ]
+            )
+        return tuple(rows)
+
+    def to_table_text(self, *, developer: bool = False) -> str:
+        """Plain text copy of the GUI table, tab-separated for readable paste."""
+
+        lines = ["section\tfield\tvalue\tstatus"]
+        for row in self.table_rows(developer=developer):
+            safe = [part.replace("\t", " ").replace("\n", " ") for part in row.as_tuple()]
+            lines.append("\t".join(safe))
+        return "\n".join(lines)
+
 
     def to_text(self, *, developer: bool = False) -> str:
         issues = [f"  - {issue}" for issue in self.issues] or ["  - нет"]
@@ -232,3 +310,7 @@ def gui_first_runtime_overview(root: Path | None = None, profile_id: str = "defa
 
 def gui_first_runtime_overview_to_text(root: Path | None = None, profile_id: str = "default", *, developer: bool = False) -> str:
     return gui_first_runtime_overview(root=root, profile_id=profile_id).to_text(developer=developer)
+
+
+def gui_first_runtime_overview_to_table_text(root: Path | None = None, profile_id: str = "default", *, developer: bool = False) -> str:
+    return gui_first_runtime_overview(root=root, profile_id=profile_id).to_table_text(developer=developer)

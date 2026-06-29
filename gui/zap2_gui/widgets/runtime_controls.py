@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ..adapters.discord_pretls_guided_probe import runtime_discord_pretls_guided_probe_to_text
-from ..adapters.gui_first_overview import gui_first_runtime_overview, gui_first_runtime_overview_to_text
+from ..adapters.gui_first_overview import gui_first_runtime_overview, gui_first_runtime_overview_to_text, gui_first_runtime_overview_to_table_text
 from ..adapters.gui_runtime_controls import (
     gui_confirm_default_build,
     gui_confirm_default_start,
@@ -114,6 +114,40 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     developer_mode = QtWidgets.QCheckBox("Developer mode: raw plans/nft/log commands")
     developer_mode.setObjectName("overviewDeveloperMode")
     output.setPlainText(gui_first_runtime_overview_to_text(root=root, developer=False))
+
+    overview_table = QtWidgets.QTableWidget(0, 4)
+    overview_table.setObjectName("guiFirstOverviewTable")
+    overview_table.setHorizontalHeaderLabels(["Раздел", "Поле", "Значение", "Статус"])
+    try:
+        overview_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        overview_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+    except AttributeError:  # pragma: no cover - PyQt5 compatibility
+        overview_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        overview_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+    overview_table.setAlternatingRowColors(True)
+    overview_table.setMinimumHeight(210)
+    try:
+        overview_table.horizontalHeader().setStretchLastSection(False)
+        overview_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        overview_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        overview_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        overview_table.horizontalHeader().setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+    except Exception:  # pragma: no cover - compatibility with older Qt bindings
+        pass
+
+    overview_table_box = QtWidgets.QGroupBox("Состояние Default workflow")
+    overview_table_layout = QtWidgets.QVBoxLayout(overview_table_box)
+    overview_table_layout.setSpacing(6)
+    table_actions = QtWidgets.QHBoxLayout()
+    copy_table_button = QtWidgets.QPushButton("Копировать таблицу")
+    copy_table_button.setToolTip("Скопировать видимую таблицу как plain text/TSV")
+    copy_output_button = QtWidgets.QPushButton("Копировать вывод")
+    copy_output_button.setToolTip("Скопировать текст из нижнего окна вывода")
+    table_actions.addWidget(copy_table_button)
+    table_actions.addWidget(copy_output_button)
+    table_actions.addStretch(1)
+    overview_table_layout.addWidget(overview_table)
+    overview_table_layout.addLayout(table_actions)
 
     composer_box = QtWidgets.QGroupBox("Комбинированный запуск")
     composer_layout = QtWidgets.QVBoxLayout(composer_box)
@@ -254,6 +288,37 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     details_layout.setHorizontalSpacing(8)
     details_layout.setVerticalSpacing(8)
 
+    def render_overview_table() -> None:
+        overview = gui_first_runtime_overview(root=root)
+        rows = overview.table_rows(developer=developer_mode.isChecked())
+        overview_table.setRowCount(len(rows))
+        for row_index, row in enumerate(rows):
+            for col_index, value in enumerate(row.as_tuple()):
+                item = QtWidgets.QTableWidgetItem(value)
+                if col_index == 3:
+                    try:
+                        item.setTextAlignment(_QtCore.Qt.AlignmentFlag.AlignCenter)
+                    except AttributeError:  # pragma: no cover - PyQt5 compatibility
+                        item.setTextAlignment(_QtCore.Qt.AlignCenter)
+                overview_table.setItem(row_index, col_index, item)
+        overview_table.resizeRowsToContents()
+
+    def copy_text_to_clipboard(text: str, label: str) -> None:
+        QtWidgets.QApplication.clipboard().setText(text)
+        status_text.setText(f"Скопировано: {label}")
+
+    def copy_current_table() -> None:
+        try:
+            copy_text_to_clipboard(
+                gui_first_runtime_overview_to_table_text(root=root, developer=developer_mode.isChecked()),
+                "таблица состояния",
+            )
+        except Exception as exc:  # pragma: no cover - GUI diagnostic path
+            output.setPlainText(f"Копирование таблицы: ошибка\n{exc}")
+
+    def copy_current_output() -> None:
+        copy_text_to_clipboard(output.toPlainText(), "нижний текстовый вывод")
+
     def refresh_visual_state() -> None:
         try:
             overview = gui_first_runtime_overview(root=root)
@@ -263,11 +328,13 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             indicator.setProperty("state", "running" if started else ("mismatch" if overview.has_mismatch else "stopped"))
             toggle_button.setToolTip(overview.primary_action_label)
             status_text.setText(_status_label_text(root))
+            render_overview_table()
         except Exception:
             toggle_button.setText("▶")
             indicator.setText("? Неизвестно")
             indicator.setProperty("state", "unknown")
             status_text.setText("Статус не прочитан")
+            overview_table.setRowCount(0)
         page.style().unpolish(indicator)
         page.style().polish(indicator)
 
@@ -310,7 +377,9 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     probe_button.clicked.connect(lambda _checked=False: run_discord_readiness_probe())
     refresh_button.clicked.connect(lambda _checked=False: run_overview_state())
     logs_button.clicked.connect(lambda _checked=False: run_action("Runtime logs", lambda: gui_runtime_logs(root=root)))
-    developer_mode.toggled.connect(lambda _checked=False: details_box.setVisible(developer_mode.isChecked()))
+    copy_table_button.clicked.connect(lambda _checked=False: copy_current_table())
+    copy_output_button.clicked.connect(lambda _checked=False: copy_current_output())
+    developer_mode.toggled.connect(lambda _checked=False: (details_box.setVisible(developer_mode.isChecked()), refresh_visual_state()))
 
     actions: tuple[tuple[str, Callable[[], str]], ...] = (
         ("GUI состояние", lambda: gui_first_runtime_overview_to_text(root=root, developer=developer_mode.isChecked())),
@@ -337,6 +406,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     layout.addWidget(intro)
     layout.addWidget(composer_box)
     layout.addLayout(status_row)
+    layout.addWidget(overview_table_box)
     layout.addWidget(developer_mode)
     layout.addWidget(details_box)
     layout.addWidget(output, 1)
