@@ -1,31 +1,22 @@
-# Stage 8c-r1 — tunnel route diagnosis preflight, deterministic checks
+# Patch summary: GUI-first runtime overview
 
-This is the corrected Stage 8c patch. It keeps the Stage 8c feature set and fixes the failed devctl check caused by a host-dependent test assumption.
+Дата: 2026-06-29
 
-## Why the previous check failed
+## Изменения
 
-The guided-run test expected that `127.0.0.1:10808` was empty while a fake tunnel core was sleeping. On the owner's machine, a real leftover SOCKS/V2Ray listener could still be bound to that port, so the test saw a ready SOCKS endpoint and launched the fake Discord process. The application behavior was plausible for that host state, but the test was not isolated.
+- Добавлен `gui_first_overview.py`: read-only state machine для Overview.
+- Overview tab теперь показывает selected/prepared/running/firewall state, а не только CLI-style status.
+- Добавлена пользовательская кнопка `Проверить Discord` в Overview. Она вызывает guided probe без shell-команд.
+- Ручные plan/confirm/command кнопки спрятаны за `Developer mode`.
+- `gui_toggle_default_workflow` теперь включает GUI-first overview в вывод до и после действия.
+- Добавлена CLI-команда `--gui-first-overview` как read-only контракт для тестов и dev fallback.
+- Добавлена документация `docs/GUI_FIRST_RUNTIME_OVERVIEW.md`.
+- Добавлены тесты `tests/test_gui_first_overview.py`.
 
-## Changes kept from Stage 8c
+## Проверки
 
-- Add `--discord-tunnel-route-diagnose` for one short route verdict across tunnel session, local SOCKS, managed Discord launch, recent core logs, recent Discord logs, HTTPS probe reports, and launch preflight reports.
-- Detect last-run failures from attached `.zap2` after processes are already stopped, including `TD_LAST_RUN_ROUTED_BUT_UPSTREAM_TLS_CLOSED`.
-- Add optional HTTPS-over-SOCKS launch preflight to `--discord-launch-through-socks`.
-- Make GUI Discord launch use preflight before spawning Flatpak/Electron.
-- Add the `Диагноз маршрута` button in the Tunnel GUI.
-- Fix duplicate `@property` on `VlessImportPreview.valid_count`.
-
-## Check fix
-
-- `test_guided_run_auto_prepares_confirms_starts_and_blocks_launch_when_socks_is_not_ready` now uses an isolated unused local TCP port instead of the default `10808`, so a real user tunnel cannot contaminate the test result.
-
-## Local checks
-
-```bash
-python tools/gui_checks/inventory_core.py --check
-python tools/gui_checks/check_project_tree.py
-PYTHONPATH=gui python -m pytest tests/test_stage7p1_discord_tunnel.py tests/test_stage7p5_discord_tunnel_guided.py tests/test_gui_shell_skeleton.py tests/test_stage7z_launch_composer.py tests/test_core_inventory_and_build_map.py -q
-PYTHONPATH=gui python -m pytest tests/test_documentation_language.py tests/test_v04_alpha_patch_roadmap.py -q
-PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-route-diagnose
-PYTHONPATH=gui python -m zap2_gui.app --discord-proxy-route-plan
+```text
+python3 -m py_compile gui/zap2_gui/adapters/gui_first_overview.py gui/zap2_gui/adapters/gui_runtime_controls.py gui/zap2_gui/widgets/runtime_controls.py gui/zap2_gui/app.py
+PYTHONPATH=gui pytest -q tests/test_gui_first_overview.py tests/test_gui_toggle_and_runtime_logs.py tests/test_default_strategy_import_and_gui_controls.py::test_gui_runtime_controls_are_confirmation_gate_wrappers tests/test_default_strategy_import_and_gui_controls.py::test_gui_privileged_command_uses_sudo_askpass_not_terminal_password tests/test_default_strategy_import_and_gui_controls.py::test_default_status_cli_is_read_only tests/test_stage7n2_guided_pretls_probe.py::test_stage7n2_guided_probe_refuses_when_workflow_not_running
 ```
+

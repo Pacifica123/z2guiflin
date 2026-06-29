@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
+from ..adapters.discord_pretls_guided_probe import runtime_discord_pretls_guided_probe_to_text
+from ..adapters.gui_first_overview import gui_first_runtime_overview, gui_first_runtime_overview_to_text
 from ..adapters.gui_runtime_controls import (
     gui_confirm_default_build,
     gui_confirm_default_start,
@@ -37,11 +39,20 @@ from ..qt_compat import require_pyqt
 
 
 def _is_started(root: Path | None) -> bool:
-    return gui_default_toggle_label(root=root).startswith("Выключить")
+    return gui_first_runtime_overview(root=root).is_running
 
 
 def _status_label_text(root: Path | None) -> str:
-    return "Запущен" if _is_started(root) else "Остановлен"
+    state = gui_first_runtime_overview(root=root)
+    if state.state == "running":
+        return "Запущен: selected/prepared/running/firewall совпадают"
+    if state.state == "mismatch":
+        return "Есть рассинхрон выбранной, подготовленной или запущенной стратегии"
+    if state.state == "partial":
+        return "Частичный запуск: session и firewall не совпадают"
+    if state.state == "stale":
+        return "Stale runtime state: нужен сброс из GUI"
+    return "Остановлен: можно включить выбранную стратегию из GUI"
 
 
 def make_runtime_control_page(root: Path | None = None) -> Any:
@@ -56,8 +67,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     title = QtWidgets.QLabel("Обзор")
     title.setObjectName("pageTitle")
     intro = QtWidgets.QLabel(
-        "Панель запуска позволяет выбрать, что именно пробовать вместе: Zapret default, VLESS tunnel, "
-        "а позже SOCKS5/MTProto/custom adapters. Старый Default workflow остаётся ниже как отдельный ручной блок."
+        "Overview теперь ведёт Default workflow как GUI-first сценарий: выбранная стратегия, подготовленный plan, "
+        "running session и firewall/NFQUEUE показываются одним состоянием. Plan id, nft и raw commands спрятаны в Developer mode."
     )
     intro.setWordWrap(True)
 
@@ -80,12 +91,16 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     refresh_button.setFixedWidth(38)
     refresh_button.setToolTip("Обновить статус")
 
+    probe_button = QtWidgets.QPushButton("Проверить Discord")
+    probe_button.setToolTip("Read-only guided probe. Если workflow не запущен, GUI покажет это без shell-команд.")
+
     logs_button = QtWidgets.QPushButton("Логи")
     logs_button.setFixedWidth(72)
 
     status_row.addWidget(toggle_button)
     status_row.addWidget(indicator)
     status_row.addWidget(status_text, 1)
+    status_row.addWidget(probe_button)
     status_row.addWidget(refresh_button)
     status_row.addWidget(logs_button)
 
@@ -96,7 +111,9 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         output.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.WidgetWidth)
     except Exception:  # pragma: no cover - compatibility with older Qt bindings
         pass
-    output.setPlainText(gui_default_status(root=root))
+    developer_mode = QtWidgets.QCheckBox("Developer mode: raw plans/nft/log commands")
+    developer_mode.setObjectName("overviewDeveloperMode")
+    output.setPlainText(gui_first_runtime_overview_to_text(root=root, developer=False))
 
     composer_box = QtWidgets.QGroupBox("Комбинированный запуск")
     composer_layout = QtWidgets.QVBoxLayout(composer_box)
@@ -232,17 +249,19 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     composer_layout.addLayout(core_row)
     composer_layout.addLayout(composer_buttons)
 
-    details_box = QtWidgets.QGroupBox("Default workflow: Диагностика и ручные шаги")
+    details_box = QtWidgets.QGroupBox("Developer mode: ручные детали Default workflow")
     details_layout = QtWidgets.QGridLayout(details_box)
     details_layout.setHorizontalSpacing(8)
     details_layout.setVerticalSpacing(8)
 
     def refresh_visual_state() -> None:
         try:
-            started = _is_started(root)
+            overview = gui_first_runtime_overview(root=root)
+            started = overview.is_running
             toggle_button.setText("■" if started else "▶")
-            indicator.setText("● Запущен" if started else "○ Остановлен")
-            indicator.setProperty("state", "running" if started else "stopped")
+            indicator.setText("● Запущен" if started else ("! Требует внимания" if overview.has_mismatch else "○ Остановлен"))
+            indicator.setProperty("state", "running" if started else ("mismatch" if overview.has_mismatch else "stopped"))
+            toggle_button.setToolTip(overview.primary_action_label)
             status_text.setText(_status_label_text(root))
         except Exception:
             toggle_button.setText("▶")
@@ -278,11 +297,24 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             return
         run_action("Default toggle", lambda: gui_toggle_default_workflow(root=root))
 
+    def run_overview_state() -> None:
+        run_action("GUI overview state", lambda: gui_first_runtime_overview_to_text(root=root, developer=developer_mode.isChecked()))
+
+    def run_discord_readiness_probe() -> None:
+        run_action(
+            "Discord readiness probe",
+            lambda: runtime_discord_pretls_guided_probe_to_text(root=root, wait_seconds=0, interactive=False),
+        )
+
     toggle_button.clicked.connect(lambda _checked=False: run_toggle())
-    refresh_button.clicked.connect(lambda _checked=False: run_action("Статус", lambda: gui_default_status(root=root)))
+    probe_button.clicked.connect(lambda _checked=False: run_discord_readiness_probe())
+    refresh_button.clicked.connect(lambda _checked=False: run_overview_state())
     logs_button.clicked.connect(lambda _checked=False: run_action("Runtime logs", lambda: gui_runtime_logs(root=root)))
+    developer_mode.toggled.connect(lambda _checked=False: details_box.setVisible(developer_mode.isChecked()))
 
     actions: tuple[tuple[str, Callable[[], str]], ...] = (
+        ("GUI состояние", lambda: gui_first_runtime_overview_to_text(root=root, developer=developer_mode.isChecked())),
+        ("Проверить Discord", lambda: runtime_discord_pretls_guided_probe_to_text(root=root, wait_seconds=0, interactive=False)),
         ("Зависимости", lambda: gui_default_build_deps(root=root)),
         ("План сборки", lambda: gui_prepare_default_build(root=root)),
         ("Подтвердить сборку", lambda: gui_confirm_default_build(root=root)),
@@ -305,6 +337,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     layout.addWidget(intro)
     layout.addWidget(composer_box)
     layout.addLayout(status_row)
+    layout.addWidget(developer_mode)
     layout.addWidget(details_box)
     layout.addWidget(output, 1)
 
@@ -329,7 +362,11 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         QLabel#runtimeStatusIndicator[state="stopped"] {
             background: rgba(180, 120, 0, 0.16);
         }
+        QLabel#runtimeStatusIndicator[state="mismatch"] {
+            background: rgba(200, 60, 40, 0.18);
+        }
         """
     )
+    details_box.setVisible(False)
     refresh_visual_state()
     return page

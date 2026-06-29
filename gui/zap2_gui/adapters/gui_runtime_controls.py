@@ -17,6 +17,7 @@ from .runtime_default_build import execute_default_build, prepare_default_build_
 from .runtime_logs import runtime_log_snapshot_to_text
 from .build_dependencies import run_build_dependency_preflight
 from .runtime_state import confirm_runtime_plan
+from .gui_first_overview import gui_first_runtime_overview_to_text
 from .gui_privilege import (
     default_plan_id_for_action,
     gui_privileged_command_to_text,
@@ -76,7 +77,7 @@ def gui_toggle_default_workflow(root: Path | None = None, profile_id: str = "def
     """
 
     status = default_workflow_status(root=root, profile_id=profile_id)
-    parts: list[str] = ["GUI toggle Default workflow", status.to_text()]
+    parts: list[str] = ["GUI toggle Default workflow", gui_first_runtime_overview_to_text(root=root, profile_id=profile_id)]
     if status.workflow_state == "started" and status.session_status.state == "running":
         parts.append("\nШаг 1/3: подготовка stop-plan")
         stop_plan = prepare_default_workflow_plan(root=root, action="stop", profile_id=profile_id)
@@ -85,6 +86,8 @@ def gui_toggle_default_workflow(root: Path | None = None, profile_id: str = "def
         parts.append(gui_confirm_plan(root=root, plan_id=stop_plan.plan_id))
         parts.append("\nШаг 3/3: privileged stop через графический sudo prompt")
         parts.append(gui_privileged_default_stop(root=root, profile_id=profile_id, confirm_plan_id=stop_plan.plan_id))
+        parts.append("\nGUI-first state after stop:")
+        parts.append(gui_first_runtime_overview_to_text(root=root, profile_id=profile_id))
         parts.append("\nRuntime logs:")
         parts.append(gui_runtime_logs(root=root, profile_id=profile_id))
         return "\n\n".join(parts)
@@ -102,6 +105,8 @@ def gui_toggle_default_workflow(root: Path | None = None, profile_id: str = "def
         parts.append(build_output)
         if not _default_binary_ready(root):
             parts.append("\nСборка не дала executable nfqws2; privileged start пропущен.")
+            parts.append("\nGUI-first state after blocked start:")
+            parts.append(gui_first_runtime_overview_to_text(root=root, profile_id=profile_id))
             parts.append("\nRuntime logs:")
             parts.append(gui_runtime_logs(root=root, profile_id=profile_id))
             return "\n\n".join(parts)
@@ -118,6 +123,8 @@ def gui_toggle_default_workflow(root: Path | None = None, profile_id: str = "def
     parts.append(gui_confirm_plan(root=root, plan_id=start_plan.plan_id))
     parts.append(f"\nШаг {next_step + 2}/{total_steps}: privileged start через графический sudo prompt")
     parts.append(gui_privileged_default_start(root=root, profile_id=profile_id, confirm_plan_id=start_plan.plan_id))
+    parts.append("\nGUI-first state after start:")
+    parts.append(gui_first_runtime_overview_to_text(root=root, profile_id=profile_id))
     parts.append("\nRuntime logs:")
     parts.append(gui_runtime_logs(root=root, profile_id=profile_id))
     return "\n\n".join(parts)
@@ -230,7 +237,11 @@ def _with_status_after_action(root: Path | None, profile_id: str, action_text: s
         status = gui_default_status(root=root, profile_id=profile_id)
     except Exception as exc:  # pragma: no cover - defensive GUI diagnostic path
         status = f"Статус после действия не удалось прочитать: {exc}"
-    return "\n\n".join([body, f"Статус после действия: {action_text}", status])
+    try:
+        overview = gui_first_runtime_overview_to_text(root=root, profile_id=profile_id)
+    except Exception as exc:  # pragma: no cover - defensive GUI diagnostic path
+        overview = f"GUI-first overview не удалось прочитать: {exc}"
+    return "\n\n".join([body, f"Статус после действия: {action_text}", overview, status])
 
 
 def _default_binary_guidance(root: Path | None) -> str | None:

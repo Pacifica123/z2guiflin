@@ -59,6 +59,7 @@ from .adapters.runtime_session import (
     stop_runtime_session,
 )
 from .adapters.runtime_nft_state import runtime_nft_state_to_text, runtime_pretls_probe_to_text
+from .adapters.gui_first_overview import gui_first_runtime_overview_to_text
 from .adapters.discord_pretls_guided_probe import (
     DEFAULT_GUIDED_PROBE_WAIT_SECONDS,
     runtime_discord_pretls_guided_probe_to_text,
@@ -600,6 +601,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--default-status",
         action="store_true",
         help="показать read-only статус default workflow/session для GUI и CLI",
+    )
+    parser.add_argument(
+        "--gui-first-overview",
+        action="store_true",
+        help="показать GUI-first state machine summary: selected/prepared/running/firewall; без исполнения",
+    )
+    parser.add_argument(
+        "--gui-first-developer",
+        action="store_true",
+        help="добавить developer details к --gui-first-overview",
     )
     parser.add_argument(
         "--gui-privileged-command",
@@ -1362,6 +1373,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.default_status:
         try:
             print(default_workflow_status(profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.gui_first_overview:
+        try:
+            print(gui_first_runtime_overview_to_text(profile_id=args.profile, developer=bool(args.gui_first_developer)))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
