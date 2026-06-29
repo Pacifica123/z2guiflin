@@ -42,6 +42,60 @@ DEFAULT_CORE_KIND = "auto"
 SUPPORTED_CORE_KINDS = ("auto", "xray", "v2ray", "sing-box")
 SUPPORTED_LAUNCH_MODES = ("socks-updater-window", "socks-full-session", "socks-env-only", "socks-flag-only")
 DEFAULT_DISCORD_COMMAND = "discord"
+XHTTP_LIKE_TRANSPORTS = {"xhttp", "splithttp"}
+
+
+def _tail_file(path: Path, *, max_chars: int = 1400) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    text = text.strip()
+    if len(text) <= max_chars:
+        return text
+    return text[-max_chars:]
+
+
+def _core_transport_warning(profile: "VlessConnectionProfile", core_kind: str) -> str:
+    network = (profile.network or "tcp").lower()
+    kind = (core_kind or "auto").lower()
+    if network in XHTTP_LIKE_TRANSPORTS and kind == "v2ray":
+        return (
+            f"transport {network} обычно не поддерживается V2Ray core. "
+            "В этом workspace уже типичный симптом: core stderr может содержать "
+            "'unknown transport protocol'. Используйте Xray/sing-box с поддержкой этого transport "
+            "или импортируйте VLESS profile с type=tcp/ws/grpc."
+        )
+    return ""
+
+
+def _last_core_failure_summary(paths: "TunnelStorePaths", profile_id: str) -> str:
+    session_path = _session_path(paths, profile_id)
+    lines: list[str] = []
+    if session_path.exists():
+        try:
+            session = _read_json(session_path)
+        except Exception:
+            session = {}
+        state = str(session.get("state", ""))
+        if state:
+            lines.append(f"last session state: {state}")
+        pid = int(session.get("pid", 0) or 0)
+        if pid:
+            lines.append(f"last pid: {pid}; proc: {_proc_state(pid)}")
+    stdout_tail = _tail_file(_stdout_path(paths, profile_id), max_chars=900)
+    stderr_tail = _tail_file(_stderr_path(paths, profile_id), max_chars=1400)
+    if stdout_tail:
+        lines.extend(["last core stdout:", stdout_tail])
+    if stderr_tail:
+        lines.extend(["last core stderr:", stderr_tail])
+        if "unknown transport protocol" in stderr_tail:
+            lines.append(
+                "diagnosis: tunnel core rejected the generated config transport. "
+                "Check VLESS type=... and selected core binary. For type=xhttp/splithttp, /usr/bin/v2ray may be incompatible."
+            )
+    return "\n".join(lines)
+
 FLATPAK_DISCORD_COMMAND = "flatpak run com.discordapp.Discord"
 SECRET_KEYS = {"id", "uuid", "password", "rawUri"}
 KNOWN_VLESS_QUERY_KEYS = {
@@ -1017,7 +1071,7 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
         encoding="utf-8",
     )
     log_path = _append_event(paths, profile_id, "tunnel-plan-prepared", "Discord tunnel start plan prepared", {"planId": payload["planId"], "planHash": plan_hash, "connection": connection.redacted_dict()})
-    return TunnelPlan(
+    text = TunnelPlan(
         plan_id=str(payload["planId"]),
         plan_hash=plan_hash,
         profile_id=profile_id,
@@ -1033,6 +1087,10 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
         log_path=log_path,
         core_exists=core_exists,
     ).to_text()
+    warning = _core_transport_warning(connection, kind)
+    if warning:
+        text += "\n\ncompatibility warning:\n" + warning
+    return text
 
 
 def _load_confirmed_tunnel_plan(paths: TunnelStorePaths, profile_id: str, plan_id: str) -> dict[str, Any]:
@@ -1120,9 +1178,23 @@ def discord_tunnel_status_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root:
                 f"stderr: {session.get('stderrLog', 'нет')}",
             ]
         )
+        if not running and stored_state == "failed":
+            failure = _last_core_failure_summary(paths, profile_id)
+            if failure:
+                lines.extend(["", "core failure details:", failure])
     try:
         active = _load_active_connection(paths, profile_id)
         lines.extend([f"active connection: {active.connection_id}", f"active remarks: {active.remarks}"])
+        session_core_kind = ""
+        if session_path.exists():
+            try:
+                session_for_warning = _read_json(session_path)
+                session_core_kind = str(session_for_warning.get("coreKind", ""))
+            except Exception:
+                session_core_kind = ""
+        warning = _core_transport_warning(active, session_core_kind)
+        if warning:
+            lines.extend(["", "compatibility warning:", warning])
     except ValueError:
         lines.append("active connection: none")
     lines.extend(["read-only: yes", "starts/stops now: no"])
@@ -1152,6 +1224,27 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
     core_kind = str(plan["core"].get("kind", "xray"))
     if not core_binary or not Path(core_binary).exists() or not os.access(core_binary, os.X_OK):
         raise ValueError("Tunnel core binary отсутствует или не исполняемый. Re-run --discord-tunnel-plan --tunnel-core-binary /path/to/core.")
+    compatibility_warning = _core_transport_warning(connection, core_kind)
+    if compatibility_warning:
+        return "\n".join(
+            [
+                "Discord tunnel start: blocked",
+                f"profile: {profile_id}",
+                f"connection: {connection.connection_id}",
+                f"core: {core_binary} ({core_kind})",
+                f"transport: {connection.network}",
+                "",
+                "compatibility issue:",
+                compatibility_warning,
+                "",
+                "Что делать в GUI:",
+                "- выбрать core binary, который поддерживает этот VLESS transport;",
+                "- или импортировать другой VLESS profile без type=xhttp/splithttp;",
+                "- затем нажать «Запустить tunnel core».",
+                "executes core now: no",
+                "executes Discord now: no",
+            ]
+        )
     session_path = _session_path(paths, profile_id)
     if session_path.exists():
         session = _read_json(session_path)
@@ -1315,7 +1408,7 @@ def _socks5_handshake_probe(host: str, port: int, timeout: float = 2.0) -> dict[
     }
 
 
-def _wait_for_socks5_handshake(host: str, port: int, *, deadline_seconds: float = 2.5, timeout: float = 0.5) -> dict[str, Any]:
+def _wait_for_socks5_handshake(host: str, port: int, *, deadline_seconds: float = 5.0, timeout: float = 0.5) -> dict[str, Any]:
     deadline = time.monotonic() + max(0.1, deadline_seconds)
     last: dict[str, Any] = {"ok": False, "message": "probe not started"}
     while time.monotonic() < deadline:
@@ -1346,6 +1439,8 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
         verdict = "T0_SOCKS_READY"
     elif running and port_open:
         verdict = "T0_PORT_OPEN_NOT_SOCKS"
+    elif stored_state == "failed":
+        verdict = "T0_CORE_FAILED"
     else:
         verdict = "T0_CORE_NOT_READY"
     report = {
@@ -1383,7 +1478,17 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
             "upstream tested: no",
             f"verdict: {verdict}",
             f"report: {report_path}",
-            "NEXT: run --discord-tunnel-https-probe to test the VLESS upstream path through this SOCKS listener.",
+        ]
+    )
+    failure = _last_core_failure_summary(paths, profile_id) if verdict == "T0_CORE_FAILED" else ""
+    if failure:
+        lines.extend(["", "core failure details:", failure])
+    if verdict == "T0_CORE_FAILED":
+        lines.append("NEXT: fix the core/profile compatibility, then run tunnel start again. Do not launch Discord yet.")
+    else:
+        lines.append("NEXT: run --discord-tunnel-https-probe to test the VLESS upstream path through this SOCKS listener.")
+    lines.extend(
+        [
             "executes Discord now: no",
             "mutates firewall/services: no",
         ]
@@ -1487,11 +1592,21 @@ def discord_launch_through_socks_to_text(
     pid = int(session.get("pid", 0) or 0)
     stored_state = str(session.get("state", "running" if pid else "not-started"))
     if stored_state != "running" or not _pid_running(pid):
-        raise ValueError(
+        failure = _last_core_failure_summary(paths, profile_id)
+        message = (
             "Tunnel core не running. Сейчас session state="
-            f"{stored_state}, pid={pid if pid else 'нет'}, proc={_proc_state(pid) if pid else 'none'}. "
-            "Сначала выполните --discord-tunnel-start, затем --discord-tunnel-probe."
+            f"{stored_state}, pid={pid if pid else 'нет'}, proc={_proc_state(pid) if pid else 'none'}."
         )
+        if failure:
+            message += "\n\n" + failure
+        if stored_state == "failed":
+            message += (
+                "\n\nGUI next: исправьте core/profile compatibility и снова нажмите «Запустить tunnel core». "
+                "Если в stderr есть 'unknown transport protocol: xhttp', выбранный core не поддерживает VLESS type=xhttp."
+            )
+        else:
+            message += "\n\nGUI next: сначала нажмите «Запустить tunnel core», затем SOCKS probe."
+        raise ValueError(message)
     socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
     socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
     socks_probe = _wait_for_socks5_handshake(socks_host, socks_port)

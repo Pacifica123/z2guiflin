@@ -7,6 +7,9 @@ from typing import Any, Callable
 
 from ..adapters.discord_tunnel import (
     discord_tunnel_status_to_text,
+    discord_tunnel_plan_to_text,
+    discord_tunnel_start_to_text,
+    discord_tunnel_stop_to_text,
     discord_tunnel_probe_to_text,
     discord_tunnel_https_probe_to_text,
     discord_tunnel_route_diagnose_to_text,
@@ -20,7 +23,10 @@ from ..adapters.discord_tunnel import (
     tunnel_connection_import_vless_text_to_text,
     tunnel_connections_to_text,
 )
+from ..adapters.runtime_state import confirm_runtime_plan
 from ..qt_compat import require_pyqt
+
+TUNNEL_START_PLAN_ID = "runtime-default-discord-tunnel-socks-start-plan"
 
 
 def make_tunnel_page(root: Path | None = None) -> Any:
@@ -35,8 +41,8 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     title = QtWidgets.QLabel("Туннель Discord")
     title.setObjectName("pageTitle")
     intro = QtWidgets.QLabel(
-        "SOCKS/VLESS-ветка для Discord: импорт connection profiles, внешний core, "
-        "probe через локальный SOCKS и guided запуск из CLI. GUI не скачивает core, "
+        "SOCKS/VLESS-ветка для Discord: импорт connection profiles, запуск внешнего core, "
+        "probe через локальный SOCKS и запуск Discord через этот SOCKS. GUI не скачивает core, "
         "не меняет firewall и не печатает VLESS URI в отчёты."
     )
     intro.setWordWrap(True)
@@ -121,13 +127,94 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     import_layout.addWidget(manual_input)
     import_layout.addLayout(import_buttons)
 
+    core_box = QtWidgets.QGroupBox("Tunnel core")
+    core_layout = QtWidgets.QVBoxLayout(core_box)
+    core_layout.setSpacing(8)
+
+    core_hint = QtWidgets.QLabel(
+        "Сначала нужен running tunnel core: xray, v2ray или sing-box. "
+        "Если profile использует type=xhttp/splithttp, обычный /usr/bin/v2ray может завершиться с "
+        "unknown transport protocol. В этом случае GUI покажет stderr и попросит выбрать совместимый core или другой profile."
+    )
+    core_hint.setWordWrap(True)
+
+    core_row = QtWidgets.QHBoxLayout()
+    core_label = QtWidgets.QLabel("Core binary:")
+    core_input = QtWidgets.QLineEdit()
+    core_input.setObjectName("tunnelCoreBinary")
+    core_input.setPlaceholderText("/usr/bin/xray, /usr/bin/v2ray или /usr/bin/sing-box")
+    core_browse_button = QtWidgets.QPushButton("Выбрать…")
+    core_row.addWidget(core_label)
+    core_row.addWidget(core_input, 1)
+    core_row.addWidget(core_browse_button)
+
+    core_buttons = QtWidgets.QHBoxLayout()
+    core_plan_button = QtWidgets.QPushButton("План core")
+    core_start_button = QtWidgets.QPushButton("Запустить tunnel core")
+    core_stop_button = QtWidgets.QPushButton("Остановить tunnel core")
+    core_probe_button = QtWidgets.QPushButton("SOCKS probe")
+    for button in (core_plan_button, core_start_button, core_stop_button, core_probe_button):
+        core_buttons.addWidget(button)
+    core_buttons.addStretch(1)
+
+    def selected_core_binary() -> str | None:
+        value = core_input.text().strip()
+        return value or None
+
+    def browse_core_binary() -> None:
+        filename, _selected_filter = QtWidgets.QFileDialog.getOpenFileName(
+            page,
+            "Выбрать tunnel core binary",
+            "",
+            "Executables (*)",
+        )
+        if filename:
+            core_input.setText(filename)
+
+    def plan_core() -> str:
+        return discord_tunnel_plan_to_text(root=root, core_binary=selected_core_binary())
+
+    def start_core() -> str:
+        plan_text = discord_tunnel_plan_to_text(root=root, core_binary=selected_core_binary())
+        confirm_runtime_plan(root=root, plan_id=TUNNEL_START_PLAN_ID)
+        start_text = discord_tunnel_start_to_text(
+            root=root,
+            confirm_plan_id=TUNNEL_START_PLAN_ID,
+            allow_parallel_with_zapret=True,
+        )
+        return "\n\n".join(
+            [
+                "GUI tunnel core start flow",
+                "step 1: plan prepared",
+                plan_text,
+                "step 2: plan auto-confirmed for local core start",
+                f"plan id: {TUNNEL_START_PLAN_ID}",
+                "step 3: start result",
+                start_text,
+                "",
+                "GUI next:",
+                "Если start: started — нажмите SOCKS probe, затем «Запустить Discord через SOCKS».",
+                "Если start: blocked/failed — исправьте core/profile compatibility; Discord запускать рано.",
+            ]
+        )
+
+    core_browse_button.clicked.connect(lambda _checked=False: browse_core_binary())
+    core_plan_button.clicked.connect(lambda _checked=False: run_action("План core", plan_core))
+    core_start_button.clicked.connect(lambda _checked=False: run_action("Запустить tunnel core", start_core))
+    core_stop_button.clicked.connect(lambda _checked=False: run_action("Остановить tunnel core", lambda: discord_tunnel_stop_to_text(root=root)))
+    core_probe_button.clicked.connect(lambda _checked=False: run_action("SOCKS probe", lambda: discord_tunnel_probe_to_text(root=root)))
+
+    core_layout.addWidget(core_hint)
+    core_layout.addLayout(core_row)
+    core_layout.addLayout(core_buttons)
+
     launch_box = QtWidgets.QGroupBox("Маршрут через SOCKS")
     launch_layout = QtWidgets.QVBoxLayout(launch_box)
     launch_layout.setSpacing(8)
 
     route_hint = QtWidgets.QLabel(
-        "VLESS tunnel сам по себе только открывает локальный SOCKS. Discord, Firefox или Flatpak не начнут использовать его автоматически. "
-        "Для Flatpak Discord укажи команду ниже и нажми «Запустить Discord через SOCKS». "
+        "Эта кнопка не стартует core: она запускает Discord только если tunnel core уже running и SOCKS handshake проходит. "
+        "Сначала используйте блок «Tunnel core», потом запускайте Discord через SOCKS. "
         "Перед запуском GUI делает upstream HTTPS-preflight; если VLESS route закрывает TLS, Discord не запускается в retry-loop. "
         "Вывод Discord пишется в .zap2/tunnel/logs, а не спамит в терминал GUI."
     )
@@ -214,6 +301,7 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     layout.addWidget(title)
     layout.addWidget(intro)
     layout.addWidget(import_box)
+    layout.addWidget(core_box)
     layout.addWidget(launch_box)
     layout.addWidget(actions_box)
     layout.addWidget(commands)
