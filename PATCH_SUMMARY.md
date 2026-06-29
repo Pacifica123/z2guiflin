@@ -1,38 +1,23 @@
-# Patch summary: GUI-first runtime overview
+# Patch summary
 
-Дата: 2026-06-29
+## Title
 
-## Изменения
+Flat pastel icons across GUI sections and tabs
 
-- Добавлен `gui_first_overview.py`: read-only state machine для Overview.
-- Overview tab теперь показывает selected/prepared/running/firewall state, а не только CLI-style status.
-- Добавлена пользовательская кнопка `Проверить Discord` в Overview. Она вызывает guided probe без shell-команд.
-- Ручные plan/confirm/command кнопки спрятаны за `Developer mode`.
-- `gui_toggle_default_workflow` теперь включает GUI-first overview в вывод до и после действия.
-- Добавлена CLI-команда `--gui-first-overview` как read-only контракт для тестов и dev fallback.
-- Добавлена документация `docs/GUI_FIRST_RUNTIME_OVERVIEW.md`.
-- Добавлены тесты `tests/test_gui_first_overview.py`.
+## What changed
 
-## Проверки
+- added a small flat pastel icon set under `gui/zap2_gui/assets/icons/`;
+- added `gui/zap2_gui/ui_icons.py` helper for loading section/action icons;
+- applied icons to all top-level tabs: Overview, Core, Strategies, Diagnostics, Tunnel, Settings, Logs;
+- applied icons to Logs sub-tabs and the main Overview action buttons;
+- kept the visual language minimalistic: flat, pastel, mono/duotone, no 3D styling;
+- documented the icon design approach in `docs/GUI_FLAT_PASTEL_ICONS.md`;
+- added tests that verify the icon assets exist for all navigation sections and key GUI actions.
 
-```text
-python3 -m py_compile gui/zap2_gui/adapters/gui_first_overview.py gui/zap2_gui/adapters/gui_runtime_controls.py gui/zap2_gui/widgets/runtime_controls.py gui/zap2_gui/app.py
-PYTHONPATH=gui pytest -q tests/test_gui_first_overview.py tests/test_gui_toggle_and_runtime_logs.py tests/test_default_strategy_import_and_gui_controls.py::test_gui_runtime_controls_are_confirmation_gate_wrappers tests/test_default_strategy_import_and_gui_controls.py::test_gui_privileged_command_uses_sudo_askpass_not_terminal_password tests/test_default_strategy_import_and_gui_controls.py::test_default_status_cli_is_read_only tests/test_stage7n2_guided_pretls_probe.py::test_stage7n2_guided_probe_refuses_when_workflow_not_running
-```
+## Why
 
+The GUI had become more useful functionally but still looked overly dark and heavy. This patch introduces a calmer flat visual layer without turning the interface into a colorful dashboard.
 
-## 2026-06-29 GUI-first tables and copy buttons
+## Notes
 
-- Added table-row model for GUI-first runtime overview.
-- Added TSV/plain-text copy output for the overview table.
-- Updated Overview tab to render selected/prepared/running/firewall state as a `QTableWidget`.
-- Added `Копировать таблицу` and `Копировать вывод` buttons.
-- Kept raw workflow controls behind Developer mode.
-
-## 2026-06-29 GUI-first privileged probe and logs split
-
-- Discord probe button now runs the read-only guided probe through GUI sudo-askpass so nft counters can be read without terminal commands.
-- Overview no longer renders the old verbose text dump inline.
-- Verbose Overview action output is stored in `.zap2/runtime/logs/default.overview-action-output.log`.
-- Logs tab now shows separate `Overview actions` and `Runtime` sub-tabs with copy support.
-- Overview table remains copyable as TSV/plain text.
+This patch does not change the DPI strategy logic. It only improves visual clarity and section recognition in the GUI.

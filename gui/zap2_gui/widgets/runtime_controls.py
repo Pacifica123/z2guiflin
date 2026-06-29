@@ -38,6 +38,7 @@ from ..adapters.launch_composer import (
     launch_composer_stop_to_text,
 )
 from ..qt_compat import require_pyqt
+from ..ui_icons import misc_icon, section_icon
 
 
 def _is_started(root: Path | None) -> bool:
@@ -78,6 +79,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     status_row.setSpacing(10)
 
     toggle_button = QtWidgets.QPushButton()
+    toggle_button.setIcon(misc_icon("toggle-start"))
     toggle_button.setFixedSize(46, 46)
     toggle_button.setObjectName("primaryRunButton")
     toggle_button.setToolTip("Включить/выключить Default workflow")
@@ -89,14 +91,14 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     status_text = QtWidgets.QLabel()
     status_text.setWordWrap(True)
 
-    refresh_button = QtWidgets.QPushButton("⟳")
+    refresh_button = QtWidgets.QPushButton(misc_icon("refresh"), "")
     refresh_button.setFixedWidth(38)
     refresh_button.setToolTip("Обновить статус")
 
-    probe_button = QtWidgets.QPushButton("Проверить Discord")
+    probe_button = QtWidgets.QPushButton(misc_icon("probe"), "Проверить Discord")
     probe_button.setToolTip("Privileged read-only guided probe через sudo-askpass: нужен только для чтения nft counters.")
 
-    logs_button = QtWidgets.QPushButton("Логи")
+    logs_button = QtWidgets.QPushButton(section_icon("logs"), "Логи")
     logs_button.setFixedWidth(72)
 
     status_row.addWidget(toggle_button)
@@ -132,9 +134,9 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     overview_table_layout = QtWidgets.QVBoxLayout(overview_table_box)
     overview_table_layout.setSpacing(6)
     table_actions = QtWidgets.QHBoxLayout()
-    copy_table_button = QtWidgets.QPushButton("Копировать таблицу")
+    copy_table_button = QtWidgets.QPushButton(misc_icon("copy"), "Копировать таблицу")
     copy_table_button.setToolTip("Скопировать видимую таблицу как plain text/TSV")
-    copy_last_action_button = QtWidgets.QPushButton("Копировать последний вывод")
+    copy_last_action_button = QtWidgets.QPushButton(misc_icon("details"), "Копировать последний вывод")
     copy_last_action_button.setToolTip("Скопировать последний подробный вывод из вкладки «Логи»")
     table_actions.addWidget(copy_table_button)
     table_actions.addWidget(copy_last_action_button)
@@ -434,6 +436,13 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             font-weight: 700;
             border-radius: 23px;
             padding: 0;
+            background: rgba(124, 124, 124, 0.08);
+        }
+        QTabBar::tab {
+            padding: 8px 12px;
+        }
+        QTableWidget#guiFirstOverviewTable {
+            gridline-color: rgba(90, 90, 90, 0.10);
         }
         QLabel#runtimeStatusIndicator {
             font-weight: 700;

@@ -10,6 +10,7 @@ from ..adapters.workspace_profiles import load_workspace_catalog
 from ..core_inventory import load_core_build_map, load_core_inventory_snapshot
 from ..models.navigation import default_navigation_sections
 from ..qt_compat import require_pyqt
+from ..ui_icons import section_icon
 from ..widgets.blockcheck_lab import make_blockcheck_lab_page
 from ..widgets.placeholders import make_core_page, make_placeholder_page
 from ..widgets.strategies import make_strategies_page
@@ -37,6 +38,16 @@ def create_main_window(root: object | None = None) -> Any:
 
             tabs = QtWidgets.QTabWidget()
             tabs.setDocumentMode(True)
+            try:
+                tabs.setIconSize(QtCore.QSize(18, 18))
+            except Exception:
+                pass
+            tabs.setStyleSheet(
+                """
+                QTabBar::tab { padding: 10px 14px; }
+                QTabBar::tab:selected { font-weight: 700; }
+                """
+            )
             for section in sections:
                 if section.key == "overview":
                     page = make_runtime_control_page(root)
@@ -52,7 +63,7 @@ def create_main_window(root: object | None = None) -> Any:
                     page = make_runtime_logs_page(root)
                 else:
                     page = make_placeholder_page(section)
-                tabs.addTab(page, section.title)
+                tabs.addTab(section_icon(section.key), page, section.title)
             self.setCentralWidget(tabs)
 
     return MainWindow()

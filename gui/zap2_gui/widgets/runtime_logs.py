@@ -7,6 +7,7 @@ from typing import Any
 
 from ..adapters.gui_runtime_controls import gui_overview_action_output_to_text, gui_runtime_logs
 from ..qt_compat import require_pyqt
+from ..ui_icons import misc_icon, section_icon
 
 
 def make_runtime_logs_page(root: Path | None = None) -> Any:
@@ -35,12 +36,12 @@ def make_runtime_logs_page(root: Path | None = None) -> Any:
     runtime_output.setReadOnly(True)
     runtime_output.setPlainText(gui_runtime_logs(root=root))
 
-    tabs.addTab(overview_output, "Overview actions")
-    tabs.addTab(runtime_output, "Runtime")
+    tabs.addTab(misc_icon("logs-overview"), overview_output, "Overview actions")
+    tabs.addTab(misc_icon("logs-runtime"), runtime_output, "Runtime")
 
     buttons = QtWidgets.QHBoxLayout()
-    refresh_button = QtWidgets.QPushButton("Обновить логи")
-    copy_current_button = QtWidgets.QPushButton("Копировать текущую вкладку")
+    refresh_button = QtWidgets.QPushButton(misc_icon("refresh"), "Обновить логи")
+    copy_current_button = QtWidgets.QPushButton(misc_icon("copy"), "Копировать текущую вкладку")
     buttons.addWidget(refresh_button)
     buttons.addWidget(copy_current_button)
     buttons.addStretch(1)
