@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "id": "windows-all-tcp-udp-v3-2-linux-bridge",
+  "title": "Windows ALL TCP & UDP v3_2 Linux bridge",
+  "summary": "Linux/nfqws2 bridge of the owner-provided Windows winws2 preset ALL TCP & UDP v3_2: broad owner-scoped TCP first-payload syndata and UDP QUIC fake handling, without WinDivert-only wf/raw-part options.",
+  "philosophy": "faithful-windows-v3-2-port-with-linux-capture-policy",
+  "intendedFor": [
+    "проверка гипотезы, что на этом операторе работает не Discord-specific ветка, а широкий all-sites first-data профиль из Windows GUI",
+    "ручной owner-confirmed запуск на Linux/Flatpak Discord после неудачных community-discord-syndata-edge-flow вариантов",
+    "сравнение с текущим Discord/VLESS route; стратегия не чинит отдельно сломанный SOCKS/VLESS preflight"
+  ],
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-discord-and-general-traffic"
+  ],
+  "capabilities": {
+    "readsProfiles": true,
+    "readsHostlists": true,
+    "usesLocalBuildPlan": true,
+    "executesAutomatically": false,
+    "requiresSudoAtStage7": false,
+    "mutatesServicesOrFirewallAtStage7": false
+  },
+  "notes": [
+    "Source preset uses --wf-tcp-out/--wf-udp-out and --wf-raw-part; those are WinDivert capture options and are represented here by capturePolicy/nft owner-scoped ports instead of runtimeArgs.",
+    "Source preset references lua/custom_diag.lua and lua/zapret-multishake.lua, but these files are not present in the vendored Linux core and are not needed by the used send/syndata/pktmod/fake functions, so the bridge omits them.",
+    "Source preset excludes lists/ipset-ru.txt, lists/ipset-dns.txt and lists/ipset-exclude.txt. These lists are not present in the uploaded Linux project, so this bridge intentionally avoids --ipset-exclude rather than adding broken file references.",
+    "The capture envelope is deliberately broad: owner UID TCP 80 and 443-65535, UDP 443-65535, first original packets only. This can affect unrelated owner traffic while enabled.",
+    "Blob files are loaded from core/zapret2/files/fake and copied to public runtime inputs by the session runner before nfqws2 drops privileges."
+  ],
+  "capturePolicy": {
+    "kind": "windows-all-tcp-udp-v3-2-owner-wide-v1",
+    "ownerUidScoped": true,
+    "tcpOutPorts": [
+      "80",
+      "443-65535"
+    ],
+    "udpOutPorts": [
+      "443-65535"
+    ],
+    "packetWindowHint": {
+      "tcpOriginalPackets": "1-8",
+      "udpOriginalPackets": "1-4"
+    },
+    "edgeIpScoped": false,
+    "edgeIps": [],
+    "queueInputSynAck": false,
+    "queueInputFinRst": false
+  },
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--lua-init=@core/zapret2/lua/zapret-auto.lua",
+    "--lua-init=@core/zapret2/lua/custom_funcs.lua",
+    "--ctrack-disable=0",
+    "--ipcache-lifetime=8400",
+    "--ipcache-hostname=1",
+    "--blob=tls_google:@core/zapret2/files/fake/tls_clienthello_www_google_com.bin",
+    "--blob=quic_google:@core/zapret2/files/fake/quic_initial_www_google_com.bin",
+    "--new",
+    "--filter-tcp=80,443-65535",
+    "--out-range=-d8",
+    "--lua-desync=send:repeats=2",
+    "--lua-desync=syndata:blob=tls_google",
+    "--lua-desync=pktmod:tcp_flags_unset=ack",
+    "--new",
+    "--filter-udp=443-65535",
+    "--out-range=-d8",
+    "--payload=all",
+    "--lua-desync=fake:blob=quic_google:ip_autottl=-2,3-20:ip6_autottl=-2,3-20:repeats=10:payload=all"
+  ],
+  "serviceTarget": {
+    "presetId": "discord-desktop-wide-owner",
+    "title": "Discord desktop + wide owner traffic",
+    "nonVoice": false,
+    "summary": "Broad Windows v3_2 all-sites strategy ported for owner-scoped Linux testing."
+  },
+  "sourcePreset": {
+    "id": "windows-all-tcp-udp-v3-2-source",
+    "name": "ALL TCP & UDP v3_2",
+    "engine": "winws2",
+    "sourcePath": "strategies/imported/windows-all-tcp-udp-v3-2.txt",
+    "metadataPath": "strategies/imported/windows-all-tcp-udp-v3-2.json",
+    "builtinVersion": "2.19",
+    "portingLevel": "nfqws2-linux-bridge-wide-owner-v1",
+    "windowsOptionsExecuted": false
+  },
+  "diagnosticHints": {
+    "observedDiscordUrl": "https://discordapp.com/app",
+    "phaseLadder": [
+      "TCP connect",
+      "TLS ClientHello",
+      "TLS ServerHello",
+      "HTTP/2"
+    ],
+    "matrixVariant": "windows-v3-2-wide-owner",
+    "recommendedManualChecks": [
+      "prepare/select this strategy, then default start workflow",
+      "grep -nE 'blob=|pktmod|443-65535|quic_google|tls_google' .zap2/runtime/sessions/default.nfqws2.args",
+      "sudo nft list table inet zap2_default | grep -E 'tcp dport|udp dport|queue num'",
+      "curl -4vk --connect-timeout 8 --max-time 20 https://updates.discord.com/ -o /dev/null",
+      "flatpak kill com.discordapp.Discord; flatpak run com.discordapp.Discord"
+    ]
+  }
+}

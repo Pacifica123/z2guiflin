@@ -80,6 +80,7 @@ class RuntimeSessionConfig:
     public_session_inputs_dir: Path | None
     hostlist_input_paths: tuple[Path, ...]
     lua_input_paths: tuple[Path, ...]
+    blob_input_paths: tuple[Path, ...]
     pidfile_path: Path
     stdout_log_path: Path
     stderr_log_path: Path
@@ -109,6 +110,8 @@ class RuntimeSessionConfig:
                 *(f"  - {item}" for item in self.hostlist_input_paths),
                 "runtime lua inputs:",
                 *(f"  - {item}" for item in self.lua_input_paths),
+                "runtime blob inputs:",
+                *(f"  - {item}" for item in self.blob_input_paths),
                 f"pidfile: {self.pidfile_path}",
                 f"stdout log: {self.stdout_log_path}",
                 f"stderr log: {self.stderr_log_path}",
@@ -500,6 +503,56 @@ def _prepare_runtime_lua_inputs(paths_root: Path, runtime_args: tuple[str, ...],
     return tuple(rewritten), tuple(copied)
 
 
+
+
+def _prepare_runtime_blob_inputs(paths_root: Path, runtime_args: tuple[str, ...], inputs_dir: Path) -> tuple[tuple[str, ...], tuple[Path, ...]]:
+    """Copy --blob=@file inputs to public runtime inputs and rewrite args.
+
+    Windows-derived winws2 presets often load custom ClientHello/QUIC samples via
+    `--blob=name:@file`.  nfqws2 reads those files after argument expansion and
+    may already have dropped privileges, so project-local paths under a private
+    workspace can fail for the same reason as Lua/hostlist files.  Hex blobs are
+    left untouched.
+    """
+
+    rewritten: list[str] = []
+    copied: list[Path] = []
+    blob_dir = inputs_dir / "blob"
+    seen: dict[Path, Path] = {}
+    occupied: dict[str, Path] = {}
+
+    for arg in runtime_args:
+        if not arg.startswith("--blob=") or "@" not in arg:
+            rewritten.append(arg)
+            continue
+
+        prefix, source_text = arg.split("@", 1)
+        if not source_text:
+            rewritten.append(arg)
+            continue
+
+        source = _resolve_project_file_reference(paths_root, source_text)
+        if not source.is_file():
+            raise ValueError(f"blob source отсутствует: {source}")
+        if source not in seen:
+            _ensure_public_dir(blob_dir)
+            target_name = source.name
+            if target_name in occupied and occupied[target_name] != source:
+                digest = hashlib.sha256(str(source).encode("utf-8")).hexdigest()[:8]
+                target_name = f"{source.stem}-{digest}{source.suffix}"
+            target = blob_dir / target_name
+            tmp = target.with_suffix(target.suffix + ".tmp")
+            shutil.copyfile(source, tmp)
+            _safe_chmod(tmp, 0o644)
+            os.replace(tmp, target)
+            _make_runtime_input_accessible(target)
+            seen[source] = target
+            occupied[target_name] = source
+            copied.append(target)
+        rewritten.append(f"{prefix}@{seen[source].resolve()}")
+
+    return tuple(rewritten), tuple(copied)
+
 def _cleanup_public_session_inputs(paths: tuple[Path, ...]) -> None:
     """Best-effort cleanup for public runtime hostlist copies."""
 
@@ -574,7 +627,8 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
     public_session_inputs_dir = _public_session_inputs_dir(paths.root, profile_id, plan.plan_id, plan_hash)
     hostlist_input_paths = _prepare_runtime_hostlist_inputs(paths.root, plan, profile_id, plan_hash, public_session_inputs_dir)
     strategy_runtime_args, lua_input_paths = _prepare_runtime_lua_inputs(paths.root, tuple(plan.strategy.runtime_args), public_session_inputs_dir)
-    if not hostlist_input_paths and not lua_input_paths:
+    strategy_runtime_args, blob_input_paths = _prepare_runtime_blob_inputs(paths.root, strategy_runtime_args, public_session_inputs_dir)
+    if not hostlist_input_paths and not lua_input_paths and not blob_input_paths:
         public_session_inputs_dir = None
     queue = resolve_runtime_queue(paths.root, profile_id)
     runtime_args = _runtime_args_for_plan(paths.root, plan, drop_identity, pidfile_path, debug_log_path, hostlist_input_paths, strategy_runtime_args, queue.qnum)
@@ -592,6 +646,7 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
         public_session_inputs_dir=public_session_inputs_dir,
         hostlist_input_paths=hostlist_input_paths,
         lua_input_paths=lua_input_paths,
+        blob_input_paths=blob_input_paths,
         pidfile_path=pidfile_path,
         stdout_log_path=stdout_log_path,
         stderr_log_path=stderr_log_path,
@@ -859,6 +914,7 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "publicSessionInputsDir": str(config.public_session_inputs_dir) if config.public_session_inputs_dir else None,
         "hostlistInputPaths": [str(path) for path in config.hostlist_input_paths],
         "luaInputPaths": [str(path) for path in config.lua_input_paths],
+        "blobInputPaths": [str(path) for path in config.blob_input_paths],
         "dropIdentity": None if config.drop_identity is None else {"uid": config.drop_identity.uid, "gid": config.drop_identity.gid, "source": config.drop_identity.source},
         "argsPath": str(config.args_path),
         "pidfilePath": str(config.pidfile_path),
@@ -973,7 +1029,11 @@ def stop_runtime_session(root: Path | None = None, profile_id: str = "default") 
     updated["stopSignal"] = "SIGTERM" if terminated else "SIGKILL-attempted"
     _write_json(session_path, updated)
     if terminated:
-        _cleanup_public_session_inputs(tuple(Path(item) for item in record.get("hostlistInputPaths", [])) + tuple(Path(item) for item in record.get("luaInputPaths", [])))
+        _cleanup_public_session_inputs(
+            tuple(Path(item) for item in record.get("hostlistInputPaths", []))
+            + tuple(Path(item) for item in record.get("luaInputPaths", []))
+            + tuple(Path(item) for item in record.get("blobInputPaths", []))
+        )
     log_path = append_runtime_event(
         paths,
         _event(

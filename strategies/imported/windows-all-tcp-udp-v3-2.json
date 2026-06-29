@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "windows-all-tcp-udp-v3-2",
+  "source": "owner-uploaded-and-zapret2-gui_windows",
+  "sourcePath": "zapret-main/src/presets/builtin/winws2/ALL TCP & UDP v3_2.txt",
+  "presetName": "ALL TCP & UDP v3_2",
+  "builtinVersion": "2.19",
+  "engine": "winws2",
+  "importPolicy": "linux-bridge-wide-owner",
+  "winOnlyOptions": [
+    "--wf-tcp-out",
+    "--wf-udp-out",
+    "--wf-raw-part"
+  ],
+  "omittedLuaInit": [
+    "lua/custom_diag.lua",
+    "lua/zapret-multishake.lua"
+  ],
+  "missingListRefs": [
+    "lists/ipset-ru.txt",
+    "lists/ipset-dns.txt",
+    "lists/ipset-exclude.txt"
+  ],
+  "usedBlobRefs": [
+    "core/zapret2/files/fake/tls_clienthello_www_google_com.bin",
+    "core/zapret2/files/fake/quic_initial_www_google_com.bin"
+  ]
+}
