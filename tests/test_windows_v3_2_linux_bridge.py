@@ -35,6 +35,8 @@ def test_windows_all_tcp_udp_v3_2_bridge_registered() -> None:
     assert not any(arg.startswith("--wf-") for arg in strategy.runtime_args)
     assert not any("custom_diag.lua" in arg or "zapret-multishake.lua" in arg for arg in strategy.runtime_args)
     assert "--blob=tls_google:@core/zapret2/files/fake/tls_clienthello_www_google_com.bin" in strategy.runtime_args
+    assert "--lua-desync=pktmod:tcp_flags_unset=ack" not in strategy.runtime_args
+    assert "--lua-desync=send:repeats=2:tcp_flags_unset=ack" in strategy.runtime_args
     assert strategy.capture_policy is not None
     assert strategy.capture_policy["tcpOutPorts"] == ["80", "443-65535"]
     assert strategy.capture_policy["udpOutPorts"] == ["443-65535"]
@@ -67,3 +69,5 @@ def test_runtime_session_copies_blob_inputs_for_windows_v3_2_bridge(tmp_path: Pa
     assert len(blob_args) == 2
     assert all("/zap2-runtime-inputs" in arg for arg in blob_args)
     assert not any("@core/zapret2/files/fake/" in arg for arg in blob_args)
+    assert "--lua-desync=pktmod:tcp_flags_unset=ack" not in config.runtime_args
+    assert "--lua-desync=send:repeats=2:tcp_flags_unset=ack" in config.runtime_args

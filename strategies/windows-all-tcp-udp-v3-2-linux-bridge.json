@@ -29,8 +29,9 @@
     "Source preset uses --wf-tcp-out/--wf-udp-out and --wf-raw-part; those are WinDivert capture options and are represented here by capturePolicy/nft owner-scoped ports instead of runtimeArgs.",
     "Source preset references lua/custom_diag.lua and lua/zapret-multishake.lua, but these files are not present in the vendored Linux core and are not needed by the used send/syndata/pktmod/fake functions, so the bridge omits them.",
     "Source preset excludes lists/ipset-ru.txt, lists/ipset-dns.txt and lists/ipset-exclude.txt. These lists are not present in the uploaded Linux project, so this bridge intentionally avoids --ipset-exclude rather than adding broken file references.",
-    "The capture envelope is deliberately broad: owner UID TCP 80 and 443-65535, UDP 443-65535, first original packets only. This can affect unrelated owner traffic while enabled.",
-    "Blob files are loaded from core/zapret2/files/fake and copied to public runtime inputs by the session runner before nfqws2 drops privileges."
+    "The capture envelope is deliberately broad: owner UID TCP 80 and 443-65535, UDP 443-65535, first original packets only. This can affect unrelated owner traffic while enabled. The Linux bridge no longer applies standalone pktmod/tcp_flags_unset=ack to accepted packets because nfqws2 pktmod mutates the real packet and can blackhole TLS/HTTP traffic.",
+    "Blob files are loaded from core/zapret2/files/fake and copied to public runtime inputs by the session runner before nfqws2 drops privileges.",
+    "Linux safety fix 2026-06-29: keep tcp_flags_unset=ack only on the rawsend duplicate created by send; do not run standalone pktmod on accepted owner packets."
   ],
   "capturePolicy": {
     "kind": "windows-all-tcp-udp-v3-2-owner-wide-v1",
@@ -64,9 +65,8 @@
     "--new",
     "--filter-tcp=80,443-65535",
     "--out-range=-d8",
-    "--lua-desync=send:repeats=2",
+    "--lua-desync=send:repeats=2:tcp_flags_unset=ack",
     "--lua-desync=syndata:blob=tls_google",
-    "--lua-desync=pktmod:tcp_flags_unset=ack",
     "--new",
     "--filter-udp=443-65535",
     "--out-range=-d8",
@@ -103,7 +103,10 @@
       "grep -nE 'blob=|pktmod|443-65535|quic_google|tls_google' .zap2/runtime/sessions/default.nfqws2.args",
       "sudo nft list table inet zap2_default | grep -E 'tcp dport|udp dport|queue num'",
       "curl -4vk --connect-timeout 8 --max-time 20 https://updates.discord.com/ -o /dev/null",
-      "flatpak kill com.discordapp.Discord; flatpak run com.discordapp.Discord"
+      "flatpak kill com.discordapp.Discord; flatpak run com.discordapp.Discord",
+      "grep -nE 'pktmod|tcp_flags_unset=ack|send:repeats=2' .zap2/runtime/sessions/default.nfqws2.args",
+      "sudo nft list table inet zap2_default -a | sed -n '/zap2:zap2_default/p'",
+      "curl -4vk --connect-timeout 8 --max-time 20 https://www.youtube.com/ -o /dev/null"
     ]
   }
 }
