@@ -2,18 +2,13 @@
 
 ## Title
 
-Redesign GUI icons as minimal line icons
+Fix Runtime Logs QtCore binding name
 
 ## What changed
 
-- replaced the previous boxed pastel icons with simpler line-style SVG icons;
-- removed colored background boxes and dense inner details from all GUI icons;
-- kept one calm pastel stroke color per icon;
-- fixed the Overview start/stop button so the old text symbol `▶/■` no longer overlaps the new SVG icon;
-- added icon sizes for Overview and Logs action buttons;
-- documented the revised visual rule in `docs/GUI_FLAT_PASTEL_ICONS.md`;
-- added regression checks for background-box icons and the start button text/icon overlap.
+- replaced stale `QtCore.QSize(...)` calls in `runtime_logs.py` with `_QtCore.QSize(...)`;
+- added a static regression test for the local Qt binding variable name.
 
 ## Why
 
-The first icon patch was too decorative and visually noisy. The reference style is closer to small flat line icons used as navigation/action hints, not standalone pictograms.
+The minimal line icons patch added icon sizes in the Logs page but used the wrong variable name. The GUI crashed at startup with `NameError: name 'QtCore' is not defined`.
