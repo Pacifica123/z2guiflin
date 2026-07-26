@@ -1,0 +1,16 @@
+# z2guiflin Zapret2 preset
+# id: reference-zapret2-generic-tls-fake
+# title: Reference zapret2 generic TLS fake
+# Порядок profile-блоков важен: nfqws2 выбирает первое совпадение.
+--lua-init=@core/zapret2/lua/zapret-lib.lua
+--lua-init=@core/zapret2/lua/zapret-antidpi.lua
+--ctrack-disable=0
+--filter-tcp=80
+--filter-l7=http
+--payload=http_req
+--lua-desync=http_methodeol
+--new
+--filter-tcp=443
+--filter-l7=tls
+--payload=tls_client_hello
+--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=1

@@ -1,0 +1,49 @@
+# z2guiflin Zapret2 preset
+# id: community-discord-syndata-edge-flow-v2b
+# title: Community Discord SYN-data edge-flow v2b
+# Порядок profile-блоков важен: nfqws2 выбирает первое совпадение.
+--lua-init=@core/zapret2/lua/zapret-lib.lua
+--lua-init=@core/zapret2/lua/zapret-antidpi.lua
+--lua-init=@core/zapret2/lua/zapret-auto.lua
+--lua-init=@core/zapret2/lua/custom_funcs.lua
+--ctrack-disable=0
+--ipcache-lifetime=8400
+--ipcache-hostname=1
+--filter-tcp=443
+--ipset-ip=162.159.128.233,162.159.135.232,162.159.136.232,162.159.137.232,162.159.138.232,162.159.129.233,162.159.130.233,162.159.133.233,162.159.134.233,162.159.135.233,162.159.130.234,162.159.133.234,162.159.134.234,162.159.135.234,162.159.136.234
+--payload=empty
+--out-range=<s1
+--lua-desync=send:tcp_md5:repeats=2
+--new
+--filter-tcp=443
+--ipset-ip=162.159.128.233,162.159.135.232,162.159.136.232,162.159.137.232,162.159.138.232,162.159.129.233,162.159.130.233,162.159.133.233,162.159.134.233,162.159.135.233,162.159.130.234,162.159.133.234,162.159.134.234,162.159.135.234,162.159.136.234
+--out-range=s1<d1
+--lua-desync=syndata:blob=fake_default_tls:tls_mod=rnd,dupsid,rndsni
+--new
+--filter-tcp=443
+--hostlist-domains=updates.discord.com,discord.com,discordapp.com,www.discordapp.com
+--out-range=-d10
+--lua-desync=send:repeats=2
+--lua-desync=syndata:blob=fake_default_tls:tls_mod=rnd,dupsid,sni=google.com
+--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2
+--new
+--filter-tcp=80,443,1080,2053,2083,2087,2096,5222,8443
+--hostlist-domains=discord.media,discordapp.com,www.discordapp.com
+--out-range=-d10
+--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2
+--new
+--filter-tcp=80,443,1080,2053,2083,2087,2096,5222,8443
+--hostlist-domains=discord.com,discordapp.com,www.discordapp.com,gateway.discord.gg,cdn.discordapp.com,media.discordapp.net,discord.gg,discordapp.net,updates.discord.com,stable.dl2.discordapp.net
+--out-range=-d10
+--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2
+--new
+--filter-tcp=80,443
+--hostlist-domains=youtube.com,www.youtube.com,googlevideo.com,ytimg.com,youtu.be
+--out-range=-d8
+--lua-desync=multidisorder:pos=1,host+2,sld+2,sld+5,sniext+1,sniext+2,endhost-2:seqovl=1
+--new
+--filter-udp=443
+--ipset-ip=142.250.0.0/15,172.217.0.0/16,172.253.0.0/16,173.194.0.0/16,74.125.0.0/16
+--out-range=-n8
+--payload=all
+--lua-desync=fake:repeats=6:blob=fake_default_quic

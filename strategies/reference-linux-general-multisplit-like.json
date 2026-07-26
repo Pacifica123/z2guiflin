@@ -44,6 +44,7 @@
     "This is a candidate for observation, not a claim that multisplit/multidisorder will fix Discord on this network."
   ],
   "philosophy": "external-reference-general-bucket-candidate",
+  "presetPath": "presets/workspace/reference-linux-general-multisplit-like.txt",
   "runtimeArgs": [
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",

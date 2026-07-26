@@ -1,36 +1,26 @@
 {
-  "schemaVersion": 1,
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": true,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
   "id": "community-discord-hostfakesplit-5222-minimal",
-  "title": "Community Discord hostfakesplit minimal + 5222",
-  "summary": "Чистый Discord-only seed из owner-provided Windows GUI community preset: hostfakesplit_multi для Discord targets с добавленным TCP 5222 из WinDivert capture envelope; без YouTube fallback и без voice/UDP в non-voice runtime.",
-  "philosophy": "windows-community-discord-minimal-owner-experiment",
   "intendedFor": [
     "ручная проверка отличия чистого Discord community preset от смешанного Discord+YouTube bridge",
     "диагностика TCP 5222 как Discord-like port hint из Windows preset",
     "owner-selects во вкладке Стратегии; не включается автоматически"
   ],
-  "workflow": [
-    "inspect",
-    "owner-selects",
-    "plan",
-    "owner-confirms",
-    "execute-later",
-    "owner-observes-discord"
-  ],
-  "capabilities": {
-    "readsProfiles": true,
-    "readsHostlists": true,
-    "usesLocalBuildPlan": true,
-    "executesAutomatically": false,
-    "requiresSudoAtStage7": false,
-    "mutatesServicesOrFirewallAtStage7": false
-  },
   "notes": [
     "The owner-provided Discord-only Windows preset carries --wf-tcp-out=80,443,1080,2053,2083,2087,2096,5222,8443, but its hostfakesplit blocks did not repeat 5222. This Linux seed deliberately includes 5222 in the owner-confirmed nft/NFQUEUE scope to test that hint.",
     "This strategy is not expected by itself to fix a Discord updater socket that remains in SYN-SENT on TCP/443; it is a clean Discord-only comparison seed.",
     "Windows --wf-* and WinDivert raw parts are not executed on Linux. The Linux runtime still uses owner-confirmed nftables output queueing.",
     "The voice/STUN part of the Windows preset is intentionally not included here; Stage 8 remains reserved for voice/UDP."
   ],
+  "philosophy": "windows-community-discord-minimal-owner-experiment",
+  "presetPath": "presets/workspace/community-discord-hostfakesplit-5222-minimal.txt",
   "runtimeArgs": [
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
@@ -54,19 +44,30 @@
     "--out-range=-d10",
     "--lua-desync=hostfakesplit_multi:hosts=google.com,vimeo.com:tcp_ts=-1000:tcp_md5:repeats=2"
   ],
+  "schemaVersion": 1,
   "serviceTarget": {
-    "presetId": "discord-desktop",
-    "title": "Discord desktop non-voice",
     "nonVoice": true,
-    "summary": "Discord-only hostfakesplit seed with TCP 5222 coverage hint from a community Windows GUI preset."
+    "presetId": "discord-desktop",
+    "summary": "Discord-only hostfakesplit seed with TCP 5222 coverage hint from a community Windows GUI preset.",
+    "title": "Discord desktop non-voice"
   },
   "sourcePreset": {
-    "id": "community-discord-hostfakesplit-5222-source",
-    "name": "Owner-provided Discord-only community Windows preset",
     "engine": "winws2/community",
-    "sourcePath": "strategies/imported/community-discord-hostfakesplit-5222.txt",
+    "id": "community-discord-hostfakesplit-5222-source",
     "metadataPath": "strategies/imported/community-discord-hostfakesplit-5222.json",
+    "name": "Owner-provided Discord-only community Windows preset",
     "portingLevel": "experimental-linux-discord-only-5222-bridge",
+    "sourcePath": "strategies/imported/community-discord-hostfakesplit-5222.txt",
     "windowsOptionsExecuted": false
-  }
+  },
+  "summary": "Чистый Discord-only seed из owner-provided Windows GUI community preset: hostfakesplit_multi для Discord targets с добавленным TCP 5222 из WinDivert capture envelope; без YouTube fallback и без voice/UDP в non-voice runtime.",
+  "title": "Community Discord hostfakesplit minimal + 5222",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-discord"
+  ]
 }

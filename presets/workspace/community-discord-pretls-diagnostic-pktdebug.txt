@@ -1,0 +1,12 @@
+# z2guiflin Zapret2 preset
+# id: community-discord-pretls-diagnostic-pktdebug
+# title: Discord pre-TLS diagnostic pktdebug
+# Порядок profile-блоков важен: nfqws2 выбирает первое совпадение.
+--lua-init=@core/zapret2/lua/zapret-lib.lua
+--lua-init=@core/zapret2/lua/zapret-antidpi.lua
+--ctrack-disable=0
+--filter-tcp=443,5222
+--ipset-ip=162.159.128.233,162.159.135.232,162.159.136.232,162.159.137.232,162.159.138.232,162.159.129.233,162.159.130.233,162.159.133.233,162.159.134.233,162.159.135.233,162.159.130.234,162.159.133.234,162.159.134.234,162.159.135.234,162.159.136.234
+--payload=empty
+--out-range=<s1
+--lua-desync=pktdebug

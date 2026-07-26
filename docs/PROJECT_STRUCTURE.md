@@ -272,3 +272,17 @@ strategies/generated/          будущие Blockcheck-generated страте�
 
 Если для Discord появятся специализированные presets или service profiles, они должны добавляться в существующие `profiles/` и `strategies/`, а не в `.zap2/`, потому что `.zap2/` является локальным runtime state владельца.
 
+
+## Каталог пресетов
+
+```text
+presets/
+  README.md
+  workspace/*.txt
+  generated/*.txt
+```
+
+`presets/` является каноническим исполнимым слоем nfqws2. Метаданные остаются в
+`strategies/`, а исторический `profiles/` хранит только workspace runtime
+contexts и hostlists. Полное описание границ находится в
+`docs/PRESET_PROFILE_ARCHITECTURE.md`.

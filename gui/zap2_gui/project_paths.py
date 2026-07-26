@@ -18,6 +18,7 @@ class ProjectLayout:
     docs_dir: Path
     tools_dir: Path
     profiles_dir: Path
+    presets_dir: Path
     strategies_dir: Path
     runtime_dir: Path
 
@@ -30,6 +31,7 @@ class ProjectLayout:
             self.docs_dir / "VERSIONING.md",
             self.tools_dir / "gui_checks" / "check_project_tree.py",
             self.profiles_dir / "default.json",
+            self.presets_dir / "README.md",
             self.strategies_dir / "catalog.json",
             self.runtime_dir / "README.md",
             self.runtime_dir / "schemas" / "runtime-plan.schema.json",
@@ -47,6 +49,7 @@ def discover_layout(root: Path | None = None) -> ProjectLayout:
         docs_dir=resolved_root / "docs",
         tools_dir=resolved_root / "tools",
         profiles_dir=resolved_root / "profiles",
+        presets_dir=resolved_root / "presets",
         strategies_dir=resolved_root / "strategies",
         runtime_dir=resolved_root / "runtime",
     )

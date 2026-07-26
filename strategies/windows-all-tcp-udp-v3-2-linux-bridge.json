@@ -1,30 +1,64 @@
 {
-  "schemaVersion": 1,
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": false,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
+  "capturePolicy": {
+    "edgeIpScoped": false,
+    "edgeIps": [],
+    "kind": "windows-all-tcp-udp-v3-2-owner-wide-v1",
+    "ownerUidScoped": true,
+    "packetWindowHint": {
+      "tcpIn": "synack+finrst",
+      "tcpOriginalPackets": "1-8",
+      "udpOriginalPackets": "1-4"
+    },
+    "profileHostlists": "omit",
+    "queueInputFinRst": true,
+    "queueInputSynAck": true,
+    "tcpOutPorts": [
+      "80",
+      "443-65535"
+    ],
+    "udpOutPorts": [
+      "80",
+      "443-65535"
+    ]
+  },
+  "diagnosticHints": {
+    "matrixVariant": "windows-v3-2-wide-owner",
+    "observedDiscordUrl": "https://discordapp.com/app",
+    "phaseLadder": [
+      "TCP connect",
+      "TLS ClientHello",
+      "TLS ServerHello",
+      "HTTP/2"
+    ],
+    "recommendedManualChecks": [
+      "prepare/select this strategy, then default start workflow",
+      "grep -nE 'blob=|pktmod|443-65535|quic_google|tls_google' .zap2/runtime/sessions/default.nfqws2.args",
+      "sudo nft list table inet zap2_default | grep -E 'tcp dport|udp dport|queue num'",
+      "curl -4vk --connect-timeout 8 --max-time 20 https://updates.discord.com/ -o /dev/null",
+      "flatpak kill com.discordapp.Discord; flatpak run com.discordapp.Discord",
+      "grep -nE 'pktmod|tcp_flags_unset=ack|send:repeats=2' .zap2/runtime/sessions/default.nfqws2.args",
+      "sudo nft list table inet zap2_default -a | sed -n '/zap2:zap2_default/p'",
+      "curl -4vk --connect-timeout 8 --max-time 20 https://www.youtube.com/ -o /dev/null",
+      "grep -nE 'bind-fix|filter-udp|filter-tcp|syndata|send:repeats' .zap2/runtime/sessions/default.nfqws2.args",
+      "sudo nft -a list table inet zap2_default | sed -n '/zap2:zap2_default/p'",
+      "grep -n -- '--hostlist=' .zap2/runtime/sessions/default.nfqws2.args || true",
+      "sudo nft -a list table inet zap2_default | grep -E 'tcp-in-synack|tcp-in-fin-rst|tcp-out|udp-out'"
+    ]
+  },
   "id": "windows-all-tcp-udp-v3-2-linux-bridge",
-  "title": "Windows ALL TCP & UDP v3_2 Linux bridge",
-  "summary": "Linux/nfqws2 bridge of the owner-provided Windows winws2 preset ALL TCP & UDP v3_2: broad owner-scoped TCP first-payload syndata and UDP QUIC fake handling, without WinDivert-only wf/raw-part options. This revision omits profile hostlists so SYN-level syndata is not blocked before hostname discovery and queues inbound TCP SYN/ACK/FIN/RST for Linux seq/ack handling.",
-  "philosophy": "faithful-windows-v3-2-port-with-linux-capture-policy",
   "intendedFor": [
     "проверка гипотезы, что на этом операторе работает не Discord-specific ветка, а широкий all-sites first-data профиль из Windows GUI",
     "ручной owner-confirmed запуск на Linux/Flatpak Discord после неудачных community-discord-syndata-edge-flow вариантов",
     "сравнение с текущим Discord/VLESS route; стратегия не чинит отдельно сломанный SOCKS/VLESS preflight"
   ],
-  "workflow": [
-    "inspect",
-    "owner-selects",
-    "plan",
-    "owner-confirms",
-    "execute-later",
-    "owner-observes-discord-and-general-traffic"
-  ],
-  "capabilities": {
-    "readsProfiles": true,
-    "readsHostlists": false,
-    "usesLocalBuildPlan": true,
-    "executesAutomatically": false,
-    "requiresSudoAtStage7": false,
-    "mutatesServicesOrFirewallAtStage7": false
-  },
   "notes": [
     "Source preset uses --wf-tcp-out/--wf-udp-out and --wf-raw-part; those are WinDivert capture options and are represented here by capturePolicy/nft owner-scoped ports instead of runtimeArgs.",
     "Source preset references lua/custom_diag.lua and lua/zapret-multishake.lua, but these files are not present in the vendored Linux core and are not needed by the used send/syndata/pktmod/fake functions, so the bridge omits them.",
@@ -37,28 +71,8 @@
     "Linux fidelity fix 2026-06-29 #2: this Windows all-sites preset must not inherit the profile hostlist. A regular --hostlist makes SYN packets with no known hostname fail profile matching, so the SYN-level syndata step can be skipped before TLS SNI exists.",
     "Linux fidelity fix 2026-06-29 #2: enable inbound SYN/ACK and FIN/RST queueing for the source ports covered by --wf-tcp-out. Windows winws2 captures the reverse side of outbound TCP flows; nfqws2 needs that path for early-flow bookkeeping and syndata seq/ack handling."
   ],
-  "capturePolicy": {
-    "kind": "windows-all-tcp-udp-v3-2-owner-wide-v1",
-    "ownerUidScoped": true,
-    "tcpOutPorts": [
-      "80",
-      "443-65535"
-    ],
-    "udpOutPorts": [
-      "80",
-      "443-65535"
-    ],
-    "packetWindowHint": {
-      "tcpOriginalPackets": "1-8",
-      "udpOriginalPackets": "1-4",
-      "tcpIn": "synack+finrst"
-    },
-    "edgeIpScoped": false,
-    "edgeIps": [],
-    "queueInputSynAck": true,
-    "queueInputFinRst": true,
-    "profileHostlists": "omit"
-  },
+  "philosophy": "faithful-windows-v3-2-port-with-linux-capture-policy",
+  "presetPath": "presets/workspace/windows-all-tcp-udp-v3-2-linux-bridge.txt",
   "runtimeArgs": [
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
@@ -82,44 +96,31 @@
     "--payload=all",
     "--lua-desync=fake:blob=quic_google:ip_autottl=-2,3-20:ip6_autottl=-2,3-20:repeats=10:payload=all"
   ],
+  "schemaVersion": 1,
   "serviceTarget": {
-    "presetId": "discord-desktop-wide-owner",
-    "title": "Discord desktop + wide owner traffic",
     "nonVoice": false,
-    "summary": "Broad Windows v3_2 all-sites strategy ported for owner-scoped Linux testing."
+    "presetId": "discord-desktop-wide-owner",
+    "summary": "Broad Windows v3_2 all-sites strategy ported for owner-scoped Linux testing.",
+    "title": "Discord desktop + wide owner traffic"
   },
   "sourcePreset": {
-    "id": "windows-all-tcp-udp-v3-2-source",
-    "name": "ALL TCP & UDP v3_2",
-    "engine": "winws2",
-    "sourcePath": "strategies/imported/windows-all-tcp-udp-v3-2.txt",
-    "metadataPath": "strategies/imported/windows-all-tcp-udp-v3-2.json",
     "builtinVersion": "2.19",
+    "engine": "winws2",
+    "id": "windows-all-tcp-udp-v3-2-source",
+    "metadataPath": "strategies/imported/windows-all-tcp-udp-v3-2.json",
+    "name": "ALL TCP & UDP v3_2",
     "portingLevel": "nfqws2-linux-bridge-wide-owner-v1",
+    "sourcePath": "strategies/imported/windows-all-tcp-udp-v3-2.txt",
     "windowsOptionsExecuted": false
   },
-  "diagnosticHints": {
-    "observedDiscordUrl": "https://discordapp.com/app",
-    "phaseLadder": [
-      "TCP connect",
-      "TLS ClientHello",
-      "TLS ServerHello",
-      "HTTP/2"
-    ],
-    "matrixVariant": "windows-v3-2-wide-owner",
-    "recommendedManualChecks": [
-      "prepare/select this strategy, then default start workflow",
-      "grep -nE 'blob=|pktmod|443-65535|quic_google|tls_google' .zap2/runtime/sessions/default.nfqws2.args",
-      "sudo nft list table inet zap2_default | grep -E 'tcp dport|udp dport|queue num'",
-      "curl -4vk --connect-timeout 8 --max-time 20 https://updates.discord.com/ -o /dev/null",
-      "flatpak kill com.discordapp.Discord; flatpak run com.discordapp.Discord",
-      "grep -nE 'pktmod|tcp_flags_unset=ack|send:repeats=2' .zap2/runtime/sessions/default.nfqws2.args",
-      "sudo nft list table inet zap2_default -a | sed -n '/zap2:zap2_default/p'",
-      "curl -4vk --connect-timeout 8 --max-time 20 https://www.youtube.com/ -o /dev/null",
-      "grep -nE 'bind-fix|filter-udp|filter-tcp|syndata|send:repeats' .zap2/runtime/sessions/default.nfqws2.args",
-      "sudo nft -a list table inet zap2_default | sed -n '/zap2:zap2_default/p'",
-      "grep -n -- '--hostlist=' .zap2/runtime/sessions/default.nfqws2.args || true",
-      "sudo nft -a list table inet zap2_default | grep -E 'tcp-in-synack|tcp-in-fin-rst|tcp-out|udp-out'"
-    ]
-  }
+  "summary": "Linux/nfqws2 bridge of the owner-provided Windows winws2 preset ALL TCP & UDP v3_2: broad owner-scoped TCP first-payload syndata and UDP QUIC fake handling, without WinDivert-only wf/raw-part options. This revision omits profile hostlists so SYN-level syndata is not blocked before hostname discovery and queues inbound TCP SYN/ACK/FIN/RST for Linux seq/ack handling.",
+  "title": "Windows ALL TCP & UDP v3_2 Linux bridge",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-discord-and-general-traffic"
+  ]
 }

@@ -1,0 +1,26 @@
+# z2guiflin Zapret2 preset
+# id: reference-flowseal-simple-fake-like
+# title: Reference Flowseal simple fake-like TCP
+# Порядок profile-блоков важен: nfqws2 выбирает первое совпадение.
+--lua-init=@core/zapret2/lua/zapret-lib.lua
+--lua-init=@core/zapret2/lua/zapret-antidpi.lua
+--ctrack-disable=0
+--filter-tcp=2053,2083,2087,2096,8443
+--hostlist-domains=discord.media
+--filter-l7=tls
+--payload=tls_client_hello
+--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=6
+--new
+--filter-tcp=443
+--hostlist=profiles/hostlists/reference-general.hosts
+--filter-l7=tls
+--payload=tls_client_hello
+--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=6
+--new
+--filter-tcp=80,443
+--hostlist=profiles/hostlists/reference-general.hosts
+--filter-l7=tls,http
+--payload=tls_client_hello
+--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=6
+--payload=http_req
+--lua-desync=fake:blob=fake_default_http:tcp_ts=-1000:repeats=6

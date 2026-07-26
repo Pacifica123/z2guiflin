@@ -33,9 +33,9 @@ def default_navigation_sections() -> tuple[NavigationSection, ...]:
         ),
         NavigationSection(
             key="strategies",
-            title="Стратегии",
-            purpose="Workspace-профили, hostlists и каталог стратегий без скрытого запуска команд.",
-            ready_state="profiles-backed",
+            title="Пресеты",
+            purpose="Каталог пресетов и их упорядоченных traffic-профилей: filter, strategy, range и direction.",
+            ready_state="preset-profiles-backed",
         ),
         NavigationSection(
             key="diagnostics",

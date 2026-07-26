@@ -33,6 +33,7 @@ class WorkspaceStrategy:
     capabilities: StrategyCapabilities
     notes: tuple[str, ...]
     runtime_args: tuple[str, ...] = ()
+    preset_path: str = ""
     source_preset: dict[str, Any] | None = None
     service_target: dict[str, Any] | None = None
     capture_policy: dict[str, Any] | None = None

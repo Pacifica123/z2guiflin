@@ -1,0 +1,25 @@
+# z2guiflin Zapret2 preset
+# id: windows-all-tcp-udp-v3-2-linux-bridge
+# title: Windows ALL TCP & UDP v3_2 Linux bridge
+# Порядок profile-блоков важен: nfqws2 выбирает первое совпадение.
+--lua-init=@core/zapret2/lua/zapret-lib.lua
+--lua-init=@core/zapret2/lua/zapret-antidpi.lua
+--lua-init=@core/zapret2/lua/zapret-auto.lua
+--lua-init=@core/zapret2/lua/custom_funcs.lua
+--ctrack-disable=0
+--ipcache-lifetime=8400
+--ipcache-hostname=1
+--bind-fix4
+--bind-fix6
+--blob=tls_google:@core/zapret2/files/fake/tls_clienthello_www_google_com.bin
+--blob=quic_google:@core/zapret2/files/fake/quic_initial_www_google_com.bin
+--new
+--filter-tcp=80,443-65535
+--out-range=-d8
+--lua-desync=send:repeats=2:tcp_flags_unset=ack
+--lua-desync=syndata:blob=tls_google
+--new
+--filter-udp=80,443-65535
+--out-range=-d8
+--payload=all
+--lua-desync=fake:blob=quic_google:ip_autottl=-2,3-20:ip6_autottl=-2,3-20:repeats=10:payload=all

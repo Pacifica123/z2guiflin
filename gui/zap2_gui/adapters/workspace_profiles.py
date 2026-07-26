@@ -15,7 +15,8 @@ from typing import Any
 
 from .local_build import supported_build_targets
 from ..models.strategy import StrategyCapabilities, WorkspaceStrategy
-from ..models.workspace_profile import HostlistRef, WorkspaceProfile, WorkspaceSafety
+from ..models.preset import parse_preset_args
+from ..models.workspace_profile import HostlistRef, WorkspaceProfile, WorkspaceRuntimeContext, WorkspaceSafety
 from ..project_paths import discover_layout
 
 
@@ -215,7 +216,7 @@ def _require_schema(data: dict[str, Any], path: Path) -> None:
         raise ValueError(f"Неподдерживаемая schemaVersion в {path}")
 
 
-def _parse_strategy(path: Path) -> WorkspaceStrategy:
+def _parse_strategy(path: Path, root: Path) -> WorkspaceStrategy:
     data = _read_json(path)
     _require_schema(data, path)
     raw_capabilities = data["capabilities"]
@@ -227,6 +228,32 @@ def _parse_strategy(path: Path) -> WorkspaceStrategy:
         requires_sudo_at_stage7=bool(raw_capabilities["requiresSudoAtStage7"]),
         mutates_services_or_firewall_at_stage7=bool(raw_capabilities["mutatesServicesOrFirewallAtStage7"]),
     )
+    legacy_runtime_args = tuple(str(item) for item in data.get("runtimeArgs", []))
+    preset_path = str(data.get("presetPath") or "").strip()
+    runtime_args = legacy_runtime_args
+    if preset_path:
+        resolved = (root / preset_path).resolve()
+        try:
+            resolved.relative_to(root.resolve())
+        except ValueError as exc:
+            raise ValueError(f"presetPath выходит за пределы workspace: {preset_path}") from exc
+        if not resolved.is_file():
+            raise ValueError(f"Файл пресета не найден: {preset_path}")
+        preset_args = tuple(
+            line.strip()
+            for line in resolved.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        )
+        parsed = parse_preset_args(
+            preset_args,
+            preset_id=str(data["id"]),
+            title=str(data["title"]),
+            source_path=preset_path,
+        )
+        runtime_args = parsed.to_runtime_args()
+        if legacy_runtime_args and runtime_args != legacy_runtime_args:
+            raise ValueError(f"presetPath и runtimeArgs расходятся для {data['id']}")
+
     return WorkspaceStrategy(
         schema_version=int(data["schemaVersion"]),
         strategy_id=str(data["id"]),
@@ -237,7 +264,8 @@ def _parse_strategy(path: Path) -> WorkspaceStrategy:
         workflow=tuple(str(item) for item in data.get("workflow", [])),
         capabilities=capabilities,
         notes=tuple(str(item) for item in data.get("notes", [])),
-        runtime_args=tuple(str(item) for item in data.get("runtimeArgs", [])),
+        runtime_args=runtime_args,
+        preset_path=preset_path,
         source_preset=dict(data["sourcePreset"]) if isinstance(data.get("sourcePreset"), dict) else None,
         service_target=dict(data["serviceTarget"]) if isinstance(data.get("serviceTarget"), dict) else None,
         capture_policy=dict(data["capturePolicy"]) if isinstance(data.get("capturePolicy"), dict) else None,
@@ -316,7 +344,7 @@ def load_strategy_catalog(root: Path | None = None) -> StrategyCatalog:
     catalog_path = layout.root / "strategies" / "catalog.json"
     catalog_data = _read_json(catalog_path)
     _require_schema(catalog_data, catalog_path)
-    strategies = tuple(_parse_strategy(layout.root / rel_path) for rel_path in catalog_data["strategyFiles"])
+    strategies = tuple(_parse_strategy(layout.root / rel_path, layout.root) for rel_path in catalog_data["strategyFiles"])
     strategy_ids = [strategy.strategy_id for strategy in strategies]
     if len(strategy_ids) != len(set(strategy_ids)):
         raise ValueError("В strategy catalog есть повторяющиеся id")

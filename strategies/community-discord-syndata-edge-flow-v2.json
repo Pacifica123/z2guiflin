@@ -1,30 +1,18 @@
 {
-  "schemaVersion": 1,
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": true,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
   "id": "community-discord-syndata-edge-flow-v2",
-  "title": "Community Discord SYN-data edge-flow v2",
-  "summary": "Экспериментальная v2-попытка для Discord updater SYN-SENT: более близко к community Windows preset добавляет phase-zero SYN-data/send profiles на Discord Cloudflare edge IPs и оставляет YouTube fallback отдельно.",
-  "philosophy": "windows-inspired-phase-zero-owner-experiment",
   "intendedFor": [
     "ручная проверка Discord Linux newUpdater, когда endpoint discovery показывает SYN-SENT до TLS",
     "ситуация, где v1 community-discord-youtube-edge-flow оживляет YouTube, но Discord остаётся на Checking for updates",
     "owner-selects во вкладке Стратегии; не включается автоматически"
   ],
-  "workflow": [
-    "inspect",
-    "owner-selects",
-    "plan",
-    "owner-confirms",
-    "execute-later",
-    "owner-observes-discord-syn-sent"
-  ],
-  "capabilities": {
-    "readsProfiles": true,
-    "readsHostlists": true,
-    "usesLocalBuildPlan": true,
-    "executesAutomatically": false,
-    "requiresSudoAtStage7": false,
-    "mutatesServicesOrFirewallAtStage7": false
-  },
   "notes": [
     "v1 community bridge confirmed the Linux runtime path can help YouTube, but not the Discord updater SYN-SENT path in the owner test.",
     "This v2 seed makes the Discord edge phase-zero branch explicit: payload=empty/send and syndata are placed before host-based TLS profiles.",
@@ -32,6 +20,8 @@
     "This remains an experiment. If SYN-SENT continues while this strategy is active, the next suspect is nft queue scope/priority or a technique not represented by nfqws2 on Linux.",
     "Stage 7m adds the community-observed TCP 5222 port to Discord hostfakesplit profiles; this is a diagnostic port hint, not a claim that it fixes the updater SYN-SENT blocker."
   ],
+  "philosophy": "windows-inspired-phase-zero-owner-experiment",
+  "presetPath": "presets/workspace/community-discord-syndata-edge-flow-v2.txt",
   "runtimeArgs": [
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
@@ -79,19 +69,30 @@
     "--payload=all",
     "--lua-desync=fake:repeats=6:blob=fake_default_quic"
   ],
+  "schemaVersion": 1,
   "serviceTarget": {
-    "presetId": "discord-desktop",
-    "title": "Discord desktop non-voice + YouTube fallback",
     "nonVoice": true,
-    "summary": "v2 community edge-flow seed for Discord updater SYN-SENT plus retained YouTube fallback."
+    "presetId": "discord-desktop",
+    "summary": "v2 community edge-flow seed for Discord updater SYN-SENT plus retained YouTube fallback.",
+    "title": "Discord desktop non-voice + YouTube fallback"
   },
   "sourcePreset": {
-    "id": "community-discord-youtube-edge-flow-v2-source",
-    "name": "Owner-provided community Windows preset extract with Linux phase-zero adjustments",
     "engine": "winws2/community",
-    "sourcePath": "strategies/imported/community-discord-youtube-edge-flow.txt",
+    "id": "community-discord-youtube-edge-flow-v2-source",
     "metadataPath": "strategies/imported/community-discord-youtube-edge-flow.json",
+    "name": "Owner-provided community Windows preset extract with Linux phase-zero adjustments",
     "portingLevel": "experimental-linux-phase-zero-bridge",
+    "sourcePath": "strategies/imported/community-discord-youtube-edge-flow.txt",
     "windowsOptionsExecuted": false
-  }
+  },
+  "summary": "Экспериментальная v2-попытка для Discord updater SYN-SENT: более близко к community Windows preset добавляет phase-zero SYN-data/send profiles на Discord Cloudflare edge IPs и оставляет YouTube fallback отдельно.",
+  "title": "Community Discord SYN-data edge-flow v2",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-discord-syn-sent"
+  ]
 }

@@ -1,36 +1,53 @@
 {
-  "schemaVersion": 1,
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": true,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
+  "diagnosticHints": {
+    "hostlistMustInclude": [
+      "discordapp.com",
+      "www.discordapp.com"
+    ],
+    "matrixVariant": "send-only",
+    "observedDiscordHost": "discordapp.com",
+    "observedDiscordUrl": "https://discordapp.com/app",
+    "ownerObservedV2bResult": [
+      "v2b runtime args correctly included discordapp.com/www.discordapp.com",
+      "curl to discordapp.com via 162.159.130.233 still timed out after TLS ClientHello",
+      "Flatpak Discord reached launching/main-window attempts, then ERR_TIMED_OUT on https://discordapp.com/app"
+    ],
+    "phaseLadder": [
+      "SYN-SENT",
+      "ESTAB",
+      "TLS ClientHello",
+      "TLS ServerHello",
+      "HTTP/"
+    ],
+    "recommendedManualChecks": [
+      "flatpak kill com.discordapp.Discord; pgrep -a 'Discord|com.discordapp|zypak|bwrap'",
+      "grep -nE 'discordapp\\.com|www\\.discordapp\\.com|hostlist-domains' .zap2/runtime/sessions/default.nfqws2.args",
+      "curl -4vk --connect-timeout 8 --max-time 20 --resolve discordapp.com:443:162.159.130.233 https://discordapp.com/app -o /dev/null",
+      "watch -n 0.2 \"ss -tanp | grep -E '162\\.159\\.130\\.233:443|SYN-SENT|ESTAB'\""
+    ]
+  },
   "id": "community-discord-syndata-edge-flow-v2c-send-only",
-  "title": "Community Discord SYN-data edge-flow v2c send-only",
-  "summary": "Stage 7w matrix branch: keeps v2b early empty-payload send profile but removes the edge syndata/rndsni phase to test whether SYN-data is what stalls TLS ServerHello.",
-  "philosophy": "windows-inspired-phase-zero-matrix-send-only",
   "intendedFor": [
     "ручная проверка Discord Linux/Flatpak после v2b: update-check проходит, main webapp грузит https://discordapp.com/app, но curl/Discord зависают после TLS ClientHello",
     "сравнение phase-zero вариантов без автоматического включения; владелец выбирает один вариант во вкладке Стратегии",
     "YouTube fallback сохранён только как контроль текущей рабочей ветки; голос Discord/UDP не входит в цель Stage 7w"
   ],
-  "workflow": [
-    "inspect",
-    "owner-selects",
-    "plan",
-    "owner-confirms",
-    "execute-later",
-    "owner-observes-discord-v2c-send-only"
-  ],
-  "capabilities": {
-    "readsProfiles": true,
-    "readsHostlists": true,
-    "usesLocalBuildPlan": true,
-    "executesAutomatically": false,
-    "requiresSudoAtStage7": false,
-    "mutatesServicesOrFirewallAtStage7": false
-  },
   "notes": [
     "v2b correctly included discordapp.com but still timed out after TLS ClientHello; this branch isolates the earliest send profile.",
     "The Discord edge IP branch keeps payload=empty + send:tcp_md5, but the second edge syndata/rndsni branch is intentionally absent.",
     "If this reaches ServerHello/HTTP while v2b does not, the suspect becomes the edge syndata/rndsni phase.",
     "YouTube fallback is retained for continuity; this strategy remains owner-selected and plan-only."
   ],
+  "philosophy": "windows-inspired-phase-zero-matrix-send-only",
+  "presetPath": "presets/workspace/community-discord-syndata-edge-flow-v2c-send-only.txt",
   "runtimeArgs": [
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
@@ -73,46 +90,30 @@
     "--payload=all",
     "--lua-desync=fake:repeats=6:blob=fake_default_quic"
   ],
+  "schemaVersion": 1,
   "serviceTarget": {
-    "presetId": "discord-desktop",
-    "title": "Discord desktop non-voice + YouTube fallback",
     "nonVoice": true,
-    "summary": "Stage 7w matrix branch: keeps v2b early empty-payload send profile but removes the edge syndata/rndsni phase to test whether SYN-data is what stalls TLS ServerHello."
+    "presetId": "discord-desktop",
+    "summary": "Stage 7w matrix branch: keeps v2b early empty-payload send profile but removes the edge syndata/rndsni phase to test whether SYN-data is what stalls TLS ServerHello.",
+    "title": "Discord desktop non-voice + YouTube fallback"
   },
   "sourcePreset": {
-    "id": "community-discord-syndata-edge-flow-v2b-source",
-    "name": "Owner-provided community Windows preset extract with Linux phase-zero adjustments",
     "engine": "winws2/community",
-    "sourcePath": "strategies/imported/community-discord-youtube-edge-flow.txt",
+    "id": "community-discord-syndata-edge-flow-v2b-source",
     "metadataPath": "strategies/imported/community-discord-youtube-edge-flow.json",
+    "name": "Owner-provided community Windows preset extract with Linux phase-zero adjustments",
     "portingLevel": "experimental-linux-phase-zero-v2c-matrix",
+    "sourcePath": "strategies/imported/community-discord-youtube-edge-flow.txt",
     "windowsOptionsExecuted": false
   },
-  "diagnosticHints": {
-    "observedDiscordUrl": "https://discordapp.com/app",
-    "observedDiscordHost": "discordapp.com",
-    "hostlistMustInclude": [
-      "discordapp.com",
-      "www.discordapp.com"
-    ],
-    "phaseLadder": [
-      "SYN-SENT",
-      "ESTAB",
-      "TLS ClientHello",
-      "TLS ServerHello",
-      "HTTP/"
-    ],
-    "matrixVariant": "send-only",
-    "ownerObservedV2bResult": [
-      "v2b runtime args correctly included discordapp.com/www.discordapp.com",
-      "curl to discordapp.com via 162.159.130.233 still timed out after TLS ClientHello",
-      "Flatpak Discord reached launching/main-window attempts, then ERR_TIMED_OUT on https://discordapp.com/app"
-    ],
-    "recommendedManualChecks": [
-      "flatpak kill com.discordapp.Discord; pgrep -a 'Discord|com.discordapp|zypak|bwrap'",
-      "grep -nE 'discordapp\\.com|www\\.discordapp\\.com|hostlist-domains' .zap2/runtime/sessions/default.nfqws2.args",
-      "curl -4vk --connect-timeout 8 --max-time 20 --resolve discordapp.com:443:162.159.130.233 https://discordapp.com/app -o /dev/null",
-      "watch -n 0.2 \"ss -tanp | grep -E '162\\.159\\.130\\.233:443|SYN-SENT|ESTAB'\""
-    ]
-  }
+  "summary": "Stage 7w matrix branch: keeps v2b early empty-payload send profile but removes the edge syndata/rndsni phase to test whether SYN-data is what stalls TLS ServerHello.",
+  "title": "Community Discord SYN-data edge-flow v2c send-only",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-discord-v2c-send-only"
+  ]
 }

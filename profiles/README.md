@@ -1,35 +1,33 @@
-# Workspace-профили
+# Контексты запуска workspace
 
-`profiles/` хранит пользовательские и проектные профили рабочего пространства. Профиль отвечает на вопрос: **с каким локальным набором данных и какой стратегией владелец сейчас работает**.
+`profiles/` — историческое имя каталога. Файлы здесь не являются profile-блоками
+Zapret2. Они описывают локальный контекст запуска: build target, owner-maintained
+hostlists, safety boundary и выбранный preset id в совместимом поле
+`strategyId`.
 
-На Stage 7 профиль является read-only данными для GUI/CLI:
-
-- он не запускает `make`;
-- не вызывает `sudo`;
-- не управляет `systemd`, firewall, `nftables` или `iptables`;
-- не меняет hostlists автоматически;
-- только связывает выбранную стратегию, build target и локальные файлы данных.
-
-Формат намеренно простой JSON, чтобы владелец мог редактировать его вручную и видеть, что именно будет читать будущий GUI.
-
-## v0.4-alpha Stage 4: Discord hostlist alignment
-
-`profiles/hostlists/default.hosts` теперь является общим owner-maintained seed
-для двух фиксированных service target preset-ов: `youtube-basic` и
-`discord-desktop`. Это не включает скрытый runtime-switch и не гарантирует
-одновременную работу сервисов, но устраняет практический разрыв: Discord targets,
-проверенные через Blockcheck Lab, присутствуют в hostlist, который Default
-workflow передаёт локальному `nfqws2`.
-
-Минимальные Discord entries, добавленные на этой стадии:
+Точный смысл структуры:
 
 ```text
-gateway.discord.gg
-cdn.discordapp.com
-media.discordapp.net
+workspace runtime context -> выбранный preset -> ordered traffic profiles
 ```
 
+Настоящие исполнимые пресеты лежат в `presets/`, а один traffic-профиль является
+блоком между `--new` внутри `.txt`.
 
-## v0.4-alpha Stage 7
+Контекст запуска сам по себе:
 
-Default hostlist теперь также покрывает `stable.dl2.discordapp.net`, потому что первая проверка desktop Discord зависла на updater-фазе `Checking for updates`. Этот target нужен для evidence-driven проверки updater/download layer и не включает voice/UDP.
+- не запускает `make`;
+- не вызывает `sudo`;
+- не управляет `systemd`, `nftables` или firewall;
+- не меняет hostlists автоматически;
+- только даёт данные существующему plan/confirmation/runtime workflow.
+
+Старые имена `WorkspaceProfile`, `--list-profiles` и `profileId` сохраняются до
+отдельной миграции runtime state.
+
+## Default hostlist
+
+`profiles/hostlists/default.hosts` остаётся owner-maintained seed для YouTube и
+Discord desktop non-voice. Наличие домена в hostlist не гарантирует, что один и
+тот же traffic-профиль подходит каждому сервису. Для этого пресет должен иметь
+отдельные профильные фильтры и стратегии в правильном порядке.

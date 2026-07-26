@@ -63,6 +63,7 @@ def test_workspace_catalog_loads_profiles_and_strategies() -> None:
         "reference-zapret2-generic-tls-fake",
         "reference-linux-general-multisplit-like",
         "reference-flowseal-simple-fake-like",
+        "windows-all-tcp-udp-v3-2-linux-bridge",
     }
 
     default_profile = catalog.profile_by_id()["default"]
@@ -111,8 +112,9 @@ def test_workspace_profile_rejects_unknown_profile_or_strategy() -> None:
 def test_navigation_marks_strategies_as_profiles_backed() -> None:
     sections = {section.key: section for section in default_navigation_sections()}
 
-    assert sections["strategies"].ready_state == "profiles-backed"
-    assert "Workspace-профили" in sections["strategies"].purpose
+    assert sections["strategies"].ready_state == "preset-profiles-backed"
+    assert sections["strategies"].title == "Пресеты"
+    assert "traffic-профилей" in sections["strategies"].purpose
 
 
 def test_gui_shell_state_exposes_workspace_catalog() -> None:
@@ -128,7 +130,7 @@ def test_entrypoint_can_print_profiles_and_strategies_without_execution() -> Non
     assert main(["--show-profile", "default"]) == 0
     assert main(["--list-strategies"]) == 0
     assert main(["--show-strategy", "manual-local"]) == 0
-    assert "workspace profiles: 1; strategies: 14" in describe_project()
+    assert "workspace contexts: 1; presets: 15; traffic profiles: 61" in describe_project()
 
 
 
@@ -153,9 +155,12 @@ def test_strategy_selection_overrides_default_profile_for_next_plans(tmp_path: P
     assert "read-only-diagnostics" in plan.plan_id
 
 
-def test_strategies_widget_is_a_real_selector_not_placeholder() -> None:
-    source = (ROOT / "gui" / "zap2_gui" / "widgets" / "strategies.py").read_text(encoding="utf-8")
+def test_strategies_widget_is_a_compatibility_alias_for_preset_catalog() -> None:
+    legacy = (ROOT / "gui" / "zap2_gui" / "widgets" / "strategies.py").read_text(encoding="utf-8")
+    source = (ROOT / "gui" / "zap2_gui" / "widgets" / "presets.py").read_text(encoding="utf-8")
 
+    assert "make_presets_page" in legacy
     assert "QListWidget" in source
-    assert "Выбрать для Default" in source
-    assert "select_workspace_strategy" in source
+    assert "QTableWidget" in source
+    assert "Выбрать пресет" in source
+    assert "select_preset" in source

@@ -21,6 +21,7 @@
     "Stage 7m adds the community-observed TCP 5222 port to Discord hostfakesplit profiles; this is a diagnostic port hint, not a claim that it fixes the updater SYN-SENT blocker."
   ],
   "philosophy": "windows-inspired-owner-experiment",
+  "presetPath": "presets/workspace/community-discord-youtube-edge-flow.txt",
   "runtimeArgs": [
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",

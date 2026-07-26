@@ -1,50 +1,15 @@
 {
-  "schemaVersion": 1,
-  "id": "community-discord-pretls-diagnostic-pktdebug",
-  "title": "Discord pre-TLS diagnostic pktdebug",
-  "summary": "Readiness/observability seed for the Discord Linux updater SYN-SENT problem: queues Discord edge TCP 443/5222 through an explicit capturePolicy and uses pktdebug to prove whether nfqws2 sees early-flow packets before tuning bypass tricks.",
-  "philosophy": "diagnostic-first-pretls-observability",
-  "intendedFor": [
-    "Stage 7n owner-selected diagnostic before importing more Windows community presets",
-    "prove nft counter / NFQUEUE / nfqws2 visibility for Discord updater SYN/early-flow packets",
-    "not expected to fix Discord by itself; use it to collapse the hypothesis space"
-  ],
-  "workflow": [
-    "inspect",
-    "owner-selects",
-    "plan",
-    "owner-confirms",
-    "execute-later",
-    "owner-observes-counters-debug-and-socket-state"
-  ],
   "capabilities": {
-    "readsProfiles": true,
-    "readsHostlists": true,
-    "usesLocalBuildPlan": true,
     "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": true,
+    "readsProfiles": true,
     "requiresSudoAtStage7": false,
-    "mutatesServicesOrFirewallAtStage7": false
+    "usesLocalBuildPlan": true
   },
-  "notes": [
-    "This is a diagnostic strategy, not a bypass promise. Its success criterion is observability: nft counters move and nfqws2 debug shows pktdebug for the Discord edge flow.",
-    "Run the runtime with ZAP2_RUNTIME_DEBUG=1 when testing this seed so nfqws2 writes the debug log path shown by --runtime-logs.",
-    "The capturePolicy is explicit because hostlist/SNI classification is too late for a SYN-SENT updater blocker.",
-    "If tcpdump sees Discord SYN while nft counters stay at zero, fix nft scope before tuning lua-desync options."
-  ],
-  "runtimeArgs": [
-    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
-    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
-    "--ctrack-disable=0",
-    "--filter-tcp=443,5222",
-    "--ipset-ip=162.159.128.233,162.159.135.232,162.159.136.232,162.159.137.232,162.159.138.232,162.159.129.233,162.159.130.233,162.159.133.233,162.159.134.233,162.159.135.233,162.159.130.234,162.159.133.234,162.159.134.234,162.159.135.234,162.159.136.234",
-    "--payload=empty",
-    "--out-range=<s1",
-    "--lua-desync=pktdebug"
-  ],
   "capturePolicy": {
-    "kind": "desktop-early-flow-v1",
-    "tcpOutPorts": ["443", "5222"],
-    "udpOutPorts": [],
+    "defaultEnabled": false,
+    "dns53ForIpcache": "diagnostic-only",
     "edgeIps": [
       "162.159.128.233",
       "162.159.135.232",
@@ -62,25 +27,64 @@
       "162.159.135.234",
       "162.159.136.234"
     ],
+    "kind": "desktop-early-flow-v1",
     "ownerUidScoped": true,
-    "queueOriginalPackets": "1-8",
-    "queueInputSynAck": true,
     "queueInputFinRst": true,
-    "dns53ForIpcache": "diagnostic-only",
-    "defaultEnabled": false
+    "queueInputSynAck": true,
+    "queueOriginalPackets": "1-8",
+    "tcpOutPorts": [
+      "443",
+      "5222"
+    ],
+    "udpOutPorts": []
   },
+  "id": "community-discord-pretls-diagnostic-pktdebug",
+  "intendedFor": [
+    "Stage 7n owner-selected diagnostic before importing more Windows community presets",
+    "prove nft counter / NFQUEUE / nfqws2 visibility for Discord updater SYN/early-flow packets",
+    "not expected to fix Discord by itself; use it to collapse the hypothesis space"
+  ],
+  "notes": [
+    "This is a diagnostic strategy, not a bypass promise. Its success criterion is observability: nft counters move and nfqws2 debug shows pktdebug for the Discord edge flow.",
+    "Run the runtime with ZAP2_RUNTIME_DEBUG=1 when testing this seed so nfqws2 writes the debug log path shown by --runtime-logs.",
+    "The capturePolicy is explicit because hostlist/SNI classification is too late for a SYN-SENT updater blocker.",
+    "If tcpdump sees Discord SYN while nft counters stay at zero, fix nft scope before tuning lua-desync options."
+  ],
+  "philosophy": "diagnostic-first-pretls-observability",
+  "presetPath": "presets/workspace/community-discord-pretls-diagnostic-pktdebug.txt",
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--ctrack-disable=0",
+    "--filter-tcp=443,5222",
+    "--ipset-ip=162.159.128.233,162.159.135.232,162.159.136.232,162.159.137.232,162.159.138.232,162.159.129.233,162.159.130.233,162.159.133.233,162.159.134.233,162.159.135.233,162.159.130.234,162.159.133.234,162.159.134.234,162.159.135.234,162.159.136.234",
+    "--payload=empty",
+    "--out-range=<s1",
+    "--lua-desync=pktdebug"
+  ],
+  "schemaVersion": 1,
   "serviceTarget": {
-    "presetId": "discord-desktop",
-    "title": "Discord desktop non-voice",
     "nonVoice": true,
-    "summary": "Pre-TLS observability seed for Discord updater/app/gateway/CDN Cloudflare edge IPs."
+    "presetId": "discord-desktop",
+    "summary": "Pre-TLS observability seed for Discord updater/app/gateway/CDN Cloudflare edge IPs.",
+    "title": "Discord desktop non-voice"
   },
   "sourcePreset": {
+    "engine": "zapret2/nfqws2-linux",
     "id": "stage7n-ra-methodology",
     "name": "RA pre-TLS methodology diagnostic seed",
-    "engine": "zapret2/nfqws2-linux",
-    "sourcePath": "docs/DISCORD_LINUX_PRETLS_METHODOLOGY.md",
     "portingLevel": "diagnostic-first-capture-policy",
+    "sourcePath": "docs/DISCORD_LINUX_PRETLS_METHODOLOGY.md",
     "windowsOptionsExecuted": false
-  }
+  },
+  "summary": "Readiness/observability seed for the Discord Linux updater SYN-SENT problem: queues Discord edge TCP 443/5222 through an explicit capturePolicy and uses pktdebug to prove whether nfqws2 sees early-flow packets before tuning bypass tricks.",
+  "title": "Discord pre-TLS diagnostic pktdebug",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-counters-debug-and-socket-state"
+  ]
 }

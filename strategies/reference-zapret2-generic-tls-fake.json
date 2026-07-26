@@ -39,6 +39,7 @@
     "packetWindowHint records the external 20/10 lesson but current runtime still enforces its existing nft ct original packet range; Stage 7o1 does not silently change packet-window semantics."
   ],
   "philosophy": "external-reference-first-data-candidate",
+  "presetPath": "presets/workspace/reference-zapret2-generic-tls-fake.txt",
   "runtimeArgs": [
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",

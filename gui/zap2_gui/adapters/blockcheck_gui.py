@@ -1936,6 +1936,7 @@ def _strategy_payload(
     index: int,
     generated_at: str,
     coverage_rows: tuple[dict[str, object], ...] = (),
+    preset_path: str = "",
 ) -> dict[str, object]:
     try:
         source_path = _catalog_relative(source_log, root)
@@ -1966,6 +1967,7 @@ def _strategy_payload(
             "mutatesServicesOrFirewallAtStage7": False,
         },
         "runtimeArgs": list(available.runtime_args),
+        "presetPath": preset_path,
         "serviceTarget": {
             "presetId": service_target_preset_id,
             "title": service_title,
@@ -2019,6 +2021,7 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
     source_log = source_logs[0]
     catalog_path = layout.root / "strategies" / "catalog.json"
     generated_dir = layout.root / "strategies" / "generated"
+    generated_preset_dir = layout.root / "presets" / "generated"
     for item in source_logs:
         if not item.is_file():
             raise ValueError(f"Успешный blockcheck log для экспорта не найден: {item}")
@@ -2050,6 +2053,7 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
         )
 
     generated_dir.mkdir(parents=True, exist_ok=True)
+    generated_preset_dir.mkdir(parents=True, exist_ok=True)
     generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     files: list[GeneratedStrategyFile] = []
     for index, (log_path, domains, service_target_preset_id, item) in enumerate(gathered, 1):
@@ -2061,6 +2065,8 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
         strategy_id = f"blockcheck-{export_label}-{candidate_label}-{stamp}-{index:02d}"
         filename = f"{strategy_id}.json"
         path = generated_dir / filename
+        preset_path = generated_preset_dir / f"{strategy_id}.txt"
+        preset_rel = _catalog_relative(preset_path, layout.root)
         coverage_rows = _coverage_rows_for_strategy(layout.root, service_target_preset_id, item.target or domains[0])
         target_status = _coverage_status_for_target(layout.root, service_target_preset_id, item.target or domains[0])
         coverage_summary = ", ".join(
@@ -2084,8 +2090,16 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
             index=index,
             generated_at=generated_at,
             coverage_rows=coverage_rows,
+            preset_path=preset_rel,
         )
         payload.setdefault("notes", []).append(f"Coverage snapshot: {coverage_summary}")
+        preset_lines = [
+            "# z2guiflin generated Zapret2 preset",
+            f"# id: {strategy_id}",
+            f"# source: {log_path}",
+            *item.runtime_args,
+        ]
+        preset_path.write_text("\n".join(preset_lines).rstrip() + "\n", encoding="utf-8")
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         files.append(
             GeneratedStrategyFile(

@@ -1,0 +1,4 @@
+# z2guiflin Zapret2 preset
+# id: read-only-diagnostics
+# title: Read-only диагностика
+# Порядок profile-блоков важен: nfqws2 выбирает первое совпадение.

@@ -1,4 +1,8 @@
-"""Модели workspace-профиля владельца."""
+"""Модели контекста запуска владельца.
+
+Историческое имя WorkspaceProfile сохранено как alias. Оно не означает профиль
+Zapret2: настоящий traffic-профиль является блоком внутри пресета.
+"""
 
 from __future__ import annotations
 
@@ -25,8 +29,8 @@ class WorkspaceSafety:
 
 
 @dataclass(frozen=True)
-class WorkspaceProfile:
-    """Профиль связывает стратегию, build target и локальные данные."""
+class WorkspaceRuntimeContext:
+    """Контекст запуска связывает выбранный пресет, build target и локальные данные."""
 
     schema_version: int
     profile_id: str
@@ -46,3 +50,7 @@ class WorkspaceProfile:
             and not self.safety.may_use_sudo
             and not self.safety.may_mutate_services_or_firewall
         )
+
+
+# Совместимость со старыми импортами до завершения миграции терминов.
+WorkspaceProfile = WorkspaceRuntimeContext

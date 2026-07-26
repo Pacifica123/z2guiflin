@@ -59,3 +59,22 @@ reference-flowseal-simple-fake-like
 ```
 
 These are not final Discord fixes and they do not change the default strategy. They are owner-selectable candidates for the Stage 7o2 observation matrix, intended to test whether broader first-data/TLS profiles from working Linux/Windows references move the Discord updater beyond the observed ESTAB + spinner state. UDP/voice remains deferred.
+
+## Переход к пресетам и traffic-профилям
+
+Начиная с архитектурного этапа `preset-profile-catalog`, каталог
+`strategies/*.json` больше не считается исполнимой сущностью. Это metadata-слой
+для пресета: источник, назначение, service target, диагностические заметки и
+safety contract.
+
+Исполнимый набор параметров хранится в `presets/**/*.txt` и указан через
+`presetPath`. Старое поле `runtimeArgs` временно остаётся контрольной копией.
+Загрузчик отклоняет запись, если `.txt` и `runtimeArgs` расходятся.
+
+GUI и новые CLI-команды используют формулу:
+
+```text
+preset -> ordered profiles -> filter / strategy / range / direction
+```
+
+Подробная схема: `docs/PRESET_PROFILE_ARCHITECTURE.md`.

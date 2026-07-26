@@ -44,6 +44,7 @@
     "If it moves Discord, Stage 7o2/7o3 must still prove which branch mattered before promotion."
   ],
   "philosophy": "external-reference-flowseal-tcp-candidate",
+  "presetPath": "presets/workspace/reference-flowseal-simple-fake-like.txt",
   "runtimeArgs": [
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",

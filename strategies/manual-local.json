@@ -20,6 +20,7 @@
     "Runtime lifecycle остаётся owner-confirmed: GUI/CLI не применяют start/stop без planHash confirmation."
   ],
   "philosophy": "toolbox/apothecary",
+  "presetPath": "presets/workspace/manual-local.txt",
   "runtimeArgs": [
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",

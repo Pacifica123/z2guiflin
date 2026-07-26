@@ -25,7 +25,7 @@ def test_navigation_sections_are_fixed_for_stage_5() -> None:
     assert [section.title for section in sections] == [
         "Обзор",
         "Ядро",
-        "Стратегии",
+        "Пресеты",
         "Диагностика",
         "Туннель",
         "Настройки",
@@ -78,7 +78,7 @@ def test_main_window_default_size_is_blockcheck_friendly() -> None:
 def test_stage8a_tunnel_gui_has_route_controls() -> None:
     source = (ROOT / "gui" / "zap2_gui" / "widgets" / "tunnel.py").read_text(encoding="utf-8")
 
-    assert "Маршрут через SOCKS" in source
+    assert "Discord через SOCKS" in source
     assert "discordSocksCommand" in source
     assert "flatpak run com.discordapp.Discord" in source
     assert "discord_launch_through_socks_to_text" in source

@@ -1,36 +1,53 @@
 {
-  "schemaVersion": 1,
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": true,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
+  "diagnosticHints": {
+    "hostlistMustInclude": [
+      "discordapp.com",
+      "www.discordapp.com"
+    ],
+    "matrixVariant": "fixed-sni",
+    "observedDiscordHost": "discordapp.com",
+    "observedDiscordUrl": "https://discordapp.com/app",
+    "ownerObservedV2bResult": [
+      "v2b runtime args correctly included discordapp.com/www.discordapp.com",
+      "curl to discordapp.com via 162.159.130.233 still timed out after TLS ClientHello",
+      "Flatpak Discord reached launching/main-window attempts, then ERR_TIMED_OUT on https://discordapp.com/app"
+    ],
+    "phaseLadder": [
+      "SYN-SENT",
+      "ESTAB",
+      "TLS ClientHello",
+      "TLS ServerHello",
+      "HTTP/"
+    ],
+    "recommendedManualChecks": [
+      "flatpak kill com.discordapp.Discord; pgrep -a 'Discord|com.discordapp|zypak|bwrap'",
+      "grep -nE 'discordapp\\.com|www\\.discordapp\\.com|hostlist-domains' .zap2/runtime/sessions/default.nfqws2.args",
+      "curl -4vk --connect-timeout 8 --max-time 20 --resolve discordapp.com:443:162.159.130.233 https://discordapp.com/app -o /dev/null",
+      "watch -n 0.2 \"ss -tanp | grep -E '162\\.159\\.130\\.233:443|SYN-SENT|ESTAB'\""
+    ]
+  },
   "id": "community-discord-syndata-edge-flow-v2c-fixed-sni",
-  "title": "Community Discord SYN-data edge-flow v2c fixed SNI",
-  "summary": "Stage 7w matrix branch: keeps v2b shape but replaces edge rndsni with fixed sni=google.com to test whether random SNI breaks the TLS response path.",
-  "philosophy": "windows-inspired-phase-zero-matrix-fixed-sni",
   "intendedFor": [
     "ручная проверка Discord Linux/Flatpak после v2b: update-check проходит, main webapp грузит https://discordapp.com/app, но curl/Discord зависают после TLS ClientHello",
     "сравнение phase-zero вариантов без автоматического включения; владелец выбирает один вариант во вкладке Стратегии",
     "YouTube fallback сохранён только как контроль текущей рабочей ветки; голос Discord/UDP не входит в цель Stage 7w"
   ],
-  "workflow": [
-    "inspect",
-    "owner-selects",
-    "plan",
-    "owner-confirms",
-    "execute-later",
-    "owner-observes-discord-v2c-fixed-sni"
-  ],
-  "capabilities": {
-    "readsProfiles": true,
-    "readsHostlists": true,
-    "usesLocalBuildPlan": true,
-    "executesAutomatically": false,
-    "requiresSudoAtStage7": false,
-    "mutatesServicesOrFirewallAtStage7": false
-  },
   "notes": [
     "v2b used tls_mod=rnd,dupsid,rndsni on the Discord edge IP branch; owner tests still stopped after ClientHello.",
     "This branch keeps the explicit edge syndata phase but uses deterministic sni=google.com instead of rndsni.",
     "If this variant moves from ClientHello timeout to ServerHello/HTTP, rndsni was likely the wrong Linux bridge choice.",
     "No automatic execution is introduced; nftables still decides which packets enter NFQUEUE."
   ],
+  "philosophy": "windows-inspired-phase-zero-matrix-fixed-sni",
+  "presetPath": "presets/workspace/community-discord-syndata-edge-flow-v2c-fixed-sni.txt",
   "runtimeArgs": [
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
@@ -78,46 +95,30 @@
     "--payload=all",
     "--lua-desync=fake:repeats=6:blob=fake_default_quic"
   ],
+  "schemaVersion": 1,
   "serviceTarget": {
-    "presetId": "discord-desktop",
-    "title": "Discord desktop non-voice + YouTube fallback",
     "nonVoice": true,
-    "summary": "Stage 7w matrix branch: keeps v2b shape but replaces edge rndsni with fixed sni=google.com to test whether random SNI breaks the TLS response path."
+    "presetId": "discord-desktop",
+    "summary": "Stage 7w matrix branch: keeps v2b shape but replaces edge rndsni with fixed sni=google.com to test whether random SNI breaks the TLS response path.",
+    "title": "Discord desktop non-voice + YouTube fallback"
   },
   "sourcePreset": {
-    "id": "community-discord-syndata-edge-flow-v2b-source",
-    "name": "Owner-provided community Windows preset extract with Linux phase-zero adjustments",
     "engine": "winws2/community",
-    "sourcePath": "strategies/imported/community-discord-youtube-edge-flow.txt",
+    "id": "community-discord-syndata-edge-flow-v2b-source",
     "metadataPath": "strategies/imported/community-discord-youtube-edge-flow.json",
+    "name": "Owner-provided community Windows preset extract with Linux phase-zero adjustments",
     "portingLevel": "experimental-linux-phase-zero-v2c-matrix",
+    "sourcePath": "strategies/imported/community-discord-youtube-edge-flow.txt",
     "windowsOptionsExecuted": false
   },
-  "diagnosticHints": {
-    "observedDiscordUrl": "https://discordapp.com/app",
-    "observedDiscordHost": "discordapp.com",
-    "hostlistMustInclude": [
-      "discordapp.com",
-      "www.discordapp.com"
-    ],
-    "phaseLadder": [
-      "SYN-SENT",
-      "ESTAB",
-      "TLS ClientHello",
-      "TLS ServerHello",
-      "HTTP/"
-    ],
-    "matrixVariant": "fixed-sni",
-    "ownerObservedV2bResult": [
-      "v2b runtime args correctly included discordapp.com/www.discordapp.com",
-      "curl to discordapp.com via 162.159.130.233 still timed out after TLS ClientHello",
-      "Flatpak Discord reached launching/main-window attempts, then ERR_TIMED_OUT on https://discordapp.com/app"
-    ],
-    "recommendedManualChecks": [
-      "flatpak kill com.discordapp.Discord; pgrep -a 'Discord|com.discordapp|zypak|bwrap'",
-      "grep -nE 'discordapp\\.com|www\\.discordapp\\.com|hostlist-domains' .zap2/runtime/sessions/default.nfqws2.args",
-      "curl -4vk --connect-timeout 8 --max-time 20 --resolve discordapp.com:443:162.159.130.233 https://discordapp.com/app -o /dev/null",
-      "watch -n 0.2 \"ss -tanp | grep -E '162\\.159\\.130\\.233:443|SYN-SENT|ESTAB'\""
-    ]
-  }
+  "summary": "Stage 7w matrix branch: keeps v2b shape but replaces edge rndsni with fixed sni=google.com to test whether random SNI breaks the TLS response path.",
+  "title": "Community Discord SYN-data edge-flow v2c fixed SNI",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-discord-v2c-fixed-sni"
+  ]
 }

@@ -144,6 +144,13 @@ from .adapters.discord_tunnel import (
     tunnel_connection_import_vless_to_text,
     tunnel_connections_to_text,
 )
+from .adapters.presets import (
+    load_preset_catalog,
+    preset_catalog_to_text,
+    preset_profile_to_text,
+    preset_to_text,
+    select_preset,
+)
 from .adapters.workspace_profiles import (
     workspace_profile_to_text,
     workspace_profiles_to_text,
@@ -177,6 +184,7 @@ def describe_project() -> str:
     pyqt_state = "available" if is_pyqt_available() else "not installed"
     build_plan = create_local_build_plan(layout.root)
     workspace_catalog = load_workspace_catalog(layout.root)
+    preset_catalog = load_preset_catalog(layout.root)
     runtime_contract_issues = validate_runtime_contract_catalog(layout.root)
     runtime_contract_status = "OK" if not any(issue.severity == "error" for issue in runtime_contract_issues) else "FAILED"
     runtime_state_summary = runtime_state_to_text(layout.root).splitlines()[-2]
@@ -188,7 +196,7 @@ def describe_project() -> str:
             f"inventory: {snapshot.vendor_file_count} core files ({snapshot.project_local_core_file_count} project-local)",
             f"build units: {units}",
             f"local build adapter: plan-only ({len(build_plan.expected_artifacts)} expected artifacts)",
-            f"workspace profiles: {len(workspace_catalog.profiles)}; strategies: {len(workspace_catalog.strategies)}",
+            f"workspace contexts: {len(workspace_catalog.profiles)}; presets: {len(preset_catalog.entries)}; traffic profiles: {preset_catalog.profile_count}",
             f"runtime lifecycle contracts: {runtime_contract_status}",
             f"runtime session runner: Stage 11 ({runtime_state_summary})",
             "runtime apply/revert: Stage 12 owner-confirmed nftables plans",
@@ -239,7 +247,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--profile",
         default="default",
-        help="workspace-профиль для --runtime-plan; по умолчанию default",
+        help="workspace context для runtime-команд; по умолчанию default",
     )
 
     parser.add_argument(
@@ -843,9 +851,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--list-presets",
+        action="store_true",
+        help="показать каталог пресетов и число profile-блоков без исполнения",
+    )
+    parser.add_argument(
+        "--show-preset",
+        metavar="PRESET_ID",
+        help="показать порядок profile-блоков одного пресета",
+    )
+    parser.add_argument(
+        "--show-preset-profile",
+        nargs=2,
+        metavar=("PRESET_ID", "PROFILE_ID_OR_NUMBER"),
+        help="показать filter/strategy/range/direction одного profile-блока",
+    )
+    parser.add_argument(
+        "--select-preset",
+        metavar="PRESET_ID",
+        help="выбрать пресет для Default workspace; только сохраняет .zap2 selection",
+    )
+    parser.add_argument(
         "--list-profiles",
         action="store_true",
-        help="показать workspace-профили без применения настроек",
+        help="legacy: показать workspace contexts без применения настроек",
     )
     parser.add_argument(
         "--show-profile",
@@ -1483,9 +1512,38 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 2
 
+    if args.select_preset:
+        try:
+            print(select_preset(args.select_preset, workspace_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
     if args.select_strategy:
         try:
             print(select_workspace_strategy(strategy_id=args.select_strategy, profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.list_presets:
+        print(preset_catalog_to_text())
+        return 0
+
+    if args.show_preset:
+        try:
+            print(preset_to_text(args.show_preset))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.show_preset_profile:
+        try:
+            preset_id, profile_id = args.show_preset_profile
+            print(preset_profile_to_text(preset_id, profile_id))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

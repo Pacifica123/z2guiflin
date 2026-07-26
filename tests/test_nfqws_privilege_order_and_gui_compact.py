@@ -19,12 +19,12 @@ def test_nfqws_opens_nfqueue_before_droproot() -> None:
 def test_runtime_overview_uses_compact_primary_button() -> None:
     widget = (ROOT / "gui" / "zap2_gui" / "widgets" / "runtime_controls.py").read_text(encoding="utf-8")
     assert "primaryRunButton" in widget
-    assert "▶" in widget
-    assert "■" in widget
+    assert 'misc_icon("toggle-start")' in widget
+    assert 'misc_icon("toggle-stop")' in widget
     assert "runtimeStatusIndicator" in widget
-    assert "Диагностика и ручные шаги" in widget
+    assert "Developer mode: ручные детали Default workflow" in widget
     assert "QGridLayout" in widget
-    assert "LineWrapMode.WidgetWidth" in widget
+    assert "setWordWrap(True)" in widget
 
 
 def test_main_window_default_width_is_blockcheck_friendly_but_bounded() -> None:

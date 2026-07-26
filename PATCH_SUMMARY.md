@@ -2,20 +2,26 @@
 
 ## Title
 
-Add specific Zapret readiness blocker for combined launch
+Ввести архитектуру «пресет → упорядоченные traffic-профили»
 
-## What changed
+## Что изменено
 
-- Launch Composer now checks selected supported components before starting anything.
-- If `zapret-default` is selected but `core/zapret2/nfq2/nfqws2` is missing or not executable, combined start is blocked before starting VLESS.
-- Added explicit readiness values for Zapret:
-  - `needs nfqws2 build`
-  - `nfqws2 not executable`
-  - `ready`
-- Added classifier code `Z2-ZAPRET-BINARY-MISSING`.
-- Updated launch error classifier documentation.
-- Added regression tests for the precheck and classifier priority.
+- Добавлена чистая модель `ZapretPreset`, `TrafficProfile`, `TrafficFilter` и
+  `PresetAction`.
+- Все существующие runtime args вынесены в канонические
+  `presets/workspace/*.txt` без изменения порядка или значений.
+- Strategy JSON теперь содержит `presetPath` и остаётся metadata-слоем.
+- Загрузчик проверяет полное совпадение `.txt` и legacy `runtimeArgs`.
+- Blockcheck exporter создаёт одновременно generated JSON metadata и `.txt`
+  preset.
+- Вкладка `Стратегии` заменена каталогом `Пресеты` с таблицей profile order,
+  filter, strategy, range и direction.
+- Добавлены CLI `--list-presets`, `--show-preset`, `--show-preset-profile` и
+  `--select-preset`.
+- Старые strategy/profile имена оставлены как совместимые алиасы.
 
-## Why
+## Безопасность
 
-The previous behavior correctly reported `Z2-LAUNCH-PARTIAL`, but the real cause was more specific: Zapret did not start because `nfqws2` was missing. The GUI should show that cause directly and avoid starting only the VLESS half of a selected combined launch.
+Патч не меняет nftables, NFQUEUE, systemd, sudo-askpass и порядок runtime
+lifecycle. Round-trip тесты требуют, чтобы разобранный пресет собирался в точно
+тот же argv, который использовался до изменения архитектуры.
