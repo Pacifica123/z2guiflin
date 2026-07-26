@@ -9,8 +9,8 @@
 
 ```text
 presets/
-  workspace/   проверенные и импортированные пресеты проекта
-  generated/   пресеты, созданные из результатов Blockcheck
+  workspace/   проверенные, импортированные и owner-managed пресеты
+  generated/   пресеты, созданные из результатов Blockcheck exporter
 ```
 
 JSON в `strategies/` пока сохраняется как слой метаданных и совместимости:
@@ -26,3 +26,13 @@ GUI показывает структуру так:
 
 Применение пресета по-прежнему проходит через существующие plan, confirmation,
 sudo-askpass и runtime lifecycle. Само чтение каталога ничего не запускает.
+
+## Конструктор
+
+GUI может создавать новые owner-managed пресеты в `presets/workspace/`. Только
+такие пресеты разрешено менять из конструктора. Для каждого профиля задаются
+filter, target и strategy; порядок меняется кнопками `↑`/`↓`. Blockcheck может
+вставить найденную domain HTTP/TLS/QUIC strategy прямо в профиль. Discord
+Voice/STUN UDP требует отдельной диагностики.
+
+Подробно: `docs/PRESET_CONSTRUCTOR.md`.

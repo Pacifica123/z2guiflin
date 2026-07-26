@@ -78,3 +78,12 @@ preset -> ordered profiles -> filter / strategy / range / direction
 ```
 
 Подробная схема: `docs/PRESET_PROFILE_ARCHITECTURE.md`.
+
+## Owner-managed metadata
+
+Конструктор создаёт metadata-файлы в `strategies/workspace/`. Они помечаются
+`sourcePreset.editorManaged=true`, содержат `presetPath` и контрольную копию
+`runtimeArgs`. Исполнимым источником остаётся соответствующий файл
+`presets/workspace/*.txt`.
+
+Reference/community/generated metadata не редактируются конструктором.

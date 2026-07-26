@@ -1,10 +1,19 @@
-"""PyQt каталог: пресет -> упорядоченные traffic-профили -> детали."""
+"""PyQt каталог и конструктор: пресет -> ordered traffic profiles."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
+from ..adapters.preset_editor import (
+    add_owner_preset_profile,
+    create_owner_preset,
+    editable_profile_from_runtime,
+    is_preset_editor_managed,
+    move_owner_preset_profile,
+    remove_owner_preset_profile,
+    update_owner_preset_profile,
+)
 from ..adapters.presets import (
     load_preset_catalog,
     preset_catalog_to_text,
@@ -12,6 +21,7 @@ from ..adapters.presets import (
     traffic_profile_to_text,
 )
 from ..qt_compat import require_pyqt
+from .preset_constructor import edit_traffic_profile_dialog
 
 
 _PROFILE_COLUMNS = ("#", "Профиль", "Фильтр", "Стратегия", "Range", "Direction")
@@ -20,9 +30,10 @@ _PROFILE_COLUMNS = ("#", "Профиль", "Фильтр", "Стратегия",
 def _preset_item_text(entry: Any, selected_preset_id: str) -> str:
     preset = entry.preset
     marker = " ✓" if preset.preset_id == selected_preset_id else ""
+    managed = " · constructor" if bool((entry.metadata.source_preset or {}).get("editorManaged")) else ""
     return (
         f"{preset.title}{marker}\n"
-        f"профилей: {len(preset.profiles)} · действий: {preset.action_count}\n"
+        f"профилей: {len(preset.profiles)} · действий: {preset.action_count}{managed}\n"
         f"{preset.preset_id}"
     )
 
@@ -37,9 +48,9 @@ def make_presets_page(root: Path | None = None) -> Any:
     title = QtWidgets.QLabel("Пресеты")
     title.setObjectName("pageTitle")
     intro = QtWidgets.QLabel(
-        "Пресет — это полный набор параметров nfqws2. Внутри него профили идут сверху вниз: "
-        "при первом совпадении filter выбирается один профиль, а остальные уже не проверяются. "
-        "Выбор пресета только сохраняет локальное состояние; запуск остаётся за plan и confirmation."
+        "Пресет — это полный набор параметров nfqws2. Профили проверяются сверху вниз: "
+        "при первом совпадении filter выбирается один профиль. Конструктор меняет только файлы проекта; "
+        "запуск остаётся за plan и owner confirmation."
     )
     intro.setWordWrap(True)
 
@@ -47,9 +58,25 @@ def make_presets_page(root: Path | None = None) -> Any:
     status.setObjectName("mutedText")
 
     buttons = QtWidgets.QHBoxLayout()
+    new_preset_button = QtWidgets.QPushButton("+ Пресет")
+    new_profile_button = QtWidgets.QPushButton("+ Профиль")
+    edit_profile_button = QtWidgets.QPushButton("Изменить")
+    remove_profile_button = QtWidgets.QPushButton("Удалить")
+    move_up_button = QtWidgets.QPushButton("↑")
+    move_down_button = QtWidgets.QPushButton("↓")
     refresh_button = QtWidgets.QPushButton("Обновить")
     select_button = QtWidgets.QPushButton("Выбрать пресет")
     catalog_button = QtWidgets.QPushButton("Сводка")
+    for button in (
+        new_preset_button,
+        new_profile_button,
+        edit_profile_button,
+        remove_profile_button,
+        move_up_button,
+        move_down_button,
+    ):
+        buttons.addWidget(button)
+    buttons.addSpacing(12)
     buttons.addWidget(refresh_button)
     buttons.addWidget(select_button)
     buttons.addWidget(catalog_button)
@@ -62,7 +89,7 @@ def make_presets_page(root: Path | None = None) -> Any:
         outer_splitter.setOrientation(QtCore.Qt.Horizontal)
 
     preset_list = QtWidgets.QListWidget()
-    preset_list.setMinimumWidth(300)
+    preset_list.setMinimumWidth(320)
     preset_list.setAlternatingRowColors(True)
 
     right = QtWidgets.QWidget()
@@ -71,7 +98,8 @@ def make_presets_page(root: Path | None = None) -> Any:
     right_layout.setSpacing(8)
 
     priority = QtWidgets.QLabel(
-        "Порядок профилей — это приоритет. Строка выше выигрывает при пересечении фильтров."
+        "Порядок профилей — приоритет. Строка выше выигрывает при пересечении фильтров. "
+        "Reference/community пресеты доступны только для чтения; изменяются только presets с пометкой constructor."
     )
     priority.setWordWrap(True)
 
@@ -105,7 +133,7 @@ def make_presets_page(root: Path | None = None) -> Any:
     outer_splitter.setStretchFactor(0, 1)
     outer_splitter.setStretchFactor(1, 3)
 
-    state: dict[str, Any] = {"catalog": None, "entry": None}
+    state: dict[str, Any] = {"catalog": None, "entry": None, "managed": False}
 
     def _user_role() -> Any:
         try:
@@ -124,7 +152,29 @@ def make_presets_page(root: Path | None = None) -> Any:
         item = profile_table.item(row, 0)
         return "" if item is None else str(item.data(_user_role()))
 
-    def _fill_profiles() -> None:
+    def _set_constructor_enabled(managed: bool) -> None:
+        state["managed"] = managed
+        row = profile_table.currentRow()
+        has_profile = row >= 0
+        new_profile_button.setEnabled(managed)
+        edit_profile_button.setEnabled(managed and has_profile)
+        remove_profile_button.setEnabled(managed and has_profile)
+        move_up_button.setEnabled(managed and has_profile and row > 0)
+        move_down_button.setEnabled(managed and has_profile and row + 1 < profile_table.rowCount())
+
+    def _show_profile_details() -> None:
+        entry = state.get("entry")
+        if entry is None:
+            return
+        profile_id = _current_profile_id()
+        profiles = {profile.profile_id: profile for profile in entry.preset.profiles}
+        profile = profiles.get(profile_id)
+        if profile is None:
+            return
+        details.setPlainText(traffic_profile_to_text(entry.preset, profile))
+        _set_constructor_enabled(bool(state.get("managed")))
+
+    def _fill_profiles(select_row: int = 0) -> None:
         catalog = state.get("catalog")
         if catalog is None:
             return
@@ -132,9 +182,12 @@ def make_presets_page(root: Path | None = None) -> Any:
         entry = catalog.by_id().get(preset_id)
         state["entry"] = entry
         profile_table.setRowCount(0)
+        _set_constructor_enabled(False)
         if entry is None:
             details.setPlainText("Пресет не выбран")
             return
+
+        managed = is_preset_editor_managed(entry.preset.preset_id, root)
         for profile in entry.preset.profiles:
             row = profile_table.rowCount()
             profile_table.insertRow(row)
@@ -151,33 +204,26 @@ def make_presets_page(root: Path | None = None) -> Any:
                 if column == 0:
                     item.setData(_user_role(), profile.profile_id)
                 profile_table.setItem(row, column, item)
+
         if entry.preset.profiles:
-            profile_table.selectRow(0)
+            row = max(0, min(select_row, len(entry.preset.profiles) - 1))
+            profile_table.selectRow(row)
             _show_profile_details()
         else:
+            kind = "constructor preset" if managed else "read-only preset"
             details.setPlainText(
-                f"{entry.preset.title}\n\nTraffic-профилей нет. Пресет содержит только глобальные параметры "
-                "или является read-only сценарием."
+                f"{entry.preset.title}\n\nTraffic-профилей нет. Это {kind}. "
+                "Для constructor preset нажмите + Профиль."
             )
+        _set_constructor_enabled(managed)
 
-    def _show_profile_details() -> None:
-        entry = state.get("entry")
-        if entry is None:
-            return
-        profile_id = _current_profile_id()
-        profiles = {profile.profile_id: profile for profile in entry.preset.profiles}
-        profile = profiles.get(profile_id)
-        if profile is None:
-            return
-        details.setPlainText(traffic_profile_to_text(entry.preset, profile))
-
-    def refresh(selected_preset_id: str | None = None) -> None:
+    def refresh(selected_preset_id: str | None = None, select_row: int = 0) -> None:
         preset_list.clear()
         profile_table.setRowCount(0)
         try:
             catalog = load_preset_catalog(root)
             state["catalog"] = catalog
-            active = selected_preset_id or catalog.selected_preset_id
+            active = selected_preset_id or _current_preset_id() or catalog.selected_preset_id
             for entry in catalog.entries:
                 item = QtWidgets.QListWidgetItem(_preset_item_text(entry, catalog.selected_preset_id))
                 item.setData(_user_role(), entry.preset.preset_id)
@@ -187,10 +233,10 @@ def make_presets_page(root: Path | None = None) -> Any:
             if preset_list.count() and preset_list.currentItem() is None:
                 preset_list.setCurrentRow(0)
             status.setText(
-                f"Выбран: {catalog.selected_preset_id}; пресетов: {len(catalog.entries)}; "
-                f"профилей: {catalog.profile_count}"
+                f"Выбран runtime preset: {catalog.selected_preset_id}; каталог: {len(catalog.entries)}; "
+                f"traffic profiles: {catalog.profile_count}"
             )
-            _fill_profiles()
+            _fill_profiles(select_row)
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
             details.setPlainText(f"Preset catalog: ошибка\n{exc}")
             status.setText("Статус: ошибка чтения каталога")
@@ -204,7 +250,7 @@ def make_presets_page(root: Path | None = None) -> Any:
             page,
             "Выбор пресета",
             (
-                f"Выбрать пресет `{preset_id}` для Default workspace?\n\n"
+                f"Выбрать preset `{preset_id}` для Default workspace?\n\n"
                 "Это только сохранит selection в .zap2. Runtime и firewall сейчас не меняются. "
                 "После выбора нужно заново создать и подтвердить Default start-plan."
             ),
@@ -218,9 +264,95 @@ def make_presets_page(root: Path | None = None) -> Any:
         except Exception as exc:  # pragma: no cover
             details.setPlainText(f"Preset selection: ошибка\n{exc}")
 
+    def create_preset() -> None:
+        title_text, ok = QtWidgets.QInputDialog.getText(
+            page,
+            "Новый пресет",
+            "Название, например Universal Rostelecom YT+DS:",
+        )
+        if not ok:
+            return
+        try:
+            result = create_owner_preset(str(title_text), root=root)
+            details.setPlainText(result.to_text())
+            refresh(selected_preset_id=result.preset_id)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(page, "Пресет не создан", str(exc))
+
+    def add_profile() -> None:
+        preset_id = _current_preset_id()
+        if not preset_id or not state.get("managed"):
+            return
+        profile = edit_traffic_profile_dialog(page, root)
+        if profile is None:
+            return
+        try:
+            result = add_owner_preset_profile(preset_id, profile, root=root)
+            details.setPlainText(result.to_text())
+            refresh(selected_preset_id=preset_id, select_row=max(0, result.profile_count - 1))
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(page, "Профиль не добавлен", str(exc))
+
+    def edit_profile() -> None:
+        entry = state.get("entry")
+        row = profile_table.currentRow()
+        if entry is None or row < 0 or not state.get("managed"):
+            return
+        initial = editable_profile_from_runtime(entry.preset.profiles[row])
+        profile = edit_traffic_profile_dialog(page, root, initial)
+        if profile is None:
+            return
+        try:
+            result = update_owner_preset_profile(entry.preset.preset_id, row, profile, root=root)
+            details.setPlainText(result.to_text())
+            refresh(selected_preset_id=entry.preset.preset_id, select_row=row)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(page, "Профиль не изменён", str(exc))
+
+    def remove_profile() -> None:
+        entry = state.get("entry")
+        row = profile_table.currentRow()
+        if entry is None or row < 0 or not state.get("managed"):
+            return
+        profile = entry.preset.profiles[row]
+        question = QtWidgets.QMessageBox.question(
+            page,
+            "Удаление профиля",
+            f"Удалить профиль #{row + 1} `{profile.name}` из preset `{entry.preset.preset_id}`?",
+        )
+        if question != QtWidgets.QMessageBox.StandardButton.Yes:
+            return
+        try:
+            result = remove_owner_preset_profile(entry.preset.preset_id, row, root=root)
+            details.setPlainText(result.to_text())
+            refresh(selected_preset_id=entry.preset.preset_id, select_row=max(0, row - 1))
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(page, "Профиль не удалён", str(exc))
+
+    def move_profile(delta: int) -> None:
+        entry = state.get("entry")
+        row = profile_table.currentRow()
+        new_row = row + delta
+        if entry is None or row < 0 or not state.get("managed"):
+            return
+        if not 0 <= new_row < len(entry.preset.profiles):
+            return
+        try:
+            result = move_owner_preset_profile(entry.preset.preset_id, row, new_row, root=root)
+            details.setPlainText(result.to_text())
+            refresh(selected_preset_id=entry.preset.preset_id, select_row=new_row)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(page, "Порядок не изменён", str(exc))
+
     preset_list.currentItemChanged.connect(lambda _current, _previous: _fill_profiles())
     profile_table.itemSelectionChanged.connect(_show_profile_details)
-    refresh_button.clicked.connect(lambda _checked=False: refresh())
+    new_preset_button.clicked.connect(create_preset)
+    new_profile_button.clicked.connect(add_profile)
+    edit_profile_button.clicked.connect(edit_profile)
+    remove_profile_button.clicked.connect(remove_profile)
+    move_up_button.clicked.connect(lambda _checked=False: move_profile(-1))
+    move_down_button.clicked.connect(lambda _checked=False: move_profile(1))
+    refresh_button.clicked.connect(lambda _checked=False: refresh(selected_preset_id=_current_preset_id()))
     select_button.clicked.connect(lambda _checked=False: choose_preset())
     catalog_button.clicked.connect(lambda _checked=False: details.setPlainText(preset_catalog_to_text(root)))
 

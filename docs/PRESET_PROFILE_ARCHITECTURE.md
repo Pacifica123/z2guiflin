@@ -38,11 +38,11 @@
 profiles/default.json
     legacy workspace runtime context
 
-strategies/*.json
+strategies/*.json и strategies/workspace/*.json
     метаданные пресета: title, source, service target, safety, notes
 
 presets/workspace/*.txt
-    канонические исполнимые параметры nfqws2
+    канонические исполнимые параметры nfqws2, включая owner-managed пресеты
 
 presets/generated/*.txt
     пресеты, созданные Blockcheck exporter
@@ -91,6 +91,14 @@ parse(preset args).to_runtime_args() == исходные preset args
 
 Ни чтение каталога, ни выбор строки не запускают nfqws2. Кнопка выбора пресета
 использует прежний `.zap2` selection и прежнюю границу plan/confirmation.
+
+Кнопка `+ Пресет` создаёт owner-managed preset. Внутри него доступны создание,
+изменение, удаление и перестановка профилей. Стратегию профиля можно взять из
+существующего каталога, задать как ручные profile-level args или импортировать
+из compact Blockcheck для domain HTTP/TLS/QUIC target.
+
+Reference/community/generated пресеты остаются read-only. Подробный контракт
+редактора: `docs/PRESET_CONSTRUCTOR.md`.
 
 ## Совместимость
 
