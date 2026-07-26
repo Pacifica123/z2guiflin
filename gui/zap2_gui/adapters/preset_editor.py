@@ -347,16 +347,32 @@ def profile_strategy_args(profile: TrafficProfile) -> tuple[str, ...]:
     return tuple(result)
 
 
+_STANDARD_BLOCKCHECK_LUA_IMPORTS = {
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+}
+
+
 def split_blockcheck_profile_args(args: Iterable[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Разделить blockcheck candidate на suggested filters и profile strategy."""
+    """Разделить blockcheck candidate на suggested filters и profile strategy.
+
+    Два стандартных Lua import уже добавляются на уровне owner-managed preset и
+    поэтому не копируются в профиль. Любые другие ``--lua-init`` или ``--blob``
+    могут определять значения, на которые ссылается candidate. Молча удалить их
+    означало бы изменить найденную стратегию, поэтому такой candidate отклоняется.
+    """
 
     filter_args: list[str] = []
     strategy_args: list[str] = []
+    unsupported_globals: list[str] = []
     for raw in args:
         arg = str(raw).strip()
         if not arg:
             continue
+        if arg in _STANDARD_BLOCKCHECK_LUA_IMPORTS:
+            continue
         if arg.startswith("--lua-init=") or arg.startswith("--blob="):
+            unsupported_globals.append(arg)
             continue
         if arg.startswith(_FILTER_PREFIXES):
             filter_args.append(arg)
@@ -364,6 +380,12 @@ def split_blockcheck_profile_args(args: Iterable[str]) -> tuple[tuple[str, ...],
         if arg == "--new" or arg.startswith(("--name=", "--skip")):
             continue
         strategy_args.append(arg)
+    if unsupported_globals:
+        rendered = "\n".join(f"- {item}" for item in unsupported_globals)
+        raise ValueError(
+            "Blockcheck candidate содержит дополнительные global Lua/blob определения. "
+            "Его нельзя безопасно вставить как один профиль без потери смысла:\n" + rendered
+        )
     validate_profile_strategy_args(strategy_args)
     return tuple(filter_args), tuple(strategy_args)
 

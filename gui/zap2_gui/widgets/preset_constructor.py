@@ -14,6 +14,7 @@ from ..adapters.blockcheck_gui import (
     parse_blockcheck_available_strategies,
     parse_blockcheck_run_stats,
     prepare_blockcheck_execution,
+    request_blockcheck_graceful_stop,
     write_blockcheck_last_log,
 )
 from ..adapters.preset_editor import (
@@ -100,8 +101,10 @@ def run_profile_blockcheck_dialog(
     layout = QtWidgets.QVBoxLayout(dialog)
 
     info = QtWidgets.QLabel(
-        "Проверка идёт по targets последовательно и останавливается после первого AVAILABLE. "
-        "Найденная команда не создаёт отдельный preset: после выбора её action/range часть будет вставлена прямо в редактируемый профиль."
+        "Проверка идёт по targets последовательно. Текущий upstream run завершается штатно, чтобы Blockcheck выполнил cleanup; "
+        "после первого target с AVAILABLE следующие targets не запускаются. "
+        "AVAILABLE подтверждает только указанный target и probe, а не весь YouTube или Discord. "
+        "После выбора action/range часть команды будет вставлена прямо в редактируемый профиль."
     )
     info.setWordWrap(True)
     layout.addWidget(info)
@@ -150,6 +153,7 @@ def run_profile_blockcheck_dialog(
         "owner_stop": False,
         "auto_reason": "",
         "available": [],
+        "candidate_error": "",
         "result": None,
     }
 
@@ -173,10 +177,21 @@ def run_profile_blockcheck_dialog(
     def show_candidate() -> None:
         item = selected_candidate()
         if item is None:
+            state["candidate_error"] = ""
             preview.clear()
             apply_button.setEnabled(False)
             return
-        filters, strategy = split_blockcheck_profile_args(item.runtime_args)
+        try:
+            filters, strategy = split_blockcheck_profile_args(item.runtime_args)
+        except ValueError as exc:
+            state["candidate_error"] = str(exc)
+            preview.setPlainText(
+                "source target: " + item.target + "\nprobe: " + item.probe
+                + "\n\nCandidate нельзя безопасно вставить в один профиль:\n" + str(exc)
+            )
+            apply_button.setEnabled(False)
+            return
+        state["candidate_error"] = ""
         preview.setPlainText(
             "source target: " + item.target + "\nprobe: " + item.probe + "\n\nSuggested filters:\n"
             + ("\n".join(filters) or "<нет>")
@@ -184,6 +199,13 @@ def run_profile_blockcheck_dialog(
             + "\n".join(strategy)
         )
         apply_button.setEnabled(state.get("process") is None)
+
+    def force_stop_if_current(process: Any) -> None:
+        if state.get("process") is not process:
+            return
+        append("[GUI] SIGINT cleanup не завершился за 10 секунд; отправляется аварийный terminate().")
+        process.terminate()
+        QtCore.QTimer.singleShot(3000, lambda: process.kill() if state.get("process") is process else None)
 
     def stop_process(owner: bool = False, reason: str = "") -> None:
         process = state.get("process")
@@ -193,8 +215,11 @@ def run_profile_blockcheck_dialog(
             state["owner_stop"] = True
         if reason:
             state["auto_reason"] = reason
-        process.terminate()
-        QtCore.QTimer.singleShot(3000, lambda: process.kill() if state.get("process") is process else None)
+        if request_blockcheck_graceful_stop(process):
+            append("[GUI] Отправлен SIGINT: ожидается upstream cleanup.")
+            QtCore.QTimer.singleShot(10000, lambda: force_stop_if_current(process))
+        else:
+            force_stop_if_current(process)
 
     def start_target() -> None:
         index = int(state["target_index"])
@@ -268,11 +293,7 @@ def run_profile_blockcheck_dialog(
             append(data)
             monitor = state.get("monitor")
             reason = monitor.feed_stdout(data) if monitor is not None else ""
-            current = "".join(state["stdout"])
-            found = parse_blockcheck_available_strategies(current)
-            if found and not state.get("auto_reason"):
-                stop_process(reason="AVAILABLE найден; compact run останавливается")
-            elif reason and not state.get("auto_reason"):
+            if reason and not state.get("auto_reason"):
                 stop_process(reason=reason)
 
         def read_stderr() -> None:
@@ -345,13 +366,19 @@ def run_profile_blockcheck_dialog(
         candidates.clear()
         preview.clear()
         state["available"] = []
+        state["candidate_error"] = ""
         start_target()
 
     def apply() -> None:
         item = selected_candidate()
-        if item is None:
+        if item is None or state.get("candidate_error"):
             return
-        state["result"] = split_blockcheck_profile_args(item.runtime_args)
+        try:
+            state["result"] = split_blockcheck_profile_args(item.runtime_args)
+        except ValueError as exc:
+            state["candidate_error"] = str(exc)
+            show_candidate()
+            return
         dialog.accept()
 
     def close() -> None:

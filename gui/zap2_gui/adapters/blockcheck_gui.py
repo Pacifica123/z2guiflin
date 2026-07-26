@@ -13,6 +13,7 @@ import json
 import os
 import re
 import shlex
+import signal
 import shutil
 import subprocess
 from collections import Counter
@@ -85,6 +86,33 @@ def _parse_nonnegative_int(value: str | None) -> int | None:
     except ValueError:
         return None
     return parsed if parsed >= 0 else None
+
+
+def request_blockcheck_graceful_stop(process: object) -> bool:
+    """Попросить upstream Blockcheck завершиться через SIGINT и выполнить cleanup.
+
+    GUI запускает ``sudo -A ... blockcheck2.sh`` как QProcess. Upstream script
+    обрабатывает SIGINT своим cleanup-handler, но не гарантирует такую же
+    обработку SIGTERM от ``QProcess.terminate()``. Поэтому обычная остановка
+    сначала посылает SIGINT в pid wrapper-процесса; sudo передаёт сигнал
+    выполняемой команде. ``False`` означает, что вызывающий код должен перейти
+    к аварийному fallback.
+    """
+
+    process_id = getattr(process, "processId", None)
+    if not callable(process_id):
+        return False
+    try:
+        pid = int(process_id())
+    except (TypeError, ValueError):
+        return False
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, signal.SIGINT)
+    except OSError:
+        return False
+    return True
 
 
 def current_blockcheck_worker_identity() -> BlockcheckWorkerIdentity:

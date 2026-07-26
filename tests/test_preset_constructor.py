@@ -190,6 +190,41 @@ def test_blockcheck_candidate_is_split_before_profile_import() -> None:
     )
 
 
+def test_blockcheck_candidate_accepts_both_standard_lua_imports() -> None:
+    filters, strategy = split_blockcheck_profile_args(
+        (
+            "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+            "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+            "--filter-udp=443",
+            "--filter-l7=quic",
+            "--payload=quic_initial",
+            "--lua-desync=fake:blob=fake_default_quic:repeats=1",
+        )
+    )
+
+    assert filters == ("--filter-udp=443", "--filter-l7=quic")
+    assert strategy[-1] == "--lua-desync=fake:blob=fake_default_quic:repeats=1"
+
+
+@pytest.mark.parametrize(
+    "global_arg",
+    (
+        "--lua-init=fake_default_tls=tls_mod(fake_default_tls,'rnd')",
+        "--blob=my_fake=@profiles/fakes/custom.bin",
+    ),
+)
+def test_blockcheck_candidate_rejects_extra_global_definitions(global_arg: str) -> None:
+    with pytest.raises(ValueError, match="нельзя безопасно вставить"):
+        split_blockcheck_profile_args(
+            (
+                global_arg,
+                "--filter-tcp=443",
+                "--payload=tls_client_hello",
+                "--lua-desync=fake:blob=fake_default_tls",
+            )
+        )
+
+
 def test_known_strategy_templates_are_reusable_profile_actions() -> None:
     templates = list_profile_strategy_templates(ROOT)
 
@@ -222,3 +257,6 @@ def test_gui_source_exposes_constructor_and_profile_blockcheck() -> None:
     assert "Подобрать Blockcheck и вставить" in dialog_source
     assert "QProcess" in dialog_source
     assert "не Discord Voice/STUN UDP" in dialog_source
+    assert "request_blockcheck_graceful_stop" in dialog_source
+    assert 'stop_process(reason="AVAILABLE найден' not in dialog_source
+    assert "AVAILABLE подтверждает только указанный target и probe" in dialog_source

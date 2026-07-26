@@ -27,6 +27,7 @@ from ..adapters.blockcheck_gui import (
     parse_blockcheck_run_stats,
     parse_blockcheck_summary,
     prepare_blockcheck_execution,
+    request_blockcheck_graceful_stop,
     write_blockcheck_last_log,
 )
 from ..adapters.discord_verification import discord_non_voice_verification_plan_to_text
@@ -763,8 +764,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
     def handle_process_error(error: Any) -> None:
         if state.get("stopped_by_user") or state.get("auto_skip_reason"):
-            # Qt reports a SIGTERM/SIGKILL stopped process as CrashExit. For an
-            # explicit owner Stop or an evidence-based dead-target skip this is
+            # Qt may report a signal-stopped process as CrashExit. For an
+            # explicit owner Stop or an evidence-based early stop this is
             # expected and the final footer records the reason.
             return
         text = f"\n[GUI] QProcess error: {error}"
@@ -808,9 +809,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 )
             state["stderr"].append(message)
             append_output(message)
-            status.setText("Статус: candidate auto-stop requested…")
-            process.terminate()
-            QtCore.QTimer.singleShot(3000, lambda: process.kill() if state.get("process") is process else None)
+            status.setText("Статус: candidate auto-stop requested; ожидается cleanup…")
+            request_process_stop(process)
 
         def read_stdout() -> None:
             data = bytes(process.readAllStandardOutput()).decode("utf-8", errors="replace")
@@ -955,15 +955,28 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             )
         start_next_candidate()
 
+    def force_stop_if_current(process: Any) -> None:
+        if state.get("process") is not process:
+            return
+        append_output("\n[GUI] SIGINT cleanup не завершился за 10 секунд; отправляется аварийный terminate().")
+        process.terminate()
+        QtCore.QTimer.singleShot(3000, lambda: process.kill() if state.get("process") is process else None)
+
+    def request_process_stop(process: Any) -> None:
+        if request_blockcheck_graceful_stop(process):
+            append_output("\n[GUI] Отправлен SIGINT: ожидается upstream cleanup.")
+            QtCore.QTimer.singleShot(10000, lambda: force_stop_if_current(process))
+        else:
+            force_stop_if_current(process)
+
     def stop_blockcheck() -> None:
         process = state.get("process")
         if process is None:
             return
         state["stopped_by_user"] = True
-        append_output("\n[GUI] Stop requested by owner; sending terminate() to blockcheck process…")
-        status.setText("Статус: stop requested…")
-        process.terminate()
-        QtCore.QTimer.singleShot(3000, lambda: process.kill() if state.get("process") is process else None)
+        append_output("\n[GUI] Stop requested by owner; sending SIGINT for upstream cleanup…")
+        status.setText("Статус: stop requested; ожидается cleanup…")
+        request_process_stop(process)
 
     target_preset_combo.currentIndexChanged.connect(
         lambda _index=0: apply_target_preset(selected_target_preset_id())

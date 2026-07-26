@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import os
+import signal
 import shutil
 
 import pytest
@@ -18,6 +20,7 @@ from zap2_gui.adapters.blockcheck_gui import (
     parse_blockcheck_run_stats,
     parse_blockcheck_summary,
     prepare_blockcheck_execution,
+    request_blockcheck_graceful_stop,
     export_blockcheck_available_strategies,
     parse_blockcheck_available_strategies,
     BlockcheckPortPrecheckMonitor,
@@ -301,7 +304,41 @@ def test_blockcheck_lab_suppresses_expected_crash_message_after_owner_stop() -> 
     source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
 
     assert 'if state.get("stopped_by_user")' in source
-    assert "Qt reports a SIGTERM/SIGKILL stopped process as CrashExit" in source
+    assert "Qt may report a signal-stopped process as CrashExit" in source
+
+
+def test_blockcheck_graceful_stop_sends_sigint(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[int, int]] = []
+
+    class Process:
+        def processId(self) -> int:
+            return 4242
+
+    monkeypatch.setattr(os, "kill", lambda pid, sig: calls.append((pid, sig)))
+
+    assert request_blockcheck_graceful_stop(Process())
+    assert calls == [(4242, signal.SIGINT)]
+
+
+def test_blockcheck_graceful_stop_rejects_missing_pid(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[int, int]] = []
+
+    class Process:
+        def processId(self) -> int:
+            return 0
+
+    monkeypatch.setattr(os, "kill", lambda pid, sig: calls.append((pid, sig)))
+
+    assert not request_blockcheck_graceful_stop(Process())
+    assert calls == []
+
+
+def test_blockcheck_lab_uses_sigint_before_emergency_terminate() -> None:
+    source = (ROOT / "gui" / "zap2_gui" / "widgets" / "blockcheck_lab.py").read_text(encoding="utf-8")
+
+    assert "request_blockcheck_graceful_stop(process)" in source
+    assert "SIGINT for upstream cleanup" in source
+    assert "QTimer.singleShot(10000" in source
 
 
 def test_blockcheck_lab_footer_uses_parsed_run_statistics() -> None:

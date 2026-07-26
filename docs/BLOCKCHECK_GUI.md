@@ -114,8 +114,11 @@ Arch/Manjaro и openSUSE.
 Общий таймер больше не используется как основной механизм контроля. Это важно,
 потому что долгий scan сам по себе не означает ошибку: иногда blockcheck должен
 перебрать много candidate strategies. Вместо произвольного лимита добавлена
-явная owner-кнопка `Остановить`, которая сначала отправляет `terminate()`, а
-потом при необходимости добивает процесс через `kill()`.
+явная owner-кнопка `Остановить`. Она сначала отправляет `SIGINT`, чтобы
+upstream `blockcheck2.sh` выполнил собственный cleanup. Только если процесс не
+завершился за 10 секунд, GUI переходит к аварийному `terminate()`, а затем к
+`kill()`. Прямой `SIGTERM` нельзя считать штатной остановкой: upstream script
+гарантированно связывает cleanup с обработчиком `SIGINT`.
 
 Последний лог теперь обновляется и во время выполнения, а не только после
 завершения. Поэтому кнопку `Последний лог` можно использовать после остановки
@@ -356,3 +359,19 @@ The watcher remains read-only: it samples `ss`, `pgrep` and DNS metadata, does n
 ### v0.4-alpha Stage 7i — Discord DNS edge diagnosis
 
 Stage 7i переносит идею Windows GUI DNS-проверок в read-only Linux diagnostic. Команды `--discord-dns-edge-plan` и `--discord-dns-edge-check` сравнивают system/Cloudflare/Google/Quad9/AdGuard/OpenDNS resolvers и проверяют TCP/443 для возвращённых Discord edge IP. Это не меняет DNS и не требует sudo. Если найден `connect-ok` edge, DNS/hosts steering можно рассматривать как owner-confirmed эксперимент. Если все edge IP timeout, то текущий Discord updater blocker шире, чем DNS-подмена, и обычные TLS Blockcheck-стратегии всё ещё не упражняются на SYN-SENT socket.
+
+
+## v0.4-alpha: безопасная остановка Blockcheck
+
+Compact Blockcheck в конструкторе и Blockcheck Lab больше не обрывают upstream
+run через `QProcess.terminate()` сразу после `AVAILABLE`. Такой SIGTERM мог
+завершить shell до `unprepare_all()` и оставить временную таблицу
+`inet blockcheck<PID>` или probe-процесс `nfqws2`. Обычная остановка теперь
+посылает SIGINT и ждёт cleanup.
+
+В конструкторе первая найденная `AVAILABLE` строка сохраняется, но текущий target
+дорабатывает штатно. После его завершения targets дальше не перебираются. Это
+медленнее немедленного kill, зато не оставляет firewall в промежуточном состоянии.
+
+Один `AVAILABLE` остаётся доказательством только для одного target/probe. Он не
+является готовым составным preset для всего сервиса.
