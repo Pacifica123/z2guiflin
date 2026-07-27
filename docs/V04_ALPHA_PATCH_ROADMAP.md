@@ -501,3 +501,17 @@ This keeps the composer responsible for components and keeps the Tunnel tab resp
 - явно объяснить в GUI, что launch composer запускает компоненты, а не клиентские приложения.
 
 Критерий готовности Stage 8c: после свежего `.zap2` владелец должен видеть не общий статус `не работает`, а конкретную категорию: SOCKS dead, app not routed, upstream TLS closed или owner observation needed.
+
+## v0.4-alpha Stage 8d — Discord Voice source bridge и HAR workbench
+
+Stage 8d разделяет browser-visible трафик и Discord Voice. Из Flowseal,
+GUI Windows и upstream zapret2 перенесены три Linux/nfqws2 voice-кандидата:
+узкий upstream, узкий Flowseal и широкий GUI Windows. Полный Windows-каталог
+сохранён как source inventory; WinDivert и legacy winws1 параметры не исполняются
+на Linux автоматически.
+
+HAR pipeline расширен до workbench: sanitized import, обезличенные error/L7
+признаки, группировка HTTP/TLS/WebSocket/HTTP3, group target files, готовые
+Blockcheck options и preset blueprint. Автоматизация останавливается перед sudo
+run и перед выбором победившей стратегии. Это не позволяет превратить один HAR
+в непроверенный сетевой preset.

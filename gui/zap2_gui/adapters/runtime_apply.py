@@ -515,8 +515,14 @@ def create_runtime_apply_plan(root: Path | None = None, action: RuntimeApplyActi
     start_plan = create_runtime_plan(layout.root, action="start", profile_id=profile_id)
     strategy = strategies[profile.strategy_id]
     capture_policy = strategy.capture_policy or None
-    tcp_ports = _capture_policy_ports(capture_policy, "tcpOutPorts") or _ports_from_strategy_args(strategy.runtime_args, "--filter-tcp") or DEFAULT_TCP_PORTS
-    udp_ports = _capture_policy_ports(capture_policy, "udpOutPorts") or _ports_from_strategy_args(strategy.runtime_args, "--filter-udp")
+    if capture_policy is not None and "tcpOutPorts" in capture_policy:
+        tcp_ports = _capture_policy_ports(capture_policy, "tcpOutPorts")
+    else:
+        tcp_ports = _ports_from_strategy_args(strategy.runtime_args, "--filter-tcp") or DEFAULT_TCP_PORTS
+    if capture_policy is not None and "udpOutPorts" in capture_policy:
+        udp_ports = _capture_policy_ports(capture_policy, "udpOutPorts")
+    else:
+        udp_ports = _ports_from_strategy_args(strategy.runtime_args, "--filter-udp")
     edge_ips = _capture_policy_edge_ips(capture_policy)
     queue_input_syn_ack = bool((capture_policy or {}).get("queueInputSynAck", False))
     queue_input_fin_rst = bool((capture_policy or {}).get("queueInputFinRst", False))

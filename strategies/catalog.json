@@ -21,6 +21,9 @@
     "strategies/reference-zapret2-generic-tls-fake.json",
     "strategies/reference-linux-general-multisplit-like.json",
     "strategies/reference-flowseal-simple-fake-like.json",
-    "strategies/windows-all-tcp-udp-v3-2-linux-bridge.json"
+    "strategies/windows-all-tcp-udp-v3-2-linux-bridge.json",
+    "strategies/discord-voice-upstream-conservative.json",
+    "strategies/discord-voice-flowseal-narrow.json",
+    "strategies/discord-voice-guiwin-wide.json"
   ]
 }

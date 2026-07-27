@@ -1,0 +1,11 @@
+# z2guiflin Zapret2 preset
+# id: discord-voice-guiwin-wide
+# title: Discord Voice GUI Windows wide L7
+# Discord Voice: отдельный альтернативный профиль; не объединять автоматически с другими voice-пресетами.
+--lua-init=@core/zapret2/lua/zapret-lib.lua
+--lua-init=@core/zapret2/lua/zapret-antidpi.lua
+--filter-udp=443-65535
+--filter-l7=stun,discord
+--payload=stun,discord_ip_discovery
+--out-range=-n8
+--lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=6

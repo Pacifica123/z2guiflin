@@ -78,3 +78,44 @@ Discord использовал `images-ext-1.discordapp.net`, `gateway.discord.g
 timer, SYN-SENT/ESTAB. `--discord-har-analyze` смотрит browser HAR: host, path,
 status и WebSocket факт. Это разные уровни. Сильный отчёт для следующего патча
 сравнивает оба источника, но не смешивает их в одну автоматическую стратегию.
+
+## v0.4-alpha Stage 8d — HAR workbench
+
+Stage 8d добавляет второй слой поверх sanitized summary:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-har-workbench /path/to/discord.har
+PYTHONPATH=gui python -m zap2_gui.app --discord-har-workbench-report
+PYTHONPATH=gui python -m zap2_gui.app --discord-har-group-plan har-tls-problems
+```
+
+Workbench автоматически выполняет безопасную часть цепочки:
+
+```text
+HAR import
+  -> redaction
+  -> host/status/error evidence
+  -> группы HTTP, TLS, WebSocket, HTTP/3
+  -> targets.txt + blockcheck-options.json для каждой группы
+  -> preset-blueprint.json
+```
+
+В summary теперь сохраняются только обезличенные признаки ошибки и протокола:
+`schemes`, `httpVersions`, `l7Hints`, `transportHints`, количество failed status и
+категории ошибок вроде `dns`, `timeout`, `tls`, `reset-or-closed`. Исходный текст
+ошибки не сохраняется.
+
+Определение транспорта имеет уровни уверенности:
+
+- `http`, `https`, `ws`, `wss` дают уверенный browser-level признак TCP;
+- `HTTP/3`, `h3` или явный QUIC marker дают признак UDP/443;
+- отсутствие этих полей не позволяет угадать транспорт;
+- STUN, RTP, SRTP и Discord Voice media-flow из HAR не определяются.
+
+Workbench не запускает Blockcheck. Он только подставляет одну группу в custom
+Blockcheck plan. Привилегированный run остаётся отдельным owner-confirmed
+действием. Итоговый executable preset не формируется, пока для каждого
+обязательного host группы не выбрана подтверждённая стратегия.
+
+Файлы workbench хранятся в `.zap2/discovery/har-workbench-*`; raw HAR туда не
+копируется.

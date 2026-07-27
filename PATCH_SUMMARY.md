@@ -2,26 +2,27 @@
 
 ## Title
 
-Ввести архитектуру «пресет → упорядоченные traffic-профили»
+Discord Voice source bridge и автоматический HAR workbench
 
 ## Что изменено
 
-- Добавлена чистая модель `ZapretPreset`, `TrafficProfile`, `TrafficFilter` и
-  `PresetAction`.
-- Все существующие runtime args вынесены в канонические
-  `presets/workspace/*.txt` без изменения порядка или значений.
-- Strategy JSON теперь содержит `presetPath` и остаётся metadata-слоем.
-- Загрузчик проверяет полное совпадение `.txt` и legacy `runtimeArgs`.
-- Blockcheck exporter создаёт одновременно generated JSON metadata и `.txt`
-  preset.
-- Вкладка `Стратегии` заменена каталогом `Пресеты` с таблицей profile order,
-  filter, strategy, range и direction.
-- Добавлены CLI `--list-presets`, `--show-preset`, `--show-preset-profile` и
-  `--select-preset`.
-- Старые strategy/profile имена оставлены как совместимые алиасы.
+- Добавлены три альтернативных Discord Voice пресета для Linux/nfqws2:
+  upstream conservative, Flowseal narrow и GUI Windows wide.
+- Windows `wf-*` заменён существующим `capturePolicy`/nftables слоем; legacy
+  `dpi-desync-*` не исполняется напрямую.
+- Полный аудит voice-источников сохранён в
+  `references/external/discord_voice_source_inventory.json`.
+- HAR summary расширен безопасными `scheme`, HTTP version, L7/transport hints и
+  обезличенными категориями ошибок.
+- Добавлен HAR workbench: import, grouping, group target files,
+  Blockcheck options и preset blueprint.
+- Добавлены CLI и GUI-действия для HAR workbench и Discord Voice inventory.
 
-## Безопасность
+## Граница автоматизации
 
-Патч не меняет nftables, NFQUEUE, systemd, sudo-askpass и порядок runtime
-lifecycle. Round-trip тесты требуют, чтобы разобранный пресет собирался в точно
-тот же argv, который использовался до изменения архитектуры.
+Патч автоматически обрабатывает только локальные данные. Он не запускает
+Blockcheck, не меняет nftables/systemd и не собирает исполняемый итоговый preset
+до подтверждения стратегии для каждой обязательной группы.
+
+HAR не используется для выбора Discord Voice: browser HAR не содержит реальный
+UDP media-flow.

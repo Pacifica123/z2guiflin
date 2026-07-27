@@ -50,6 +50,13 @@ class HarHostSummary:
     statuses: dict[str, int] = field(default_factory=dict)
     path_patterns: tuple[str, ...] = ()
     websocket_count: int = 0
+    schemes: tuple[str, ...] = ()
+    http_versions: tuple[str, ...] = ()
+    l7_hints: tuple[str, ...] = ()
+    transport_hints: tuple[str, ...] = ()
+    error_count: int = 0
+    failed_status_count: int = 0
+    error_categories: tuple[str, ...] = ()
     covered_by_discord_preset: bool = False
     covered_by_default_hostlist: bool = False
     notes: tuple[str, ...] = ()
@@ -63,6 +70,13 @@ class HarHostSummary:
             "statuses": dict(self.statuses),
             "pathPatterns": list(self.path_patterns),
             "webSocketCount": self.websocket_count,
+            "schemes": list(self.schemes),
+            "httpVersions": list(self.http_versions),
+            "l7Hints": list(self.l7_hints),
+            "transportHints": list(self.transport_hints),
+            "errorCount": self.error_count,
+            "failedStatusCount": self.failed_status_count,
+            "errorCategories": list(self.error_categories),
             "coveredByDiscordPreset": self.covered_by_discord_preset,
             "coveredByDefaultHostlist": self.covered_by_default_hostlist,
             "notes": list(self.notes),
@@ -158,7 +172,13 @@ class DiscordHarSummary:
             methods = ",".join(item.methods) or "?"
             statuses = ",".join(f"{status}:{count}" for status, count in sorted(item.statuses.items())) or "?"
             ws = f"; websocket={item.websocket_count}" if item.websocket_count else ""
-            lines.append(f"  - {item.host} [{item.category}; {preset}; {hostlist}; methods={methods}; status={statuses}{ws}]")
+            l7 = ",".join(item.l7_hints) or "?"
+            transport = ",".join(item.transport_hints) or "?"
+            failures = f"; errors={item.error_count}; failed-status={item.failed_status_count}" if item.error_count or item.failed_status_count else ""
+            lines.append(
+                f"  - {item.host} [{item.category}; {preset}; {hostlist}; methods={methods}; "
+                f"status={statuses}; L7={l7}; transport={transport}{ws}{failures}]"
+            )
             for pattern in item.path_patterns[:4]:
                 lines.append(f"      path: {pattern}")
             if len(item.path_patterns) > 4:
@@ -190,7 +210,7 @@ class DiscordHarSummary:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
 def _discovery_dir(root: Path | None = None) -> Path:
@@ -298,6 +318,56 @@ def _host_note(host: str, category: str) -> tuple[str, ...]:
     return ()
 
 
+def _error_category(raw_error: object) -> str | None:
+    value = str(raw_error or "").strip().lower()
+    if not value:
+        return None
+    if any(token in value for token in ("name not resolved", "dns", "resolve", "host not found")):
+        return "dns"
+    if any(token in value for token in ("timed out", "timeout", "deadline")):
+        return "timeout"
+    if any(token in value for token in ("ssl", "tls", "certificate", "handshake")):
+        return "tls"
+    if any(token in value for token in ("reset", "closed", "eof", "aborted")):
+        return "reset-or-closed"
+    if any(token in value for token in ("refused", "unreachable")):
+        return "refused-or-unreachable"
+    if any(token in value for token in ("blocked", "denied", "access")):
+        return "blocked-or-denied"
+    return "other"
+
+
+def _entry_http_version(entry: dict[str, Any]) -> str:
+    request = entry.get("request") if isinstance(entry.get("request"), dict) else {}
+    response = entry.get("response") if isinstance(entry.get("response"), dict) else {}
+    value = str(response.get("httpVersion") or request.get("httpVersion") or "").strip().lower()
+    return value[:24]
+
+
+def _entry_evidence(entry: dict[str, Any], url: str, websocket: bool) -> tuple[str, str, tuple[str, ...], tuple[str, ...]]:
+    parsed = urlparse(url)
+    scheme = parsed.scheme.lower()
+    http_version = _entry_http_version(entry)
+    version_token = http_version.replace("/", "").replace("-", "")
+    l7: set[str] = set()
+    transports: set[str] = set()
+    if "h3" in version_token or "http3" in version_token or "quic" in version_token:
+        l7.add("quic")
+        transports.add("udp")
+    elif websocket:
+        l7.add("websocket")
+        transports.add("tcp")
+        if scheme in {"wss", "https"}:
+            l7.add("tls")
+    elif scheme in {"https", "wss"}:
+        l7.add("tls")
+        transports.add("tcp")
+    elif scheme in {"http", "ws"}:
+        l7.add("http")
+        transports.add("tcp")
+    return scheme, http_version, tuple(sorted(l7)), tuple(sorted(transports))
+
+
 def _entry_is_websocket(entry: dict[str, Any]) -> bool:
     response = entry.get("response") if isinstance(entry.get("response"), dict) else {}
     request = entry.get("request") if isinstance(entry.get("request"), dict) else {}
@@ -345,8 +415,11 @@ def analyze_discord_har(path: str | Path, *, root: Path | None = None) -> Discor
         if category != "external-other":
             discord_related_entries += 1
         method = str(request.get("method", "GET") or "GET").upper()[:12]
-        status = str(response.get("status", 0) or 0)
+        status_value = int(response.get("status", 0) or 0)
+        status = str(status_value)
         websocket = _entry_is_websocket(entry)
+        scheme, http_version, l7_hints, transport_hints = _entry_evidence(entry, url, websocket)
+        error_category = _error_category(entry.get("_error"))
         if websocket:
             websocket_entries += 1
         for name in _header_names(entry):
@@ -363,6 +436,13 @@ def analyze_discord_har(path: str | Path, *, root: Path | None = None) -> Discor
                 "statuses": {},
                 "path_patterns": [],
                 "websocket_count": 0,
+                "schemes": set(),
+                "http_versions": set(),
+                "l7_hints": set(),
+                "transport_hints": set(),
+                "error_count": 0,
+                "failed_status_count": 0,
+                "error_categories": set(),
                 "category": category,
             },
         )
@@ -374,6 +454,17 @@ def analyze_discord_har(path: str | Path, *, root: Path | None = None) -> Discor
             acc["path_patterns"].append(pattern)
         if websocket:
             acc["websocket_count"] += 1
+        if scheme:
+            acc["schemes"].add(scheme)
+        if http_version:
+            acc["http_versions"].add(http_version)
+        acc["l7_hints"].update(l7_hints)
+        acc["transport_hints"].update(transport_hints)
+        if error_category:
+            acc["error_count"] += 1
+            acc["error_categories"].add(error_category)
+        if status_value == 0 or status_value >= 400:
+            acc["failed_status_count"] += 1
 
     host_summaries: list[HarHostSummary] = []
     for host, acc in sorted(host_acc.items(), key=lambda item: (-int(item[1]["request_count"]), item[0])):
@@ -387,6 +478,13 @@ def analyze_discord_har(path: str | Path, *, root: Path | None = None) -> Discor
                 statuses=dict(sorted(acc["statuses"].items())),
                 path_patterns=tuple(str(item) for item in acc["path_patterns"]),
                 websocket_count=int(acc["websocket_count"]),
+                schemes=tuple(sorted(acc["schemes"])),
+                http_versions=tuple(sorted(acc["http_versions"])),
+                l7_hints=tuple(sorted(acc["l7_hints"])),
+                transport_hints=tuple(sorted(acc["transport_hints"])),
+                error_count=int(acc["error_count"]),
+                failed_status_count=int(acc["failed_status_count"]),
+                error_categories=tuple(sorted(acc["error_categories"])),
                 covered_by_discord_preset=_is_suffix_covered(host, preset_entries),
                 covered_by_default_hostlist=_is_suffix_covered(host, default_entries),
                 notes=_host_note(host, category),
@@ -443,6 +541,13 @@ def _summary_from_payload(path: Path, data: dict[str, Any]) -> DiscordHarSummary
                 statuses={str(key): int(value) for key, value in dict(item.get("statuses", {})).items()},
                 path_patterns=tuple(str(value) for value in item.get("pathPatterns", []) if str(value).strip()),
                 websocket_count=int(item.get("webSocketCount", 0) or 0),
+                schemes=tuple(str(value) for value in item.get("schemes", []) if str(value).strip()),
+                http_versions=tuple(str(value) for value in item.get("httpVersions", []) if str(value).strip()),
+                l7_hints=tuple(str(value) for value in item.get("l7Hints", []) if str(value).strip()),
+                transport_hints=tuple(str(value) for value in item.get("transportHints", []) if str(value).strip()),
+                error_count=int(item.get("errorCount", 0) or 0),
+                failed_status_count=int(item.get("failedStatusCount", 0) or 0),
+                error_categories=tuple(str(value) for value in item.get("errorCategories", []) if str(value).strip()),
                 covered_by_discord_preset=bool(item.get("coveredByDiscordPreset", False)),
                 covered_by_default_hostlist=bool(item.get("coveredByDefaultHostlist", False)),
                 notes=tuple(str(value) for value in item.get("notes", []) if str(value).strip()),

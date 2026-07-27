@@ -1,0 +1,74 @@
+{
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": false,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
+  "capturePolicy": {
+    "edgeIpScoped": false,
+    "edgeIps": [],
+    "kind": "discord-voice-guiwin-wide-v1",
+    "ownerUidScoped": true,
+    "packetWindowHint": {
+      "enforcedByRuntime": true,
+      "udpOut": "1-8"
+    },
+    "profileHostlists": "omit",
+    "queueInputFinRst": false,
+    "queueInputSynAck": false,
+    "tcpOutPorts": [],
+    "udpOutPorts": [
+      "443-65535"
+    ]
+  },
+  "id": "discord-voice-guiwin-wide",
+  "intendedFor": [
+    "последний voice-кандидат, когда узкие диапазоны не работают",
+    "ручная проверка широкого winws2 capture envelope на Linux"
+  ],
+  "notes": [
+    "GUI Windows builtins часто задают --wf-udp-out=443-65535 и отдельный profile filter-l7=stun,discord / payload=stun,discord_ip_discovery.",
+    "WinDivert --wf-* заменён capturePolicy/nftables owner UID. В runtimeArgs остаются только nfqws2-совместимые параметры.",
+    "Это последний кандидат: очередь получает широкий диапазон UDP, хотя действие остаётся ограничено L7/payload match.",
+    "IP-set Discord branches не перенесены как исполняемые: ipset-discord.txt отсутствует в переданном архиве."
+  ],
+  "philosophy": "gui-windows-wide-capture-linux-translation",
+  "presetPath": "presets/workspace/discord-voice-guiwin-wide.txt",
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--filter-udp=443-65535",
+    "--filter-l7=stun,discord",
+    "--payload=stun,discord_ip_discovery",
+    "--out-range=-n8",
+    "--lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=6"
+  ],
+  "schemaVersion": 1,
+  "serviceTarget": {
+    "nonVoice": false,
+    "presetId": "discord-voice",
+    "summary": "Широкий owner-scoped Linux/nfqws2 перенос winws2 voice-профиля GUI Windows с L7 STUN/Discord.",
+    "title": "Discord Voice UDP"
+  },
+  "sourcePreset": {
+    "engine": "winws2-to-nfqws2",
+    "id": "zapret2-gui-windows-voice-wide",
+    "metadataPath": "zapret2-gui_windows/src/profile/strategy_catalogs/winws2/voice.txt",
+    "portingLevel": "semantic-linux-translation-wide-capture",
+    "sourcePath": "zapret2-gui_windows/src/presets/builtin/winws2/*game filter*.txt",
+    "windowsOptionsExecuted": false
+  },
+  "summary": "Широкий owner-scoped Linux/nfqws2 перенос winws2 voice-профиля GUI Windows с L7 STUN/Discord.",
+  "title": "Discord Voice GUI Windows wide L7",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-tests-discord-voice"
+  ]
+}

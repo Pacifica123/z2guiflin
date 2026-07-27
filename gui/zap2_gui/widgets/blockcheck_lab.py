@@ -36,6 +36,14 @@ from ..adapters.discord_endpoint_discovery import (
     discord_endpoint_report_to_text,
     discord_netlog_plan_to_text,
 )
+from ..adapters.discord_har_workbench import (
+    build_discord_har_workbench,
+    discord_har_group_plan_to_text,
+    discord_har_workbench_report_to_text,
+    get_har_workbench_group,
+    latest_discord_har_workbench,
+)
+from ..adapters.discord_voice_profiles import discord_voice_profiles_to_text
 from ..models.service_targets import (
     DEFAULT_BLOCKCHECK_TARGET_STRING,
     SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
@@ -268,10 +276,18 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     verify_button = QtWidgets.QPushButton("Checklist")
     endpoint_button = QtWidgets.QPushButton("Endpoints")
     log_button = QtWidgets.QPushButton("Raw log")
+    har_import_button = QtWidgets.QPushButton("HAR import")
+    har_report_button = QtWidgets.QPushButton("HAR report")
+    har_load_button = QtWidgets.QPushButton("Load HAR group")
+    voice_profiles_button = QtWidgets.QPushButton("Voice profiles")
+    har_group_combo = QtWidgets.QComboBox()
+    har_group_combo.setObjectName("blockcheckHarGroupCombo")
+    har_group_combo.setToolTip("Blockcheckable groups from the latest sanitized HAR workbench")
     stop_button.setEnabled(False)
     for action_button in (
         preflight_button, build_plan_button, build_button, plan_button, run_button, stop_button,
         export_button, coverage_button, policy_button, tournament_button, verify_button, endpoint_button, log_button,
+        har_import_button, har_report_button, har_load_button, voice_profiles_button,
     ):
         action_button.setMinimumHeight(30)
         action_button.setMinimumWidth(76)
@@ -293,6 +309,11 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         (verify_button, 3, 2, 1, 1),
         (endpoint_button, 3, 3, 1, 1),
         (log_button, 4, 0, 1, 4),
+        (har_import_button, 5, 0, 1, 2),
+        (har_report_button, 5, 2, 1, 2),
+        (har_group_combo, 6, 0, 1, 4),
+        (har_load_button, 7, 0, 1, 2),
+        (voice_profiles_button, 7, 2, 1, 2),
     )
     for button, row, column, row_span, column_span in action_grid:
         actions_layout.addWidget(button, row, column, row_span, column_span)
@@ -494,8 +515,14 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         domains_edit.setEnabled(not running)
         dead_guard_check.setEnabled(not running)
         phase_budget_spin.setEnabled(not running)
-        for button in (preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, coverage_button, policy_button, tournament_button, verify_button, endpoint_button, log_button):
+        for button in (
+            preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, coverage_button,
+            policy_button, tournament_button, verify_button, endpoint_button, log_button, har_import_button,
+            har_report_button, har_load_button, voice_profiles_button,
+        ):
             button.setEnabled(not running)
+        har_group_combo.setEnabled(not running)
+        har_load_button.setEnabled(not running and bool(har_group_combo.currentData()))
         stop_button.setEnabled(running)
         if running:
             targets = state.get("candidate_targets") or []
@@ -523,6 +550,73 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             output.setPlainText(func())
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
             output.setPlainText(f"{label}: ошибка\n{exc}")
+
+    def refresh_har_groups() -> None:
+        har_group_combo.clear()
+        workbench = latest_discord_har_workbench(root=root)
+        if workbench is None:
+            har_group_combo.addItem("HAR workbench отсутствует", "")
+            har_load_button.setEnabled(False)
+            return
+        groups = workbench.blockcheck_groups()
+        if not groups:
+            har_group_combo.addItem("Нет domain-групп для Blockcheck", "")
+            har_load_button.setEnabled(False)
+            return
+        for group in groups:
+            issue_marker = "issues" if group.issue_hosts else "observed"
+            har_group_combo.addItem(
+                f"{group.group_id} · {group.protocol}/{group.l7} · {len(group.hosts)} hosts · {issue_marker}",
+                group.group_id,
+            )
+        har_load_button.setEnabled(True)
+
+    def import_har_workbench() -> None:
+        if state.get("process") is not None:
+            output.setPlainText("Blockcheck уже выполняется. Сначала остановите текущий run или дождитесь завершения.")
+            return
+        path, _selected_filter = QtWidgets.QFileDialog.getOpenFileName(
+            page,
+            "Импорт HAR для Discord workbench",
+            str(root or Path.home()),
+            "HAR files (*.har *.zip);;All files (*)",
+        )
+        if not path:
+            return
+        try:
+            workbench = build_discord_har_workbench(path, root=root)
+            refresh_har_groups()
+            output.setPlainText(workbench.to_text())
+            status.setText("Статус: HAR workbench создан; выберите группу")
+        except Exception as exc:  # pragma: no cover - GUI diagnostic path
+            output.setPlainText(f"HAR workbench: ошибка\n{exc}")
+
+    def load_selected_har_group() -> None:
+        group_id = str(har_group_combo.currentData() or "")
+        if not group_id:
+            output.setPlainText("HAR group не выбрана. Сначала импортируйте HAR или создайте workbench через CLI.")
+            return
+        try:
+            group = get_har_workbench_group(group_id, root=root)
+            custom_index = target_preset_combo.findData(SERVICE_TARGET_CUSTOM)
+            if custom_index >= 0:
+                target_preset_combo.setCurrentIndex(custom_index)
+            apply_target_preset(SERVICE_TARGET_CUSTOM)
+            domains_edit.setText(" ".join(group.hosts))
+            state["custom_targets"] = domains_edit.text().strip()
+            scan_index = scan_mode_combo.findData(BLOCKCHECK_SCAN_ALL_TARGETS)
+            if scan_index >= 0:
+                scan_mode_combo.setCurrentIndex(scan_index)
+            http_check.setChecked(group.l7 == "http")
+            https12_check.setChecked(group.l7 in {"tls", "websocket"})
+            https13_check.setChecked(group.l7 in {"tls", "websocket"})
+            http3_check.setChecked(group.l7 == "quic")
+            dead_guard_check.setChecked(False)
+            phase_budget_spin.setValue(0)
+            output.setPlainText(discord_har_group_plan_to_text(group_id, root=root))
+            status.setText(f"Статус: HAR group loaded · {group_id}")
+        except Exception as exc:  # pragma: no cover - GUI diagnostic path
+            output.setPlainText(f"Load HAR group: ошибка\n{exc}")
 
     def build_binaries() -> None:
         if state.get("process") is not None:
@@ -1001,6 +1095,11 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         )
     )
     log_button.clicked.connect(lambda _checked=False: run_action("Последний лог", lambda: last_blockcheck_log_to_text(root=root)))
+    har_import_button.clicked.connect(lambda _checked=False: import_har_workbench())
+    har_report_button.clicked.connect(lambda _checked=False: run_action("HAR workbench", lambda: discord_har_workbench_report_to_text(root=root)))
+    har_load_button.clicked.connect(lambda _checked=False: load_selected_har_group())
+    voice_profiles_button.clicked.connect(lambda _checked=False: run_action("Discord Voice profiles", lambda: discord_voice_profiles_to_text(root=root)))
+    refresh_har_groups()
 
     output.setMinimumHeight(BLOCKCHECK_LAB_OUTPUT_MIN_HEIGHT)
     output.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)

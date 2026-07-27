@@ -1,0 +1,73 @@
+{
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": false,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
+  "capturePolicy": {
+    "edgeIpScoped": false,
+    "edgeIps": [],
+    "kind": "discord-voice-flowseal-narrow-v1",
+    "ownerUidScoped": true,
+    "packetWindowHint": {
+      "enforcedByRuntime": true,
+      "udpOut": "1-8"
+    },
+    "profileHostlists": "omit",
+    "queueInputFinRst": false,
+    "queueInputSynAck": false,
+    "tcpOutPorts": [],
+    "udpOutPorts": [
+      "19294-19344",
+      "50000-50100"
+    ]
+  },
+  "id": "discord-voice-flowseal-narrow",
+  "intendedFor": [
+    "второй кандидат после upstream conservative",
+    "Discord Voice/STUN на диапазонах, перенесённых из Flowseal"
+  ],
+  "notes": [
+    "Flowseal general*.bat стабильно повторяет UDP 19294-19344,50000-50100 и filter-l7=discord,stun.",
+    "Windows fake-discord/fake-stun файл не запускается. Для Linux используется проверенный нулевой fake из upstream zapret2 voice/STUN examples.",
+    "Режим шире upstream conservative, но не захватывает весь UDP 443-65535."
+  ],
+  "philosophy": "flowseal-source-narrow-linux-translation",
+  "presetPath": "presets/workspace/discord-voice-flowseal-narrow.txt",
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--filter-udp=19294-19344,50000-50100",
+    "--filter-l7=stun,discord",
+    "--payload=stun,discord_ip_discovery",
+    "--out-range=-n8",
+    "--lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=6"
+  ],
+  "schemaVersion": 1,
+  "serviceTarget": {
+    "nonVoice": false,
+    "presetId": "discord-voice",
+    "summary": "Linux/nfqws2 перенос узкой Flowseal voice-ветки: STUN + Discord IP Discovery на двух известных UDP диапазонах.",
+    "title": "Discord Voice UDP"
+  },
+  "sourcePreset": {
+    "engine": "winws1-to-nfqws2",
+    "id": "flowseal-general-discord-voice",
+    "portingLevel": "semantic-linux-translation",
+    "sourcePath": "zapret1-flowseal-windows/general*.bat",
+    "windowsOptionsExecuted": false
+  },
+  "summary": "Linux/nfqws2 перенос узкой Flowseal voice-ветки: STUN + Discord IP Discovery на двух известных UDP диапазонах.",
+  "title": "Discord Voice Flowseal narrow",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-tests-discord-voice"
+  ]
+}

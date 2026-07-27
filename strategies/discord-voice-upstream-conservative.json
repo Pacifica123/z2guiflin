@@ -1,0 +1,72 @@
+{
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": false,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
+  "capturePolicy": {
+    "edgeIpScoped": false,
+    "edgeIps": [],
+    "kind": "discord-voice-upstream-conservative-v1",
+    "ownerUidScoped": true,
+    "packetWindowHint": {
+      "enforcedByRuntime": true,
+      "udpOut": "1-8"
+    },
+    "profileHostlists": "omit",
+    "queueInputFinRst": false,
+    "queueInputSynAck": false,
+    "tcpOutPorts": [],
+    "udpOutPorts": [
+      "50000-50099"
+    ]
+  },
+  "id": "discord-voice-upstream-conservative",
+  "intendedFor": [
+    "первый безопасный кандидат для Discord Voice",
+    "ручная проверка голосового соединения без захвата широкого UDP диапазона"
+  ],
+  "notes": [
+    "Основано на upstream 50-discord-media: payload=discord_ip_discovery и 16-байтный нулевой fake с repeats=2.",
+    "Upstream nft payload-signature rule не копируется буквально: z2guiflin queue ограничена owner UID и UDP-портами, а nfqws2 выполняет payload/L7 match.",
+    "Это первый кандидат: минимальный capture envelope и без Windows/WinDivert параметров."
+  ],
+  "philosophy": "upstream-first-discord-voice-minimal",
+  "presetPath": "presets/workspace/discord-voice-upstream-conservative.txt",
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--filter-udp=50000-50099",
+    "--filter-l7=discord",
+    "--payload=discord_ip_discovery",
+    "--out-range=-n8",
+    "--lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=2"
+  ],
+  "schemaVersion": 1,
+  "serviceTarget": {
+    "nonVoice": false,
+    "presetId": "discord-voice",
+    "summary": "Узкий Linux/nfqws2 профиль Discord IP Discovery на UDP 50000-50099, основанный на upstream custom.d example.",
+    "title": "Discord Voice UDP"
+  },
+  "sourcePreset": {
+    "engine": "nfqws2",
+    "id": "bol-van-zapret2-discord-media",
+    "portingLevel": "native-linux-profile-adaptation",
+    "sourcePath": "core/zapret2/init.d/custom.d.examples.linux/50-discord-media",
+    "windowsOptionsExecuted": false
+  },
+  "summary": "Узкий Linux/nfqws2 профиль Discord IP Discovery на UDP 50000-50099, основанный на upstream custom.d example.",
+  "title": "Discord Voice upstream conservative",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-tests-discord-voice"
+  ]
+}

@@ -108,6 +108,12 @@ from .adapters.discord_har_discovery import (
     discord_har_plan_to_text,
     discord_har_report_to_text,
 )
+from .adapters.discord_har_workbench import (
+    discord_har_group_plan_to_text,
+    discord_har_workbench_report_to_text,
+    discord_har_workbench_to_text,
+)
+from .adapters.discord_voice_profiles import discord_voice_profiles_to_text
 from .adapters.discord_dns_edge_diagnostics import (
     DEFAULT_DNS_EDGE_RESOLVERS,
     discord_dns_edge_check_to_text,
@@ -204,7 +210,7 @@ def describe_project() -> str:
             "default build workflow: v0.4-alpha over v0.3-stable baseline owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
             "GUI privileged start/stop: v0.4-alpha via graphical sudo askpass",
-            "blockcheck lab: v0.4-alpha service targets plus Discord endpoint discovery diagnostics",
+            "blockcheck lab: v0.4-alpha service targets, HAR workbench and Discord Voice source profiles",
             "discord tunnel lane: Stage 7y SOCKS/VLESS guided experiment with GUI clipboard import",
             "launch composer: Stage 7z GUI panel for combining Zapret and tunnel components",
             f"gui shell: PyQt skeleton ({pyqt_state})",
@@ -733,6 +739,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="показать последний sanitized Discord HAR summary",
     )
     parser.add_argument(
+        "--discord-har-workbench",
+        metavar="HAR_OR_ZIP",
+        help="sanitized HAR import, L7 grouping, Blockcheck group files и preset blueprint; без sudo/run",
+    )
+    parser.add_argument(
+        "--discord-har-workbench-report",
+        action="store_true",
+        help="показать последний Discord HAR workbench",
+    )
+    parser.add_argument(
+        "--discord-har-group-plan",
+        metavar="GROUP_ID",
+        help="показать Blockcheck plan для группы последнего HAR workbench; без запуска",
+    )
+    parser.add_argument(
+        "--discord-voice-profiles",
+        action="store_true",
+        help="показать перенесённые Discord Voice Linux/nfqws2 профили и их источники",
+    )
+    parser.add_argument(
         "--discord-endpoint-seconds",
         type=int,
         default=DEFAULT_DISCOVERY_SECONDS,
@@ -1038,6 +1064,34 @@ def main(argv: list[str] | None = None) -> int:
     if args.discord_har_report:
         print(discord_har_report_to_text())
         return 0
+
+    if args.discord_har_workbench:
+        try:
+            print(discord_har_workbench_to_text(str(args.discord_har_workbench)))
+            return 0
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"Discord HAR workbench failed: {exc}", file=sys.stderr)
+            return 2
+
+    if args.discord_har_workbench_report:
+        print(discord_har_workbench_report_to_text())
+        return 0
+
+    if args.discord_har_group_plan:
+        try:
+            print(discord_har_group_plan_to_text(str(args.discord_har_group_plan)))
+            return 0
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"Discord HAR group plan failed: {exc}", file=sys.stderr)
+            return 2
+
+    if args.discord_voice_profiles:
+        try:
+            print(discord_voice_profiles_to_text())
+            return 0
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"Discord Voice profile inventory failed: {exc}", file=sys.stderr)
+            return 2
 
     if args.discord_dns_edge_plan:
         print(discord_dns_edge_plan_to_text(hosts=args.discord_dns_edge_hosts, resolvers=args.discord_dns_edge_resolvers, timeout_seconds=args.discord_dns_edge_timeout))

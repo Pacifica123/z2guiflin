@@ -168,3 +168,33 @@ def test_har_cli_plan_and_report_are_available(tmp_path: Path, monkeypatch) -> N
     monkeypatch.chdir(ROOT)
     assert "Discord HAR discovery plan" in discord_har_plan_to_text()
     assert main(["--discord-har-plan"]) == 0
+
+
+def test_har_analyzer_keeps_only_protocol_and_error_categories(tmp_path: Path) -> None:
+    _write_default_hostlist(tmp_path)
+    har = {
+        "log": {
+            "entries": [
+                {
+                    "request": {"method": "GET", "url": "https://updates.discord.com/failing", "headers": []},
+                    "response": {"status": 0, "httpVersion": "h3", "headers": []},
+                    "_error": "net::ERR_CONNECTION_RESET secret diagnostic detail",
+                }
+            ]
+        }
+    }
+    har_path = tmp_path / "protocol.har"
+    har_path.write_text(json.dumps(har), encoding="utf-8")
+
+    summary = analyze_discord_har(har_path, root=tmp_path)
+    host = summary.host_summaries[0]
+    payload = json.dumps(summary.to_dict(), ensure_ascii=False)
+
+    assert host.schemes == ("https",)
+    assert host.http_versions == ("h3",)
+    assert host.l7_hints == ("quic",)
+    assert host.transport_hints == ("udp",)
+    assert host.error_count == 1
+    assert host.failed_status_count == 1
+    assert host.error_categories == ("reset-or-closed",)
+    assert "secret diagnostic detail" not in payload

@@ -1,0 +1,11 @@
+# z2guiflin Zapret2 preset
+# id: discord-voice-flowseal-narrow
+# title: Discord Voice Flowseal narrow
+# Discord Voice: отдельный альтернативный профиль; не объединять автоматически с другими voice-пресетами.
+--lua-init=@core/zapret2/lua/zapret-lib.lua
+--lua-init=@core/zapret2/lua/zapret-antidpi.lua
+--filter-udp=19294-19344,50000-50100
+--filter-l7=stun,discord
+--payload=stun,discord_ip_discovery
+--out-range=-n8
+--lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=6

@@ -107,8 +107,8 @@ def test_gui_source_uses_preset_and_profile_catalog() -> None:
 def test_project_description_uses_unambiguous_terms() -> None:
     text = describe_project()
     assert "workspace contexts: 1" in text
-    assert "presets: 15" in text
-    assert "traffic profiles: 61" in text
+    assert "presets: 18" in text
+    assert "traffic profiles: 64" in text
 
 
 def test_strategy_json_shadow_matches_preset_file() -> None:

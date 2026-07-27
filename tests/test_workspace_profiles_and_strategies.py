@@ -64,6 +64,9 @@ def test_workspace_catalog_loads_profiles_and_strategies() -> None:
         "reference-linux-general-multisplit-like",
         "reference-flowseal-simple-fake-like",
         "windows-all-tcp-udp-v3-2-linux-bridge",
+        "discord-voice-upstream-conservative",
+        "discord-voice-flowseal-narrow",
+        "discord-voice-guiwin-wide",
     }
 
     default_profile = catalog.profile_by_id()["default"]
@@ -130,7 +133,7 @@ def test_entrypoint_can_print_profiles_and_strategies_without_execution() -> Non
     assert main(["--show-profile", "default"]) == 0
     assert main(["--list-strategies"]) == 0
     assert main(["--show-strategy", "manual-local"]) == 0
-    assert "workspace contexts: 1; presets: 15; traffic profiles: 61" in describe_project()
+    assert "workspace contexts: 1; presets: 18; traffic profiles: 64" in describe_project()
 
 
 
