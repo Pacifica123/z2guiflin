@@ -113,6 +113,16 @@ from .adapters.discord_har_workbench import (
     discord_har_workbench_report_to_text,
     discord_har_workbench_to_text,
 )
+from .adapters.har_discovery import (
+    har_analyze_to_text,
+    har_plan_to_text,
+    har_report_to_text,
+)
+from .adapters.har_workbench import (
+    har_group_plan_to_text,
+    har_workbench_report_to_text,
+    har_workbench_to_text,
+)
 from .adapters.discord_voice_profiles import discord_voice_profiles_to_text
 from .adapters.discord_dns_edge_diagnostics import (
     DEFAULT_DNS_EDGE_RESOLVERS,
@@ -210,7 +220,7 @@ def describe_project() -> str:
             "default build workflow: v0.4-alpha over v0.3-stable baseline owner-confirmed local make",
             "default workflow: Stage 14 owner-confirmed start/stop",
             "GUI privileged start/stop: v0.4-alpha via graphical sudo askpass",
-            "blockcheck lab: v0.4-alpha service targets, HAR workbench and Discord Voice source profiles",
+            "blockcheck lab: v0.4-alpha universal HAR workbench, service targets and separate Discord Voice profiles",
             "discord tunnel lane: Stage 7y SOCKS/VLESS guided experiment with GUI clipboard import",
             "launch composer: Stage 7z GUI panel for combining Zapret and tunnel components",
             f"gui shell: PyQt skeleton ({pyqt_state})",
@@ -724,6 +734,36 @@ def build_parser() -> argparse.ArgumentParser:
         help="показать privacy-aware owner plan для optional Chromium netlog диагностики Discord",
     )
     parser.add_argument(
+        "--har-plan",
+        action="store_true",
+        help="показать privacy-aware план универсального анализа HAR; без чтения файла",
+    )
+    parser.add_argument(
+        "--har-analyze",
+        metavar="HAR_OR_ZIP",
+        help="прочитать HAR любого ресурса и сохранить sanitized host/path/status/L7/error summary",
+    )
+    parser.add_argument(
+        "--har-report",
+        action="store_true",
+        help="показать последний универсальный sanitized HAR summary",
+    )
+    parser.add_argument(
+        "--har-workbench",
+        metavar="HAR_OR_ZIP",
+        help="универсальный HAR import, family/L7/error grouping, Blockcheck inputs и preset blueprint",
+    )
+    parser.add_argument(
+        "--har-workbench-report",
+        action="store_true",
+        help="показать последний универсальный HAR workbench",
+    )
+    parser.add_argument(
+        "--har-group-plan",
+        metavar="GROUP_ID",
+        help="показать Blockcheck plan для группы последнего универсального HAR workbench",
+    )
+    parser.add_argument(
         "--discord-har-plan",
         action="store_true",
         help="показать privacy-aware план анализа HAR Discord; без чтения файла",
@@ -1048,6 +1088,42 @@ def main(argv: list[str] | None = None) -> int:
     if args.discord_netlog_plan:
         print(discord_netlog_plan_to_text())
         return 0
+
+    if args.har_plan:
+        print(har_plan_to_text())
+        return 0
+
+    if args.har_analyze:
+        try:
+            print(har_analyze_to_text(str(args.har_analyze)))
+            return 0
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"HAR analyze failed: {exc}", file=sys.stderr)
+            return 2
+
+    if args.har_report:
+        print(har_report_to_text())
+        return 0
+
+    if args.har_workbench:
+        try:
+            print(har_workbench_to_text(str(args.har_workbench)))
+            return 0
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"HAR workbench failed: {exc}", file=sys.stderr)
+            return 2
+
+    if args.har_workbench_report:
+        print(har_workbench_report_to_text())
+        return 0
+
+    if args.har_group_plan:
+        try:
+            print(har_group_plan_to_text(str(args.har_group_plan)))
+            return 0
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"HAR group plan failed: {exc}", file=sys.stderr)
+            return 2
 
     if args.discord_har_plan:
         print(discord_har_plan_to_text())

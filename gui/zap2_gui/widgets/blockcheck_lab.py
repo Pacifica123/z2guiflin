@@ -36,12 +36,12 @@ from ..adapters.discord_endpoint_discovery import (
     discord_endpoint_report_to_text,
     discord_netlog_plan_to_text,
 )
-from ..adapters.discord_har_workbench import (
-    build_discord_har_workbench,
-    discord_har_group_plan_to_text,
-    discord_har_workbench_report_to_text,
+from ..adapters.har_workbench import (
+    build_har_workbench,
     get_har_workbench_group,
-    latest_discord_har_workbench,
+    har_group_plan_to_text,
+    har_workbench_report_to_text,
+    latest_har_workbench,
 )
 from ..adapters.discord_voice_profiles import discord_voice_profiles_to_text
 from ..models.service_targets import (
@@ -282,7 +282,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     voice_profiles_button = QtWidgets.QPushButton("Voice profiles")
     har_group_combo = QtWidgets.QComboBox()
     har_group_combo.setObjectName("blockcheckHarGroupCombo")
-    har_group_combo.setToolTip("Blockcheckable groups from the latest sanitized HAR workbench")
+    har_group_combo.setToolTip("Группы любого ресурса из последнего sanitized HAR workbench")
     stop_button.setEnabled(False)
     for action_button in (
         preflight_button, build_plan_button, build_button, plan_button, run_button, stop_button,
@@ -553,7 +553,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
     def refresh_har_groups() -> None:
         har_group_combo.clear()
-        workbench = latest_discord_har_workbench(root=root)
+        workbench = latest_har_workbench(root=root)
         if workbench is None:
             har_group_combo.addItem("HAR workbench отсутствует", "")
             har_load_button.setEnabled(False)
@@ -566,7 +566,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         for group in groups:
             issue_marker = "issues" if group.issue_hosts else "observed"
             har_group_combo.addItem(
-                f"{group.group_id} · {group.protocol}/{group.l7} · {len(group.hosts)} hosts · {issue_marker}",
+                f"{group.domain_family} · {group.reason} · {group.protocol}/{group.l7} · {len(group.hosts)} hosts · {issue_marker}",
                 group.group_id,
             )
         har_load_button.setEnabled(True)
@@ -577,14 +577,14 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             return
         path, _selected_filter = QtWidgets.QFileDialog.getOpenFileName(
             page,
-            "Импорт HAR для Discord workbench",
+            "Импорт HAR для универсального workbench",
             str(root or Path.home()),
             "HAR files (*.har *.zip);;All files (*)",
         )
         if not path:
             return
         try:
-            workbench = build_discord_har_workbench(path, root=root)
+            workbench = build_har_workbench(path, root=root)
             refresh_har_groups()
             output.setPlainText(workbench.to_text())
             status.setText("Статус: HAR workbench создан; выберите группу")
@@ -613,7 +613,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             http3_check.setChecked(group.l7 == "quic")
             dead_guard_check.setChecked(False)
             phase_budget_spin.setValue(0)
-            output.setPlainText(discord_har_group_plan_to_text(group_id, root=root))
+            output.setPlainText(har_group_plan_to_text(group_id, root=root))
             status.setText(f"Статус: HAR group loaded · {group_id}")
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
             output.setPlainText(f"Load HAR group: ошибка\n{exc}")
@@ -1096,7 +1096,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     )
     log_button.clicked.connect(lambda _checked=False: run_action("Последний лог", lambda: last_blockcheck_log_to_text(root=root)))
     har_import_button.clicked.connect(lambda _checked=False: import_har_workbench())
-    har_report_button.clicked.connect(lambda _checked=False: run_action("HAR workbench", lambda: discord_har_workbench_report_to_text(root=root)))
+    har_report_button.clicked.connect(lambda _checked=False: run_action("HAR workbench", lambda: har_workbench_report_to_text(root=root)))
     har_load_button.clicked.connect(lambda _checked=False: load_selected_har_group())
     voice_profiles_button.clicked.connect(lambda _checked=False: run_action("Discord Voice profiles", lambda: discord_voice_profiles_to_text(root=root)))
     refresh_har_groups()

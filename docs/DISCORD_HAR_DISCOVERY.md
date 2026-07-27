@@ -1,5 +1,9 @@
 # Discord HAR discovery — v0.4-alpha Stage 7x
 
+> Примечание Stage 8e: этот документ описывает legacy Discord-specific анализатор.
+> Основной GUI Blockcheck Lab теперь использует универсальный workbench из
+> `docs/UNIVERSAL_HAR_WORKBENCH.md` и команды `--har-*`.
+
 Этот stage добавляет безопасный разбор browser HAR для Discord. Цель не в том,
 чтобы вытащить из HAR секреты или повторить запросы. Цель уже: получить короткую
 карту фактических web-hosts, HTTP/WebSocket статусов и path-шаблонов, а затем

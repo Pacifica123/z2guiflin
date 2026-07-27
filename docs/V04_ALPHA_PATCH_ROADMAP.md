@@ -515,3 +515,19 @@ HAR pipeline расширен до workbench: sanitized import, обезличе
 Blockcheck options и preset blueprint. Автоматизация останавливается перед sudo
 run и перед выбором победившей стратегии. Это не позволяет превратить один HAR
 в непроверенный сетевой preset.
+
+## v0.4-alpha Stage 8e — универсальный HAR workbench
+
+Stage 8e убирает Discord-only границу из основного HAR UI. Новый parser принимает
+HAR любого ресурса, сохраняет все exact hosts, безопасные error codes и
+browser-visible L7 hints, а затем сравнивает hosts со всеми локальными
+hostlists.
+
+Группы строятся по domain family, L7 и причине внимания. Например,
+`rr8---sn-*.googlevideo.com` с `NS_BINDING_ABORTED` остаётся точным Blockcheck
+target внутри family `googlevideo.com`. Если suffix уже покрыт `default.hosts`,
+workbench предлагает проверять стратегию; если host не покрыт, он попадает в
+hostlist candidates.
+
+Discord Voice source profiles Stage 8d не меняются. Они остаются отдельными от
+HAR, потому что обычный HAR не содержит произвольный UDP voice/media flow.
