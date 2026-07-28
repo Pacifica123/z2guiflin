@@ -575,7 +575,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             font-weight: 700;
             border-radius: 23px;
             padding: 0;
-            background: rgba(124, 124, 124, 0.08);
+            background: #f2edf4;
         }
         QTabBar::tab {
             padding: 8px 12px;
@@ -584,16 +584,16 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             gridline-color: rgba(90, 90, 90, 0.10);
         }
         QFrame#launchIssueBanner {
-            border: 1px solid rgba(220, 170, 40, 0.65);
+            border: 1px solid #d9b864;
             border-radius: 8px;
-            background: rgba(220, 170, 40, 0.16);
+            background: #f6edd7;
         }
         QLabel#launchIssueCode {
             font-family: monospace;
             font-weight: 700;
             padding: 2px 6px;
             border-radius: 5px;
-            background: rgba(220, 170, 40, 0.25);
+            background: #efe0b8;
         }
         QLabel#launchIssueMessage {
             font-weight: 600;
@@ -602,16 +602,16 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             font-weight: 700;
             padding: 6px 10px;
             border-radius: 12px;
-            background: rgba(127, 127, 127, 0.14);
+            background: #eee8f1;
         }
         QLabel#runtimeStatusIndicator[state="running"] {
-            background: rgba(0, 180, 80, 0.18);
+            background: #dcefe3;
         }
         QLabel#runtimeStatusIndicator[state="stopped"] {
-            background: rgba(180, 120, 0, 0.16);
+            background: #f2e8d8;
         }
         QLabel#runtimeStatusIndicator[state="mismatch"] {
-            background: rgba(200, 60, 40, 0.18);
+            background: #f4ded9;
         }
         """
     )

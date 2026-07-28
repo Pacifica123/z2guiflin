@@ -17,6 +17,17 @@ QMainWindow, QWidget#appShell, QStackedWidget#contentStack {
     background: #f6f3f7;
 }
 
+QWidget#page-overview,
+QWidget#page-core,
+QWidget#page-strategies,
+QWidget#page-diagnostics,
+QWidget#page-tunnel,
+QWidget#page-settings,
+QWidget#page-logs,
+QWidget#blockcheckLabContent {
+    background: transparent;
+}
+
 QFrame#navigationRail {
     background: #eee8f1;
     border: 1px solid #ded6e2;
@@ -49,6 +60,10 @@ QListWidget#navigationList {
     padding: 4px;
 }
 
+QListWidget#navigationList::viewport {
+    background: transparent;
+}
+
 QListWidget#navigationList::item {
     min-height: 38px;
     padding: 7px 10px;
@@ -73,6 +88,7 @@ QFrame#contentSurface {
 }
 
 QGroupBox {
+    color: #3f3945;
     background: #fdfcfd;
     border: 1px solid #dfd8e3;
     border-radius: 11px;
@@ -90,6 +106,7 @@ QGroupBox::title {
 }
 
 QPushButton, QToolButton {
+    color: #3f3945;
     background: #eee8f1;
     border: 1px solid #d8cfdd;
     border-radius: 8px;
@@ -108,17 +125,24 @@ QPushButton:pressed, QToolButton:pressed {
 
 QPushButton:disabled, QToolButton:disabled {
     background: #f0edf1;
-    color: #aaa3ae;
+    color: #9b939f;
     border-color: #e4dfe6;
 }
 
 QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
+    color: #3f3945;
     background: #fffefe;
     border: 1px solid #dcd5df;
     border-radius: 8px;
     padding: 6px 8px;
     selection-background-color: #d9cbe1;
     selection-color: #352d3a;
+}
+
+QLineEdit:disabled, QPlainTextEdit:disabled, QTextEdit:disabled,
+QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
+    color: #9b939f;
+    background: #f4f1f5;
 }
 
 QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus,
@@ -131,7 +155,16 @@ QComboBox::drop-down {
     width: 24px;
 }
 
+QComboBox QAbstractItemView {
+    color: #3f3945;
+    background: #fffefe;
+    selection-background-color: #d9cbe1;
+    selection-color: #352d3a;
+    outline: 0;
+}
+
 QCheckBox, QRadioButton {
+    color: #3f3945;
     spacing: 7px;
     background: transparent;
 }
@@ -144,6 +177,7 @@ QTabWidget::pane {
 }
 
 QTabBar::tab {
+    color: #4c4451;
     background: #eee8f1;
     border: 1px solid #ded6e2;
     border-bottom: 0;
@@ -159,7 +193,13 @@ QTabBar::tab:selected {
     font-weight: 700;
 }
 
+QTabBar::tab:disabled {
+    color: #9b939f;
+    background: #f2eef3;
+}
+
 QHeaderView::section {
+    color: #46404a;
     background: #eee8f1;
     border: 0;
     border-right: 1px solid #ddd5e1;
@@ -168,9 +208,51 @@ QHeaderView::section {
     font-weight: 600;
 }
 
+QTableCornerButton::section {
+    background: #eee8f1;
+    border: 0;
+    border-right: 1px solid #ddd5e1;
+    border-bottom: 1px solid #ddd5e1;
+}
+
 QTableView, QTreeView, QListView {
+    color: #3f3945;
+    background: #fffefe;
     alternate-background-color: #f8f5f9;
     gridline-color: #e6e0e8;
+    border: 1px solid #ddd6e0;
+    selection-background-color: #d9cbe1;
+    selection-color: #352d3a;
+    outline: 0;
+}
+
+QTableView::viewport, QTreeView::viewport, QListView::viewport {
+    background: #fffefe;
+}
+
+QTableView::item, QTreeView::item, QListView::item {
+    color: #3f3945;
+    background: #fffefe;
+}
+
+QTableView::item:alternate, QTreeView::item:alternate, QListView::item:alternate {
+    background: #f8f5f9;
+}
+
+QTableView::item:selected, QTreeView::item:selected, QListView::item:selected {
+    color: #352d3a;
+    background: #d9cbe1;
+}
+
+QTableView:disabled, QTreeView:disabled, QListView:disabled {
+    color: #9b939f;
+    background: #f4f1f5;
+}
+
+QScrollArea#blockcheckLabScrollArea,
+QScrollArea#blockcheckLabScrollArea::viewport {
+    background: transparent;
+    border: 0;
 }
 
 QScrollBar:vertical {
@@ -191,6 +273,24 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     height: 0;
 }
 
+QScrollBar:horizontal {
+    background: transparent;
+    height: 11px;
+    margin: 3px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #cec4d3;
+    min-width: 26px;
+    border-radius: 4px;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: transparent;
+    width: 0;
+}
+
 QToolTip {
     background: #4a414f;
     color: #fffaff;
@@ -200,15 +300,50 @@ QToolTip {
 """
 
 
+def _apply_light_palette(app: Any) -> None:
+    """Detach Fusion widgets from the desktop dark palette."""
+
+    # Imported only during real GUI startup; PyQt remains optional for CLI/tests.
+    from PyQt6 import QtGui  # type: ignore[import-not-found]
+
+    palette = QtGui.QPalette()
+    colors = {
+        QtGui.QPalette.ColorRole.Window: "#f6f3f7",
+        QtGui.QPalette.ColorRole.WindowText: "#3f3945",
+        QtGui.QPalette.ColorRole.Base: "#fffefe",
+        QtGui.QPalette.ColorRole.AlternateBase: "#f8f5f9",
+        QtGui.QPalette.ColorRole.ToolTipBase: "#4a414f",
+        QtGui.QPalette.ColorRole.ToolTipText: "#fffaff",
+        QtGui.QPalette.ColorRole.Text: "#3f3945",
+        QtGui.QPalette.ColorRole.Button: "#eee8f1",
+        QtGui.QPalette.ColorRole.ButtonText: "#3f3945",
+        QtGui.QPalette.ColorRole.BrightText: "#ffffff",
+        QtGui.QPalette.ColorRole.Highlight: "#d9cbe1",
+        QtGui.QPalette.ColorRole.HighlightedText: "#352d3a",
+        QtGui.QPalette.ColorRole.PlaceholderText: "#8f8793",
+    }
+    for role, value in colors.items():
+        palette.setColor(role, QtGui.QColor(value))
+
+    disabled = QtGui.QPalette.ColorGroup.Disabled
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.WindowText, QtGui.QColor("#9b939f"))
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor("#9b939f"))
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.ButtonText, QtGui.QColor("#9b939f"))
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.Base, QtGui.QColor("#f4f1f5"))
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.Button, QtGui.QColor("#f0edf1"))
+    app.setPalette(palette)
+
+
 def apply_soft_pastel_theme(app: Any) -> None:
     """Apply one predictable light theme to the current QApplication."""
 
-    _QtCore, QtWidgets = require_pyqt()
+    _QtCore, _QtWidgets = require_pyqt()
     try:
         app.setStyle("Fusion")
     except Exception:
         pass
 
+    _apply_light_palette(app)
     font = app.font()
     if font.pointSize() < 10:
         font.setPointSize(10)

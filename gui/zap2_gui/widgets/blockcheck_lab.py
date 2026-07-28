@@ -304,16 +304,16 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         (coverage_button, 1, 2, 1, 2),
         (build_plan_button, 2, 0, 1, 2),
         (build_button, 2, 2, 1, 2),
-        (policy_button, 3, 0, 1, 1),
-        (tournament_button, 3, 1, 1, 1),
-        (verify_button, 3, 2, 1, 1),
-        (endpoint_button, 3, 3, 1, 1),
-        (log_button, 4, 0, 1, 4),
-        (har_import_button, 5, 0, 1, 2),
-        (har_report_button, 5, 2, 1, 2),
-        (har_group_combo, 6, 0, 1, 4),
-        (har_load_button, 7, 0, 1, 2),
-        (voice_profiles_button, 7, 2, 1, 2),
+        (policy_button, 3, 0, 1, 2),
+        (tournament_button, 3, 2, 1, 2),
+        (verify_button, 4, 0, 1, 2),
+        (endpoint_button, 4, 2, 1, 2),
+        (log_button, 5, 0, 1, 4),
+        (har_import_button, 6, 0, 1, 2),
+        (har_report_button, 6, 2, 1, 2),
+        (har_group_combo, 7, 0, 1, 4),
+        (har_load_button, 8, 0, 1, 2),
+        (voice_profiles_button, 8, 2, 1, 2),
     )
     for button, row, column, row_span, column_span in action_grid:
         actions_layout.addWidget(button, row, column, row_span, column_span)
@@ -1192,10 +1192,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             font-weight: 700;
             padding: 6px 10px;
             border-radius: 12px;
-            background: rgba(127, 127, 127, 0.14);
+            background: #eee8f1;
         }
         QLabel#mutedText, QLabel#blockcheckPresetHint {
-            color: rgba(220, 220, 220, 0.88);
+            color: #756d7b;
             font-size: 12px;
         }
         QCheckBox {

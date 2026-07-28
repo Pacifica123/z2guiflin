@@ -596,3 +596,9 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-discord-pretls-guided-probe
 ```
 
 It is not a new bypass preset. It collects one synchronized report with active strategy, owner-rules state, nft queue counters, nfqws2 PID before/after, args/log/debug deltas, verdict, and the next allowed diagnostic branch. The command separates `SHELL COMMAND` from `MANUAL ACTION` so the Discord launch instruction is not confused with a terminal command. Reports are saved under `.zap2/runtime/reports/`.
+
+## v0.4-alpha Stage 8f-r1: стабильная светлая палитра
+
+После проверки Stage 8f на тёмной desktop theme добавлена явная `QPalette`.
+Таблицы, списки, Blockcheck Lab и popup-списки теперь не наследуют чёрный фон
+KDE/GNOME. Патч не меняет сетевые действия и runtime.

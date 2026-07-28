@@ -541,3 +541,11 @@ Stage 8f является UX-патчем поверх Stage 8e. Он добав
 подача и стабильное состояние окна. `qfluentwidgets`, Mica, tray, автозапрос
 root и декоративные эффекты не переносятся. Runtime и диагностические контракты
 Stage 8e не меняются.
+
+## v0.4-alpha Stage 8f-r1 — light palette hotfix
+
+Owner-run Stage 8f показал конфликт с тёмной desktop palette: shell был светлым,
+но item views и часть Blockcheck page оставались почти чёрными. Stage 8f-r1
+добавляет явную application `QPalette`, фиксирует background/selection для Qt item
+views и расширяет узкие action buttons в Blockcheck Lab. Runtime и диагностика не
+меняются.

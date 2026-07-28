@@ -439,3 +439,8 @@ Adds a guided diagnostic harness for Discord pre-TLS observability. The patch is
 `v0.4-alpha_stage_8f` улучшает launcher и внешний GUI shell после универсального
 HAR workbench Stage 8e. Product label остаётся `v0.4-alpha`; runtime, стратегии
 и privilege boundary не меняются.
+
+## v0.4-alpha Stage 8f-r1
+
+Hotfix поверх Stage 8f после owner-run. Исправляет зависимость светлой QSS-темы
+от тёмной системной палитры и не меняет runtime-контракты Stage 8e/8f.

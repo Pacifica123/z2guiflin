@@ -2,22 +2,18 @@
 
 ## Title
 
-Короткий запуск и мягкий sidebar UX
+Нормализация светлой темы после owner-run
 
 ## Что изменено
 
-- Добавлен `run.sh`: `./run.sh` запускает GUI без ручного `PYTHONPATH`.
-- Launcher предпочитает `.venv`, умеет передавать все CLI-аргументы и заранее
-  объясняет, как установить PyQt6.
-- Верхняя навигация заменена на постоянный левый sidebar с текущими SVG-иконками.
-- Добавлена единая мягкая пастельная тема без `qfluentwidgets` и Windows-only
-  эффектов.
-- Главное окно сохраняет размер и последний открытый раздел через `QSettings`.
-- Добавлена краткая safety-подсказка: plan/status отделены от системных действий.
-- Зафиксировано, какие UX-приёмы взяты из Windows GUI и какие намеренно не
-  переносятся.
+- Добавлена явная светлая `QPalette`, не зависящая от тёмной темы KDE/GNOME.
+- Таблицы, списки, popup-списки и их viewport получили фиксированный светлый фон.
+- Selection, disabled state, headers и scrollbars приведены к одной палитре.
+- Blockcheck Lab больше не рисует тёмный фон со светло-серым локальным текстом.
+- Узкие кнопки `Tournament`, `Checklist` и `Endpoints` переразложены по две в ряд.
+- Runtime status/banner цвета заменены на стабильные pastel hex values.
 
 ## Граница патча
 
-Патч не меняет стратегии, HAR workbench, Blockcheck, tunnel runtime, nftables,
-systemd или privilege workflow. `run.sh` не вызывает `sudo`.
+Патч не меняет сетевую логику, стратегии, Blockcheck execution, HAR workbench,
+tunnel runtime, nftables, systemd или privilege boundary.
