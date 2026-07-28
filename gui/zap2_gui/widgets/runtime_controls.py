@@ -177,8 +177,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     table_actions.addWidget(copy_table_button)
     table_actions.addWidget(copy_last_action_button)
     table_actions.addStretch(1)
-    overview_table_layout.addWidget(overview_table)
     overview_table_layout.addLayout(table_actions)
+    overview_table_layout.addWidget(overview_table)
 
     composer_box = QtWidgets.QGroupBox("Комбинированный запуск")
     composer_layout = QtWidgets.QVBoxLayout(composer_box)
@@ -400,6 +400,10 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         if launch_issue["full"]:
             copy_text_to_clipboard(launch_issue["full"], "полная ошибка запуска")
 
+    def clear_launch_issue_on_input_change() -> None:
+        hide_launch_issue()
+        refresh_visual_state()
+
     def classify_current_action(label: str, *, text: str = "", error: str = "") -> LaunchIssue | None:
         try:
             return classify_launch_issue(
@@ -535,6 +539,12 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     logs_button.clicked.connect(lambda _checked=False: run_action("Runtime logs", lambda: gui_runtime_logs(root=root)))
     copy_table_button.clicked.connect(lambda _checked=False: copy_current_table())
     copy_last_action_button.clicked.connect(lambda _checked=False: copy_last_action_output())
+    zapret_check.toggled.connect(lambda _checked=False: clear_launch_issue_on_input_change())
+    vless_check.toggled.connect(lambda _checked=False: clear_launch_issue_on_input_change())
+    socks5_check.toggled.connect(lambda _checked=False: clear_launch_issue_on_input_change())
+    mtproto_check.toggled.connect(lambda _checked=False: clear_launch_issue_on_input_change())
+    custom_check.toggled.connect(lambda _checked=False: clear_launch_issue_on_input_change())
+    core_input.textChanged.connect(lambda _text='': clear_launch_issue_on_input_change())
     developer_mode.toggled.connect(lambda _checked=False: (details_box.setVisible(developer_mode.isChecked()), refresh_visual_state()))
 
     actions: tuple[tuple[str, Callable[[], str]], ...] = (

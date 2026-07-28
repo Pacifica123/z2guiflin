@@ -291,7 +291,14 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     ):
         action_button.setMinimumHeight(30)
         action_button.setMinimumWidth(76)
-        action_button.setMaximumWidth(150)
+        action_button.setMaximumWidth(220)
+        try:
+            action_button.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Expanding,
+                QtWidgets.QSizePolicy.Policy.Fixed,
+            )
+        except Exception:  # pragma: no cover - PyQt compatibility
+            pass
     run_button.setFixedWidth(40)
     stop_button.setFixedWidth(40)
     export_button.setMinimumWidth(118)

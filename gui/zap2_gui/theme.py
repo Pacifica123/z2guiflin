@@ -102,7 +102,7 @@ QGroupBox::title {
     left: 12px;
     padding: 0 5px;
     color: #55495d;
-    background: #fdfcfd;
+    background: #faf8fb;
 }
 
 QPushButton, QToolButton {
@@ -151,8 +151,12 @@ QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
 }
 
 QComboBox::drop-down {
-    border: 0;
     width: 24px;
+    border: 0;
+    border-left: 1px solid #e2dce5;
+    background: #fbf9fc;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
 }
 
 QComboBox QAbstractItemView {
@@ -169,11 +173,33 @@ QCheckBox, QRadioButton {
     background: transparent;
 }
 
+QSpinBox, QDoubleSpinBox {
+    padding-right: 22px;
+}
+
+QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {
+    background: #fbf9fc;
+    border-left: 1px solid #e2dce5;
+    width: 18px;
+}
+
+QAbstractSpinBox::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    border-top-right-radius: 8px;
+    border-bottom: 1px solid #e2dce5;
+}
+
+QAbstractSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    border-bottom-right-radius: 8px;
+}
+
 QTabWidget::pane {
-    background: #fdfcfd;
-    border: 1px solid #dfd8e3;
-    border-radius: 10px;
-    top: -1px;
+    background: transparent;
+    border: 0;
+    top: 0;
 }
 
 QTabBar::tab {
