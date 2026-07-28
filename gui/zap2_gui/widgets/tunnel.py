@@ -66,6 +66,7 @@ def make_tunnel_page(root: Path | None = None) -> Any:
 
     controls_tabs = QtWidgets.QTabWidget()
     controls_tabs.setDocumentMode(True)
+    controls_tabs.tabBar().setDrawBase(False)
     try:
         controls_tabs.setIconSize(_QtCore.QSize(16, 16))
     except Exception:  # pragma: no cover

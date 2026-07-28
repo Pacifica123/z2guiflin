@@ -257,7 +257,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     actions_box.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)
     actions_layout = QtWidgets.QGridLayout(actions_box)
     actions_layout.setContentsMargins(10, 10, 10, 10)
-    actions_layout.setHorizontalSpacing(6)
+    actions_layout.setHorizontalSpacing(8)
     actions_layout.setVerticalSpacing(6)
     preflight_button = QtWidgets.QPushButton("Preflight")
     build_plan_button = QtWidgets.QPushButton("Binaries plan")
@@ -290,8 +290,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         har_import_button, har_report_button, har_load_button, voice_profiles_button,
     ):
         action_button.setMinimumHeight(30)
-        action_button.setMinimumWidth(76)
-        action_button.setMaximumWidth(220)
+        action_button.setMinimumWidth(86)
+        action_button.setMaximumWidth(16777215)
         try:
             action_button.setSizePolicy(
                 QtWidgets.QSizePolicy.Policy.Expanding,
@@ -301,31 +301,37 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             pass
     run_button.setFixedWidth(40)
     stop_button.setFixedWidth(40)
-    export_button.setMinimumWidth(118)
+
+    primary_row = QtWidgets.QWidget()
+    primary_row_layout = QtWidgets.QHBoxLayout(primary_row)
+    primary_row_layout.setContentsMargins(0, 0, 0, 0)
+    primary_row_layout.setSpacing(6)
+    primary_row_layout.addWidget(preflight_button, 1)
+    primary_row_layout.addWidget(plan_button, 1)
+    primary_row_layout.addWidget(run_button)
+    primary_row_layout.addWidget(stop_button)
+    actions_layout.addWidget(primary_row, 0, 0, 1, 2)
+
     action_grid = (
-        (preflight_button, 0, 0, 1, 1),
-        (plan_button, 0, 1, 1, 1),
-        (run_button, 0, 2, 1, 1),
-        (stop_button, 0, 3, 1, 1),
-        (export_button, 1, 0, 1, 2),
-        (coverage_button, 1, 2, 1, 2),
-        (build_plan_button, 2, 0, 1, 2),
-        (build_button, 2, 2, 1, 2),
-        (policy_button, 3, 0, 1, 2),
-        (tournament_button, 3, 2, 1, 2),
-        (verify_button, 4, 0, 1, 2),
-        (endpoint_button, 4, 2, 1, 2),
-        (log_button, 5, 0, 1, 4),
-        (har_import_button, 6, 0, 1, 2),
-        (har_report_button, 6, 2, 1, 2),
-        (har_group_combo, 7, 0, 1, 4),
-        (har_load_button, 8, 0, 1, 2),
-        (voice_profiles_button, 8, 2, 1, 2),
+        (export_button, 1, 0, 1, 1),
+        (coverage_button, 1, 1, 1, 1),
+        (build_plan_button, 2, 0, 1, 1),
+        (build_button, 2, 1, 1, 1),
+        (policy_button, 3, 0, 1, 1),
+        (tournament_button, 3, 1, 1, 1),
+        (verify_button, 4, 0, 1, 1),
+        (endpoint_button, 4, 1, 1, 1),
+        (log_button, 5, 0, 1, 2),
+        (har_import_button, 6, 0, 1, 1),
+        (har_report_button, 6, 1, 1, 1),
+        (har_group_combo, 7, 0, 1, 2),
+        (har_load_button, 8, 0, 1, 1),
+        (voice_profiles_button, 8, 1, 1, 1),
     )
     for button, row, column, row_span, column_span in action_grid:
         actions_layout.addWidget(button, row, column, row_span, column_span)
-    for column in range(4):
-        actions_layout.setColumnStretch(column, 1)
+    actions_layout.setColumnStretch(0, 1)
+    actions_layout.setColumnStretch(1, 1)
 
     status = QtWidgets.QLabel("Статус: idle")
     status.setObjectName("blockcheckStatusPill")
@@ -1196,6 +1202,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             border-radius: 9px;
         }
         QLabel#blockcheckStatusPill {
+            color: #3f3945;
             font-weight: 700;
             padding: 6px 10px;
             border-radius: 12px;

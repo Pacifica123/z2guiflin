@@ -594,11 +594,13 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             gridline-color: rgba(90, 90, 90, 0.10);
         }
         QFrame#launchIssueBanner {
+            color: #4b3d32;
             border: 1px solid #d9b864;
             border-radius: 8px;
             background: #f6edd7;
         }
         QLabel#launchIssueCode {
+            color: #4b3d32;
             font-family: monospace;
             font-weight: 700;
             padding: 2px 6px;
@@ -606,9 +608,11 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             background: #efe0b8;
         }
         QLabel#launchIssueMessage {
+            color: #4b3d32;
             font-weight: 600;
         }
         QLabel#runtimeStatusIndicator {
+            color: #3f3945;
             font-weight: 700;
             padding: 6px 10px;
             border-radius: 12px;

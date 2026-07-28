@@ -102,7 +102,7 @@ QGroupBox::title {
     left: 12px;
     padding: 0 5px;
     color: #55495d;
-    background: #faf8fb;
+    background: transparent;
 }
 
 QPushButton, QToolButton {
@@ -200,6 +200,16 @@ QTabWidget::pane {
     background: transparent;
     border: 0;
     top: 0;
+}
+
+QTabBar {
+    qproperty-drawBase: 0;
+    background: transparent;
+}
+
+QTabBar::base {
+    background: transparent;
+    border: 0;
 }
 
 QTabBar::tab {
@@ -317,6 +327,24 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     width: 0;
 }
 
+QFrame#settingsCard {
+    background: #fdfcfd;
+    border: 1px solid #dfd8e3;
+    border-radius: 12px;
+}
+
+QLabel#settingsCardTitle {
+    color: #403648;
+    font-size: 13pt;
+    font-weight: 700;
+    background: transparent;
+}
+
+QLabel#settingsValueHint {
+    color: #756d7b;
+    background: transparent;
+}
+
 QToolTip {
     background: #4a414f;
     color: #fffaff;
@@ -326,55 +354,141 @@ QToolTip {
 """
 
 
-def _apply_light_palette(app: Any) -> None:
-    """Detach Fusion widgets from the desktop dark palette."""
+THEME_LIGHT = "light"
+THEME_DARK = "dark"
+
+
+_DARK_COLOR_REPLACEMENTS = (
+    ("#f6f3f7", "#211e25"),
+    ("#faf8fb", "#27232b"),
+    ("#fdfcfd", "#2b2730"),
+    ("#fffefe", "#242128"),
+    ("#f8f5f9", "#28242c"),
+    ("#f4f1f5", "#29262d"),
+    ("#f2eef3", "#2b2830"),
+    ("#f0edf1", "#2b2830"),
+    ("#eee8f1", "#302a35"),
+    ("#e5dce9", "#3a3340"),
+    ("#e4dfe6", "#3b3640"),
+    ("#e2dce5", "#47404c"),
+    ("#dfd8e3", "#49414f"),
+    ("#ded6e2", "#49414f"),
+    ("#ddd6e0", "#49424f"),
+    ("#ddd5e1", "#48414d"),
+    ("#dcd5df", "#4b4451"),
+    ("#dcd0e3", "#493b52"),
+    ("#d9cde0", "#4b4054"),
+    ("#d9cbe1", "#5b4765"),
+    ("#d8cfdd", "#514958"),
+    ("#cec4d3", "#5b5361"),
+    ("#cbbfd2", "#62576a"),
+    ("#aa91b8", "#ad88bd"),
+    ("#9b939f", "#78717d"),
+    ("#756d7b", "#aaa1af"),
+    ("#55495d", "#d8cfdd"),
+    ("#4c4451", "#ddd5e1"),
+    ("#4a414f", "#17151a"),
+    ("#493e51", "#f0e9f4"),
+    ("#46404a", "#ded7e2"),
+    ("#43334d", "#f6eef9"),
+    ("#403648", "#f2ebf5"),
+    ("#3f3945", "#ddd6e2"),
+    ("#352d3a", "#fff8ff"),
+    ("#fffaff", "#f7f2f9"),
+    ("#e6e0e8", "#3e3943"),
+    ("#fbf9fc", "#2b2730"),
+)
+
+
+def _dark_stylesheet(light_stylesheet: str) -> str:
+    result = light_stylesheet
+    for source, target in _DARK_COLOR_REPLACEMENTS:
+        result = result.replace(source, target)
+    return result
+
+
+DARK_PASTEL_STYLESHEET = _dark_stylesheet(SOFT_PASTEL_STYLESHEET)
+
+
+def normalize_theme_name(value: object) -> str:
+    """Return one supported persistent theme identifier."""
+
+    return THEME_DARK if str(value).strip().lower() == THEME_DARK else THEME_LIGHT
+
+
+def _apply_palette(app: Any, theme_name: str) -> None:
+    """Detach Fusion widgets from the desktop palette for either theme."""
 
     # Imported only during real GUI startup; PyQt remains optional for CLI/tests.
     from PyQt6 import QtGui  # type: ignore[import-not-found]
 
+    dark = normalize_theme_name(theme_name) == THEME_DARK
     palette = QtGui.QPalette()
     colors = {
-        QtGui.QPalette.ColorRole.Window: "#f6f3f7",
-        QtGui.QPalette.ColorRole.WindowText: "#3f3945",
-        QtGui.QPalette.ColorRole.Base: "#fffefe",
-        QtGui.QPalette.ColorRole.AlternateBase: "#f8f5f9",
-        QtGui.QPalette.ColorRole.ToolTipBase: "#4a414f",
-        QtGui.QPalette.ColorRole.ToolTipText: "#fffaff",
-        QtGui.QPalette.ColorRole.Text: "#3f3945",
-        QtGui.QPalette.ColorRole.Button: "#eee8f1",
-        QtGui.QPalette.ColorRole.ButtonText: "#3f3945",
+        QtGui.QPalette.ColorRole.Window: "#211e25" if dark else "#f6f3f7",
+        QtGui.QPalette.ColorRole.WindowText: "#ddd6e2" if dark else "#3f3945",
+        QtGui.QPalette.ColorRole.Base: "#242128" if dark else "#fffefe",
+        QtGui.QPalette.ColorRole.AlternateBase: "#28242c" if dark else "#f8f5f9",
+        QtGui.QPalette.ColorRole.ToolTipBase: "#17151a" if dark else "#4a414f",
+        QtGui.QPalette.ColorRole.ToolTipText: "#f7f2f9" if dark else "#fffaff",
+        QtGui.QPalette.ColorRole.Text: "#ddd6e2" if dark else "#3f3945",
+        QtGui.QPalette.ColorRole.Button: "#302a35" if dark else "#eee8f1",
+        QtGui.QPalette.ColorRole.ButtonText: "#ddd6e2" if dark else "#3f3945",
         QtGui.QPalette.ColorRole.BrightText: "#ffffff",
-        QtGui.QPalette.ColorRole.Highlight: "#d9cbe1",
-        QtGui.QPalette.ColorRole.HighlightedText: "#352d3a",
-        QtGui.QPalette.ColorRole.PlaceholderText: "#8f8793",
+        QtGui.QPalette.ColorRole.Highlight: "#5b4765" if dark else "#d9cbe1",
+        QtGui.QPalette.ColorRole.HighlightedText: "#fff8ff" if dark else "#352d3a",
+        QtGui.QPalette.ColorRole.PlaceholderText: "#8d8492" if dark else "#8f8793",
     }
     for role, value in colors.items():
         palette.setColor(role, QtGui.QColor(value))
 
     disabled = QtGui.QPalette.ColorGroup.Disabled
-    palette.setColor(disabled, QtGui.QPalette.ColorRole.WindowText, QtGui.QColor("#9b939f"))
-    palette.setColor(disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor("#9b939f"))
-    palette.setColor(disabled, QtGui.QPalette.ColorRole.ButtonText, QtGui.QColor("#9b939f"))
-    palette.setColor(disabled, QtGui.QPalette.ColorRole.Base, QtGui.QColor("#f4f1f5"))
-    palette.setColor(disabled, QtGui.QPalette.ColorRole.Button, QtGui.QColor("#f0edf1"))
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.WindowText, QtGui.QColor("#78717d" if dark else "#9b939f"))
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor("#78717d" if dark else "#9b939f"))
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.ButtonText, QtGui.QColor("#78717d" if dark else "#9b939f"))
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.Base, QtGui.QColor("#29262d" if dark else "#f4f1f5"))
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.Button, QtGui.QColor("#2b2830" if dark else "#f0edf1"))
     app.setPalette(palette)
 
 
-def apply_soft_pastel_theme(app: Any) -> None:
-    """Apply one predictable light theme to the current QApplication."""
+def _apply_light_palette(app: Any) -> None:
+    """Compatibility wrapper used by older tests and callers."""
 
+    _apply_palette(app, THEME_LIGHT)
+
+
+def apply_application_theme(app: Any, theme_name: str) -> str:
+    """Apply one supported theme and return its normalized identifier."""
+
+    normalized = normalize_theme_name(theme_name)
     _QtCore, _QtWidgets = require_pyqt()
     try:
         app.setStyle("Fusion")
     except Exception:
         pass
 
-    _apply_light_palette(app)
+    _apply_palette(app, normalized)
     font = app.font()
     if font.pointSize() < 10:
         font.setPointSize(10)
         app.setFont(font)
-    app.setStyleSheet(SOFT_PASTEL_STYLESHEET)
+    app.setProperty("z2Theme", normalized)
+    app.setStyleSheet(DARK_PASTEL_STYLESHEET if normalized == THEME_DARK else SOFT_PASTEL_STYLESHEET)
+    return normalized
 
 
-__all__ = ["SOFT_PASTEL_STYLESHEET", "apply_soft_pastel_theme"]
+def apply_soft_pastel_theme(app: Any) -> None:
+    """Compatibility wrapper for the original fixed light theme."""
+
+    apply_application_theme(app, THEME_LIGHT)
+
+
+__all__ = [
+    "DARK_PASTEL_STYLESHEET",
+    "SOFT_PASTEL_STYLESHEET",
+    "THEME_DARK",
+    "THEME_LIGHT",
+    "apply_application_theme",
+    "apply_soft_pastel_theme",
+    "normalize_theme_name",
+]

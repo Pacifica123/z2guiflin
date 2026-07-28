@@ -27,6 +27,7 @@ def make_runtime_logs_page(root: Path | None = None) -> Any:
 
     tabs = QtWidgets.QTabWidget()
     tabs.setDocumentMode(True)
+    tabs.tabBar().setDrawBase(False)
 
     overview_output = QtWidgets.QPlainTextEdit()
     overview_output.setReadOnly(True)

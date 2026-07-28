@@ -52,8 +52,8 @@ def default_navigation_sections() -> tuple[NavigationSection, ...]:
         NavigationSection(
             key="settings",
             title="Настройки",
-            purpose="Язык, пути, политика подтверждений и будущие developer-oriented параметры.",
-            ready_state="placeholder",
+            purpose="Внешний вид и локальные параметры интерфейса.",
+            ready_state="appearance-backed",
         ),
         NavigationSection(
             key="logs",

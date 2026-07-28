@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import PRODUCT_LABEL
 from .qt_compat import require_pyqt
-from .theme import apply_soft_pastel_theme
+from .theme import THEME_LIGHT, apply_application_theme
 from .ui_icons import section_icon
 from .windows.main_window import create_main_window
 
@@ -20,7 +20,8 @@ def run_gui(argv: list[str] | None = None, root: Path | None = None) -> int:
     app.setApplicationName("z2guiflin")
     app.setApplicationDisplayName(f"Zap2 GUI Linux {PRODUCT_LABEL}")
     app.setOrganizationName("The Grey Network")
-    apply_soft_pastel_theme(app)
+    settings = _QtCore.QSettings("The Grey Network", "z2guiflin")
+    apply_application_theme(app, settings.value("ui/theme", THEME_LIGHT))
 
     icon = section_icon("overview")
     if icon is not None:

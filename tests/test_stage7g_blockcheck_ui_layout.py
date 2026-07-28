@@ -17,6 +17,7 @@ def test_stage7g_blockcheck_lab_has_endpoint_button_and_two_pane_layout() -> Non
     assert "blockcheckTwoPaneBody" in source
     assert "blockcheckRightColumn" in source
     assert "actions_layout = QtWidgets.QGridLayout(actions_box)" in source
+    assert "actions_layout.setColumnStretch(1, 1)" in source
     assert "output.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)" in source
     assert "target_preset_hint.setMinimumHeight(30)" in source
 

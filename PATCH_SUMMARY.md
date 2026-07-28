@@ -2,18 +2,17 @@
 
 ## Title
 
-Финальная шлифовка GUI UX после owner-run
+Theme toggle и исправление остаточных UX-дефектов
 
 ## Что изменено
 
-- Launch issue banner теперь сбрасывается при смене selected components и пути к VLESS core.
-- Кнопки копирования в `Overview` перенесены над таблицей и больше не перекрывают строки.
-- У `QTabWidget` убрана лишняя горизонтальная линия над содержимым.
-- `QGroupBox` title-notch стал мягче и не выбивается белыми углами.
-- `QSpinBox` получил явный pastel-style для up/down button area.
-- В Blockcheck Lab action-кнопки могут расширяться и лучше вмещают длинные подписи.
+- Убран фон-маркер у заголовков `QGroupBox`.
+- Над вкладками Tunnel и Logs отключена системная base-line.
+- Actions в Blockcheck Lab переведены на устойчивую двухколоночную сетку без обрезки подписей.
+- Страница `Настройки` получила сохраняемый переключатель светлой/тёмной темы.
+- Добавлена отдельная тёмная pastel palette/QSS, применяемая до создания окна.
 
 ## Граница патча
 
-Патч не меняет сетевую логику, стратегии, Blockcheck execution, HAR workbench,
-tunnel runtime, nftables, systemd или privilege boundary.
+Патч не меняет сетевую логику, runtime, Blockcheck execution, HAR workbench,
+стратегии, tunnel core, nftables, systemd или privilege boundary.

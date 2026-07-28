@@ -15,6 +15,7 @@ from ..widgets.placeholders import make_core_page, make_placeholder_page
 from ..widgets.presets import make_presets_page
 from ..widgets.runtime_controls import make_runtime_control_page
 from ..widgets.runtime_logs import make_runtime_logs_page
+from ..widgets.settings import make_settings_page
 from ..widgets.tunnel import make_tunnel_page
 
 
@@ -74,6 +75,8 @@ def create_main_window(root: object | None = None) -> Any:
                     page = make_blockcheck_lab_page(root)
                 elif section.key == "tunnel":
                     page = make_tunnel_page(root)
+                elif section.key == "settings":
+                    page = make_settings_page(self._settings)
                 elif section.key == "logs":
                     page = make_runtime_logs_page(root)
                 else:

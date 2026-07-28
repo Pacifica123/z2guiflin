@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_groupbox_titles_and_tab_panes_are_softened() -> None:
     assert "QGroupBox::title" in SOFT_PASTEL_STYLESHEET
-    assert "background: #faf8fb" in SOFT_PASTEL_STYLESHEET
+    assert "background: transparent" in SOFT_PASTEL_STYLESHEET
     assert "QTabWidget::pane" in SOFT_PASTEL_STYLESHEET
     assert "border: 0;" in SOFT_PASTEL_STYLESHEET
 
@@ -30,5 +30,5 @@ def test_overview_table_actions_are_above_table_and_launch_issue_clears_on_input
 
 def test_blockcheck_action_buttons_can_expand_for_long_labels() -> None:
     source = (ROOT / "gui/zap2_gui/widgets/blockcheck_lab.py").read_text(encoding="utf-8")
-    assert "action_button.setMaximumWidth(220)" in source
+    assert "action_button.setMaximumWidth(16777215)" in source
     assert "QSizePolicy.Policy.Expanding" in source

@@ -41,5 +41,5 @@ def test_main_window_remembers_geometry_and_last_page() -> None:
 
 def test_qt_bootstrap_applies_theme_before_window_creation() -> None:
     source = (ROOT / "gui/zap2_gui/qt_app.py").read_text(encoding="utf-8")
-    assert "apply_soft_pastel_theme(app)" in source
-    assert source.index("apply_soft_pastel_theme(app)") < source.index("create_main_window(root)")
+    assert "apply_application_theme(app" in source
+    assert source.index("apply_application_theme(app") < source.index("create_main_window(root)")

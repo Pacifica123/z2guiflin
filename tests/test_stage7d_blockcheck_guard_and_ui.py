@@ -32,6 +32,7 @@ def test_blockcheck_lab_ui_exposes_guard_and_compact_action_groups() -> None:
     assert "actions_box = QtWidgets.QGroupBox(\"Actions\")" in source
     assert "actions_layout = QtWidgets.QGridLayout(actions_box)" in source
     assert "action_grid" in source
+    assert "primary_row_layout" in source
     assert "blockcheckPrimaryRunButton" in source
     assert "blockcheckStopButton" in source
     assert "dead_guard_check.setChecked(False)" in source
