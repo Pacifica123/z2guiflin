@@ -3,10 +3,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_main_window_tab_icon_overload_order() -> None:
+def test_main_window_sidebar_icon_item_order() -> None:
     source = (ROOT / "gui/zap2_gui/windows/main_window.py").read_text()
-    assert "tabs.addTab(page, section_icon(section.key), section.title)" in source
-    assert "tabs.addTab(section_icon(section.key), page, section.title)" not in source
+    assert "QListWidgetItem(section_icon(section.key), section.title)" in source
+    assert "QStackedWidget" in source
+    assert "QTabWidget" not in source
 
 
 def test_logs_tab_icon_overload_order() -> None:

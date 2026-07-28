@@ -432,3 +432,10 @@ Adds active nft/NFQUEUE state reporting for Discord pre-TLS diagnostics: running
 ### v0.4-alpha stage7n2-guided-pretls-probe-harness
 
 Adds a guided diagnostic harness for Discord pre-TLS observability. The patch is diagnostic-first: it produces reports and verdicts but does not add a new bypass strategy or alter the YouTube baseline.
+
+
+## v0.4-alpha Stage 8f
+
+`v0.4-alpha_stage_8f` улучшает launcher и внешний GUI shell после универсального
+HAR workbench Stage 8e. Product label остаётся `v0.4-alpha`; runtime, стратегии
+и privilege boundary не меняются.
