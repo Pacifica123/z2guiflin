@@ -18,7 +18,7 @@ Stage 10 вводит локальный runtime state store в workspace про
 
 Эта директория относится к workspace владельца. Она не является bootstrap-слоем, не копирует файлы в `/opt`, не создаёт service unit, не меняет firewall и не требует `sudo`.
 
-## CLI
+## Команды CLI
 
 ```bash
 PYTHONPATH=gui python -m zap2_gui.app --runtime-prepare start --profile default

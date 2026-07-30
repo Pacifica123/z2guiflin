@@ -43,7 +43,7 @@ Build map — это карта будущей локальной сборки v
 
 Ожидаемая директория агрегированных outputs по upstream Makefile: `binaries/my`.
 
-## Build units
+## Компоненты сборки
 
 ### `nfqws2`
 

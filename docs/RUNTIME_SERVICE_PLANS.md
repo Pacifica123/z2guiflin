@@ -1,4 +1,4 @@
-# Runtime service plans
+# Планы runtime-сервисов
 
 Stage 13 добавляет **service mode** как отдельный режим controlled runtime lifecycle. Он нужен не для замены session runner, а для будущего сценария, где владелец осознанно устанавливает systemd unit и управляет им как отдельной runtime-формой.
 
@@ -40,7 +40,7 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-l
 
 Подтверждение привязано к `planHash`. Если unit content, путь workspace, профиль, стратегия или service-dir изменятся, подтверждение устареет.
 
-## Guarded execution
+## Защищённое исполнение
 
 Stage 13 разрешает guarded execution только для:
 

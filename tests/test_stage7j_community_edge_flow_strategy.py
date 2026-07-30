@@ -62,4 +62,4 @@ def test_stage7j_imported_reference_documents_windows_boundary() -> None:
     assert metadata["windowsOptionsExecuted"] is False
     assert "--wf-tcp-out=80,443-65535" in source
     assert "updates.discord.com" in source
-    assert "WinDivert `--wf-*` options are omitted" in docs
+    assert "`--wf-*` не копируются" in docs

@@ -362,7 +362,7 @@ _SERVICE_TARGET_PRESETS = (
         preset_id=SERVICE_TARGET_DISCORD_DESKTOP,
         title="Discord desktop non-voice",
         summary=(
-            "Первичный v0.4-alpha seed для desktop Discord без voice/UDP: updater, login, "
+            "Исторический seed цикла v0.4 для desktop Discord без voice/UDP: updater, login, "
             "gateway и CDN/media targets."
         ),
         targets=_DISCORD_DESKTOP_ORDERED_TARGETS,

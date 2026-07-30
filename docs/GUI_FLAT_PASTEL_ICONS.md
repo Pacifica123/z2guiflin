@@ -1,4 +1,4 @@
-# GUI flat minimal line icons
+# Плоские минималистичные иконки GUI
 
 Дата: 2026-06-29
 

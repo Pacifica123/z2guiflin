@@ -1,4 +1,4 @@
-# Local build adapter
+# Адаптер локальной сборки
 
 Stage 6 добавляет первый **local build adapter** для vendored-ядра `core/zapret2/`.
 

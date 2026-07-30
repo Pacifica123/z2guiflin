@@ -1,4 +1,4 @@
-# GUI-first privileged probe and Overview logs split
+# GUI-first: privileged probe и разделение логов обзора
 
 Дата: 2026-06-29
 

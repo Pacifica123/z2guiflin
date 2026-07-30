@@ -1,5 +1,5 @@
-# Generated strategies
+# Сгенерированные стратегии
 
-This directory is reserved for strategy JSON files generated locally from Blockcheck lab AVAILABLE results.
+Этот каталог предназначен для локальных JSON-стратегий, экспортированных из результатов Blockcheck Lab со статусом `AVAILABLE`.
 
-The GUI does not execute a generated strategy when it writes a file here. The owner must still select a strategy on the Strategies tab, prepare a Default workflow plan, confirm the plan hash and start it explicitly.
+Запись файла не запускает стратегию. Владелец должен выбрать её во вкладке «Пресеты», проверить coverage и runtime arguments, подготовить Default workflow plan, подтвердить plan hash и только затем выполнить явный запуск.

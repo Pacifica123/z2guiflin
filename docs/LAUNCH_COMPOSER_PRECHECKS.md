@@ -1,4 +1,4 @@
-# Launch composer readiness prechecks
+# Предварительные проверки Launch composer
 
 Дата: 2026-06-29
 

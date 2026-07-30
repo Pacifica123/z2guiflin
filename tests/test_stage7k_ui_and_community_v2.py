@@ -53,7 +53,7 @@ def test_community_discord_syndata_edge_flow_v2_is_registered() -> None:
 def test_stage7k_documents_owner_result_split() -> None:
     doc = (ROOT / "docs" / "DISCORD_COMMUNITY_EDGE_FLOW_RESULTS.md").read_text(encoding="utf-8")
 
-    assert "helped YouTube" in doc
-    assert "did not move Discord desktop" in doc
+    assert "YouTube изменял поведение" in doc
+    assert "desktop Discord оставался" in doc
     assert "SYN-SENT" in doc
     assert "community-discord-syndata-edge-flow-v2" in doc

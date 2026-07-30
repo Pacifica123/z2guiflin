@@ -15,20 +15,20 @@ def _text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_stage7p0_tunnel_plan_documents_new_lane() -> None:
+def test_tunnel_plan_documents_external_core_lane() -> None:
     text = _text("docs/DISCORD_TUNNEL_SOCKS_VLESS_PLAN.md")
 
-    assert "Stage 7p0" in text
-    assert "SOCKS/VLESS tunnel" in text
-    assert "orchestrate an external core" in text
-    assert "do not implement VLESS" in text
-    assert "Updater-window via local SOCKS" in text
-    assert "Discord checks updates on every launch" in text
-    assert "T0_CORE_ONLY" in text
-    assert "T4_APP_USABLE" in text
+    assert "SOCKS5/VLESS tunnel lane" in text
+    assert "не реализует VLESS самостоятельно" in text
+    assert "xray" in text
+    assert "v2ray" in text
+    assert "sing-box" in text
+    assert "loopback SOCKS5" in text
+    assert "TUN/TProxy" in text
+    assert "research plan" in text
 
 
-def test_stage7p0_plan_keeps_secrets_out_of_repo() -> None:
+def test_tunnel_docs_keep_secrets_out_of_repo() -> None:
     paths = [
         "docs/DISCORD_TUNNEL_SOCKS_VLESS_PLAN.md",
         "docs/V2RAYNG_REFERENCE_NOTES.md",
@@ -41,26 +41,24 @@ def test_stage7p0_plan_keeps_secrets_out_of_repo() -> None:
         assert token not in joined
     assert "vless://<uuid>@<server>:<port>" in joined
     assert ".zap2/tunnel" in joined
-    assert "redact" in joined.lower() or "redacted" in joined.lower()
+    assert "redacted" in joined.lower()
 
 
-def test_stage7p0_v2rayng_reference_is_reference_only() -> None:
+def test_v2rayng_reference_is_reference_only() -> None:
     text = _text("docs/V2RAYNG_REFERENCE_NOTES.md")
     snippet = _text("references/external/snippets/stage7p0-v2rayng-socks-vless-notes.txt")
 
     assert "GPL-3.0" in text
-    assert "concepts, not copied code" in text
-    assert "VlessFmt.kt" in text
-    assert "CoreProxyOnlyService.kt" in text
+    assert "не копируется" in text
+    assert "Android/Kotlin" in text
     assert "do not copy implementation code" in snippet
     assert "loopback SOCKS" in snippet
 
 
-def test_stage7p0_roadmap_mentions_discord_tunnel_lane() -> None:
+def test_historical_roadmap_records_tunnel_lane() -> None:
     text = _text("docs/V04_ALPHA_PATCH_ROADMAP.md")
 
-    assert "Stage 7p0" in text
-    assert "Discord SOCKS/VLESS tunnel" in text
-    assert "zapret direct strategy" in text
-    assert "external core" in text
-    assert "no automatic external downloads" in text
+    assert "SOCKS5/VLESS" in text
+    assert "внешним core" in text
+    assert "HAR" in text
+    assert "v0.4" in text

@@ -1,134 +1,84 @@
-# Development strategy snapshot
+# Стратегия разработки
+
+## Цель
+
+Развивать z2guiflin как минимальный и проверяемый Linux-инструмент вокруг upstream `zapret2`, а не как отдельную реализацию DPI-движка. GUI-фреймворк проекта — PyQt6.
+
+## Порядок диагностики
+
+Каждая проблема разбирается снизу вверх:
+
+1. бинарник и зависимости;
+2. права и граница `sudo`;
+3. `nftables` и номер NFQUEUE;
+4. состояние процесса `nfqws2`;
+5. capture scope: протоколы, порты, UID, направления и ranges;
+6. hostlist/ipset и порядок профилей;
+7. конкретная desync-стратегия;
+8. DNS, маршрут, proxy/VPN и поведение приложения.
+
+Нельзя компенсировать неизвестную ошибку нижнего уровня добавлением новых доменов или случайных flags.
+
+## Принципы
+
+### Минимализм
+
+Использовать vendored `zapret2`, стандартные средства Arch Linux, `nftables`, `systemd` и явные внешние proxy cores. Не встраивать собственную реализацию VLESS, VPN или DPI-функций.
+
+### Наблюдаемость
+
+Каждый важный запуск должен оставлять plan, hash, status и log. Успех одного URL не считается успехом всего сервиса.
+
+### Безопасность
+
+Привилегированные действия выполняются только после явного owner action. Пароли и tunnel secrets не хранятся в документации или обычных логах.
+
+### Воспроизводимость
+
+Стратегия, target list, profile order и runtime arguments должны сохраняться как читаемые файлы. Скрытое состояние GUI не является источником истины.
+
+### Разделение источников
+
+- bol-van — ядро, blockcheck2 и техническая модель `nfqws2`;
+- loop-uh — reference для GUI, управления пресетами, orchestrator, DNS, updater и runtime UX;
+- Flowseal — reference для готовых наборов стратегий, service workflow и списков;
+- z2guiflin — Linux/Arch адаптация с собственной границей безопасности.
+
+Windows flags и installers не копируются напрямую в Linux runtime.
+
+## Правило стратегий
+
+Стратегия считается полезной только после owner-наблюдения. Статусы должны различать:
+
+```text
+reference
+candidate
+diagnostic
+owner-observed
+selected
+failed-in-current-environment
+```
+
+Нельзя объявлять стратегию общей или рекомендуемой только потому, что она присутствует в другом проекте.
+
+## Правило пресетов
+
+Пресет является упорядоченной программой обработки трафика. Набор отдельных рабочих профилей не обязан оставаться рабочим после объединения. Поэтому конструктор должен проверять:
+
+- порядок профилей;
+- пересечение фильтров;
+- первый совпавший профиль;
+- конфликт ranges/directions;
+- повторные `--new` границы;
+- совместимость capture scope с `nftables`;
+- покрытие hostlist/ipset.
+
+До появления такого валидатора сборка пресета остаётся ручным экспериментом.
+
+## Планирование после v0.4
+
+Приоритеты выбираются из `KNOWN_GAPS_CHECKLISTS.md`. Сначала закрываются продуктовые долги, которые делают уже существующие функции надёжнее. Добавление очередной стратегии имеет меньший приоритет, чем исправление lifecycle, упаковки, проверки композиции или диагностики.
 
 ## Правило языка документации
 
-Вся активная проектная документация и все будущие изменения документации должны поддерживаться на русском языке. Исключение — vendored upstream-документация внутри `core/zapret2/`, которая сохраняется как источник.
-
-GUI-фреймворк проекта: **PyQt**. Подробности см. `docs/GUI_FRAMEWORK.md`.
-
-# Runtime apply/revert — Stage 12
-
-Stage 12 вводит первый owner-confirmed путь для системных правил runtime lifecycle. Он отделён от bootstrap, local build и session runner.
-
-## Что добавлено
-
-Новый adapter:
-
-```text
-/gui/zap2_gui/adapters/runtime_apply.py
-```
-
-Он умеет строить и сохранять два типа планов:
-
-```bash
-PYTHONPATH=gui python -m zap2_gui.app --runtime-apply-plan --profile default
-PYTHONPATH=gui python -m zap2_gui.app --runtime-revert-plan --profile default
-```
-
-Планы сохраняются в `.zap2/runtime/plans/`, получают `planHash`, rollback notes и требуют owner confirmation через уже существующий gate:
-
-```bash
-PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-apply-owner-rules-plan
-PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-revert-owner-rules-plan
-```
-
-После подтверждения владелец может локально исполнить plan:
-
-```bash
-sudo PYTHONPATH=gui python -m zap2_gui.app --runtime-apply --profile default --confirm runtime-default-manual-local-apply-owner-rules-plan
-sudo PYTHONPATH=gui python -m zap2_gui.app --runtime-revert --profile default --confirm runtime-default-manual-local-revert-owner-rules-plan
-```
-
-## Что именно делает apply
-
-Stage 12 использует `nftables` как первый backend. Default profile создаёт отдельную owned table:
-
-```text
-inet zap2_default
-```
-
-Внутри неё создаётся отдельная chain для локального исходящего трафика:
-
-```text
-local_out
-```
-
-Правила направляют локальный TCP 80/443 и UDP 443 в workspace-specific NFQUEUE с `queue bypass`. Номер очереди больше не фиксируется глобально на `200`: он детерминированно выбирается для пары workspace/profile и одинаково используется в nftables apply plan и session args `nfqws2`. Это снижает риск конфликта со stale/manual процессом из предыдущего workspace.
-
-Stage 12 не пытается покрыть все возможные router/LAN/WAN схемы upstream zapret2. Это минимальный single-user desktop-oriented backend для default strategy. Расширенные схемы interception должны появляться отдельными strategy/profile options после того, как базовый lifecycle станет устойчивым.
-
-## Что делает revert
-
-Revert удаляет только owned table:
-
-```text
-nft delete table inet zap2_default
-```
-
-Он не очищает чужие tables/chains/rules и не делает глобальный firewall reset. Если owned table уже отсутствует, guarded executor считает это безопасным состоянием для повторного stop workflow.
-
-## Safety boundary
-
-Stage 12 запрещает:
-
-- `curl`/`wget` remote bootstrap;
-- upstream `install_easy.sh`/`uninstall_easy.sh`;
-- `systemctl` и service mode;
-- скрытое исполнение в devctl-проверках;
-- применение правил без сохранённого plan, совпадающего `planHash` и owner confirmation.
-
-Автоматические проверки используют fake runner и не вызывают настоящий `nft`, не требуют root и не меняют firewall.
-
-## Почему это не bootstrap
-
-Bootstrap отвечает за структуру проекта, vendored-core и developer tooling. Runtime apply/revert отвечает только за временные системные правила, необходимые для работы текущей runtime session. Эти уровни нельзя смешивать: установка/обновление проекта не должна автоматически менять firewall, а runtime stop/revert не должен удалять или пересобирать проект.
-
-## Использование в default workflow
-
-В Stage 14 apply/revert слой используется как child plan внутри composite default workflow. Пользователь подтверждает composite plan, после чего workflow создаёт derived confirmations для child plans только если их сохранённые hashes совпадают с composite plan. Это позволяет запускать `default-start/default-stop` одной понятной парой команд, не теряя hash-gate из Stage 10–12.
-
-
-## v0.3-beta_stage_14 — workspace-specific NFQUEUE
-
-Stage 14 исправляет следующий слой GUI-runtime падений: после успешной сборки, public hostlist/Lua inputs и компактного GUI процесс всё ещё мог завершаться на `nfq_create_queue(): Operation not permitted`. Практическая гипотеза для single-user dev-loop: fixed queue `200` может быть занята старым `nfqws2` из другого workspace или ручного запуска, а текущий workspace state этого не видит. Поэтому `runtime_queue.py` вводит стабильный номер NFQUEUE для каждой пары workspace/profile и поддерживает диагностический override `ZAP2_NFQUEUE_NUM`. Apply plan и session args теперь получают один и тот же номер через общий resolver.
-
-## v0.3-dev Stage 16 — dev-loop после beta baseline
-
-После Stage 15 стало видно, что GUI действительно умеет поднимать `nfqws2`, но
-сырой apply может ломать обычную связность до состояния «ограниченное
-подключение». Поэтому `v0.3-dev` начинается не с новых больших фич, а с
-ужесточения границ:
-
-- devctl snapshot вынесен в `meta_tools/devctl/`, чтобы формат патча был частью
-  проектного reference;
-- `tools/` разделён на стабильные `gui_checks/`, будущие `experimental/` и
-  будущие `lowlevel/` утилиты;
-- default interception теперь строится из strategy, scoped по UID владельца и
-  защищён fwmark loop guard;
-- старые случайно вложенные `z2guiflin/` patch-artifacts считаются мусором и не
-  должны жить в проектном дереве.
-
-## v0.3-stable — практический checkpoint
-
-Владелец проекта объявил состояние после `v0.3-dev_stage_7` как `v0.3-stable`. Это первая точка, где проект прошёл полный путь от диагностики до полезного результата:
-
-```text
-Blockcheck -> AVAILABLE -> generated strategies -> selection -> Default workflow -> working YouTube
-```
-
-С этого момента развитие должно беречь эту цепочку. Любой следующий эксперимент не должен ломать базовые свойства:
-
-- Blockcheck run остаётся явным owner-действием;
-- GUI остаётся отзывчивым во время долгих проверок;
-- найденные successful logs не затираются неудачным последним run;
-- Default workflow продолжает требовать plan/hash/confirmation;
-- generated strategy остаётся читаемым локальным JSON, а не скрытым состоянием GUI.
-
-## v0.4-alpha — Discord desktop cycle
-
-Цель следующей вехи — desktop Discord. Методология: использовать уже доказанную YouTube-цепочку как шаблон, но не делать преждевременный универсальный комбайн.
-
-Для `v0.4-*` допустимо, что пользователь выбирает либо YouTube-стратегию, либо Discord-стратегию. Совместимость нескольких сервисных стратегий и автоматическое объединение `nfqws2` аргументов считаются отдельной будущей задачей после того, как Discord сам по себе будет оживлён.
-
-Критерий готовности `v0.4-beta`: владелец может из GUI подобрать/экспортировать/выбрать стратегию для desktop Discord и проверить запуск через существующий Default workflow.
-
+Активная проектная документация и будущие изменения документации ведутся на русском языке. Оригинальными остаются команды, identifiers, protocol names, upstream names и неизменяемые upstream-файлы.

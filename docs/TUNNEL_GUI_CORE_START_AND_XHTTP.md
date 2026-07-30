@@ -1,4 +1,4 @@
-# Tunnel GUI core start and xhttp compatibility
+# Запуск tunnel core из GUI и совместимость XHTTP
 
 Дата: 2026-06-29
 

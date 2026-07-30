@@ -1,20 +1,26 @@
-# Discord observation matrix auto row runner
+# Автоматизированный runner строки матрицы Discord
 
-`v0.4-alpha Stage 7o2d` adds a more automated row-runner mode for collecting matrix rows without juggling build/start plan ids manually.
+Статус: справка по Stage 7o2d.
 
-Use:
+Auto mode сокращает ручную работу с build/start plan ID, но не отменяет owner confirmation и не превращает сетевой эксперимент в автономный тест.
+
+## Команда
 
 ```bash
-PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row multisplit --matrix-row-auto
+PYTHONPATH=gui python -m zap2_gui.app \
+  --discord-observation-matrix-run-row multisplit \
+  --matrix-row-auto
 ```
 
-For strategy rows the owner phase will select the strategy, build `nfqws2` if it is missing, prepare and confirm the start workflow plan, then print a single sudo command for the privileged phase.
+Для strategy row режим может:
 
-The sudo phase will start Default workflow if needed and then enter the guided probe. Discord is still never launched by Zap2. Open Discord only when the probe prints `MANUAL ACTION`.
+- проверить/подготовить сборку;
+- выбрать стратегию;
+- подготовить и подтвердить plans;
+- при наличии нужных прав запустить workflow;
+- выполнить guided probe;
+- сохранить evidence.
 
-This keeps the safety model intact:
+Если требуется `sudo`, runner останавливается на безопасной границе и печатает следующую owner-команду. Он не должен скрыто повышать права.
 
-- local build runs as the project owner, not root;
-- firewall/NFQUEUE changes happen only in the explicit sudo phase;
-- Discord is a manual action;
-- generated reports remain the comparison source for strategy promotion.
+Baseline row не запускает Zapret и сначала проверяет, что managed runtime действительно остановлен.

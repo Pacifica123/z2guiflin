@@ -84,5 +84,5 @@ def test_stage7n_docs_explain_pretls_diagnostic_branch() -> None:
 
     assert "SYN-SENT" in docs
     assert "capturePolicy" in docs
-    assert "nft counters" in docs
+    assert "counters owned `nftables` rules" in docs
     assert strategy["capturePolicy"]["dns53ForIpcache"] == "diagnostic-only"

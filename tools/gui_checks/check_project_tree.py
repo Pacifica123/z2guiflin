@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only проверка структуры репозитория для v0.3-beta baseline."""
+"""Read-only проверка структуры репозитория для релиза v0.4."""
 
 from __future__ import annotations
 
@@ -266,7 +266,7 @@ def main() -> int:
     local_build_doc = (ROOT / "docs/LOCAL_BUILD_ADAPTER.md").read_text(encoding="utf-8")
     app_py = (ROOT / "gui/zap2_gui/app.py").read_text(encoding="utf-8")
     local_build_py = (ROOT / "gui/zap2_gui/adapters/local_build.py").read_text(encoding="utf-8")
-    if "local build adapter" not in local_build_doc or "--build-plan" not in app_py:
+    if "адаптер локальной сборки" not in local_build_doc.lower() or "--build-plan" not in app_py:
         print("Local build adapter или CLI build-plan не зафиксированы")
         return 1
     if "automatic_checks_may_execute=False" not in local_build_py or "may_require_sudo=False" not in local_build_py:
@@ -312,7 +312,7 @@ def main() -> int:
     if "--default-build-plan" not in app_py or "--default-build" not in app_py:
         print("Default build workflow CLI-команды отсутствуют")
         return 1
-    if "Default build workflow" not in default_build_doc or "без `sudo`" not in default_build_doc:
+    if "workflow сборки" not in default_build_doc.lower() or "без `sudo`" not in default_build_doc:
         print("Документация default build workflow не зафиксирована")
         return 1
     for required in ("DEFAULT_BUILD_MARKER", "prepare_default_build_plan", "execute_default_build", "rejectsRootExecutionByDefault"):
@@ -325,7 +325,7 @@ def main() -> int:
 
     build_deps_doc = (ROOT / "docs/BUILD_DEPENDENCY_PREFLIGHT.md").read_text(encoding="utf-8")
     build_deps_adapter = (ROOT / "gui/zap2_gui/adapters/build_dependencies.py").read_text(encoding="utf-8")
-    if "--default-build-deps" not in app_py or "Build dependency preflight" not in build_deps_doc:
+    if "--default-build-deps" not in app_py or "проверка зависимостей сборки" not in build_deps_doc.lower():
         print("Build dependency preflight CLI/documentation отсутствуют")
         return 1
     for required in ("run_build_dependency_preflight", "BUILD_DEPENDENCY_MARKER", "libnetfilter_queue", "executes_install_now"):
@@ -402,7 +402,7 @@ def main() -> int:
 
     runtime_session_doc = (ROOT / "docs/RUNTIME_SESSION_RUNNER.md").read_text(encoding="utf-8")
     runtime_session_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_session.py").read_text(encoding="utf-8")
-    if "session runner" not in runtime_session_doc or "nfqws2" not in runtime_session_doc:
+    if "runtime-сесс" not in runtime_session_doc.lower() or "nfqws2" not in runtime_session_doc:
         print("Runtime session runner Stage 11 не зафиксирован в документации")
         return 1
     required_runtime_session_symbols = (
@@ -518,7 +518,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.3-beta OK; PyQt shell, русская документация, inventory, build map, local build adapter, build dependency preflight, default build workflow, workspace strategies и runtime lifecycle contracts, runtime plan generator и runtime state gate, session runner, owner-confirmed apply/revert, service plans и default workflow зафиксированы")
+    print("Дерево v0.4 корректно: PyQt-интерфейс, русская документация, инвентаризация ядра, карта сборки, адаптеры и runtime-контракты зафиксированы")
     return 0
 
 

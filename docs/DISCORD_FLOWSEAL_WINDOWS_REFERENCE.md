@@ -1,4 +1,4 @@
-# Discord: Flowseal/Windows reference notes
+# Discord: заметки по Flowseal и Windows reference
 
 Этот документ фиксирует исследовательские выводы Stage 7d по приложенным owner-архивам `zapret1-flowseal-windows.zip` и `zapret2-gui_windows.zip`. Он не является исполняемым preset-ом и не запускает Windows/WinDivert параметры на Linux.
 

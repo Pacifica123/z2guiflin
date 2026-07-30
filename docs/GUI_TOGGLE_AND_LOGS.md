@@ -31,7 +31,7 @@
 
 Эта вкладка ничего не исполняет, не меняет firewall и не запускает сервисы. Она нужна, чтобы причины падений вроде `nfq_create_queue(): Operation not permitted`, ошибок Lua или недоступных hostlist-файлов были видны прямо в GUI.
 
-## Runtime inputs
+## Входные данные runtime
 
 GUI toggle использует public runtime copies для hostlist и Lua init-файлов под `/tmp/zap2-runtime-inputs/...`. Это нужно, потому что `nfqws2` намеренно сбрасывает привилегии и повторно проверяет доступность файлов после `dropcaps()`.
 

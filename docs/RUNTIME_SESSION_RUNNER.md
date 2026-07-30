@@ -1,4 +1,4 @@
-# Runtime session runner
+# Runner runtime-сессии
 
 `v0.3-alpha_stage_11` вводит первый исполняемый runtime-слой: guarded session runner для локального процесса `nfqws2`.
 

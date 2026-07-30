@@ -74,7 +74,7 @@ def test_stage7o1_candidate_texts_explain_reference_lane() -> None:
 
     assert "reference-flowseal-simple-fake-like" in text
     assert "capture policy: external-reference-first-data-v1" in text
-    assert "UDP/STUN/game-filter: deferred" in docs
+    assert "UDP/STUN/game filter: отложены" in docs
     stages = {item["id"]: item["stage"] for item in audit["candidateFamilies"]}
     assert stages["reference-zapret2-generic-tls-fake"] == "stage7o1-owner-selectable-candidate"
     assert stages["reference-discord-urgent-sni-later"] == "deferred-after-compatibility-proof"

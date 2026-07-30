@@ -40,7 +40,7 @@ profiles/
 
 Они не могут запускать `make`, `sudo`, `systemd`, firewall-операции или upstream installer scripts. Реальные run/apply/session plans появятся отдельными будущими стадиями и должны требовать явного подтверждения владельца.
 
-## CLI
+## Команды CLI
 
 ```bash
 PYTHONPATH=gui python -m zap2_gui.app --list-profiles

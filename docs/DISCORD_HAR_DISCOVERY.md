@@ -1,4 +1,4 @@
-# Discord HAR discovery — v0.4-alpha Stage 7x
+# Обнаружение целей Discord через HAR — v0.4-alpha Stage 7x
 
 > Примечание Stage 8e: этот документ описывает legacy Discord-specific анализатор.
 > Основной GUI Blockcheck Lab теперь использует универсальный workbench из

@@ -1,4 +1,4 @@
-# GUI Blockcheck lab — v0.3-dev Stage 1
+# Blockcheck Lab в GUI — v0.3-dev Stage 1
 
 Этот слой переносит часть upstream `blockcheck2.sh` в GUI как ручной diagnostic
 lab для владельца. Цель stage — не автоматически «починить YouTube», а дать
@@ -17,7 +17,7 @@ lab для владельца. Цель stage — не автоматическ�
 - Adapter пытается вытащить из stdout краткие строки `SUMMARY` и `working
   strategy found`, чтобы их было легче перенести в будущий strategy editor.
 
-## CLI
+## Команды CLI
 
 ```bash
 PYTHONPATH=gui python -m zap2_gui.app --blockcheck-preflight
@@ -30,7 +30,7 @@ PYTHONPATH=gui python -m zap2_gui.app --blockcheck-last-log
 `--blockcheck-run` исполняет upstream script через `sudo -A` и графический
 `SUDO_ASKPASS` helper.
 
-## Privilege boundary
+## Граница привилегий
 
 GUI не хранит пароль и не просит его в терминале. Для run используется тот же
 локальный askpass helper, что и для default start/stop:
@@ -45,7 +45,7 @@ installer scripts. Но сам upstream blockcheck — это privileged diagnos
 состояние через собственный cleanup. Поэтому перед запуском нужно выключить
 Default workflow, VPN и другие DPI-bypass процессы.
 
-## Preflight
+## Предварительная проверка
 
 Preflight ничего не исполняет и проверяет только наличие:
 

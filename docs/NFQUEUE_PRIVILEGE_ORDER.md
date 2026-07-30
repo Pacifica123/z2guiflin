@@ -1,4 +1,4 @@
-# NFQUEUE privilege order
+# Порядок привилегий NFQUEUE
 
 `v0.3-beta_stage_13` вводит минимальный vendored-core patch для Linux `nfqws2` runtime.
 

@@ -1,4 +1,4 @@
-# GUI-first tables and copyable text
+# GUI-first таблицы и копируемый текст
 
 Дата: 2026-06-29
 

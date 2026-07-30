@@ -1,4 +1,4 @@
-# Discord DNS edge diagnostics
+# Диагностика DNS edge для Discord
 
 Stage 7i проверяет идею из Windows GUI DNS-раздела в безопасном Linux-формате: не менять DNS сразу, а сначала понять, может ли смена резолвера вообще помочь Discord desktop.
 

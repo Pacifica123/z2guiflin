@@ -134,7 +134,7 @@ def test_stage7o2_docs_keep_matrix_non_executable() -> None:
     docs = (ROOT / "docs" / "DISCORD_OBSERVATION_MATRIX.md").read_text(encoding="utf-8")
     snippet = (ROOT / "references" / "external" / "snippets" / "stage7o2-observation-matrix-plan.txt").read_text(encoding="utf-8")
 
-    assert "does not add a new bypass strategy" in docs
+    assert "не добавляет новую стратегию" in docs
     assert "does not execute external scripts" in snippet
     assert "no zapret baseline" in snippet
 

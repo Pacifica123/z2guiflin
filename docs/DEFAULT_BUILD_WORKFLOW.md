@@ -1,4 +1,4 @@
-# Default build workflow
+# Основной workflow сборки
 
 `v0.3-beta_stage_1` добавляет недостающий мост между local build adapter Stage 6 и реальным `default-start` Stage 14. Теперь отсутствие `core/zapret2/nfq2/nfqws2` не считается тупиком: владелец получает отдельный owner-confirmed путь локальной сборки vendored-ядра.
 

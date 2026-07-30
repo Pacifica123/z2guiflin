@@ -1,4 +1,4 @@
-# GUI runtime controls
+# Элементы управления runtime в GUI
 
 `v0.3-beta_stage_4` переносит существующий CLI workflow в PyQt shell. Это не новый executor и не обход confirmation gate. GUI показывает те же действия, которые уже доступны через CLI:
 

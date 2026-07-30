@@ -1,163 +1,87 @@
-# v0.4-alpha Stage 7o0 — External working reference audit
+# Аудит внешних reference-проектов
 
-## Purpose
+Статус: ретроспектива Stage 7o0 с актуальными выводами для v0.4.
 
-Stage 7o0 opens a new external-reference lane after the Stage 7n diagnostics showed that Zap2 was becoming too narrow: the project was looking mostly at Discord-specific pre-TLS/SYN capture while external working Linux/Windows references generally use broader capture envelopes and first-data/TLS strategy families.
+## Исследованные источники
 
-This stage is deliberately **reference-only**. It does not run third-party scripts, does not install services, does not change the default strategy, and does not mutate firewall rules.
+В локальный audit входили предоставленные снимки:
 
-## Imported reference material
+```text
+zapret2 core от bol-van
+Windows GUI от loop-uh
+Flowseal zapret-discord-youtube
+несколько Linux configuration packs
+```
 
-The curated audit is stored in:
+Сводка хранится в:
 
 ```text
 references/external/stage7o0_external_reference_audit.json
-```
-
-Short non-runnable snippets are stored in:
-
-```text
 references/external/snippets/
 ```
 
-The audit summarizes these provided archives:
+## Главный вывод
 
-```text
-zapret2-vernette-docker-master.zip
-zapret-Sergeydigl3-linux-Stable4.zip
-zapret-Sergeydigl3-linux-master.zip
-zapret-kartabkun-linux-main.zip
-zapret1-flowseal-windows.zip
-zapret2-gui_windows.zip
-zapret2-core-from_bolvan.zip
-```
-
-## Main findings
-
-External references are not mainly “one more Discord hostname list”. They combine two layers:
+Рабочие внешние варианты обычно состоят из двух отдельных слоёв:
 
 ```text
 capture envelope
-→ strategy/profile family
+-> ordered strategy/profile family
 ```
 
-The capture envelope is usually broader than our Stage 7n diagnostic profile:
+Нельзя переносить только список доменов или только одну desync-функцию.
+
+## Область перехвата
+
+Во внешних конфигурациях часто встречаются:
 
 ```text
-TCP: often 80,443 plus 2053,2083,2087,2096,8443 and sometimes game-filter ranges
-UDP: often 443 plus Discord/STUN/game/media ranges
-packet windows: often wider than first 1-8 packets; zapret2 examples use 20 out / 10 in for TCP
-scope: usually not Discord-edge-IP-only and not owner-UID-only
+TCP: 80,443 и дополнительные 2053,2083,2087,2096,8443
+UDP: 443, STUN, Discord media и игровые ranges
+более широкие packet windows
+общие hostlist/ipset buckets
 ```
 
-The strategy/profile layer often targets first established payload/TLS/QUIC rather than only SYN:
+Широкий envelope не должен становиться default без owner-visible preview и оценки побочных эффектов.
+
+## Профили и стратегии
+
+Часто используются:
 
 ```text
 fake TLS
 multisplit / multidisorder
 fake QUIC
-hostlist list-general / ipset-all
-Discord media / STUN branches
-Windows-only WinDivert raw-part envelopes
+hostlist / ipset
+отдельные Discord media/STUN ветки
 ```
 
-This matches the latest Zap2 observation: Discord can reach `ESTAB` with `Send-Q > 0` and still spin on `Checking for updates`, so the problem may sit at:
+Windows `WinDivert --wf-*` и zapret1 `--dpi-desync-*` не являются Linux `nfqws2` options. Переносятся идеи и порядок, а не команды.
 
-```text
-TCP established → first payload / TLS / updater HTTPS exchange
-```
+## Сравнение подходов
 
-rather than only at:
+### bol-van
 
-```text
-SYN → SYN+ACK
-```
+Сильные стороны: полноценное ядро, строгая модель профилей, `blockcheck2`, Linux interception и богатая документация. Недостаток для конечного пользователя: это не GUI-продукт под конкретный desktop workflow.
 
-## CLI
+### loop-uh
 
-Show the reference audit without executing anything:
+Сильные стороны: зрелый preset UX, live orchestrator, DNS, updater, autostart, tray и process lifecycle. Ограничение для z2guiflin: архитектура Windows/WinDivert не переносится напрямую.
 
-```bash
-PYTHONPATH=gui python -m zap2_gui.app --external-reference-audit
-```
+### Flowseal
 
-The command is read-only and prints:
+Сильные стороны: много готовых стратегий, service workflow и простые списки host/ipset. Ограничение: стратегия подбирается перебором, а Windows bundle скрывает часть различий Linux capture/runtime.
 
-```text
-sources
-capture ports
-packet windows
-strategy families
-cross-source findings
-future candidate families
-recommended next stages
-```
+### z2guiflin
 
-## Safety boundary
+Сильные стороны: Arch/Linux фокус, owner confirmation, подробные reports, HAR, observation matrix и явное разделение runtime/tunnel. Недостатки собраны в `KNOWN_GAPS_CHECKLISTS.md`.
 
-Stage 7o0 intentionally refuses these shortcuts:
+## Безопасная граница
 
-```text
-run external scripts directly
-copy service installers into Zap2 workflow
-import broad firewall rules as defaults
-silently broaden capture for all users
-turn Windows WinDivert flags into Linux nft rules without translation
-switch from diagnostics to bypass without observation matrix
-```
+Аудит запрещает:
 
-## Candidate families for future Stage 7o1
-
-The audit defines candidate families, but they are **not runnable strategies yet**:
-
-```text
-reference-zapret2-generic-tls-fake
-reference-linux-general-multisplit-like
-reference-flowseal-simple-fake-like
-reference-discord-urgent-sni-later
-```
-
-They are deliberately staged for a future patch because each needs:
-
-```text
-owner-confirmed capturePolicy
-safe preview
-YouTube regression protection
-guided observation matrix
-nfqws2/Lua primitive compatibility proof
-```
-
-## Recommended next stages
-
-```text
-Stage 7o1:
-  create safe external-inspired candidate strategies without changing defaults.
-
-Stage 7o2:
-  run observation matrix across no-zapret baseline, diagnostic pktdebug, current v2, and reference-inspired candidates.
-
-Stage 7o3:
-  promote only the candidate that changes Discord updater behavior under observation.
-```
-
-## Why this stage exists
-
-The project should stop treating every Discord failure as evidence that we need another Discord domain or another pre-TLS probe. Stage 7o0 gives the next patches a wider reference basis:
-
-```text
-not “copy working scripts”
-but “extract their capture/profile model safely and test it under Zap2 observation”.
-```
-
-
-## Stage 7o1 follow-up
-
-Stage 7o1 promotes three future candidate families from the audit into owner-selectable Zap2 strategy files:
-
-```text
-reference-zapret2-generic-tls-fake
-reference-linux-general-multisplit-like
-reference-flowseal-simple-fake-like
-```
-
-They remain non-default, owner-confirmed, TCP-only in Stage 7o1, and intended for Stage 7o2 observation matrix rather than immediate promotion. See `docs/EXTERNAL_REFERENCE_CANDIDATE_STRATEGIES.md`.
+- запускать чужие installers/scripts;
+- копировать широкие firewall rules как default;
+- переводить WinDivert flags механически;
+- менять default strategy без owner evidence;
+- считать внешний working preset доказательством для текущей сети.

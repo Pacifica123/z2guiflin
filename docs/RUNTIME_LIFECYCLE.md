@@ -1,4 +1,4 @@
-# Runtime lifecycle
+# Жизненный цикл runtime
 
 Stage 8 вводит контролируемый runtime lifecycle как язык договоров, а не как запуск. До этого проекта уже есть vendored-core, build map, local build adapter и workspace-профили/стратегии. Теперь нужен слой, который заранее разделяет будущие действия на понятные классы.
 

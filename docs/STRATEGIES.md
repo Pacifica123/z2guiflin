@@ -32,7 +32,7 @@ strategies/
 
 Стратегия не содержит команд `sudo`, не меняет службы, не управляет firewall и не запускается автоматически.
 
-## CLI
+## Команды CLI
 
 ```bash
 PYTHONPATH=gui python -m zap2_gui.app --list-strategies

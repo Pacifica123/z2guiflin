@@ -1,4 +1,4 @@
-# Runtime session inputs
+# Входные данные runtime-сессии
 
 Начиная с `v0.3-beta_stage_9` session runner больше не передаёт `nfqws2` ни исходный абсолютный путь к `profiles/hostlists/default.hosts`, ни runtime-копию внутри `.zap2` как основной hostlist path.
 

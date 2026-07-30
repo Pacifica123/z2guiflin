@@ -1,4 +1,4 @@
-# Runtime NFQUEUE policy
+# Политика NFQUEUE для runtime
 
 Начиная с `v0.3-beta_stage_14` default runtime больше не использует глобально фиксированную NFQUEUE `200`.
 

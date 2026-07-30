@@ -1,109 +1,76 @@
-# v0.4-alpha Stage 7o1 — External-inspired candidate strategies
+# Кандидатные стратегии по внешним источникам
 
-## Purpose
+Статус: историческая справка Stage 7o1.
 
-Stage 7o1 turns the Stage 7o0 audit into owner-selectable Zap2 strategies. It does **not** change the default strategy, does not run third-party scripts, and does not claim Discord support is fixed.
+## Цель
 
-The goal is to test external working-reference ideas under Zap2's owner-confirmed runtime and guided observation harness:
+Аудит внешних рабочих конфигураций был переведён в owner-selectable candidates. Default strategy не менялась, внешние scripts не запускались, успех Discord не объявлялся.
 
 ```text
-external capture/profile model
-→ safe Zap2 candidate strategy
-→ owner-selected observation
-→ Stage 7o2 matrix
-→ promote only if it changes Discord updater behavior
+внешняя модель capture/profile
+-> безопасный кандидат z2guiflin
+-> owner observation
+-> общая матрица
+-> продвижение только по evidence
 ```
 
-## Added candidates
+## `reference-zapret2-generic-tls-fake`
 
-### `reference-zapret2-generic-tls-fake`
-
-Source basis: upstream/vernette zapret2 examples.
-
-Shape:
+Основа: upstream/vernette примеры zapret2.
 
 ```text
 TCP: 80,443
 HTTP: http_methodeol
-TLS: fake_default_tls with tcp_ts
-UDP: off in Stage 7o1
+TLS: fake_default_tls + tcp_ts
+UDP: выключен
 ```
 
-This candidate is meant for the newer observation that Discord can reach `ESTAB` but still spin on the updater. It targets first TLS payload rather than SYN-only behavior.
+Кандидат ориентирован на случай `ESTAB`, после которого updater всё ещё не проходит первый TLS payload.
 
-### `reference-linux-general-multisplit-like`
+## `reference-linux-general-multisplit-like`
 
-Source basis: kartavkun general configs plus zapret2-compatible multisplit/multidisorder primitives.
-
-Shape:
+Основа: Linux general configs и совместимые с zapret2 `multisplit`/`multidisorder`.
 
 ```text
-TCP capture: 80,443,2053,2083,2087,2096,8443
-Host bucket: profiles/hostlists/reference-general.hosts
+TCP: 80,443,2053,2083,2087,2096,8443
+host bucket: profiles/hostlists/reference-general.hosts
 HTTP: fake + multisplit
 TLS: fake + multidisorder
-UDP: off in Stage 7o1
+UDP: выключен
 ```
 
-This is the broad general-bucket candidate closest to the “working Linux config pack” shape, but still owner-scoped and non-default.
+Это широкий general candidate, но он остаётся owner-scoped и non-default.
 
-### `reference-flowseal-simple-fake-like`
+## `reference-flowseal-simple-fake-like`
 
-Source basis: Flowseal/Sergeydigl3 simple fake TCP branches.
-
-Shape:
+Основа: Flowseal/Sergeydigl3 simple fake branches.
 
 ```text
-TCP capture: 80,443,2053,2083,2087,2096,8443
-Discord media high TLS ports: TCP simple fake
-General host bucket: TCP simple fake
-UDP/STUN/game-filter: deferred
+TCP: 80,443,2053,2083,2087,2096,8443
+Discord media high TLS ports: simple fake
+General host bucket: simple fake
+UDP/STUN/game filter: отложены
 ```
 
-This is a TCP-only translation of the broad Flowseal-like fake family. It intentionally omits UDP/voice and service installation.
+## Общая граница
 
-## Shared safety boundary
+Все кандидаты:
 
-All three candidates:
+- не выбираются автоматически;
+- не запускаются в checks;
+- используют UID-scoped nft/NFQUEUE;
+- не импортируют installers/services;
+- не включают voice/UDP;
+- предназначены для observation matrix.
 
-```text
-- are owner-selectable only;
-- are not default;
-- are still plan-only in checks;
-- use owner UID scoped nft/NFQUEUE capture;
-- do not import external installers;
-- do not enable service mode;
-- leave UDP/voice for a later explicit lane;
-- are intended for Stage 7o2 observation matrix.
-```
-
-## How to test one candidate manually
-
-Choose exactly one candidate:
+## Ручная проверка
 
 ```bash
-PYTHONPATH=gui python -m zap2_gui.app --select-strategy reference-linux-general-multisplit-like
+PYTHONPATH=gui python -m zap2_gui.app \
+  --select-strategy reference-linux-general-multisplit-like
+
+sudo env PYTHONPATH=gui python -m zap2_gui.app \
+  --runtime-discord-pretls-guided-probe
 ```
 
-Then use the normal owner-confirmed build/start workflow. After runtime is running, use the guided probe:
-
-```bash
-sudo env PYTHONPATH=gui python -m zap2_gui.app --runtime-discord-pretls-guided-probe
-```
-
-The result must be interpreted as an observation report, not as a success/failure slogan.
-
-## What Stage 7o1 does not solve
-
-Stage 7o1 does not yet provide the full matrix runner. It only makes the candidates selectable. The next stage should compare:
-
-```text
-no zapret baseline
-community-discord-pretls-diagnostic-pktdebug
-community-discord-syndata-edge-flow-v2
-reference-zapret2-generic-tls-fake
-reference-linux-general-multisplit-like
-reference-flowseal-simple-fake-like
-```
-
-using the same endpoint/counter/session evidence format.
+Результат является наблюдением текущей среды, а не общей оценкой стратегии.

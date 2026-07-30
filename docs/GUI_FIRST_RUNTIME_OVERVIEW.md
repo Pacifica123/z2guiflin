@@ -1,4 +1,4 @@
-# GUI-first runtime overview
+# GUI-first обзор runtime
 
 Дата: 2026-06-29
 

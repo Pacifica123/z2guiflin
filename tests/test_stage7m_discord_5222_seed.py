@@ -63,4 +63,4 @@ def test_stage7m_imported_discord_reference_preserves_windows_5222_hint() -> Non
     assert metadata["windowsOptionsExecuted"] is False
     assert "--wf-tcp-out=80,443,1080,2053,2083,2087,2096,5222,8443" in source
     assert "community-discord-hostfakesplit-5222-minimal" in docs
-    assert "Stage 8" in docs
+    assert "Voice/STUN не включены" in docs

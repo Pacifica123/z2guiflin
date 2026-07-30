@@ -1,63 +1,68 @@
-# Discord observation matrix — Stage 7o2
+# Матрица наблюдений Discord
 
-Stage 7o2 adds a comparison layer for Discord experiments. It does not add a new bypass strategy and does not execute external scripts. Its purpose is to stop comparing Discord attempts from memory and to place each candidate into the same report shape.
+Статус: справка по реализованному инструменту Stage 7o2.
 
-The matrix rows are:
+Матрица приводит разные эксперименты к одному формату и не позволяет сравнивать их «по памяти». Она не добавляет новую стратегию и не запускает внешние scripts.
 
-| Row | Purpose |
+## Строки
+
+| Строка | Назначение |
 |---|---|
-| `no zapret baseline` | Observe Discord with Zap2 runtime stopped. This separates app/network behavior from nfqws2 behavior. |
-| `diagnostic pktdebug` | Validate the runtime observation funnel. |
-| `current v2 strategy` | Re-test `community-discord-syndata-edge-flow-v2` under the same probe. |
-| `kartavkun-like multisplit` | Observe the broad Linux-reference multisplit-like candidate. |
-| `fake_tls_auto-like` | Observe the zapret2 generic TLS fake candidate. |
-| `simple_fake-like` | Observe the Flowseal/simple-fake-like candidate. |
+| `no zapret baseline` | Наблюдение при остановленном Zap2 runtime. |
+| `diagnostic pktdebug` | Проверка, что цепочка наблюдения видит нужный трафик. |
+| `current v2 strategy` | Повторная проверка `community-discord-syndata-edge-flow-v2`. |
+| `kartavkun-like multisplit` | Linux reference-кандидат с multisplit-подходом. |
+| `fake_tls_auto-like` | Кандидат generic TLS fake на базе идей zapret2. |
+| `simple_fake-like` | Кандидат по мотивам Flowseal simple fake. |
 
-## Commands
+## Команды
 
-Plan only:
+Показать plan:
 
 ```bash
 PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-plan
 ```
 
-Aggregate already collected evidence:
+Собрать отчёт из уже сохранённых наблюдений:
 
 ```bash
 PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-report
 ```
 
-The report is written to:
+Отчёты сохраняются в:
 
 ```text
 .zap2/runtime/reports/discord-observation-matrix-*.json
 .zap2/runtime/reports/discord-observation-matrix-*.md
 ```
 
-## Owner loop for a strategy row
+## Цикл одной строки
 
-1. Close Discord fully.
-2. Select the row strategy.
-3. Start Default workflow through the existing owner-confirmed path.
-4. Run the guided probe with `sudo` so nft counters can be read.
-5. Open Discord only when the probe prints `MANUAL ACTION`.
-6. Let the observation window complete.
-7. Stop the workflow, then move to the next row.
+1. Полностью закрыть Discord.
+2. Выбрать стратегию строки.
+3. Запустить Default workflow через owner confirmation.
+4. Запустить guided probe с правами чтения nft counters.
+5. Открыть Discord только после `MANUAL ACTION`.
+6. Дождаться завершения окна наблюдения.
+7. Остановить workflow.
 
-## Interpretation rule
+## Правило продвижения
 
-A candidate is not promoted because it exists in an external reference. A candidate can only be promoted if the matrix shows it changes a meaningful observation compared with the baseline and diagnostic rows: endpoint state, counter deltas, SYN+ACK visibility, Send-Q behavior, log/debug deltas, or Discord updater progress.
+Кандидат не становится рекомендуемым из-за наличия во внешнем проекте. Нужна измеримая разница относительно baseline:
 
-Stage 7o2 deliberately keeps the matrix as an observation tool. The first actual promotion of a candidate belongs to a later patch after evidence exists.
+- состояние endpoint;
+- delta counters;
+- появление SYN+ACK;
+- изменение Send-Q;
+- изменения debug/log;
+- переход updater на следующий этап.
 
-## Stage 7o2a row runner
+## Runner строки
 
-Stage 7o2a adds a simplified row runner:
+Одна строка запускается так:
 
 ```bash
 PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row <row-id>
 ```
 
-Use this instead of manually assembling every row command from memory. The runner selects/prepares a row when safe, stops before privileged start if owner confirmation is needed, and reruns the guided probe only when the Default workflow is already alive and the process has permission to read nft counters.
-
-See `docs/DISCORD_OBSERVATION_MATRIX_ROW_RUNNER.md` for the full state model.
+Подробное состояние runner: `DISCORD_OBSERVATION_MATRIX_ROW_RUNNER.md`.

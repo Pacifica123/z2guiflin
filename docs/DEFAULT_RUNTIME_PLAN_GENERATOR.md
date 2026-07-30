@@ -1,4 +1,4 @@
-# Default strategy runtime plan generator
+# Генератор runtime plan основной стратегии
 
 Stage 9 добавляет генератор runtime plan для связки `profiles/default.json` + `strategies/manual-local.json`. Это следующий слой после runtime contracts: Stage 8 ввёл язык договоров, а Stage 9 научился строить конкретные планы `start`, `stop` и `status` из уже существующих данных проекта.
 

@@ -1,4 +1,4 @@
-# Service coverage policies
+# Политики покрытия сервиса
 
 Stage 7a вводит общий слой `service coverage policy`: это не список доменов и не конкретная `nfqws2`-стратегия, а контракт между владельцем, GUI и Blockcheck adapter о том, как понимать результат проверки service target preset.
 
@@ -74,7 +74,7 @@ Discord desktop non-voice order в Stage 7a:
 
 Updater/download targets идут первыми, потому что owner verification показала зависание desktop Discord на `Checking for updates` до app shell.
 
-## Tournament snapshot
+## Снимок tournament
 
 Stage 7a добавляет read-only tournament snapshot. Он читает текущий coverage manifest и считает:
 
@@ -112,7 +112,7 @@ Stage 7a не утверждает, что upstream `blockcheck2.sh` уже ум
 - owner stop всё равно оставляет best-so-far target evidence для Tournament view.
 ```
 
-## Safety boundary
+## Граница безопасности
 
 Policy и tournament view являются read-only слоями. Они не запускают sudo, не меняют firewall/services и не выбирают стратегию автоматически.
 

@@ -1,4 +1,4 @@
-# Tunnel GUI profile table and unified Overview toggle
+# Таблица tunnel-профилей и общий переключатель в обзоре
 
 Дата: 2026-06-29
 

@@ -1,4 +1,4 @@
-# Runtime apply/revert — Stage 12
+# Применение и откат runtime — Stage 12
 
 Stage 12 вводит первый owner-confirmed путь для системных правил runtime lifecycle. Он отделён от bootstrap, local build и session runner.
 
@@ -59,7 +59,7 @@ nft delete table inet zap2_default
 
 Он не очищает чужие tables/chains/rules и не делает глобальный firewall reset. Если owned table уже отсутствует, guarded executor считает это безопасным состоянием для повторного stop workflow.
 
-## Safety boundary
+## Граница безопасности
 
 Stage 12 запрещает:
 

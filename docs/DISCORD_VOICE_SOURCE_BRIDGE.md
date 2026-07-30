@@ -1,4 +1,4 @@
-# Discord Voice source bridge — v0.4-alpha Stage 8d
+# Перенос источников Discord Voice — v0.4-alpha Stage 8d
 
 ## Вывод
 

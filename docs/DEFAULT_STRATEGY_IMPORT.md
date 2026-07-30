@@ -30,7 +30,7 @@ src/presets/builtin/winws2/Default v1 (game filter).txt
 
 Поэтому Stage 4 переносит только минимальный мост: Default-source, default hostlist seed и базовые Lua-аргументы, совместимые с `nfqws2`.
 
-## Runtime args
+## Аргументы runtime
 
 Минимальная Linux-версия использует upstream Lua-файлы из vendored core:
 
@@ -41,11 +41,11 @@ src/presets/builtin/winws2/Default v1 (game filter).txt
 
 Дальше задаётся базовая обработка HTTP/TLS через встроенные fake blobs и `multisplit`. Эти параметры хранятся в `strategies/manual-local.json`, а session runner добавляет их в args-файл перед `--hostlist`.
 
-## Hostlist policy
+## Политика hostlist
 
 `profiles/hostlists/default.hosts` — это seed, а не претензия на полный список Windows GUI. Файл должен оставаться owner-maintained: владелец может расширять его вручную, а будущие патчи могут добавлять отдельные импортируемые hostlist/ipset слои.
 
-## Debug policy
+## Политика отладки
 
 Предыдущие runtime-тесты показали, что `--debug=@...` быстро создаёт десятки мегабайт per-packet логов. Поэтому с этого stage debug выключен по умолчанию. Для локальной диагностики можно включить его через переменную окружения:
 
