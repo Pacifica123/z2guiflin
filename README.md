@@ -143,3 +143,8 @@ patch.zip -> devctl plan -> devctl start
 ```
 
 Патч обязан содержать корректный `manifest.json`, payload в `files/` и проверки, которые не меняют сетевое состояние машины.
+
+
+## Tor backends и v2rayNG
+
+C Tor остаётся системным backend, Arti добавлен отдельным managed backend, а применимая VLESS/transport-логика v2rayNG перенесена выборочно. Подробности: `docs/TOR_BACKENDS_AND_V2RAYNG_IMPORT.md`.

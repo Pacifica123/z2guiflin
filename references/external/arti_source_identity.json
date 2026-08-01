@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "verdict": "official-tor-project-arti-source",
+  "upstreamName": "The Tor Project / Core / Arti",
+  "upstreamUrl": "https://gitlab.torproject.org/tpo/core/arti",
+  "archiveRoot": "arti-main/",
+  "upstreamCommitFromZipComment": "49365e9d90666f66729770c5bac255ee645b3083",
+  "sourceArchive": "arti-main.zip",
+  "sourceArchiveSha256": "12ca51996631ffcba573634823cfa912c72c151d60c57b6c715796f41792a44f",
+  "evidence": [
+    "README links to official source repository",
+    "workspace contains crates/arti and crates/arti-client",
+    "contains tor-ptmgr and Tor protocol crates",
+    "licenses MIT OR Apache-2.0 for arti crate"
+  ],
+  "importPolicy": "source not vendored in this patch; system/explicit arti executable is a separate backend"
+}

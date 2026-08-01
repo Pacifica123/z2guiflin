@@ -160,6 +160,15 @@ from .adapters.discord_tunnel import (
     tunnel_connection_import_vless_to_text,
     tunnel_connections_to_text,
 )
+from .adapters.tor_backends import (
+    DEFAULT_TOR_BACKEND,
+    DEFAULT_TOR_SOCKS_PORT,
+    SUPPORTED_TOR_BACKENDS,
+    tor_backend_plan_to_text,
+    tor_backend_start_to_text,
+    tor_backend_status_to_text,
+    tor_backend_stop_to_text,
+)
 from .adapters.presets import (
     load_preset_catalog,
     preset_catalog_to_text,
@@ -440,6 +449,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_SOCKS_PORT,
         help="локальный loopback SOCKS port для tunnel lane; по умолчанию 10808",
     )
+    parser.add_argument("--tor-backend", choices=SUPPORTED_TOR_BACKENDS, default=DEFAULT_TOR_BACKEND, help="Tor backend: системный C Tor или отдельный Arti")
+    parser.add_argument("--tor-binary", default=None, help="явный путь к tor/arti binary")
+    parser.add_argument("--tor-socks-port", type=int, default=DEFAULT_TOR_SOCKS_PORT, help="loopback SOCKS port Tor backend")
+    parser.add_argument("--tor-backend-plan", action="store_true", help="подготовить owner-confirmed plan запуска C Tor/Arti")
+    parser.add_argument("--tor-backend-start", action="store_true", help="запустить C Tor/Arti по confirmed plan")
+    parser.add_argument("--tor-backend-status", action="store_true", help="read-only статус managed Tor backend")
+    parser.add_argument("--tor-backend-stop", action="store_true", help="остановить только PID managed Tor backend")
+
     parser.add_argument(
         "--discord-tunnel-plan",
         action="store_true",
@@ -1200,6 +1217,30 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2
+
+    if args.tor_backend_plan:
+        try:
+            print(tor_backend_plan_to_text(profile_id=args.profile, backend=args.tor_backend, binary=args.tor_binary, socks_port=args.tor_socks_port))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.tor_backend_start:
+        try:
+            print(tor_backend_start_to_text(profile_id=args.profile, backend=args.tor_backend, confirm_plan_id=args.confirm or ""))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.tor_backend_status:
+        print(tor_backend_status_to_text(profile_id=args.profile))
+        return 0
+
+    if args.tor_backend_stop:
+        print(tor_backend_stop_to_text(profile_id=args.profile))
+        return 0
 
     if args.discord_tunnel_plan:
         try:

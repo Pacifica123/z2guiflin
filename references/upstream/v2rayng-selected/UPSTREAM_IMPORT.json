@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "upstreamName": "2dust/v2rayNG",
+  "upstreamUrl": "https://github.com/2dust/v2rayNG",
+  "upstreamCommit": "98e7b8e1a1f5201dda161cca4efbbad8839c3f4d",
+  "sourceArchive": "v2rayNG-2dust.zip",
+  "sourceArchiveSha256": "bae1c7020205442eddaf8383c0961b2ec8c9faaaca59aff06e6f6d0c668e5dbd",
+  "license": "GPL-3.0",
+  "integrationMode": "selected-source-reference-plus-python-adaptation",
+  "importedFiles": [
+    "LICENSE",
+    "V2rayNG/app/src/main/java/com/v2ray/ang/fmt/VlessFmt.kt",
+    "V2rayNG/app/src/main/java/com/v2ray/ang/fmt/FmtBase.kt",
+    "V2rayNG/app/src/main/java/com/v2ray/ang/enums/NetworkType.kt",
+    "V2rayNG/app/src/main/java/com/v2ray/ang/dto/entities/ProfileItem.kt",
+    "V2rayNG/app/src/main/java/com/v2ray/ang/core/CoreOutboundBuilder.kt"
+  ],
+  "excludedByDesign": [
+    "Android UI",
+    "VpnService/TUN Android lifecycle",
+    "MMKV storage",
+    "notifications",
+    "Android permissions",
+    "submodules without content"
+  ]
+}

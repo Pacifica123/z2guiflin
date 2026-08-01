@@ -11,6 +11,7 @@ from zap2_gui.adapters.discord_tunnel import (
     discord_tunnel_guided_run_to_text,
     discord_tunnel_https_probe_to_text,
     discord_tunnel_route_diagnose_to_text,
+    discord_tunnel_stop_to_text,
     discord_tunnel_tun_plan_to_text,
     tunnel_connection_import_vless_to_text,
 )
@@ -120,6 +121,7 @@ def test_guided_run_auto_prepares_confirms_starts_and_blocks_launch_when_socks_i
     assert not (tmp_path / ".zap2" / "tunnel" / "runtime" / "default.discord-session.json").exists()
     reports = list((tmp_path / ".zap2" / "tunnel" / "reports").glob("default.guided-run-*.json"))
     assert reports
+    assert "Discord tunnel stop: stopped" in discord_tunnel_stop_to_text(root=tmp_path)
 
 
 def test_stage8a_launch_through_socks_accepts_flatpak_command_string(tmp_path: Path) -> None:
@@ -132,10 +134,11 @@ def test_stage8a_launch_through_socks_accepts_flatpak_command_string(tmp_path: P
     from zap2_gui.adapters.discord_tunnel import discord_tunnel_plan_to_text, discord_tunnel_start_to_text
     from zap2_gui.adapters.runtime_state import confirm_runtime_plan
 
+    socks_port = _unused_tcp_port()
     old_path = __import__("os").environ.get("PATH", "")
     __import__("os").environ["PATH"] = f"{tmp_path}:{old_path}"
     try:
-        discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=19993)
+        discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=socks_port)
         plan_id = "runtime-default-discord-tunnel-socks-start-plan"
         confirm_runtime_plan(root=tmp_path, plan_id=plan_id)
         discord_tunnel_start_to_text(root=tmp_path, confirm_plan_id=plan_id)
@@ -151,10 +154,11 @@ def test_stage8a_launch_through_socks_accepts_flatpak_command_string(tmp_path: P
     assert "discord command: flatpak run com.discordapp.Discord" in text
     assert "flatpak command: yes" in text
     assert "discord stdout:" in text
-    assert "--proxy-server=socks5://127.0.0.1:19993" in text
+    assert f"--proxy-server=socks5://127.0.0.1:{socks_port}" in text
 
     stop_text = discord_stop_launched_to_text(root=tmp_path)
     assert "Discord launched-through-SOCKS stop:" in stop_text
+    assert "Discord tunnel stop: stopped" in discord_tunnel_stop_to_text(root=tmp_path)
     assert (tmp_path / ".zap2" / "tunnel" / "logs" / "default.discord.stdout.log").exists()
 
 
@@ -232,7 +236,8 @@ def test_stage8c_launch_preflight_blocks_discord_before_spawn(tmp_path: Path) ->
     from zap2_gui.adapters.discord_tunnel import discord_tunnel_plan_to_text, discord_tunnel_start_to_text
     from zap2_gui.adapters.runtime_state import confirm_runtime_plan
 
-    discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=19995)
+    socks_port = _unused_tcp_port()
+    discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=socks_port)
     plan_id = "runtime-default-discord-tunnel-socks-start-plan"
     confirm_runtime_plan(root=tmp_path, plan_id=plan_id)
     discord_tunnel_start_to_text(root=tmp_path, confirm_plan_id=plan_id)
@@ -253,6 +258,7 @@ def test_stage8c_launch_preflight_blocks_discord_before_spawn(tmp_path: Path) ->
 
     assert not (tmp_path / ".zap2" / "tunnel" / "runtime" / "default.discord-session.json").exists()
     assert list((tmp_path / ".zap2" / "tunnel" / "reports").glob("default.launch-preflight-*.json"))
+    assert "Discord tunnel stop: stopped" in discord_tunnel_stop_to_text(root=tmp_path)
 
 
 def test_stage8c_cli_exposes_route_diagnose() -> None:

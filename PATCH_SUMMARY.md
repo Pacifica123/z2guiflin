@@ -1,19 +1,10 @@
-# Сводка патча
+# Patch summary
 
-## Название
+Stage 8g добавляет системный C Tor backend, отдельный Arti backend и выборочный прямой импорт применимой VLESS-логики v2rayNG.
 
-Генеральная уборка документации и выпуск v0.4
-
-## Что изменено
-
-- Проведён аудит проектной документации и добавлена единая точка входа `docs/README.md`.
-- README и ключевые архитектурные документы переписаны под фактическое состояние проекта.
-- Версия приложения поднята с `v0.4-alpha` / `0.4.0a0` до `v0.4` / `0.4.0`.
-- Цикл v0.4 переосмыслен как рабочая диагностическая/runtime-платформа без обещания универсальной стратегии.
-- Англоязычные project-authored stage/reference документы переведены или сокращены до русских ретроспектив.
-- Добавлен единый `docs/KNOWN_GAPS_CHECKLISTS.md` с горизонтальной категоризацией недостатков относительно bol-van, loop-uh и Flowseal.
-- Усилена автоматическая проверка русского языка во всех project-authored Markdown-файлах.
-
-## Граница патча
-
-Патч не меняет сетевые стратегии, `nftables`, NFQUEUE, tunnel runtime, systemd, HAR parser или privilege execution. Изменяются документация, версия продукта и проверки документации.
+- C Tor и Arti запускаются как отдельные managed процессы без sudo/firewall/systemd.
+- Общая SOCKS route session позволяет использовать существующие probes и Discord launcher.
+- Arti archive подтверждён как официальный Tor Project source и зафиксирован по commit/SHA-256.
+- Сохранены selected upstream-файлы v2rayNG и GPL-3.0; Android-only слой исключён.
+- VLESS parser/config расширен для xhttp/httpupgrade/h2/kcp/grpc и дополнительных TLS/REALITY полей.
+- Guided tunnel tests выделяют свободные loopback-порты динамически и не конфликтуют с локальными сервисами владельца.

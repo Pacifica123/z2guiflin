@@ -32,7 +32,7 @@ from .runtime_default import default_workflow_status
 from .runtime_state import confirm_runtime_plan, ensure_runtime_store, plan_payload_hash
 from ..project_paths import discover_layout
 
-TUNNEL_STAGE = "v0.4-alpha_stage7p5"
+TUNNEL_STAGE = "v0.4-alpha_stage8g"
 TUNNEL_SCHEMA_VERSION = 1
 TUNNEL_MARKER = "zap2-discord-tunnel-v1"
 DEFAULT_PROFILE_ID = "default"
@@ -115,6 +115,20 @@ KNOWN_VLESS_QUERY_KEYS = {
     "serviceName",
     "mode",
     "authority",
+    "seed",
+    "mtu",
+    "tti",
+    "quicSecurity",
+    "key",
+    "extra",
+    "fm",
+    "insecure",
+    "allowInsecure",
+    "allow_insecure",
+    "ech",
+    "vcn",
+    "pcs",
+    "pqv",
 }
 VLESS_URI_RE = re.compile(r"vless://[^\s<>\"']+", re.IGNORECASE)
 MAX_VLESS_IMPORT_TEXT_BYTES = 256 * 1024
@@ -211,6 +225,15 @@ class VlessConnectionProfile:
     alpn: tuple[str, ...]
     flow: str
     path: str
+    service_name: str
+    authority: str
+    xhttp_mode: str
+    xhttp_extra: str
+    allow_insecure: bool
+    kcp_seed: str
+    kcp_mtu: int | None
+    kcp_tti: int | None
+    final_mask: str
     raw_query: dict[str, str]
     unknown_query: dict[str, str]
     imported_at: str
@@ -248,6 +271,15 @@ class VlessConnectionProfile:
             "alpn": list(self.alpn),
             "flow": self.flow,
             "path": self.path,
+            "serviceName": self.service_name,
+            "authority": self.authority,
+            "xhttpMode": self.xhttp_mode,
+            "xhttpExtra": self.xhttp_extra,
+            "allowInsecure": self.allow_insecure,
+            "kcpSeed": self.kcp_seed,
+            "kcpMtu": self.kcp_mtu,
+            "kcpTti": self.kcp_tti,
+            "finalMask": self.final_mask,
             "rawQuery": dict(self.raw_query),
             "unknownQuery": dict(self.unknown_query),
             "importedAt": self.imported_at,
@@ -273,6 +305,15 @@ class VlessConnectionProfile:
             alpn=tuple(str(item) for item in data.get("alpn", [])),
             flow=str(data.get("flow", "")),
             path=str(data.get("path", "")),
+            service_name=str(data.get("serviceName", "")),
+            authority=str(data.get("authority", "")),
+            xhttp_mode=str(data.get("xhttpMode", "")),
+            xhttp_extra=str(data.get("xhttpExtra", "")),
+            allow_insecure=bool(data.get("allowInsecure", False)),
+            kcp_seed=str(data.get("kcpSeed", "")),
+            kcp_mtu=int(data["kcpMtu"]) if data.get("kcpMtu") is not None else None,
+            kcp_tti=int(data["kcpTti"]) if data.get("kcpTti") is not None else None,
+            final_mask=str(data.get("finalMask", "")),
             raw_query={str(k): str(v) for k, v in dict(data.get("rawQuery", {})).items()},
             unknown_query={str(k): str(v) for k, v in dict(data.get("unknownQuery", {})).items()},
             imported_at=str(data.get("importedAt", _utc_now())),
@@ -297,6 +338,10 @@ class VlessConnectionProfile:
             "alpn": list(self.alpn),
             "flow": self.flow,
             "path": self.path,
+            "serviceName": self.service_name,
+            "authority": _redact_host(self.authority) if self.authority else "",
+            "xhttpMode": self.xhttp_mode,
+            "allowInsecure": self.allow_insecure,
             "unknownQueryKeys": sorted(self.unknown_query),
             "fingerprint": self.fingerprint[:16],
         }
@@ -381,6 +426,22 @@ def _parse_alpn(value: str | None) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
+def _query_bool(query: dict[str, str], *keys: str) -> bool:
+    for key in keys:
+        if query.get(key) == "1":
+            return True
+        if query.get(key) == "0":
+            return False
+    return False
+
+
+def _query_int(query: dict[str, str], key: str) -> int | None:
+    try:
+        return int(query[key]) if query.get(key) not in {None, ""} else None
+    except ValueError:
+        return None
+
+
 def parse_vless_uri(uri_text: str, *, source: str = "manual") -> VlessConnectionProfile:
     """Parse a VLESS share link without doing any network access."""
 
@@ -424,6 +485,15 @@ def parse_vless_uri(uri_text: str, *, source: str = "manual") -> VlessConnection
         alpn=_parse_alpn(query.get("alpn")),
         flow=query.get("flow", ""),
         path=query.get("path", ""),
+        service_name=query.get("serviceName", ""),
+        authority=query.get("authority", ""),
+        xhttp_mode=query.get("mode", ""),
+        xhttp_extra=query.get("extra", ""),
+        allow_insecure=_query_bool(query, "insecure", "allowInsecure", "allow_insecure"),
+        kcp_seed=query.get("seed", ""),
+        kcp_mtu=_query_int(query, "mtu"),
+        kcp_tti=_query_int(query, "tti"),
+        final_mask=query.get("fm", ""),
         raw_query=query,
         unknown_query=unknown,
         imported_at=_utc_now(),
@@ -850,6 +920,16 @@ def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
             tls["serverName"] = server_name
         if profile.alpn:
             tls["alpn"] = list(profile.alpn)
+        if profile.allow_insecure and not profile.raw_query.get("pcs"):
+            tls["allowInsecure"] = True
+        if profile.raw_query.get("fp"):
+            tls["fingerprint"] = profile.raw_query["fp"]
+        if profile.raw_query.get("ech"):
+            tls["echConfigList"] = profile.raw_query["ech"]
+        if profile.raw_query.get("vcn"):
+            tls["verifyPeerCertByName"] = profile.raw_query["vcn"]
+        if profile.raw_query.get("pcs"):
+            tls["pinnedPeerCertSha256"] = profile.raw_query["pcs"]
         if tls:
             stream["tlsSettings"] = tls
     elif security == "reality":
@@ -869,6 +949,8 @@ def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
             reality["shortId"] = short_id
         if spider_x:
             reality["spiderX"] = spider_x
+        if profile.raw_query.get("pqv"):
+            reality["mldsa65Verify"] = profile.raw_query["pqv"]
         if profile.alpn:
             reality["alpn"] = list(profile.alpn)
         if reality:
@@ -886,10 +968,48 @@ def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
             ws["headers"] = {"Host": profile.host}
         if ws:
             stream["wsSettings"] = ws
+    elif network == "kcp":
+        kcp: dict[str, Any] = {}
+        if profile.kcp_mtu is not None:
+            kcp["mtu"] = profile.kcp_mtu
+        if profile.kcp_tti is not None:
+            kcp["tti"] = profile.kcp_tti
+        if profile.header_type and profile.header_type != "none":
+            kcp["header"] = {"type": profile.header_type}
+        if profile.kcp_seed:
+            kcp["seed"] = profile.kcp_seed
+        stream["kcpSettings"] = kcp
+    elif network == "httpupgrade":
+        stream["httpupgradeSettings"] = {"host": profile.host, "path": profile.path or "/"}
+    elif network in {"http", "h2"}:
+        stream["network"] = "h2"
+        stream["httpSettings"] = {
+            "host": [item.strip() for item in profile.host.split(",") if item.strip()],
+            "path": profile.path or "/",
+        }
+    elif network in XHTTP_LIKE_TRANSPORTS:
+        xhttp: dict[str, Any] = {"host": profile.host, "path": profile.path or "/"}
+        if profile.xhttp_mode:
+            xhttp["mode"] = profile.xhttp_mode
+        if profile.xhttp_extra:
+            try:
+                xhttp["extra"] = json.loads(profile.xhttp_extra)
+            except json.JSONDecodeError:
+                xhttp["extra"] = profile.xhttp_extra
+        stream["xhttpSettings"] = xhttp
+        stream["network"] = "xhttp"
     elif network == "grpc":
-        service_name = profile.raw_query.get("serviceName") or profile.raw_query.get("serviceName", "")
-        if service_name:
-            stream["grpcSettings"] = {"serviceName": service_name}
+        grpc: dict[str, Any] = {"serviceName": profile.service_name}
+        if profile.authority:
+            grpc["authority"] = profile.authority
+        if profile.raw_query.get("mode") == "multi":
+            grpc["multiMode"] = True
+        stream["grpcSettings"] = grpc
+    if profile.final_mask:
+        try:
+            stream["finalmask"] = json.loads(profile.final_mask)
+        except json.JSONDecodeError:
+            pass
     return stream
 
 
