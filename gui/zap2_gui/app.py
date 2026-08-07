@@ -149,6 +149,7 @@ from .adapters.discord_tunnel import (
     discord_stop_launched_to_text,
     discord_tunnel_guided_run_to_text,
     discord_tunnel_https_probe_to_text,
+    discord_tunnel_core_preflight_to_text,
     discord_tunnel_plan_to_text,
     discord_tunnel_probe_to_text,
     discord_tunnel_route_diagnose_to_text,
@@ -160,6 +161,7 @@ from .adapters.discord_tunnel import (
     tunnel_connection_import_vless_to_text,
     tunnel_connections_to_text,
 )
+from .adapters.strategy_parser_preflight import strategy_parser_preflight_to_text
 from .adapters.tor_backends import (
     DEFAULT_TOR_BACKEND,
     DEFAULT_TOR_SOCKS_PORT,
@@ -257,6 +259,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="цель для --build-plan: all, nfqws2, ip2net, mdig или clean",
     )
 
+
+    parser.add_argument(
+        "--strategy-parser-preflight",
+        action="store_true",
+        help="Stage 8h: выполнить read-only nfqws2 --dry-run для выбранной workspace strategy",
+    )
 
     parser.add_argument(
         "--runtime-contracts",
@@ -461,6 +469,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--discord-tunnel-plan",
         action="store_true",
         help="Stage 7p2: подготовить owner-confirmed Discord SOCKS/VLESS tunnel start plan и redacted core config preview",
+    )
+    parser.add_argument(
+        "--discord-tunnel-core-preflight",
+        action="store_true",
+        help="Stage 8h: проверить generated Xray VLESS config через upstream `xray run -test`; без persistent start",
     )
     parser.add_argument(
         "--discord-tunnel-start",
@@ -1250,6 +1263,14 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 2
 
+    if args.discord_tunnel_core_preflight:
+        try:
+            print(discord_tunnel_core_preflight_to_text(profile_id=args.profile, core_binary=args.tunnel_core_binary, core_kind=args.tunnel_core_kind, socks_port=args.tunnel_socks_port))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
     if args.discord_tunnel_start:
         try:
             print(discord_tunnel_start_to_text(profile_id=args.profile, confirm_plan_id=args.confirm or "", allow_parallel_with_zapret=bool(args.tunnel_allow_zapret_parallel)))
@@ -1334,6 +1355,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.discord_stop_launched:
         try:
             print(discord_stop_launched_to_text(profile_id=args.profile))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.strategy_parser_preflight:
+        try:
+            print(strategy_parser_preflight_to_text(profile_id=args.profile))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

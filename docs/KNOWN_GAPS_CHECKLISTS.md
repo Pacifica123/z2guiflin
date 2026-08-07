@@ -134,8 +134,8 @@
 ## 9. Proxy, VLESS и VPN
 
 - [x] Есть импорт `vless://` в локальный redacted profile.
-- [x] Есть поддержка внешних cores `xray`, `v2ray` и `sing-box` на уровне argv/config generation.
-- [x] Есть managed PID, SOCKS probe, HTTPS preflight и безопасный launch wrapper.
+- [~] Generated-config lane поддерживает Xray/V2Ray schema; `sing-box` распознаётся, но plan/start намеренно заблокирован до отдельного native generator и `sing-box check`.
+- [x] Есть managed PID, SOCKS probe, HTTPS preflight, Xray `run -test` config preflight и безопасный launch wrapper.
 - [~] Proxy-only путь полезен для экспериментов, но не перехватывает весь трафик приложения во всех упаковках.
 - [~] Launch composer объединяет Zapret и tunnel lane только для явно поддержанных случаев.
 - [ ] Нет встроенного управления subscription lists и несколькими upstream endpoints.

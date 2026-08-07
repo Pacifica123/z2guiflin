@@ -230,7 +230,7 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     core_label = QtWidgets.QLabel("Core binary:")
     core_input = QtWidgets.QLineEdit()
     core_input.setObjectName("tunnelCoreBinary")
-    core_input.setPlaceholderText("/usr/bin/xray, /usr/bin/v2ray или /usr/bin/sing-box")
+    core_input.setPlaceholderText("/usr/bin/xray или /usr/bin/v2ray; sing-box пока без native config")
     core_browse_button = QtWidgets.QPushButton("Выбрать…")
     core_row.addWidget(core_label)
     core_row.addWidget(core_input, 1)

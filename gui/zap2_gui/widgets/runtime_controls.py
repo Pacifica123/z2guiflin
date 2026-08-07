@@ -223,7 +223,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     core_label = QtWidgets.QLabel("VLESS core binary:")
     core_input = QtWidgets.QLineEdit()
     core_input.setObjectName("launchComposerCoreBinary")
-    core_input.setPlaceholderText("/path/to/xray, v2ray или sing-box")
+    core_input.setPlaceholderText("/path/to/xray или v2ray; sing-box пока без native config")
     core_browse = QtWidgets.QPushButton("Выбрать…")
     core_browse.setMaximumWidth(100)
     core_row.addWidget(core_label)

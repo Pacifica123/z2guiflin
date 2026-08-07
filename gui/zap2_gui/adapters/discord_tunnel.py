@@ -63,7 +63,7 @@ def _core_transport_warning(profile: "VlessConnectionProfile", core_kind: str) -
         return (
             f"transport {network} обычно не поддерживается V2Ray core. "
             "В этом workspace уже типичный симптом: core stderr может содержать "
-            "'unknown transport protocol'. Используйте Xray/sing-box с поддержкой этого transport "
+            "'unknown transport protocol'. Используйте Xray с поддержкой этого transport "
             "или импортируйте VLESS profile с type=tcp/ws/grpc."
         )
     return ""
@@ -1067,6 +1067,102 @@ def _redact_core_config(config: dict[str, Any]) -> dict[str, Any]:
     return redacted
 
 
+def discord_tunnel_core_preflight_to_text(
+    *,
+    profile_id: str = DEFAULT_PROFILE_ID,
+    core_binary: str | None = None,
+    core_kind: str = DEFAULT_CORE_KIND,
+    socks_port: int = DEFAULT_SOCKS_PORT,
+    timeout_seconds: float = 15.0,
+    root: Path | None = None,
+) -> str:
+    """Validate a generated Xray config using upstream ``run -test``.
+
+    Xray parses and builds the configuration, then exits before ``server.Start``.
+    The preflight therefore does not leave a SOCKS listener/core process running
+    and does not touch nftables/systemd. It does write the generated secret
+    config with mode 0600 so the exact file intended for runtime is validated.
+    """
+
+    if socks_port <= 0 or socks_port > 65535:
+        raise ValueError("--tunnel-socks-port должен быть 1..65535")
+    if timeout_seconds <= 0 or timeout_seconds > 120:
+        raise ValueError("tunnel core preflight timeout должен быть >0 и <=120 секунд")
+
+    paths = ensure_tunnel_store(root)
+    connection = _load_active_connection(paths, profile_id)
+    resolved_binary, source = _resolve_core_binary(core_binary)
+    kind = _core_kind_from_binary(resolved_binary or "xray", core_kind)
+    binary_ready = bool(resolved_binary and Path(resolved_binary).is_file() and os.access(resolved_binary, os.X_OK))
+    config_path = _generated_config_path(paths, profile_id)
+
+    lines = [
+        "Discord tunnel core preflight",
+        f"stage: {TUNNEL_STAGE}",
+        f"profile: {profile_id}",
+        f"connection: {connection.connection_id}",
+        f"core kind: {kind}",
+        f"core binary: {resolved_binary or 'нет'}",
+        f"core binary source: {source}",
+        f"core binary exists/executable: {'yes' if binary_ready else 'no'}",
+        f"generated config: {config_path}",
+        "writes generated config: yes (0600)",
+        "requires sudo: no",
+        "mutates nftables/systemd: no",
+        "starts persistent core/listener: no",
+    ]
+
+    if kind != "xray":
+        lines.extend(
+            [
+                "verdict: UNSUPPORTED_CORE_PREFLIGHT",
+                "reason: this preflight intentionally implements only Xray upstream `run -test`; no compatible validator is assumed for v2ray/sing-box",
+            ]
+        )
+        return "\n".join(lines)
+    if not binary_ready:
+        lines.extend(["verdict: UNAVAILABLE_CORE", "next: install/select executable Xray core and repeat preflight"])
+        return "\n".join(lines)
+
+    config = generate_xray_vless_socks_config(connection, socks_host=DEFAULT_SOCKS_HOST, socks_port=socks_port)
+    _write_json(config_path, config, secret=True)
+    argv = (resolved_binary, "run", "-test", "-config", str(config_path))
+    try:
+        result = subprocess.run(
+            argv,
+            cwd=paths.root,
+            text=True,
+            capture_output=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = _tail_file_text(exc.stdout if isinstance(exc.stdout, str) else "", max_chars=1200)
+        stderr = _tail_file_text(exc.stderr if isinstance(exc.stderr, str) else "", max_chars=1600)
+        lines.extend(["verdict: TIMEOUT", f"timeout seconds: {timeout_seconds:g}"])
+        if stdout:
+            lines.extend(["stdout tail:", stdout])
+        if stderr:
+            lines.extend(["stderr tail:", stderr])
+        return "\n".join(lines)
+
+    stdout = _tail_file_text(result.stdout, max_chars=1200)
+    stderr = _tail_file_text(result.stderr, max_chars=1600)
+    lines.extend([f"exit code: {result.returncode}", f"verdict: {'PASS' if result.returncode == 0 else 'FAIL'}"])
+    if stdout:
+        lines.extend(["stdout tail:", stdout])
+    if stderr:
+        lines.extend(["stderr tail:", stderr])
+    return "\n".join(lines)
+
+
+def _tail_file_text(text: str, *, max_chars: int) -> str:
+    value = (text or "").strip()
+    if len(value) <= max_chars:
+        return value
+    return value[-max_chars:]
+
+
 @dataclass(frozen=True)
 class TunnelPlan:
     plan_id: str
@@ -1178,6 +1274,11 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
     connection = _load_active_connection(paths, profile_id)
     resolved_binary, source = _resolve_core_binary(core_binary)
     kind = _core_kind_from_binary(resolved_binary or "xray", core_kind)
+    if kind == "sing-box":
+        raise ValueError(
+            "sing-box tunnel plan временно заблокирован: текущий generator создаёт Xray/V2Ray JSON, "
+            "а sing-box использует другую config schema. Нужен отдельный native sing-box generator + `sing-box check`."
+        )
     core_exists = bool(resolved_binary and Path(resolved_binary).exists() and os.access(resolved_binary, os.X_OK))
     config = generate_xray_vless_socks_config(connection, socks_host=DEFAULT_SOCKS_HOST, socks_port=socks_port)
     config_hash = _sha256_json(config)
@@ -1373,6 +1474,19 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         raise ValueError("Active tunnel connection changed after plan confirmation. Re-run --discord-tunnel-plan and --runtime-confirm.")
     core_binary = str(plan["core"].get("binary", ""))
     core_kind = str(plan["core"].get("kind", "xray"))
+    if core_kind == "sing-box":
+        return "\n".join(
+            [
+                "Discord tunnel start: blocked",
+                f"profile: {profile_id}",
+                f"connection: {connection.connection_id}",
+                f"core: {core_binary} ({core_kind})",
+                "reason: saved plan targets sing-box but generated config schema is Xray/V2Ray-specific",
+                "next: re-plan with Xray/V2Ray or implement native sing-box generator + `sing-box check`",
+                "executes core now: no",
+                "executes Discord now: no",
+            ]
+        )
     if not core_binary or not Path(core_binary).exists() or not os.access(core_binary, os.X_OK):
         raise ValueError("Tunnel core binary отсутствует или не исполняемый. Re-run --discord-tunnel-plan --tunnel-core-binary /path/to/core.")
     compatibility_warning = _core_transport_warning(connection, core_kind)

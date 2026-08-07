@@ -6,7 +6,7 @@
 
 Zapret-стратегия может не подходить конкретному DPI или маршруту. Для такого случая нужен независимый путь через локальный SOCKS5 и внешний VLESS-compatible core.
 
-Проект не реализует VLESS самостоятельно. Он управляет внешним `xray`, `v2ray` или `sing-box` как отдельным процессом.
+Проект не реализует VLESS самостоятельно. Рабочий generated-config lane ориентирован на внешние `xray`/`v2ray`. `sing-box` обнаруживается как возможный binary kind, но Stage 8h блокирует plan/start: его JSON-схема отличается и требует отдельного native generator.
 
 ## Архитектура
 
@@ -61,16 +61,25 @@ PYTHONPATH=gui python -m zap2_gui.app \
   --tunnel-core-kind xray
 ```
 
-Поддерживаемые kinds:
+Режимы выбора core:
 
 ```text
 auto
 xray
 v2ray
-sing-box
+sing-box  # обнаруживается, но plan/start заблокирован до native generator
 ```
 
-Plan генерирует redacted preview, core config path, SOCKS port и managed runtime state. Наличие binary проверяется до start.
+Plan генерирует redacted preview, core config path, SOCKS port и managed runtime state. Наличие binary проверяется до start. Xray-конфиг можно отдельно проверить штатным parser mode:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app \
+  --discord-tunnel-core-preflight \
+  --tunnel-core-binary /usr/bin/xray \
+  --tunnel-core-kind xray
+```
+
+Проверка вызывает `xray run -test -config <generated-config>`, не оставляет core/listener запущенным и не меняет firewall/systemd. Для `sing-box` нужен отдельный generator и штатный `sing-box check`; Xray JSON ему не передаётся.
 
 ## Жизненный цикл
 

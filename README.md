@@ -20,6 +20,8 @@
 ./run.sh --build-plan
 ./run.sh --runtime-contracts
 ./run.sh --launch-composer-status
+./run.sh --strategy-parser-preflight
+./run.sh --discord-tunnel-core-preflight --tunnel-core-binary /usr/bin/xray --tunnel-core-kind xray
 ./run.sh --discord-tunnel-status
 ```
 

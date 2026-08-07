@@ -88,7 +88,7 @@ COMPONENT_SPECS: dict[str, LaunchComponentSpec] = {
         component_id=COMPONENT_TUNNEL_VLESS,
         title="VLESS tunnel",
         category="proxy",
-        summary="Внешний xray/v2ray/sing-box core с loopback SOCKS; без sudo и без firewall mutation.",
+        summary="Внешний xray/v2ray core с loopback SOCKS; sing-box ждёт native config generator; без sudo и firewall mutation.",
         supported=True,
         requires_sudo=False,
     ),
