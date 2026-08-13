@@ -1,15 +1,14 @@
 # Patch summary
 
-v0.4 maintenance: исправление file dependencies для импорта полного Zapret2 `.txt` preset.
+v0.4 maintenance: удаление owner-managed preset и общий source package root resolver.
 
-- Причина сбоя `Universal V5`: preset содержит `--hostlist=lists/*` и `--ipset=lists/*`, но один TXT не содержит данные этих файлов. Ранее импорт разрешал такой preset и runtime передавал относительные пути прямо в `nfqws2`.
-- Импорт теперь ищет referenced list/ipset рядом с TXT и в двух родительских каталогах. Если источник найден, файл копируется в project-owned `presets/imported-assets/txt-*/...`, а canonical runtime arg переписывается на этот путь.
-- Если автопоиск не нашёл зависимости, GUI предлагает выбрать корень исходного пакета с каталогом `lists`.
-- Неполный preset по-прежнему можно сохранить для редактирования, но он явно помечается `runtime ready after import: no` и metadata содержит `missingListDependencies`.
-- Launch composer и Overview показывают отсутствующие strategy files как blocker; такой Zapret component больше не получает `ready=ready`.
-- Default start выполняет file preflight до owner-rules apply. При missing/unsafe dependency nftables/NFQUEUE не меняются.
-- Runtime копирует strategy-level `--hostlist`, `--hostlist-exclude`, `--ipset`, `--ipset-exclude` в public per-session inputs и переписывает argv на абсолютные безопасные копии, как уже делалось для profile hostlist/Lua/blob.
-- Strategy parser preflight сообщает `MISSING_STRATEGY_FILE_DEPENDENCIES` без запуска `nfqws2 --dry-run`, если обязательные файлы отсутствуют.
-- GUI classifier получает код `Z2-STRATEGY-FILES-MISSING`.
-
-Проверено отдельно на исходном `Universal V5`: без companion lists обнаруживаются 37 missing dependencies и запуск блокируется до firewall apply; с синтетическим полным каталогом `lists` импортируются 37 уникальных файлов, сохраняются 37 профилей/55 actions, а runtime config не оставляет относительных `lists/*` путей.
+- Во вкладке `Пресеты` появилась отдельная кнопка `Удалить пресет`; `Удалить профиль` теперь однозначно относится только к строке profile.
+- Удалять можно только owner-managed presets. Reference/community presets остаются read-only.
+- Удаление снимает canonical `.txt`, metadata JSON и запись из `strategies/catalog.json`.
+- Если preset был выбран, selection безопасно переключается на catalog default до удаления. Запущенный выбранный preset по-прежнему защищён runtime guard.
+- `presets/imported-assets/*` удаляется только если больше ни один preset на тот же asset root не ссылается.
+- Поиск companion files вынесен в `import_source_root.py`: resolver не знает о preset/TXT и работает с любым source file + безопасными relative refs.
+- Автопоиск source package root проходит до 10 ancestors и поэтому находит корень для вложенности `presets/builtin/winws2/...`.
+- Распознаётся layout проекта loop-uh: source resource root `<repo>/src` и packaged application root с соседними `presets/`, `lists/`, `lua/`, `bin/`.
+- GUI показывает auto-detected root, причину и coverage; ручной выбор root стартует с этого кандидата.
+- Исходный `zapretgui.zip` проверен отдельно: для `src/presets/builtin/winws2/Universal V5.txt` root определяется как `src`, профилей 37/actions 55, но coverage runtime lists = `0/37`, потому что source checkout не содержит соответствующие `lists/*.txt`. Это не маскируется: нужен installed/extracted runtime root или другой пакет, реально содержащий файлы.

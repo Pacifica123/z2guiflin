@@ -249,3 +249,95 @@ def test_gui_can_request_dependency_root_for_missing_lists() -> None:
     assert "missing_list_dependencies" in source
     assert "QFileDialog.getExistingDirectory" in source
     assert "dependency_root=dependency_root" in source
+
+
+def test_nested_package_root_is_discovered_beyond_old_two_ancestor_limit(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    package = tmp_path / "loop-style-package"
+    source = package / "presets" / "builtin" / "winws2" / "Universal V5.txt"
+    source.parent.mkdir(parents=True)
+    source.write_text(_windows_zapret2_text(), encoding="utf-8")
+    (package / "lists").mkdir(parents=True)
+    (package / "lists" / "youtube.txt").write_text("youtube.com\n", encoding="utf-8")
+
+    analysis = analyze_txt_preset(source, project)
+    result = import_txt_preset(source, project)
+
+    assert analysis.dependency_root_hint == package.resolve()
+    assert analysis.dependency_root_coverage == "1/1"
+    assert analysis.missing_list_dependencies == ()
+    assert result.analysis.runtime_ready_after_import is True
+
+
+def test_source_package_root_resolver_is_not_bound_to_preset_file_type(tmp_path: Path) -> None:
+    from zap2_gui.adapters.import_source_root import discover_source_package_root, resolve_source_package_file
+
+    package = tmp_path / "generic-package"
+    source = package / "deep" / "objects" / "payload.custom"
+    source.parent.mkdir(parents=True)
+    source.write_text("payload", encoding="utf-8")
+    (package / "assets").mkdir(parents=True)
+    companion = package / "assets" / "data.bin"
+    companion.write_bytes(b"data")
+
+    probe = discover_source_package_root(source, ("assets/data.bin",))
+    resolved, resolved_probe = resolve_source_package_file(
+        source,
+        "assets/data.bin",
+        all_relative_refs=("assets/data.bin",),
+    )
+
+    assert probe is not None
+    assert probe.root == package.resolve()
+    assert probe.coverage == "1/1"
+    assert resolved == companion.resolve()
+    assert resolved_probe is not None
+    assert resolved_probe.root == package.resolve()
+
+
+def test_loop_uh_source_layout_is_detected_but_missing_runtime_lists_stays_explicit(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    repo = tmp_path / "zapretgui"
+    source_root = repo / "src"
+    source = source_root / "presets" / "builtin" / "winws2" / "Universal V5.txt"
+    source.parent.mkdir(parents=True)
+    source.write_text(_windows_zapret2_text(), encoding="utf-8")
+    (source_root / "lists").mkdir(parents=True)
+    (source_root / "lists" / "__init__.py").write_text("", encoding="utf-8")
+    (source_root / "config").mkdir(parents=True)
+    (source_root / "config" / "runtime_layout.py").write_text("# marker\n", encoding="utf-8")
+
+    analysis = analyze_txt_preset(source, project)
+
+    assert analysis.dependency_root_hint == source_root.resolve()
+    assert "application-resource-root" in analysis.dependency_root_reason
+    assert analysis.missing_list_dependencies == ("lists/youtube.txt",)
+    assert any(issue.code == "SOURCE_PACKAGE_RUNTIME_ASSETS_ABSENT" for issue in analysis.warnings)
+
+
+def test_deleting_imported_presets_removes_assets_only_after_last_reference(tmp_path: Path) -> None:
+    from zap2_gui.adapters.preset_editor import remove_owner_preset
+
+    project = _project_copy(tmp_path)
+    package = tmp_path / "package"
+    source = package / "presets" / "Universal.txt"
+    source.parent.mkdir(parents=True)
+    source.write_text(_windows_zapret2_text(), encoding="utf-8")
+    (package / "lists").mkdir(parents=True)
+    (package / "lists" / "youtube.txt").write_text("youtube.com\n", encoding="utf-8")
+
+    first = import_txt_preset(source, project)
+    second = import_txt_preset(source, project)
+    first_meta = json.loads(first.mutation.metadata_path.read_text(encoding="utf-8"))
+    second_meta = json.loads(second.mutation.metadata_path.read_text(encoding="utf-8"))
+    assert first_meta["sourcePreset"]["listAssetsRoot"] == second_meta["sourcePreset"]["listAssetsRoot"]
+    asset_root = project / first_meta["sourcePreset"]["listAssetsRoot"]
+    assert asset_root.is_dir()
+
+    first_deleted = remove_owner_preset(first.preset_id, root=project)
+    assert first_deleted.removed_asset_root is None
+    assert asset_root.is_dir()
+
+    second_deleted = remove_owner_preset(second.preset_id, root=project)
+    assert second_deleted.removed_asset_root == asset_root.resolve()
+    assert not asset_root.exists()

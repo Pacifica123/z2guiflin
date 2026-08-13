@@ -31,9 +31,17 @@ strategies/workspace/<preset-id>.json
 метаданные и контрольную копию `runtimeArgs`. Путь JSON добавляется в
 `strategies/catalog.json`.
 
-Конструктор изменяет только пресеты, которые сам создал. Reference, community,
-imported и generated пресеты остаются read-only. Это не даёт GUI незаметно
-испортить проверенный исходный файл.
+Конструктор изменяет и удаляет только owner-managed пресеты: созданные через
+`+ Пресет` и импортированные через `Импорт .txt`. Reference/community presets
+остаются read-only. Это не даёт GUI незаметно испортить проверенный исходный
+файл.
+
+Кнопка `Удалить пресет` удаляет весь owner-managed preset: canonical `.txt`,
+metadata JSON и запись из `strategies/catalog.json`. Если удаляемый preset был
+выбран, selection сначала переводится на `defaultStrategyId`. Общие
+`presets/imported-assets/*` удаляются только когда на них больше не ссылается
+другой импортированный preset. Запущенный выбранный preset удалить нельзя до
+остановки Default workflow.
 
 ## Профиль
 
@@ -198,10 +206,24 @@ Metadata сохраняет имя исходного файла, SHA-256, `Buil
 содержит данные этих файлов. Поэтому наличие синтаксически корректного preset не
 означает готовность к runtime.
 
-Импортер сначала проверяет workspace, затем ищет referenced files рядом с TXT и
-в двух родительских каталогах. Это покрывает типичную структуру, где preset
-лежит в `presets/`, а `lists/` находится в корне исходного пакета. Если файлы не
-найдены, GUI позволяет явно выбрать корень пакета. Найденные inputs копируются в
+Импортер сначала проверяет workspace, затем общий `source package root` resolver
+проходит ancestors исходного файла и оценивает, от какого корня разрешается
+максимум безопасных относительных ссылок. Resolver вынесен из preset adapter и
+не зависит от `.txt`/Zapret: на входе у него любой source file и набор relative
+resource refs. Поэтому тот же механизм можно использовать в будущих импортерах
+других сущностей.
+
+Для структуры loop-uh resolver корректно понимает логический resource root
+`<repo>/src` / `<installed-root>`, где рядом ожидаются `presets/`, `lists/`,
+`lua/`, `bin/`. В source checkout `zapretgui` сами runtime `lists/*.txt` могут
+отсутствовать: наличие Python-модуля `src/lists` не считается наличием нужных
+данных. В таком случае import остаётся неполным и GUI предлагает указать корень
+установленной/распакованной runtime-поставки.
+
+Автопоиск проходит до десяти ancestors, поэтому вложенность вида
+`presets/builtin/winws2/Universal V5.txt` больше не теряет package root. Если
+файлы всё равно не найдены, GUI показывает найденный root, причину/coverage и
+позволяет выбрать другой корень вручную. Найденные inputs копируются в
 `presets/imported-assets/txt-<digest>/...`; canonical preset ссылается уже на эти
 project-owned copies. Полный путь исходного пакета в metadata не сохраняется.
 

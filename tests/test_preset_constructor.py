@@ -20,11 +20,12 @@ from zap2_gui.adapters.preset_editor import (
     list_profile_strategy_templates,
     move_owner_preset_profile,
     parse_manual_strategy_text,
+    remove_owner_preset,
     remove_owner_preset_profile,
     split_blockcheck_profile_args,
     update_owner_preset_profile,
 )
-from zap2_gui.adapters.presets import load_preset
+from zap2_gui.adapters.presets import load_preset, load_preset_catalog, select_preset
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -252,6 +253,8 @@ def test_gui_source_exposes_constructor_and_profile_blockcheck() -> None:
 
     assert '"+ Пресет"' in presets_source
     assert '"+ Профиль"' in presets_source
+    assert '"Удалить пресет"' in presets_source
+    assert "remove_owner_preset" in presets_source
     assert '"↑"' in presets_source and '"↓"' in presets_source
     assert "move_owner_preset_profile" in presets_source
     assert "Подобрать Blockcheck и вставить" in dialog_source
@@ -260,3 +263,37 @@ def test_gui_source_exposes_constructor_and_profile_blockcheck() -> None:
     assert "request_blockcheck_graceful_stop" in dialog_source
     assert 'stop_process(reason="AVAILABLE найден' not in dialog_source
     assert "AVAILABLE подтверждает только указанный target и probe" in dialog_source
+
+
+def test_remove_owner_preset_deletes_files_and_catalog_entry(tmp_path: Path) -> None:
+    root = _project_copy(tmp_path)
+    created = create_owner_preset("Disposable preset", root=root, preset_id="disposable-preset")
+
+    result = remove_owner_preset(created.preset_id, root=root)
+
+    assert result.preset_id == created.preset_id
+    assert not created.preset_path.exists()
+    assert not created.metadata_path.exists()
+    catalog_data = json.loads((root / "strategies/catalog.json").read_text(encoding="utf-8"))
+    assert "strategies/workspace/disposable-preset.json" not in catalog_data["strategyFiles"]
+    assert created.preset_id not in load_preset_catalog(root).by_id()
+
+
+def test_remove_selected_owner_preset_falls_back_to_catalog_default(tmp_path: Path) -> None:
+    root = _project_copy(tmp_path)
+    created = create_owner_preset("Selected disposable", root=root, preset_id="selected-disposable")
+    select_preset(created.preset_id, root=root, workspace_id="default", reason="test-delete")
+    assert load_preset_catalog(root).selected_preset_id == created.preset_id
+
+    result = remove_owner_preset(created.preset_id, root=root)
+
+    assert result.selection_fallback_applied is True
+    assert result.selected_preset_id == "manual-local"
+    assert load_preset_catalog(root).selected_preset_id == "manual-local"
+
+
+def test_reference_preset_cannot_be_deleted(tmp_path: Path) -> None:
+    root = _project_copy(tmp_path)
+
+    with pytest.raises(ValueError, match="Reference/community"):
+        remove_owner_preset("manual-local", root=root)

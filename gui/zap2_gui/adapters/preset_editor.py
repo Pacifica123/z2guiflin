@@ -14,11 +14,12 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 import tempfile
 from typing import Iterable
 
 from .presets import PresetCatalogEntry, load_preset, load_preset_catalog
-from .workspace_profiles import load_strategy_catalog
+from .workspace_profiles import load_active_strategy_selection, load_strategy_catalog, select_workspace_strategy
 from ..models.preset import TrafficProfile, ZapretPreset, parse_preset_args
 from ..models.service_targets import normalize_service_targets, service_target_host_token
 from ..project_paths import discover_layout
@@ -221,6 +222,33 @@ class PresetMutationResult:
                 "invalidates previous prepared start-plan when runtime args changed: yes",
             ]
         )
+
+
+@dataclass(frozen=True)
+class PresetDeletionResult:
+    preset_id: str
+    title: str
+    preset_path: Path
+    metadata_path: Path
+    selected_preset_id: str
+    selection_fallback_applied: bool
+    removed_asset_root: Path | None = None
+
+    def to_text(self) -> str:
+        lines = [
+            "Preset constructor: preset-removed",
+            f"preset: {self.preset_id}",
+            f"title: {self.title}",
+            f"removed preset file: {self.preset_path}",
+            f"removed metadata file: {self.metadata_path}",
+            f"currently selected preset: {self.selected_preset_id}",
+            f"selection fallback applied: {'yes' if self.selection_fallback_applied else 'no'}",
+            "executes nfqws2 now: no",
+            "mutates firewall/services now: no",
+        ]
+        if self.removed_asset_root is not None:
+            lines.append(f"removed unshared imported assets: {self.removed_asset_root}")
+        return "\n".join(lines)
 
 
 def _utc_now() -> str:
@@ -576,6 +604,47 @@ def _catalog_with_path(root: Path, metadata_path: Path) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
+def _catalog_without_path(root: Path, metadata_path: Path) -> str:
+    catalog_path = _catalog_path(root)
+    data = json.loads(catalog_path.read_text(encoding="utf-8"))
+    rel = _relative(metadata_path, root)
+    files = [str(item) for item in data.get("strategyFiles", []) if str(item) != rel]
+    if len(files) == len(data.get("strategyFiles", [])):
+        raise ValueError(f"Preset metadata отсутствует в strategy catalog: {rel}")
+    if str(data.get("defaultStrategyId", "")) == metadata_path.stem:
+        raise ValueError("Catalog default preset удалять нельзя")
+    data["strategyFiles"] = files
+    return json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def _safe_imported_asset_root(root: Path, value: object) -> Path | None:
+    raw = str(value or "").strip().replace("\\", "/")
+    if not raw:
+        return None
+    rel = Path(raw)
+    if rel.is_absolute() or ".." in rel.parts:
+        return None
+    allowed = root / "presets" / "imported-assets"
+    candidate = (root / rel).resolve()
+    try:
+        candidate.relative_to(allowed.resolve())
+    except ValueError:
+        return None
+    return candidate
+
+
+def _asset_root_is_shared(root: Path, asset_root: Path, excluding_preset_id: str) -> bool:
+    target = asset_root.resolve()
+    for other in load_preset_catalog(root).entries:
+        if other.preset.preset_id == excluding_preset_id:
+            continue
+        source = other.metadata.source_preset or {}
+        candidate = _safe_imported_asset_root(root, source.get("listAssetsRoot"))
+        if candidate is not None and candidate.resolve() == target:
+            return True
+    return False
+
+
 def _assert_mutation_allowed(root: Path, preset_id: str) -> None:
     """Не менять выбранный preset под живым nfqws2 процессом."""
 
@@ -771,6 +840,67 @@ def create_owner_preset(
         metadata_path=metadata_path,
         profile_count=0,
         selected_preset_id=selected,
+    )
+
+
+def remove_owner_preset(preset_id: str, root: Path | None = None) -> PresetDeletionResult:
+    """Удалить owner-managed preset и его metadata без runtime side effects."""
+
+    layout = discover_layout(root)
+    entry = load_preset(preset_id, layout.root)
+    if not _metadata_is_editor_managed(entry):
+        raise ValueError(
+            f"Пресет {preset_id} не создан конструктором. Reference/community preset удалять через GUI нельзя."
+        )
+    _assert_mutation_allowed(layout.root, preset_id)
+
+    strategy_catalog = load_strategy_catalog(layout.root)
+    if preset_id == strategy_catalog.default_strategy_id:
+        raise ValueError("Catalog default preset удалять нельзя")
+
+    preset_path = (layout.root / entry.metadata.preset_path).resolve()
+    metadata_path = _metadata_path_for(layout.root, preset_id).resolve()
+    expected_preset = _preset_path_for(layout.root, preset_id).resolve()
+    expected_metadata = _metadata_path_for(layout.root, preset_id).resolve()
+    if preset_path != expected_preset or metadata_path != expected_metadata:
+        raise ValueError("Owner preset имеет неожиданное расположение файлов; удаление заблокировано")
+
+    selection = load_active_strategy_selection(layout.root, "default")
+    selected_before = load_preset_catalog(layout.root).selected_preset_id
+    fallback_applied = selected_before == preset_id or (selection is not None and selection.strategy_id == preset_id)
+    fallback_id = strategy_catalog.default_strategy_id
+    if fallback_applied:
+        select_workspace_strategy(
+            layout.root,
+            strategy_id=fallback_id,
+            profile_id="default",
+            reason="preset-deleted-fallback",
+        )
+
+    source = entry.metadata.source_preset or {}
+    asset_root = _safe_imported_asset_root(layout.root, source.get("listAssetsRoot"))
+    shared_assets = asset_root is not None and _asset_root_is_shared(layout.root, asset_root, preset_id)
+
+    # Сначала убрать запись из каталога: даже при неожиданной ошибке unlink
+    # orphan files безопаснее, чем каталог, указывающий на частично удалённый preset.
+    _atomic_multi_write({_catalog_path(layout.root): _catalog_without_path(layout.root, metadata_path)})
+    preset_path.unlink(missing_ok=True)
+    metadata_path.unlink(missing_ok=True)
+
+    removed_asset_root: Path | None = None
+    if asset_root is not None and not shared_assets and asset_root.is_dir():
+        shutil.rmtree(asset_root)
+        removed_asset_root = asset_root
+
+    selected_after = load_preset_catalog(layout.root).selected_preset_id
+    return PresetDeletionResult(
+        preset_id=preset_id,
+        title=entry.preset.title,
+        preset_path=preset_path,
+        metadata_path=metadata_path,
+        selected_preset_id=selected_after,
+        selection_fallback_applied=fallback_applied,
+        removed_asset_root=removed_asset_root,
     )
 
 

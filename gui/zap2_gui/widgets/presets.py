@@ -11,6 +11,7 @@ from ..adapters.preset_editor import (
     editable_profile_from_runtime,
     is_preset_editor_managed,
     move_owner_preset_profile,
+    remove_owner_preset,
     remove_owner_preset_profile,
     update_owner_preset_profile,
 )
@@ -61,9 +62,10 @@ def make_presets_page(root: Path | None = None) -> Any:
     buttons = QtWidgets.QHBoxLayout()
     new_preset_button = QtWidgets.QPushButton("+ Пресет")
     import_preset_button = QtWidgets.QPushButton("Импорт .txt")
+    remove_preset_button = QtWidgets.QPushButton("Удалить пресет")
     new_profile_button = QtWidgets.QPushButton("+ Профиль")
     edit_profile_button = QtWidgets.QPushButton("Изменить")
-    remove_profile_button = QtWidgets.QPushButton("Удалить")
+    remove_profile_button = QtWidgets.QPushButton("Удалить профиль")
     move_up_button = QtWidgets.QPushButton("↑")
     move_down_button = QtWidgets.QPushButton("↓")
     refresh_button = QtWidgets.QPushButton("Обновить")
@@ -72,6 +74,7 @@ def make_presets_page(root: Path | None = None) -> Any:
     for button in (
         new_preset_button,
         import_preset_button,
+        remove_preset_button,
         new_profile_button,
         edit_profile_button,
         remove_profile_button,
@@ -159,6 +162,7 @@ def make_presets_page(root: Path | None = None) -> Any:
         state["managed"] = managed
         row = profile_table.currentRow()
         has_profile = row >= 0
+        remove_preset_button.setEnabled(managed)
         new_profile_button.setEnabled(managed)
         edit_profile_button.setEnabled(managed and has_profile)
         remove_profile_button.setEnabled(managed and has_profile)
@@ -282,6 +286,31 @@ def make_presets_page(root: Path | None = None) -> Any:
         except Exception as exc:
             QtWidgets.QMessageBox.critical(page, "Пресет не создан", str(exc))
 
+    def remove_preset() -> None:
+        entry = state.get("entry")
+        if entry is None or not state.get("managed"):
+            return
+        question = QtWidgets.QMessageBox.question(
+            page,
+            "Удаление пресета",
+            (
+                f"Удалить весь owner-managed preset `{entry.preset.title}` "
+                f"({entry.preset.preset_id})?\n\n"
+                f"Будут удалены preset metadata и все {len(entry.preset.profiles)} profiles. "
+                "Если preset выбран, selection переключится на catalog default. "
+                "Runtime/firewall сейчас не меняются."
+            ),
+        )
+        if question != QtWidgets.QMessageBox.StandardButton.Yes:
+            return
+        try:
+            result = remove_owner_preset(entry.preset.preset_id, root=root)
+            details.setPlainText(result.to_text())
+            refresh(selected_preset_id=result.selected_preset_id)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(page, "Пресет не удалён", str(exc))
+
+
     def import_preset_txt() -> None:
         filename, _selected_filter = QtWidgets.QFileDialog.getOpenFileName(
             page,
@@ -308,13 +337,21 @@ def make_presets_page(root: Path | None = None) -> Any:
 
         dependency_root: Path | None = None
         if analysis.missing_list_dependencies:
+            root_hint = ""
+            if analysis.dependency_root_hint is not None:
+                root_hint = (
+                    f"\n\nАвтопоиск package root: {analysis.dependency_root_hint}"
+                    f"\nпричина: {analysis.dependency_root_reason or 'ancestor'}; "
+                    f"coverage: {analysis.dependency_root_coverage or '0/0'}."
+                )
             answer = QtWidgets.QMessageBox.question(
                 page,
                 "Внешние списки пресета",
                 (
                     f"TXT ссылается на {len(analysis.missing_list_dependencies)} hostlist/ipset files, "
-                    "которых нет в workspace и рядом с файлом.\n\n"
-                    "Да — выбрать корень исходного пакета (каталог, внутри которого находится lists).\n"
+                    "которых не удалось разрешить автоматически."
+                    f"{root_hint}\n\n"
+                    "Да — выбрать другой корень исходного пакета (каталог, внутри которого находится lists).\n"
                     "Нет — импортировать пресет как неполный; его runtime-запуск будет заблокирован.\n"
                     "Отмена — не импортировать."
                 ),
@@ -330,7 +367,7 @@ def make_presets_page(root: Path | None = None) -> Any:
                 directory = QtWidgets.QFileDialog.getExistingDirectory(
                     page,
                     "Корень пакета с hostlist/ipset",
-                    str(Path(filename).parent),
+                    str(analysis.dependency_root_hint or Path(filename).parent),
                 )
                 if not directory:
                     details.setPlainText(analysis.to_text())
@@ -444,6 +481,7 @@ def make_presets_page(root: Path | None = None) -> Any:
     profile_table.itemSelectionChanged.connect(_show_profile_details)
     new_preset_button.clicked.connect(create_preset)
     import_preset_button.clicked.connect(import_preset_txt)
+    remove_preset_button.clicked.connect(remove_preset)
     new_profile_button.clicked.connect(add_profile)
     edit_profile_button.clicked.connect(edit_profile)
     remove_profile_button.clicked.connect(remove_profile)

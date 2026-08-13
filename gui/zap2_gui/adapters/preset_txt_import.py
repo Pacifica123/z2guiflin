@@ -14,6 +14,7 @@ import re
 from typing import Iterable
 
 from .preset_editor import PresetMutationResult, create_owner_preset_from_runtime_args
+from .import_source_root import discover_source_package_root, resolve_source_package_file
 from .strategy_file_inputs import split_strategy_file_arg
 from ..models.preset import ZapretPreset, parse_preset_args
 from ..project_paths import discover_layout
@@ -77,6 +78,9 @@ class PresetTxtImportAnalysis:
     windows_udp_capture_hint: tuple[str, ...] = ()
     missing_list_dependencies: tuple[str, ...] = ()
     external_list_dependencies: tuple[str, ...] = ()
+    dependency_root_hint: Path | None = None
+    dependency_root_reason: str = ""
+    dependency_root_coverage: str = ""
 
     @property
     def errors(self) -> tuple[PresetTxtImportIssue, ...]:
@@ -118,6 +122,10 @@ class PresetTxtImportAnalysis:
             lines.append("removed Windows TCP capture hint: " + ",".join(self.windows_tcp_capture_hint))
         if self.windows_udp_capture_hint:
             lines.append("removed Windows UDP capture hint: " + ",".join(self.windows_udp_capture_hint))
+        if self.dependency_root_hint is not None:
+            reason = f" ({self.dependency_root_reason})" if self.dependency_root_reason else ""
+            coverage = f"; coverage={self.dependency_root_coverage}" if self.dependency_root_coverage else ""
+            lines.append(f"source package root: {self.dependency_root_hint}{reason}{coverage}")
         if self.external_list_dependencies:
             lines.append(f"external list/ipset files ready to copy: {len(self.external_list_dependencies)}")
         if self.missing_list_dependencies:
@@ -303,39 +311,23 @@ def _list_reference_value(arg: str) -> str:
 
 
 
-def _dependency_search_roots(source: Path, dependency_root: Path | None = None) -> tuple[Path, ...]:
-    roots: list[Path] = []
-    if dependency_root is not None:
-        roots.append(Path(dependency_root).expanduser().resolve())
-    current = source.parent.resolve()
-    for _ in range(3):
-        if current not in roots:
-            roots.append(current)
-        if current.parent == current:
-            break
-        current = current.parent
-    return tuple(roots)
-
-
-def _external_list_source(source: Path, value: str, dependency_root: Path | None = None) -> Path | None:
+def _external_list_source(
+    source: Path,
+    value: str,
+    dependency_root: Path | None = None,
+    *,
+    all_relative_refs: Iterable[str] = (),
+) -> Path | None:
     raw = value.lstrip("@").replace("\\", "/").strip()
     if not raw or _unsafe_workspace_file_ref(raw):
         return None
-    rel = Path(raw)
-    candidates: list[Path] = []
-    for base in _dependency_search_roots(source, dependency_root):
-        candidates.append(base / rel)
-        if rel.parts and base.name == rel.parts[0] and len(rel.parts) > 1:
-            candidates.append(base.joinpath(*rel.parts[1:]))
-    seen: set[Path] = set()
-    for candidate in candidates:
-        resolved = candidate.resolve()
-        if resolved in seen:
-            continue
-        seen.add(resolved)
-        if resolved.is_file():
-            return resolved
-    return None
+    resolved, _probe = resolve_source_package_file(
+        source,
+        raw,
+        explicit_root=dependency_root,
+        all_relative_refs=all_relative_refs,
+    )
+    return resolved
 
 
 def _materialize_list_dependencies(
@@ -347,6 +339,13 @@ def _materialize_list_dependencies(
 
     external: dict[tuple[str, str], Path] = {}
     unresolved: list[str] = []
+    all_refs = tuple(
+        value
+        for arg in analysis.runtime_args
+        for parsed in (split_strategy_file_arg(arg),)
+        if parsed is not None
+        for _option, value in (parsed,)
+    )
     for arg in analysis.runtime_args:
         parsed = split_strategy_file_arg(arg)
         if parsed is None:
@@ -355,7 +354,9 @@ def _materialize_list_dependencies(
         project_candidate = root / value.lstrip("@").replace("\\", "/")
         if project_candidate.is_file():
             continue
-        source_path = _external_list_source(analysis.source_path, value, dependency_root)
+        source_path = _external_list_source(
+            analysis.source_path, value, dependency_root, all_relative_refs=all_refs
+        )
         if source_path is None:
             if value not in unresolved:
                 unresolved.append(value)
@@ -563,6 +564,18 @@ def analyze_txt_preset(path: Path | str, root: Path | None = None, dependency_ro
 
     missing_lists: list[str] = []
     external_lists: list[str] = []
+    list_refs = tuple(
+        value
+        for arg in adapted
+        for parsed_list in (split_strategy_file_arg(arg),)
+        if parsed_list is not None
+        for _option, value in (parsed_list,)
+    )
+    package_probe = discover_source_package_root(
+        source,
+        list_refs,
+        explicit_root=dependency_root,
+    )
     for arg in adapted:
         parsed_list = split_strategy_file_arg(arg)
         if parsed_list is None:
@@ -572,12 +585,29 @@ def analyze_txt_preset(path: Path | str, root: Path | None = None, dependency_ro
         candidate = layout.root / normalized
         if not value or candidate.is_file():
             continue
-        if _external_list_source(source, value, dependency_root) is not None:
+        if _external_list_source(
+            source, value, dependency_root, all_relative_refs=list_refs
+        ) is not None:
             if value not in external_lists:
                 external_lists.append(value)
             continue
         if value not in missing_lists:
             missing_lists.append(value)
+    if (
+        package_probe is not None
+        and package_probe.resolved_refs == 0
+        and "application-resource-root" in package_probe.reason
+        and missing_lists
+    ):
+        issues.append(
+            PresetTxtImportIssue(
+                "warning",
+                "SOURCE_PACKAGE_RUNTIME_ASSETS_ABSENT",
+                "Найден логический resource root исходного GUI-пакета, но source checkout не содержит "
+                "referenced runtime lists. Нужен корень установленной/распакованной runtime-поставки, "
+                "где рядом существуют presets/ и lists/.",
+            )
+        )
     if missing_lists:
         issues.append(
             PresetTxtImportIssue(
@@ -615,6 +645,9 @@ def analyze_txt_preset(path: Path | str, root: Path | None = None, dependency_ro
         windows_udp_capture_hint=tuple(udp_hint),
         missing_list_dependencies=tuple(missing_lists),
         external_list_dependencies=tuple(external_lists),
+        dependency_root_hint=package_probe.root if package_probe is not None else None,
+        dependency_root_reason=package_probe.reason if package_probe is not None else "",
+        dependency_root_coverage=package_probe.coverage if package_probe is not None else "",
     )
 
 
@@ -671,6 +704,10 @@ def import_txt_preset(
         source_extra["builtinVersion"] = analysis.builtin_version
     if analysis.description:
         source_extra["description"] = analysis.description
+    if analysis.dependency_root_reason:
+        source_extra["dependencyRootKind"] = analysis.dependency_root_reason
+    if analysis.dependency_root_coverage:
+        source_extra["dependencyCoverage"] = analysis.dependency_root_coverage
     if asset_roots:
         source_extra["listAssetsRoot"] = asset_roots[0]
     if analysis.missing_list_dependencies:
