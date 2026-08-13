@@ -306,6 +306,42 @@ def make_presets_page(root: Path | None = None) -> Any:
             QtWidgets.QMessageBox.critical(page, "Пресет не импортирован", message)
             return
 
+        dependency_root: Path | None = None
+        if analysis.missing_list_dependencies:
+            answer = QtWidgets.QMessageBox.question(
+                page,
+                "Внешние списки пресета",
+                (
+                    f"TXT ссылается на {len(analysis.missing_list_dependencies)} hostlist/ipset files, "
+                    "которых нет в workspace и рядом с файлом.\n\n"
+                    "Да — выбрать корень исходного пакета (каталог, внутри которого находится lists).\n"
+                    "Нет — импортировать пресет как неполный; его runtime-запуск будет заблокирован.\n"
+                    "Отмена — не импортировать."
+                ),
+                QtWidgets.QMessageBox.StandardButton.Yes
+                | QtWidgets.QMessageBox.StandardButton.No
+                | QtWidgets.QMessageBox.StandardButton.Cancel,
+                QtWidgets.QMessageBox.StandardButton.Yes,
+            )
+            if answer == QtWidgets.QMessageBox.StandardButton.Cancel:
+                details.setPlainText(analysis.to_text())
+                return
+            if answer == QtWidgets.QMessageBox.StandardButton.Yes:
+                directory = QtWidgets.QFileDialog.getExistingDirectory(
+                    page,
+                    "Корень пакета с hostlist/ipset",
+                    str(Path(filename).parent),
+                )
+                if not directory:
+                    details.setPlainText(analysis.to_text())
+                    return
+                dependency_root = Path(directory)
+                try:
+                    analysis = analyze_txt_preset(Path(filename), root, dependency_root=dependency_root)
+                except Exception as exc:
+                    QtWidgets.QMessageBox.critical(page, "Зависимости пресета не прочитаны", str(exc))
+                    return
+
         warning_text = ""
         if analysis.warnings:
             warning_text = (
@@ -322,7 +358,9 @@ def make_presets_page(root: Path | None = None) -> Any:
                 f"lua-desync actions: {analysis.parsed_preset.action_count}; "
                 f"confidence: {analysis.confidence}.\n"
                 "Windows-only/runtime-owned flags не попадут в Linux runtime; известные Lua/blob paths "
-                "будут переписаны на vendored core. Runtime и nftables сейчас не запускаются."
+                "будут переписаны на vendored core. Найденные companion hostlist/ipset будут скопированы "
+                "в project-owned assets; при оставшихся missing files runtime будет заблокирован до исправления. "
+                "Runtime и nftables сейчас не запускаются."
                 f"{warning_text}"
             ),
         )
@@ -330,7 +368,7 @@ def make_presets_page(root: Path | None = None) -> Any:
             details.setPlainText(analysis.to_text())
             return
         try:
-            result = import_txt_preset(Path(filename), root)
+            result = import_txt_preset(Path(filename), root, dependency_root=dependency_root)
             details.setPlainText(result.to_text())
             refresh(selected_preset_id=result.preset_id)
         except Exception as exc:

@@ -24,6 +24,7 @@ from typing import Any, Literal
 
 from .runtime_plan_generator import GeneratedRuntimePlan, create_runtime_plan
 from .runtime_queue import resolve_runtime_queue, find_nfqueue_processes
+from .strategy_file_inputs import split_strategy_file_arg, strategy_file_dependency_error_text
 from .runtime_state import (
     append_runtime_event,
     ensure_runtime_store,
@@ -79,6 +80,7 @@ class RuntimeSessionConfig:
     session_inputs_dir: Path
     public_session_inputs_dir: Path | None
     hostlist_input_paths: tuple[Path, ...]
+    strategy_file_input_paths: tuple[Path, ...]
     lua_input_paths: tuple[Path, ...]
     blob_input_paths: tuple[Path, ...]
     pidfile_path: Path
@@ -108,6 +110,8 @@ class RuntimeSessionConfig:
                 f"public session inputs dir: {self.public_session_inputs_dir if self.public_session_inputs_dir else 'not used'}",
                 "runtime hostlist inputs:",
                 *(f"  - {item}" for item in self.hostlist_input_paths),
+                "runtime strategy list/ipset inputs:",
+                *(f"  - {item}" for item in self.strategy_file_input_paths),
                 "runtime lua inputs:",
                 *(f"  - {item}" for item in self.lua_input_paths),
                 "runtime blob inputs:",
@@ -505,6 +509,56 @@ def _prepare_runtime_lua_inputs(paths_root: Path, runtime_args: tuple[str, ...],
 
 
 
+
+def _prepare_runtime_strategy_file_inputs(
+    paths_root: Path,
+    runtime_args: tuple[str, ...],
+    inputs_dir: Path,
+) -> tuple[tuple[str, ...], tuple[Path, ...]]:
+    """Copy per-strategy hostlist/ipset files to public runtime inputs.
+
+    Full TXT presets may embed file-backed filters directly in strategy args.
+    They are distinct from workspace profile hostlists and therefore must be
+    rewritten before nfqws2 drops privileges.
+    """
+
+    error_text = strategy_file_dependency_error_text(paths_root, runtime_args)
+    if error_text:
+        raise ValueError(error_text)
+
+    rewritten: list[str] = []
+    copied: list[Path] = []
+    list_dir = inputs_dir / "strategy-files"
+    seen: dict[Path, Path] = {}
+    occupied: dict[str, Path] = {}
+
+    for arg in runtime_args:
+        parsed = split_strategy_file_arg(arg)
+        if parsed is None:
+            rewritten.append(arg)
+            continue
+        option, value = parsed
+        source = _resolve_project_file_reference(paths_root, value.lstrip("@"))
+        if source not in seen:
+            _ensure_public_dir(list_dir)
+            target_name = source.name
+            if target_name in occupied and occupied[target_name] != source:
+                digest = hashlib.sha256(str(source).encode("utf-8")).hexdigest()[:8]
+                target_name = f"{source.stem}-{digest}{source.suffix}"
+            target = list_dir / target_name
+            tmp = target.with_suffix(target.suffix + ".tmp")
+            shutil.copyfile(source, tmp)
+            _safe_chmod(tmp, 0o644)
+            os.replace(tmp, target)
+            _make_runtime_input_accessible(target)
+            seen[source] = target
+            occupied[target_name] = source
+            copied.append(target)
+        rewritten.append(f"{option}={seen[source].resolve()}")
+
+    return tuple(rewritten), tuple(copied)
+
+
 def _prepare_runtime_blob_inputs(paths_root: Path, runtime_args: tuple[str, ...], inputs_dir: Path) -> tuple[tuple[str, ...], tuple[Path, ...]]:
     """Copy --blob=@file inputs to public runtime inputs and rewrite args.
 
@@ -625,10 +679,16 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
     debug_log_path = paths.logs_dir / f"{profile_id}.nfqws2.debug.log"
     drop_identity = _detect_drop_identity(paths.root)
     public_session_inputs_dir = _public_session_inputs_dir(paths.root, profile_id, plan.plan_id, plan_hash)
+    strategy_dependency_error = strategy_file_dependency_error_text(paths.root, tuple(plan.strategy.runtime_args))
+    if strategy_dependency_error:
+        raise ValueError(strategy_dependency_error)
     hostlist_input_paths = _prepare_runtime_hostlist_inputs(paths.root, plan, profile_id, plan_hash, public_session_inputs_dir)
-    strategy_runtime_args, lua_input_paths = _prepare_runtime_lua_inputs(paths.root, tuple(plan.strategy.runtime_args), public_session_inputs_dir)
+    strategy_runtime_args, strategy_file_input_paths = _prepare_runtime_strategy_file_inputs(
+        paths.root, tuple(plan.strategy.runtime_args), public_session_inputs_dir
+    )
+    strategy_runtime_args, lua_input_paths = _prepare_runtime_lua_inputs(paths.root, strategy_runtime_args, public_session_inputs_dir)
     strategy_runtime_args, blob_input_paths = _prepare_runtime_blob_inputs(paths.root, strategy_runtime_args, public_session_inputs_dir)
-    if not hostlist_input_paths and not lua_input_paths and not blob_input_paths:
+    if not hostlist_input_paths and not strategy_file_input_paths and not lua_input_paths and not blob_input_paths:
         public_session_inputs_dir = None
     queue = resolve_runtime_queue(paths.root, profile_id)
     runtime_args = _runtime_args_for_plan(paths.root, plan, drop_identity, pidfile_path, debug_log_path, hostlist_input_paths, strategy_runtime_args, queue.qnum)
@@ -645,6 +705,7 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
         session_inputs_dir=paths.session_inputs_dir,
         public_session_inputs_dir=public_session_inputs_dir,
         hostlist_input_paths=hostlist_input_paths,
+        strategy_file_input_paths=strategy_file_input_paths,
         lua_input_paths=lua_input_paths,
         blob_input_paths=blob_input_paths,
         pidfile_path=pidfile_path,
@@ -913,6 +974,7 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "sessionInputsDir": str(config.session_inputs_dir),
         "publicSessionInputsDir": str(config.public_session_inputs_dir) if config.public_session_inputs_dir else None,
         "hostlistInputPaths": [str(path) for path in config.hostlist_input_paths],
+        "strategyFileInputPaths": [str(path) for path in config.strategy_file_input_paths],
         "luaInputPaths": [str(path) for path in config.lua_input_paths],
         "blobInputPaths": [str(path) for path in config.blob_input_paths],
         "dropIdentity": None if config.drop_identity is None else {"uid": config.drop_identity.uid, "gid": config.drop_identity.gid, "source": config.drop_identity.source},
@@ -1031,6 +1093,7 @@ def stop_runtime_session(root: Path | None = None, profile_id: str = "default") 
     if terminated:
         _cleanup_public_session_inputs(
             tuple(Path(item) for item in record.get("hostlistInputPaths", []))
+            + tuple(Path(item) for item in record.get("strategyFileInputPaths", []))
             + tuple(Path(item) for item in record.get("luaInputPaths", []))
             + tuple(Path(item) for item in record.get("blobInputPaths", []))
         )

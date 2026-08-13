@@ -1,12 +1,15 @@
 # Patch summary
 
-v0.4 maintenance: импорт полного Zapret2 `.txt` пресета в GUI.
+v0.4 maintenance: исправление file dependencies для импорта полного Zapret2 `.txt` preset.
 
-- На вкладке `Пресеты` добавлена кнопка `Импорт .txt`.
-- Импорт распознаёт Zapret-конфиг и отбрасывает обычные/сомнительные TXT до изменения каталога.
-- Полный preset сохраняется как owner-managed `presets/workspace/*.txt` + metadata JSON и сразу доступен конструктору.
-- Windows `--wf-*` и runtime-owned flags не исполняются; известные `@lua`/`@bin` ресурсы переводятся на vendored Linux core.
-- Отсутствующие Lua/blob зависимости обрабатываются по фактическому использованию; нужная отсутствующая зависимость блокирует импорт.
-- Запрет1 `--dpi-desync*` намеренно не конвертируется эвристически.
-- Hostlist/ipset references сохраняются, отсутствующие файлы показываются как предупреждение; escape за workspace запрещён.
-- Импорт не выбирает preset, не запускает `nfqws2` и не меняет nftables/systemd.
+- Причина сбоя `Universal V5`: preset содержит `--hostlist=lists/*` и `--ipset=lists/*`, но один TXT не содержит данные этих файлов. Ранее импорт разрешал такой preset и runtime передавал относительные пути прямо в `nfqws2`.
+- Импорт теперь ищет referenced list/ipset рядом с TXT и в двух родительских каталогах. Если источник найден, файл копируется в project-owned `presets/imported-assets/txt-*/...`, а canonical runtime arg переписывается на этот путь.
+- Если автопоиск не нашёл зависимости, GUI предлагает выбрать корень исходного пакета с каталогом `lists`.
+- Неполный preset по-прежнему можно сохранить для редактирования, но он явно помечается `runtime ready after import: no` и metadata содержит `missingListDependencies`.
+- Launch composer и Overview показывают отсутствующие strategy files как blocker; такой Zapret component больше не получает `ready=ready`.
+- Default start выполняет file preflight до owner-rules apply. При missing/unsafe dependency nftables/NFQUEUE не меняются.
+- Runtime копирует strategy-level `--hostlist`, `--hostlist-exclude`, `--ipset`, `--ipset-exclude` в public per-session inputs и переписывает argv на абсолютные безопасные копии, как уже делалось для profile hostlist/Lua/blob.
+- Strategy parser preflight сообщает `MISSING_STRATEGY_FILE_DEPENDENCIES` без запуска `nfqws2 --dry-run`, если обязательные файлы отсутствуют.
+- GUI classifier получает код `Z2-STRATEGY-FILES-MISSING`.
+
+Проверено отдельно на исходном `Universal V5`: без companion lists обнаруживаются 37 missing dependencies и запуск блокируется до firewall apply; с синтетическим полным каталогом `lists` импортируются 37 уникальных файлов, сохраняются 37 профилей/55 actions, а runtime config не оставляет относительных `lists/*` путей.

@@ -177,3 +177,75 @@ def test_gui_exposes_txt_preset_import_button_and_file_dialog() -> None:
     assert "QFileDialog.getOpenFileName" in source
     assert "analyze_txt_preset" in source
     assert "import_txt_preset" in source
+
+
+def test_companion_lists_are_discovered_copied_and_rewritten_into_project_assets(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    package = tmp_path / "external-package"
+    source_dir = package / "presets"
+    source_dir.mkdir(parents=True)
+    lists_dir = package / "lists"
+    lists_dir.mkdir(parents=True)
+    source = source_dir / "Universal.txt"
+    source.write_text(_windows_zapret2_text(), encoding="utf-8")
+    lists_dir.joinpath("youtube.txt").write_text("youtube.com\ngooglevideo.com\n", encoding="utf-8")
+
+    analysis = analyze_txt_preset(source, project)
+
+    assert analysis.external_list_dependencies == ("lists/youtube.txt",)
+    assert analysis.missing_list_dependencies == ()
+    assert analysis.runtime_ready_after_import is True
+
+    result = import_txt_preset(source, project)
+    entry = load_preset(result.preset_id, project)
+    hostlist_arg = next(arg for arg in entry.preset.to_runtime_args() if arg.startswith("--hostlist="))
+    imported_rel = hostlist_arg.split("=", 1)[1]
+
+    assert imported_rel.startswith("presets/imported-assets/txt-")
+    assert imported_rel.endswith("/lists/youtube.txt")
+    imported = project / imported_rel
+    assert imported.read_text(encoding="utf-8") == "youtube.com\ngooglevideo.com\n"
+    assert result.analysis.missing_list_dependencies == ()
+    metadata = json.loads(result.mutation.metadata_path.read_text(encoding="utf-8"))
+    assert metadata["sourcePreset"]["listAssetsRoot"].startswith("presets/imported-assets/txt-")
+    assert "missingListDependencies" not in metadata["sourcePreset"]
+
+
+def test_explicit_dependency_root_can_supply_lists_not_adjacent_to_txt(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    source = tmp_path / "loose" / "Universal.txt"
+    source.parent.mkdir(parents=True)
+    source.write_text(_windows_zapret2_text(), encoding="utf-8")
+    package = tmp_path / "package-root"
+    (package / "lists").mkdir(parents=True)
+    (package / "lists" / "youtube.txt").write_text("youtube.com\n", encoding="utf-8")
+
+    analysis = analyze_txt_preset(source, project, dependency_root=package)
+    result = import_txt_preset(source, project, dependency_root=package)
+
+    assert analysis.missing_list_dependencies == ()
+    assert analysis.external_list_dependencies == ("lists/youtube.txt",)
+    assert result.analysis.runtime_ready_after_import is True
+    assert any("presets/imported-assets/" in arg for arg in result.analysis.runtime_args if arg.startswith("--hostlist="))
+
+
+def test_incomplete_import_is_marked_not_runtime_ready(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    source = tmp_path / "preset.txt"
+    source.write_text(_windows_zapret2_text(), encoding="utf-8")
+
+    result = import_txt_preset(source, project)
+    metadata = json.loads(result.mutation.metadata_path.read_text(encoding="utf-8"))
+
+    assert result.analysis.can_import is True
+    assert result.analysis.runtime_ready_after_import is False
+    assert result.analysis.missing_list_dependencies == ("lists/youtube.txt",)
+    assert metadata["sourcePreset"]["missingListDependencies"] == ["lists/youtube.txt"]
+
+
+def test_gui_can_request_dependency_root_for_missing_lists() -> None:
+    source = (ROOT / "gui/zap2_gui/widgets/presets.py").read_text(encoding="utf-8")
+
+    assert "missing_list_dependencies" in source
+    assert "QFileDialog.getExistingDirectory" in source
+    assert "dependency_root=dependency_root" in source

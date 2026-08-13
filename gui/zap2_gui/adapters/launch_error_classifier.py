@@ -50,6 +50,13 @@ def classify_launch_issue(
     lower = combined.lower()
     details = combined.strip()
 
+    if "strategy file dependencies не готовы" in lower or "missing strategy files" in lower:
+        return LaunchIssue(
+            code="Z2-STRATEGY-FILES-MISSING",
+            severity="warning",
+            message="Zapret preset ссылается на отсутствующие hostlist/ipset files.",
+            details=details,
+        )
     if "nfqws2 binary отсутств" in lower or "needs nfqws2 build" in lower or "nfqws2 not executable" in lower:
         return LaunchIssue(
             code="Z2-ZAPRET-BINARY-MISSING",

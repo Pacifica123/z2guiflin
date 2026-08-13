@@ -7,13 +7,14 @@ blob resources переписываются на пути vendored Linux core.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha256
 from pathlib import Path
 import re
 from typing import Iterable
 
 from .preset_editor import PresetMutationResult, create_owner_preset_from_runtime_args
+from .strategy_file_inputs import split_strategy_file_arg
 from ..models.preset import ZapretPreset, parse_preset_args
 from ..project_paths import discover_layout
 
@@ -74,6 +75,8 @@ class PresetTxtImportAnalysis:
     issues: tuple[PresetTxtImportIssue, ...]
     windows_tcp_capture_hint: tuple[str, ...] = ()
     windows_udp_capture_hint: tuple[str, ...] = ()
+    missing_list_dependencies: tuple[str, ...] = ()
+    external_list_dependencies: tuple[str, ...] = ()
 
     @property
     def errors(self) -> tuple[PresetTxtImportIssue, ...]:
@@ -87,6 +90,10 @@ class PresetTxtImportAnalysis:
     def can_import(self) -> bool:
         return bool(self.runtime_args) and bool(self.parsed_preset.profiles) and not self.errors
 
+    @property
+    def runtime_ready_after_import(self) -> bool:
+        return self.can_import and not self.missing_list_dependencies
+
     def to_text(self) -> str:
         lines = [
             "TXT preset import analysis",
@@ -99,6 +106,7 @@ class PresetTxtImportAnalysis:
             f"profiles: {len(self.parsed_preset.profiles)}",
             f"actions: {self.parsed_preset.action_count}",
             f"can import: {'yes' if self.can_import else 'no'}",
+            f"runtime ready after import: {'yes' if self.runtime_ready_after_import else 'no'}",
             "executes nfqws2 now: no",
             "mutates firewall/services now: no",
         ]
@@ -110,6 +118,10 @@ class PresetTxtImportAnalysis:
             lines.append("removed Windows TCP capture hint: " + ",".join(self.windows_tcp_capture_hint))
         if self.windows_udp_capture_hint:
             lines.append("removed Windows UDP capture hint: " + ",".join(self.windows_udp_capture_hint))
+        if self.external_list_dependencies:
+            lines.append(f"external list/ipset files ready to copy: {len(self.external_list_dependencies)}")
+        if self.missing_list_dependencies:
+            lines.append("missing list/ipset files: " + ", ".join(self.missing_list_dependencies))
         if self.adaptations:
             lines.append("adaptations:")
             lines.extend(f"  - {item}" for item in self.adaptations)
@@ -290,7 +302,112 @@ def _list_reference_value(arg: str) -> str:
     return arg.partition("=")[2].strip()
 
 
-def analyze_txt_preset(path: Path | str, root: Path | None = None) -> PresetTxtImportAnalysis:
+
+def _dependency_search_roots(source: Path, dependency_root: Path | None = None) -> tuple[Path, ...]:
+    roots: list[Path] = []
+    if dependency_root is not None:
+        roots.append(Path(dependency_root).expanduser().resolve())
+    current = source.parent.resolve()
+    for _ in range(3):
+        if current not in roots:
+            roots.append(current)
+        if current.parent == current:
+            break
+        current = current.parent
+    return tuple(roots)
+
+
+def _external_list_source(source: Path, value: str, dependency_root: Path | None = None) -> Path | None:
+    raw = value.lstrip("@").replace("\\", "/").strip()
+    if not raw or _unsafe_workspace_file_ref(raw):
+        return None
+    rel = Path(raw)
+    candidates: list[Path] = []
+    for base in _dependency_search_roots(source, dependency_root):
+        candidates.append(base / rel)
+        if rel.parts and base.name == rel.parts[0] and len(rel.parts) > 1:
+            candidates.append(base.joinpath(*rel.parts[1:]))
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        if resolved.is_file():
+            return resolved
+    return None
+
+
+def _materialize_list_dependencies(
+    analysis: PresetTxtImportAnalysis,
+    root: Path,
+    dependency_root: Path | None,
+) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    """Copy source-package list/ipset inputs into immutable project-owned assets."""
+
+    external: dict[tuple[str, str], Path] = {}
+    unresolved: list[str] = []
+    for arg in analysis.runtime_args:
+        parsed = split_strategy_file_arg(arg)
+        if parsed is None:
+            continue
+        option, value = parsed
+        project_candidate = root / value.lstrip("@").replace("\\", "/")
+        if project_candidate.is_file():
+            continue
+        source_path = _external_list_source(analysis.source_path, value, dependency_root)
+        if source_path is None:
+            if value not in unresolved:
+                unresolved.append(value)
+            continue
+        external[(option, value)] = source_path
+
+    if not external:
+        return analysis.runtime_args, (), tuple(unresolved), ()
+
+    digest = sha256()
+    digest.update(analysis.source_sha256.encode("ascii"))
+    for (option, value), source_path in sorted(external.items()):
+        digest.update(option.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(value.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(sha256(source_path.read_bytes()).digest())
+    asset_rel_root = Path("presets/imported-assets") / f"txt-{digest.hexdigest()[:16]}"
+    asset_root = root / asset_rel_root
+
+    target_by_key: dict[tuple[str, str], Path] = {}
+    copied_notes: list[str] = []
+    for key, source_path in external.items():
+        _option, value = key
+        rel = Path(value.lstrip("@").replace("\\", "/"))
+        target = asset_root / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        payload = source_path.read_bytes()
+        if target.exists():
+            if target.read_bytes() != payload:
+                raise ValueError(f"Конфликт imported list asset: {target}")
+        else:
+            tmp = target.with_suffix(target.suffix + ".tmp")
+            tmp.write_bytes(payload)
+            tmp.replace(target)
+        target_by_key[key] = target
+        copied_notes.append(f"list asset: {value} -> {target.relative_to(root).as_posix()}")
+
+    rewritten: list[str] = []
+    for arg in analysis.runtime_args:
+        parsed = split_strategy_file_arg(arg)
+        if parsed is None or parsed not in target_by_key:
+            rewritten.append(arg)
+            continue
+        option, _value = parsed
+        target = target_by_key[parsed]
+        rewritten.append(f"{option}={target.relative_to(root).as_posix()}")
+
+    return tuple(rewritten), tuple(copied_notes), tuple(unresolved), (asset_rel_root.as_posix(),)
+
+
+def analyze_txt_preset(path: Path | str, root: Path | None = None, dependency_root: Path | None = None) -> PresetTxtImportAnalysis:
     layout = discover_layout(root)
     source = Path(path).expanduser().resolve()
     if source.suffix.lower() != ".txt":
@@ -445,21 +562,28 @@ def analyze_txt_preset(path: Path | str, root: Path | None = None) -> PresetTxtI
         )
 
     missing_lists: list[str] = []
+    external_lists: list[str] = []
     for arg in adapted:
-        if not arg.startswith(_LIST_PREFIXES):
+        parsed_list = split_strategy_file_arg(arg)
+        if parsed_list is None:
             continue
-        value = _list_reference_value(arg)
-        if not value or value.startswith("@"):
-            value = value.lstrip("@")
-        candidate = layout.root / value
-        if value and not candidate.is_file() and value not in missing_lists:
+        _option, value = parsed_list
+        normalized = value.lstrip("@").replace("\\", "/")
+        candidate = layout.root / normalized
+        if not value or candidate.is_file():
+            continue
+        if _external_list_source(source, value, dependency_root) is not None:
+            if value not in external_lists:
+                external_lists.append(value)
+            continue
+        if value not in missing_lists:
             missing_lists.append(value)
     if missing_lists:
         issues.append(
             PresetTxtImportIssue(
                 "warning",
                 "LIST_DEPENDENCIES_MISSING",
-                "Preset импортируется, но referenced hostlist/ipset files пока отсутствуют в workspace: "
+                "Preset импортируется как неполный, но runtime будет заблокирован до появления hostlist/ipset files: "
                 + ", ".join(missing_lists),
             )
         )
@@ -489,14 +613,50 @@ def analyze_txt_preset(path: Path | str, root: Path | None = None) -> PresetTxtI
         issues=tuple(issues),
         windows_tcp_capture_hint=tuple(tcp_hint),
         windows_udp_capture_hint=tuple(udp_hint),
+        missing_list_dependencies=tuple(missing_lists),
+        external_list_dependencies=tuple(external_lists),
     )
 
 
-def import_txt_preset(path: Path | str, root: Path | None = None) -> PresetTxtImportResult:
-    analysis = analyze_txt_preset(path, root)
+def import_txt_preset(
+    path: Path | str,
+    root: Path | None = None,
+    dependency_root: Path | None = None,
+) -> PresetTxtImportResult:
+    layout = discover_layout(root)
+    analysis = analyze_txt_preset(path, layout.root, dependency_root=dependency_root)
     if not analysis.can_import:
         details = "; ".join(item.message for item in analysis.errors) or "не прошла проверка структуры"
         raise ValueError(f"TXT preset не импортирован: {details}")
+
+    realized_args, list_notes, unresolved_lists, asset_roots = _materialize_list_dependencies(
+        analysis, layout.root, dependency_root
+    )
+    realized_adaptations = analysis.adaptations + list_notes
+    realized_issues = tuple(item for item in analysis.issues if item.code != "LIST_DEPENDENCIES_MISSING")
+    if unresolved_lists:
+        realized_issues += (
+            PresetTxtImportIssue(
+                "warning",
+                "LIST_DEPENDENCIES_MISSING",
+                "Preset импортирован как неполный; runtime заблокирован до появления hostlist/ipset files: "
+                + ", ".join(unresolved_lists),
+            ),
+        )
+    analysis = replace(
+        analysis,
+        runtime_args=realized_args,
+        parsed_preset=parse_preset_args(
+            realized_args,
+            preset_id="txt-import-realized",
+            title=analysis.title,
+            source_path=str(analysis.source_path),
+        ),
+        adaptations=realized_adaptations,
+        issues=realized_issues,
+        missing_list_dependencies=unresolved_lists,
+        external_list_dependencies=(),
+    )
 
     source_extra: dict[str, object] = {
         "engine": "nfqws2",
@@ -511,6 +671,10 @@ def import_txt_preset(path: Path | str, root: Path | None = None) -> PresetTxtIm
         source_extra["builtinVersion"] = analysis.builtin_version
     if analysis.description:
         source_extra["description"] = analysis.description
+    if asset_roots:
+        source_extra["listAssetsRoot"] = asset_roots[0]
+    if analysis.missing_list_dependencies:
+        source_extra["missingListDependencies"] = list(analysis.missing_list_dependencies)
 
     notes = [
         "Imported as a full ordered preset; no profile was selected or executed automatically.",

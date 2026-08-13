@@ -190,3 +190,30 @@ Windows Zapret2 preset адаптируется к Linux runtime:
 Metadata сохраняет имя исходного файла, SHA-256, `BuiltinVersion`/`Description`
 при наличии, confidence распознавания и список выполненных адаптаций. Полный
 локальный путь исходного файла в metadata не записывается.
+
+### File dependencies импортированного TXT
+
+Полный TXT может содержать не только параметры nfqws2, но и ссылки на внешние
+`--hostlist`, `--hostlist-exclude`, `--ipset`, `--ipset-exclude`. Сам `.txt` не
+содержит данные этих файлов. Поэтому наличие синтаксически корректного preset не
+означает готовность к runtime.
+
+Импортер сначала проверяет workspace, затем ищет referenced files рядом с TXT и
+в двух родительских каталогах. Это покрывает типичную структуру, где preset
+лежит в `presets/`, а `lists/` находится в корне исходного пакета. Если файлы не
+найдены, GUI позволяет явно выбрать корень пакета. Найденные inputs копируются в
+`presets/imported-assets/txt-<digest>/...`; canonical preset ссылается уже на эти
+project-owned copies. Полный путь исходного пакета в metadata не сохраняется.
+
+Неполный preset разрешено импортировать как данные для последующего ремонта и
+редактирования. В этом случае import report показывает `runtime ready after
+import: no`, а metadata содержит `missingListDependencies`. Launch composer,
+Overview, parser preflight и default-start считают такие ссылки blocker. В
+частности, default-start проверяет их до owner-rules apply, поэтому missing list
+не должен больше приводить к циклу «применить nftables -> nfqws2 exit 1 ->
+rollback».
+
+Перед реальным запуском strategy-level list/ipset files копируются во временный
+public per-session input directory с безопасными правами, а соответствующие
+аргументы nfqws2 переписываются на абсолютные пути этих копий. Это отделяет
+runtime от прав доступа к пользовательскому workspace после privilege drop.

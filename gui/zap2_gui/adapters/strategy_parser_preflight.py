@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 from .workspace_profiles import load_workspace_catalog
+from .strategy_file_inputs import strategy_file_dependency_blockers
 from ..project_paths import discover_layout
 
 STRATEGY_PREFLIGHT_STAGE = "v0.4-alpha_stage8h"
@@ -66,6 +67,7 @@ def strategy_parser_preflight_to_text(
         for item in profile.hostlists
         if not (layout.root / item.path).is_file()
     )
+    strategy_file_blockers = strategy_file_dependency_blockers(layout.root, strategy.runtime_args)
 
     lines = [
         "Strategy parser preflight",
@@ -76,6 +78,7 @@ def strategy_parser_preflight_to_text(
         f"binary exists/executable: {'yes' if binary_ready else 'no'}",
         f"runtime args: {len(strategy.runtime_args)}",
         f"profile hostlists present: {'yes' if not hostlist_missing else 'no'}",
+        f"strategy file dependencies present: {'yes' if not strategy_file_blockers else 'no'}",
         "mode: nfqws2 --dry-run",
         "requires sudo: no",
         "mutates nftables/NFQUEUE: no",
@@ -83,6 +86,17 @@ def strategy_parser_preflight_to_text(
     ]
     if hostlist_missing:
         lines.append("missing hostlists: " + ", ".join(hostlist_missing))
+    if strategy_file_blockers:
+        lines.append("strategy file blockers:")
+        lines.extend(f"  - {item.message}" for item in strategy_file_blockers)
+        lines.extend(
+            [
+                "verdict: MISSING_STRATEGY_FILE_DEPENDENCIES",
+                "next: добавьте referenced hostlist/ipset files или повторите TXT import с каталогом зависимостей",
+                "limitation: --dry-run не запускался, потому что обязательные file inputs отсутствуют",
+            ]
+        )
+        return "\n".join(lines)
     if not binary_ready:
         lines.extend(
             [

@@ -15,6 +15,7 @@ from typing import Any
 from .runtime_default import default_workflow_status
 from .runtime_nft_state import runtime_nft_state_snapshot
 from .runtime_state import ensure_runtime_store
+from .strategy_file_inputs import strategy_file_dependency_blockers
 from .workspace_profiles import load_workspace_catalog
 from ..project_paths import discover_layout
 
@@ -221,6 +222,8 @@ def gui_first_runtime_overview(root: Path | None = None, profile_id: str = "defa
     if profile_id not in profiles:
         raise ValueError(f"Неизвестный workspace-профиль: {profile_id}")
     selected_strategy_id = profiles[profile_id].strategy_id
+    selected_strategy = catalog.strategy_by_id().get(selected_strategy_id)
+    strategy_file_blockers = () if selected_strategy is None else strategy_file_dependency_blockers(paths.root, selected_strategy.runtime_args)
     plan_id, plan_strategy_id, plan_state = _prepared_start_plan(paths.root, profile_id, selected_strategy_id)
     workflow_status = default_workflow_status(paths.root, profile_id=profile_id)
     nft_snapshot = runtime_nft_state_snapshot(paths.root, profile_id=profile_id)
@@ -284,6 +287,16 @@ def gui_first_runtime_overview(root: Path | None = None, profile_id: str = "defa
             primary_label = "Пересобрать план и включить"
         elif plan_state == "ready-unconfirmed":
             issues.append("Start-plan подготовлен, но ещё не подтверждён; GUI подтвердит его перед privileged start.")
+
+    if strategy_file_blockers:
+        preview = ", ".join(item.value for item in strategy_file_blockers[:3])
+        if len(strategy_file_blockers) > 3:
+            preview += f", … ещё {len(strategy_file_blockers) - 3}"
+        issues.append(f"У выбранной стратегии отсутствуют обязательные hostlist/ipset files: {preview}.")
+        if state == "stopped":
+            primary_action = "blocked"
+            primary_label = "Запуск заблокирован: нет файлов списков"
+            next_gui_action = "Повторно импортировать TXT вместе с каталогом lists/ipset либо добавить отсутствующие файлы в workspace."
 
     return GuiFirstRuntimeOverview(
         profile_id=profile_id,

@@ -32,6 +32,8 @@ from .gui_runtime_controls import (
     gui_privileged_default_stop,
 )
 from .runtime_default import default_workflow_status
+from .strategy_file_inputs import strategy_file_dependency_blockers
+from .workspace_profiles import load_workspace_catalog
 from .runtime_state import confirm_runtime_plan
 from ..project_paths import discover_layout
 
@@ -163,7 +165,7 @@ def _zapret_state(root: Path | None, profile_id: str) -> str:
         return f"unknown:{exc}"
 
 
-def _zapret_ready(root: Path | None) -> str:
+def _zapret_ready(root: Path | None, profile_id: str) -> str:
     try:
         layout = discover_layout(root)
         binary = layout.root / "core" / "zapret2" / "nfq2" / "nfqws2"
@@ -171,6 +173,16 @@ def _zapret_ready(root: Path | None) -> str:
             return "needs nfqws2 build"
         if not bool(binary.stat().st_mode & 0o111):
             return "nfqws2 not executable"
+        catalog = load_workspace_catalog(layout.root)
+        profile = catalog.profile_by_id().get(profile_id)
+        if profile is None:
+            return f"unknown workspace profile: {profile_id}"
+        strategy = catalog.strategy_by_id().get(profile.strategy_id)
+        if strategy is None:
+            return f"unknown strategy: {profile.strategy_id}"
+        blockers = strategy_file_dependency_blockers(layout.root, strategy.runtime_args)
+        if blockers:
+            return f"missing strategy files ({len(blockers)}): {blockers[0].value}"
         return "ready"
     except Exception as exc:  # pragma: no cover - defensive GUI path
         return f"unknown:{exc}"
@@ -224,7 +236,7 @@ def launch_component_views(
         spec = COMPONENT_SPECS[component_id]
         if component_id == COMPONENT_ZAPRET_DEFAULT:
             status = _zapret_state(root, profile_id)
-            ready = _zapret_ready(root)
+            ready = _zapret_ready(root, profile_id)
         elif component_id == COMPONENT_TUNNEL_VLESS:
             status = _tunnel_state(root, profile_id)
             ready = _tunnel_ready(root, profile_id, core_binary)
