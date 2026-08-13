@@ -467,6 +467,8 @@ def _metadata_payload(
     runtime_args: tuple[str, ...],
     created_at: str,
     updated_at: str,
+    source_preset_extra: dict[str, object] | None = None,
+    extra_notes: Iterable[str] = (),
 ) -> dict[str, object]:
     parsed = parse_preset_args(runtime_args, preset_id=preset_id, title=title, source_path=preset_rel)
     domain_targets: list[str] = []
@@ -474,6 +476,31 @@ def _metadata_payload(
         for host in profile.traffic_filter.hostlist_domains:
             if host not in domain_targets:
                 domain_targets.append(host)
+    source_preset: dict[str, object] = {
+        "engine": "nfqws2",
+        "id": "preset-constructor",
+        "name": "z2guiflin owner preset constructor",
+        "editorManaged": True,
+        "editorSchemaVersion": PRESET_EDITOR_SCHEMA_VERSION,
+        "createdAt": created_at,
+        "updatedAt": updated_at,
+    }
+    if source_preset_extra:
+        source_preset.update(source_preset_extra)
+    # Импорт никогда не должен случайно снять owner-managed маркер: именно он
+    # разрешает дальнейшее редактирование через конструктор.
+    source_preset["editorManaged"] = True
+    source_preset["editorSchemaVersion"] = PRESET_EDITOR_SCHEMA_VERSION
+    source_preset["createdAt"] = created_at
+    source_preset["updatedAt"] = updated_at
+
+    notes = [
+        "Editing changes only project files and never applies runtime/firewall automatically.",
+        "Changing profile order changes first-match priority.",
+        "A previous prepared start-plan becomes stale after runtimeArgs change.",
+    ]
+    notes.extend(str(item).strip() for item in extra_notes if str(item).strip())
+
     return {
         "schemaVersion": 1,
         "id": preset_id,
@@ -502,20 +529,8 @@ def _metadata_payload(
             "nonVoice": False,
             "targets": domain_targets,
         },
-        "sourcePreset": {
-            "engine": "nfqws2",
-            "id": "preset-constructor",
-            "name": "z2guiflin owner preset constructor",
-            "editorManaged": True,
-            "editorSchemaVersion": PRESET_EDITOR_SCHEMA_VERSION,
-            "createdAt": created_at,
-            "updatedAt": updated_at,
-        },
-        "notes": [
-            "Editing changes only project files and never applies runtime/firewall automatically.",
-            "Changing profile order changes first-match priority.",
-            "A previous prepared start-plan becomes stale after runtimeArgs change.",
-        ],
+        "sourcePreset": source_preset,
+        "notes": notes,
     }
 
 
@@ -619,6 +634,83 @@ def _write_existing_preset(root: Path, entry: PresetCatalogEntry, preset: Zapret
         action=action,
         preset_id=preset.preset_id,
         title=refreshed.preset.title,
+        preset_path=preset_path,
+        metadata_path=metadata_path,
+        profile_count=len(refreshed.preset.profiles),
+        selected_preset_id=selected,
+    )
+
+
+def create_owner_preset_from_runtime_args(
+    title: str,
+    runtime_args: Iterable[str],
+    root: Path | None = None,
+    *,
+    preset_id: str = "",
+    make_unique: bool = False,
+    action: str = "created",
+    source_preset_extra: dict[str, object] | None = None,
+    extra_notes: Iterable[str] = (),
+) -> PresetMutationResult:
+    """Создать редактируемый owner preset из уже подготовленного полного argv.
+
+    Функция предназначена в том числе для безопасных import adapters. Она не
+    нормализует и не переставляет argv: после записи действует тот же round-trip
+    контракт, что и для остальных canonical preset-файлов.
+    """
+
+    layout = discover_layout(root)
+    clean_title = title.strip()
+    if not clean_title:
+        raise ValueError("Название пресета не может быть пустым")
+    base_candidate = _validate_preset_id(preset_id or _slug(clean_title))
+    existing = load_strategy_catalog(layout.root).by_id()
+    candidate = base_candidate
+    if make_unique:
+        suffix = 2
+        while candidate in existing or _preset_path_for(layout.root, candidate).exists() or _metadata_path_for(layout.root, candidate).exists():
+            tail = f"-{suffix}"
+            candidate = f"{base_candidate[:63-len(tail)].rstrip('-')}{tail}"
+            candidate = _validate_preset_id(candidate)
+            suffix += 1
+    elif candidate in existing:
+        raise ValueError(f"Пресет с ID {candidate!r} уже существует")
+
+    normalized = tuple(str(arg).strip() for arg in runtime_args if str(arg).strip())
+    if not normalized:
+        raise ValueError("Полный пресет не может быть пустым")
+    parsed = parse_preset_args(normalized, preset_id=candidate, title=clean_title)
+    if parsed.to_runtime_args() != normalized:
+        raise ValueError("Внутренняя ошибка: полный preset argv не прошёл round-trip")
+
+    preset_path = _preset_path_for(layout.root, candidate)
+    metadata_path = _metadata_path_for(layout.root, candidate)
+    if preset_path.exists() or metadata_path.exists():
+        raise ValueError(f"Файлы нового пресета уже существуют: {candidate}")
+    now = _utc_now()
+    preset_rel = _relative(preset_path, layout.root)
+    metadata = _metadata_payload(
+        preset_id=candidate,
+        title=clean_title,
+        preset_rel=preset_rel,
+        runtime_args=normalized,
+        created_at=now,
+        updated_at=now,
+        source_preset_extra=source_preset_extra,
+        extra_notes=extra_notes,
+    )
+    payloads = {
+        preset_path: _render_preset_file(candidate, clean_title, normalized),
+        metadata_path: json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        _catalog_path(layout.root): _catalog_with_path(layout.root, metadata_path),
+    }
+    _atomic_multi_write(payloads)
+    refreshed = load_preset(candidate, layout.root)
+    selected = load_preset_catalog(layout.root).selected_preset_id
+    return PresetMutationResult(
+        action=action,
+        preset_id=candidate,
+        title=clean_title,
         preset_path=preset_path,
         metadata_path=metadata_path,
         profile_count=len(refreshed.preset.profiles),

@@ -20,6 +20,7 @@ from ..adapters.presets import (
     select_preset,
     traffic_profile_to_text,
 )
+from ..adapters.preset_txt_import import analyze_txt_preset, import_txt_preset
 from ..qt_compat import require_pyqt
 from .preset_constructor import edit_traffic_profile_dialog
 
@@ -59,6 +60,7 @@ def make_presets_page(root: Path | None = None) -> Any:
 
     buttons = QtWidgets.QHBoxLayout()
     new_preset_button = QtWidgets.QPushButton("+ Пресет")
+    import_preset_button = QtWidgets.QPushButton("Импорт .txt")
     new_profile_button = QtWidgets.QPushButton("+ Профиль")
     edit_profile_button = QtWidgets.QPushButton("Изменить")
     remove_profile_button = QtWidgets.QPushButton("Удалить")
@@ -69,6 +71,7 @@ def make_presets_page(root: Path | None = None) -> Any:
     catalog_button = QtWidgets.QPushButton("Сводка")
     for button in (
         new_preset_button,
+        import_preset_button,
         new_profile_button,
         edit_profile_button,
         remove_profile_button,
@@ -279,6 +282,61 @@ def make_presets_page(root: Path | None = None) -> Any:
         except Exception as exc:
             QtWidgets.QMessageBox.critical(page, "Пресет не создан", str(exc))
 
+    def import_preset_txt() -> None:
+        filename, _selected_filter = QtWidgets.QFileDialog.getOpenFileName(
+            page,
+            "Импорт полного Zapret2 пресета",
+            "",
+            "Zapret TXT preset (*.txt);;Все файлы (*)",
+        )
+        if not filename:
+            return
+        try:
+            analysis = analyze_txt_preset(Path(filename), root)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(
+                page,
+                "TXT не распознан как пресет",
+                str(exc),
+            )
+            return
+        if not analysis.can_import:
+            details.setPlainText(analysis.to_text())
+            message = "\n".join(item.message for item in analysis.errors) or "Preset не прошёл import validation"
+            QtWidgets.QMessageBox.critical(page, "Пресет не импортирован", message)
+            return
+
+        warning_text = ""
+        if analysis.warnings:
+            warning_text = (
+                "\n\nПредупреждения: "
+                + "; ".join(item.message for item in analysis.warnings[:3])
+                + ("; …" if len(analysis.warnings) > 3 else "")
+            )
+        question = QtWidgets.QMessageBox.question(
+            page,
+            "Импорт TXT пресета",
+            (
+                f"Импортировать `{analysis.title}` как полный owner-managed preset?\n\n"
+                f"Распознано профилей: {len(analysis.parsed_preset.profiles)}; "
+                f"lua-desync actions: {analysis.parsed_preset.action_count}; "
+                f"confidence: {analysis.confidence}.\n"
+                "Windows-only/runtime-owned flags не попадут в Linux runtime; известные Lua/blob paths "
+                "будут переписаны на vendored core. Runtime и nftables сейчас не запускаются."
+                f"{warning_text}"
+            ),
+        )
+        if question != QtWidgets.QMessageBox.StandardButton.Yes:
+            details.setPlainText(analysis.to_text())
+            return
+        try:
+            result = import_txt_preset(Path(filename), root)
+            details.setPlainText(result.to_text())
+            refresh(selected_preset_id=result.preset_id)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(page, "Пресет не импортирован", str(exc))
+
+
     def add_profile() -> None:
         preset_id = _current_preset_id()
         if not preset_id or not state.get("managed"):
@@ -347,6 +405,7 @@ def make_presets_page(root: Path | None = None) -> Any:
     preset_list.currentItemChanged.connect(lambda _current, _previous: _fill_profiles())
     profile_table.itemSelectionChanged.connect(_show_profile_details)
     new_preset_button.clicked.connect(create_preset)
+    import_preset_button.clicked.connect(import_preset_txt)
     new_profile_button.clicked.connect(add_profile)
     edit_profile_button.clicked.connect(edit_profile)
     remove_profile_button.clicked.connect(remove_profile)

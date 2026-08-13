@@ -1,10 +1,12 @@
 # Patch summary
 
-Stage 8g добавляет системный C Tor backend, отдельный Arti backend и выборочный прямой импорт применимой VLESS-логики v2rayNG.
+v0.4 maintenance: импорт полного Zapret2 `.txt` пресета в GUI.
 
-- C Tor и Arti запускаются как отдельные managed процессы без sudo/firewall/systemd.
-- Общая SOCKS route session позволяет использовать существующие probes и Discord launcher.
-- Arti archive подтверждён как официальный Tor Project source и зафиксирован по commit/SHA-256.
-- Сохранены selected upstream-файлы v2rayNG и GPL-3.0; Android-only слой исключён.
-- VLESS parser/config расширен для xhttp/httpupgrade/h2/kcp/grpc и дополнительных TLS/REALITY полей.
-- Guided tunnel tests выделяют свободные loopback-порты динамически и не конфликтуют с локальными сервисами владельца.
+- На вкладке `Пресеты` добавлена кнопка `Импорт .txt`.
+- Импорт распознаёт Zapret-конфиг и отбрасывает обычные/сомнительные TXT до изменения каталога.
+- Полный preset сохраняется как owner-managed `presets/workspace/*.txt` + metadata JSON и сразу доступен конструктору.
+- Windows `--wf-*` и runtime-owned flags не исполняются; известные `@lua`/`@bin` ресурсы переводятся на vendored Linux core.
+- Отсутствующие Lua/blob зависимости обрабатываются по фактическому использованию; нужная отсутствующая зависимость блокирует импорт.
+- Запрет1 `--dpi-desync*` намеренно не конвертируется эвристически.
+- Hostlist/ipset references сохраняются, отсутствующие файлы показываются как предупреждение; escape за workspace запрещён.
+- Импорт не выбирает preset, не запускает `nfqws2` и не меняет nftables/systemd.
