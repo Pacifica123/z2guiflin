@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "name": "Grey example",
+  "base": "dark",
+  "colors": {
+    "text": "#e8e1ec",
+    "muted": "#b8adbe",
+    "window": "#211e25",
+    "surface": "#27232b",
+    "card": "#2d2932",
+    "input": "#242128",
+    "border": "#443d49",
+    "control": "#36303b",
+    "hover": "#413949",
+    "selection": "#5b4765",
+    "selectionText": "#fff7ff",
+    "accent": "#b493c4"
+  },
+  "font": {"family": "", "sizePt": 10},
+  "metrics": {"cornerRadiusPx": 8, "navigationWidthPx": 224}
+}

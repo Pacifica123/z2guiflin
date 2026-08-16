@@ -17,6 +17,7 @@ from ..widgets.runtime_controls import make_runtime_control_page
 from ..widgets.runtime_logs import make_runtime_logs_page
 from ..widgets.settings import make_settings_page
 from ..widgets.tunnel import make_tunnel_page
+from ..theme_profiles import theme_profile_from_settings
 
 
 def create_main_window(root: object | None = None) -> Any:
@@ -44,7 +45,7 @@ def create_main_window(root: object | None = None) -> Any:
 
             navigation = QtWidgets.QFrame()
             navigation.setObjectName("navigationRail")
-            navigation.setFixedWidth(224)
+            navigation.setFixedWidth(theme_profile_from_settings(self._settings).navigation_width_px)
             navigation_layout = QtWidgets.QVBoxLayout(navigation)
             navigation_layout.setContentsMargins(14, 16, 14, 14)
             navigation_layout.setSpacing(8)
@@ -70,7 +71,7 @@ def create_main_window(root: object | None = None) -> Any:
                 elif section.key == "core":
                     page = make_core_page(snapshot, build_map, build_plan)
                 elif section.key == "strategies":
-                    page = make_presets_page(root)
+                    page = make_presets_page(root, self._settings)
                 elif section.key == "diagnostics":
                     page = make_blockcheck_lab_page(root)
                 elif section.key == "tunnel":

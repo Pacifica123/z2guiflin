@@ -1,14 +1,13 @@
 # Patch summary
 
-v0.4 maintenance: удаление owner-managed preset и общий source package root resolver.
+v0.4 stage8j: hot-swap пресетов, пользовательские темы, нативный каталог strat_collection и быстрый поиск.
 
-- Во вкладке `Пресеты` появилась отдельная кнопка `Удалить пресет`; `Удалить профиль` теперь однозначно относится только к строке profile.
-- Удалять можно только owner-managed presets. Reference/community presets остаются read-only.
-- Удаление снимает canonical `.txt`, metadata JSON и запись из `strategies/catalog.json`.
-- Если preset был выбран, selection безопасно переключается на catalog default до удаления. Запущенный выбранный preset по-прежнему защищён runtime guard.
-- `presets/imported-assets/*` удаляется только если больше ни один preset на тот же asset root не ссылается.
-- Поиск companion files вынесен в `import_source_root.py`: resolver не знает о preset/TXT и работает с любым source file + безопасными relative refs.
-- Автопоиск source package root проходит до 10 ancestors и поэтому находит корень для вложенности `presets/builtin/winws2/...`.
-- Распознаётся layout проекта loop-uh: source resource root `<repo>/src` и packaged application root с соседними `presets/`, `lists/`, `lua/`, `bin/`.
-- GUI показывает auto-detected root, причину и coverage; ручной выбор root стартует с этого кандидата.
-- Исходный `zapretgui.zip` проверен отдельно: для `src/presets/builtin/winws2/Universal V5.txt` root определяется как `src`, профилей 37/actions 55, но coverage runtime lists = `0/37`, потому что source checkout не содержит соответствующие `lists/*.txt`. Это не маскируется: нужен installed/extracted runtime root или другой пакет, реально содержащий файлы.
+- Клик по preset теперь может сразу применить его. При выключенном Default меняется только selection; при запущенном Default выполняется `stop -> select -> start` через существующий plan/confirmation/sudo-askpass workflow.
+- Hot-swap транзакционный: не меняет selection при неудачном stop; при неудачном старте нового preset восстанавливает старый selection и делает одну попытку вернуть старый runtime.
+- Режим одного клика включён по умолчанию и отключается в настройках. Кнопка `Применить пресет` остаётся явным ручным действием.
+- Добавлен live-search по presets с `Ctrl+F`, по модели быстрого поиска из loop-uh GUI. Один запрос фильтрует локальные Zapret2 presets и встроенный strat_collection.
+- Оформление вынесено в portable theme profile schema v1: семантические цвета, шрифт, размер, скругление и ширина navigation rail. Профиль применяется сразу, хранится в QSettings и импортируется/экспортируется в JSON.
+- Добавлены `themes/example-custom.json` и русская инструкция `docs/CUSTOMIZATION.md` с форматом «создай собственную тему».
+- Весь переданный strat_collection встроен в `presets/collections/strat_collection` и индексируется через `strag.json`: 55 стратегий, metadata, ports/hostlists, desync modes, исходные winws args и companion-file diagnostics.
+- `.bat`/`winws.exe` из strat_collection являются только read-only источником анализа. Windows-команды не исполняются; автоматический zapret1 -> nfqws2 перевод запрещён, чтобы не выдавать приблизительную конверсию за рабочий Zapret2 preset.
+- Добавлен stage8j test contract для hot-swap ordering/rollback, JSON themes, strat_collection indexing и GUI wiring.

@@ -22,6 +22,8 @@ from ..adapters.presets import (
     traffic_profile_to_text,
 )
 from ..adapters.preset_txt_import import analyze_txt_preset, import_txt_preset
+from ..adapters.preset_hot_swap import hot_swap_preset
+from ..adapters.strat_collection import load_strat_collection
 from ..qt_compat import require_pyqt
 from .preset_constructor import edit_traffic_profile_dialog
 
@@ -40,8 +42,10 @@ def _preset_item_text(entry: Any, selected_preset_id: str) -> str:
     )
 
 
-def make_presets_page(root: Path | None = None) -> Any:
+def make_presets_page(root: Path | None = None, settings: Any | None = None) -> Any:
     QtCore, QtWidgets = require_pyqt()
+    from PyQt6 import QtGui  # type: ignore[import-not-found]
+    settings = settings or QtCore.QSettings("The Grey Network", "z2guiflin")
     page = QtWidgets.QWidget()
     layout = QtWidgets.QVBoxLayout(page)
     layout.setContentsMargins(14, 14, 14, 14)
@@ -51,13 +55,24 @@ def make_presets_page(root: Path | None = None) -> Any:
     title.setObjectName("pageTitle")
     intro = QtWidgets.QLabel(
         "Пресет — это полный набор параметров nfqws2. Профили проверяются сверху вниз: "
-        "при первом совпадении filter выбирается один профиль. Конструктор меняет только файлы проекта; "
-        "запуск остаётся за plan и owner confirmation."
+        "при первом совпадении filter выбирается один профиль. Один клик может выполнить безопасную замену активного preset. "
+        "strat_collection встроен как read-only каталог legacy zapret1 для анализа и ручного порта в nfqws2."
     )
     intro.setWordWrap(True)
 
     status = QtWidgets.QLabel("")
     status.setObjectName("mutedText")
+
+    search_row = QtWidgets.QHBoxLayout()
+    search_label = QtWidgets.QLabel("Поиск")
+    search_edit = QtWidgets.QLineEdit()
+    search_edit.setPlaceholderText("Название, id, provider, hostlist, режим…   Ctrl+F")
+    search_clear = QtWidgets.QToolButton()
+    search_clear.setText("×")
+    search_clear.setToolTip("Очистить поиск")
+    search_row.addWidget(search_label)
+    search_row.addWidget(search_edit, 1)
+    search_row.addWidget(search_clear)
 
     buttons = QtWidgets.QHBoxLayout()
     new_preset_button = QtWidgets.QPushButton("+ Пресет")
@@ -69,7 +84,8 @@ def make_presets_page(root: Path | None = None) -> Any:
     move_up_button = QtWidgets.QPushButton("↑")
     move_down_button = QtWidgets.QPushButton("↓")
     refresh_button = QtWidgets.QPushButton("Обновить")
-    select_button = QtWidgets.QPushButton("Выбрать пресет")
+    select_button = QtWidgets.QPushButton("Применить пресет")
+    select_button.setToolTip("Выбрать пресет и применить его через hot-swap")
     catalog_button = QtWidgets.QPushButton("Сводка")
     for button in (
         new_preset_button,
@@ -139,7 +155,43 @@ def make_presets_page(root: Path | None = None) -> Any:
     outer_splitter.setStretchFactor(0, 1)
     outer_splitter.setStretchFactor(1, 3)
 
-    state: dict[str, Any] = {"catalog": None, "entry": None, "managed": False}
+    local_tab = QtWidgets.QWidget()
+    local_layout = QtWidgets.QVBoxLayout(local_tab)
+    local_layout.setContentsMargins(0, 0, 0, 0)
+    local_layout.addWidget(outer_splitter)
+
+    collection_tab = QtWidgets.QWidget()
+    collection_layout = QtWidgets.QVBoxLayout(collection_tab)
+    collection_layout.setContentsMargins(0, 0, 0, 0)
+    collection_hint = QtWidgets.QLabel(
+        "Встроенный snapshot strat_collection. BAT/winws никогда не исполняются; автоматический перевод zapret1 → nfqws2 намеренно запрещён. "
+        "Каталог показывает метаданные, параметры и зависимости для анализа/ручного порта."
+    )
+    collection_hint.setWordWrap(True)
+    collection_table = QtWidgets.QTableWidget(0, 6)
+    collection_table.setHorizontalHeaderLabels(("Стратегия", "Provider", "Label", "Порты", "Режимы", "Совместимость"))
+    collection_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+    collection_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+    collection_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+    collection_table.setAlternatingRowColors(True)
+    collection_table.verticalHeader().setVisible(False)
+    collection_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
+    collection_table.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.ResizeMode.Stretch)
+    collection_details = QtWidgets.QPlainTextEdit()
+    collection_details.setReadOnly(True)
+    collection_splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
+    collection_splitter.addWidget(collection_table)
+    collection_splitter.addWidget(collection_details)
+    collection_splitter.setStretchFactor(0, 2)
+    collection_splitter.setStretchFactor(1, 1)
+    collection_layout.addWidget(collection_hint)
+    collection_layout.addWidget(collection_splitter, 1)
+
+    tabs = QtWidgets.QTabWidget()
+    tabs.addTab(local_tab, "Zapret2 пресеты")
+    tabs.addTab(collection_tab, "strat_collection")
+
+    state: dict[str, Any] = {"catalog": None, "entry": None, "managed": False, "busy": False, "strat": None, "strat_rows": []}
 
     def _user_role() -> Any:
         try:
@@ -244,32 +296,35 @@ def make_presets_page(root: Path | None = None) -> Any:
                 f"traffic profiles: {catalog.profile_count}"
             )
             _fill_profiles(select_row)
+            _apply_search()
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
             details.setPlainText(f"Preset catalog: ошибка\n{exc}")
             status.setText("Статус: ошибка чтения каталога")
 
-    def choose_preset() -> None:
+    def apply_current_preset() -> None:
         preset_id = _current_preset_id()
-        if not preset_id:
-            details.setPlainText("Нечего выбирать: каталог пуст")
+        if not preset_id or state.get("busy"):
             return
-        question = QtWidgets.QMessageBox.question(
-            page,
-            "Выбор пресета",
-            (
-                f"Выбрать preset `{preset_id}` для Default workspace?\n\n"
-                "Это только сохранит selection в .zap2. Runtime и firewall сейчас не меняются. "
-                "После выбора нужно заново создать и подтвердить Default start-plan."
-            ),
-        )
-        if question != QtWidgets.QMessageBox.StandardButton.Yes:
-            return
+        state["busy"] = True
+        page.setCursor(QtCore.Qt.CursorShape.WaitCursor)
+        select_button.setEnabled(False)
         try:
-            result = select_preset(preset_id, root=root, workspace_id="default", reason="gui-presets-tab")
-            details.setPlainText(result.to_text().replace("Strategy", "Preset").replace("strategy", "preset"))
-            refresh(selected_preset_id=preset_id)
-        except Exception as exc:  # pragma: no cover
-            details.setPlainText(f"Preset selection: ошибка\n{exc}")
+            result = hot_swap_preset(preset_id, root=root, profile_id="default")
+            details.setPlainText(result.to_text())
+            refresh(selected_preset_id=result.selected_preset_id)
+            if not result.success:
+                QtWidgets.QMessageBox.warning(page, "Hot-swap завершён с ошибкой", result.message)
+        except Exception as exc:
+            details.setPlainText(f"Preset hot-swap: ошибка\n{exc}")
+            QtWidgets.QMessageBox.critical(page, "Пресет не применён", str(exc))
+        finally:
+            state["busy"] = False
+            page.unsetCursor()
+            select_button.setEnabled(True)
+
+    def one_click_apply(_item: Any) -> None:
+        if settings.value("presets/one-click-apply", True, type=bool):
+            apply_current_preset()
 
     def create_preset() -> None:
         title_text, ok = QtWidgets.QInputDialog.getText(
@@ -477,7 +532,41 @@ def make_presets_page(root: Path | None = None) -> Any:
         except Exception as exc:
             QtWidgets.QMessageBox.critical(page, "Порядок не изменён", str(exc))
 
+    def _apply_search() -> None:
+        query = search_edit.text().strip().lower()
+        words = tuple(part for part in query.split() if part)
+        for index in range(preset_list.count()):
+            item = preset_list.item(index)
+            haystack = item.text().lower()
+            item.setHidden(bool(words) and not all(word in haystack for word in words))
+        refresh_strat()
+
+    def _show_strat_details() -> None:
+        row = collection_table.currentRow()
+        rows = state.get("strat_rows") or []
+        if 0 <= row < len(rows):
+            collection_details.setPlainText(rows[row].to_text(root if root is not None else state["strat"].root.parents[2]))
+
+    def refresh_strat() -> None:
+        try:
+            catalog = state.get("strat") or load_strat_collection(root)
+            state["strat"] = catalog
+            rows = list(catalog.search(search_edit.text()))
+            state["strat_rows"] = rows
+            collection_table.setRowCount(len(rows))
+            for row, entry in enumerate(rows):
+                values = (entry.name, entry.provider or "-", entry.label or "-", entry.ports or "-", ", ".join(entry.desync_modes) or "-", entry.compatibility)
+                for column, value in enumerate(values):
+                    collection_table.setItem(row, column, QtWidgets.QTableWidgetItem(value))
+            if rows:
+                collection_table.selectRow(0); _show_strat_details()
+            else:
+                collection_details.setPlainText("Ничего не найдено")
+        except Exception as exc:
+            collection_details.setPlainText(f"strat_collection: ошибка\n{exc}")
+
     preset_list.currentItemChanged.connect(lambda _current, _previous: _fill_profiles())
+    preset_list.itemClicked.connect(one_click_apply)
     profile_table.itemSelectionChanged.connect(_show_profile_details)
     new_preset_button.clicked.connect(create_preset)
     import_preset_button.clicked.connect(import_preset_txt)
@@ -488,13 +577,20 @@ def make_presets_page(root: Path | None = None) -> Any:
     move_up_button.clicked.connect(lambda _checked=False: move_profile(-1))
     move_down_button.clicked.connect(lambda _checked=False: move_profile(1))
     refresh_button.clicked.connect(lambda _checked=False: refresh(selected_preset_id=_current_preset_id()))
-    select_button.clicked.connect(lambda _checked=False: choose_preset())
+    select_button.clicked.connect(lambda _checked=False: apply_current_preset())
     catalog_button.clicked.connect(lambda _checked=False: details.setPlainText(preset_catalog_to_text(root)))
+    collection_table.itemSelectionChanged.connect(_show_strat_details)
+    search_edit.textChanged.connect(lambda _text: _apply_search())
+    search_clear.clicked.connect(search_edit.clear)
+    find_shortcut = QtGui.QShortcut(QtGui.QKeySequence("Ctrl+F"), page)
+    find_shortcut.activated.connect(lambda: (search_edit.setFocus(), search_edit.selectAll()))
 
     layout.addWidget(title)
     layout.addWidget(intro)
+    layout.addLayout(search_row)
     layout.addLayout(buttons)
     layout.addWidget(status)
-    layout.addWidget(outer_splitter, 1)
+    layout.addWidget(tabs, 1)
     refresh()
+    refresh_strat()
     return page

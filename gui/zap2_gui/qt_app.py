@@ -8,6 +8,7 @@ from pathlib import Path
 from . import PRODUCT_LABEL
 from .qt_compat import require_pyqt
 from .theme import THEME_LIGHT, apply_application_theme
+from .theme_profiles import apply_theme_profile, theme_profile_from_settings
 from .ui_icons import section_icon
 from .windows.main_window import create_main_window
 
@@ -22,6 +23,7 @@ def run_gui(argv: list[str] | None = None, root: Path | None = None) -> int:
     app.setOrganizationName("The Grey Network")
     settings = _QtCore.QSettings("The Grey Network", "z2guiflin")
     apply_application_theme(app, settings.value("ui/theme", THEME_LIGHT))
+    apply_theme_profile(app, theme_profile_from_settings(settings))
 
     icon = section_icon("overview")
     if icon is not None:
