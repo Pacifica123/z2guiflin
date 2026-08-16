@@ -52,6 +52,22 @@ def load_icon(name: str) -> Any:
     return QtGui.QIcon(str(path))
 
 
+
+def tinted_misc_icon(icon_key: str, color: str, size: int = 24) -> Any:
+    """Return a misc icon tinted to one semantic theme color."""
+
+    if QtGui is None:
+        return None
+    icon = misc_icon(icon_key)
+    pixmap = icon.pixmap(size, size)
+    if pixmap.isNull():
+        return icon
+    painter = QtGui.QPainter(pixmap)
+    painter.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_SourceIn)
+    painter.fillRect(pixmap.rect(), QtGui.QColor(str(color)))
+    painter.end()
+    return QtGui.QIcon(pixmap)
+
 def section_icon(section_key: str) -> Any:
     filename = _SECTION_ICONS.get(section_key)
     return load_icon(filename) if filename else _empty_icon()
@@ -62,4 +78,4 @@ def misc_icon(icon_key: str) -> Any:
     return load_icon(filename) if filename else _empty_icon()
 
 
-__all__ = ["section_icon", "misc_icon", "load_icon"]
+__all__ = ["section_icon", "misc_icon", "tinted_misc_icon", "load_icon"]

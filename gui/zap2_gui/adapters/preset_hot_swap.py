@@ -19,7 +19,7 @@ class PresetHotSwapResult:
         return "\n".join(x)
 
 def _run(root, action, profile_id):
-    plan=prepare_default_workflow_plan(root=root,action=action,profile_id=profile_id); confirm_runtime_plan(root=root,plan_id=plan.plan_id); result=execute_gui_privileged_workflow(root=root,action=action,profile_id=profile_id,confirm_plan_id=plan.plan_id); return result.success,result.to_text()
+    plan=prepare_default_workflow_plan(root=root,action=action,profile_id=profile_id); confirm_runtime_plan(root=root,plan_id=plan.plan_id); result=execute_gui_privileged_workflow(root=root,action=action,profile_id=profile_id,confirm_plan_id=plan.plan_id); return result.ok,result.to_text()
 
 def hot_swap_preset(preset_id:str,root:Path|None=None,profile_id:str="default",reason:str="gui-one-click-preset-hot-swap") -> PresetHotSwapResult:
     catalog=load_preset_catalog(root)

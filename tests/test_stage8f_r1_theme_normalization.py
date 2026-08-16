@@ -32,7 +32,12 @@ def test_blockcheck_local_style_no_longer_assumes_dark_theme() -> None:
     assert "(endpoint_button, 4, 1, 1, 1)" in source
 
 
-def test_runtime_status_colors_are_stable_hex_values() -> None:
-    source = (ROOT / "gui/zap2_gui/widgets/runtime_controls.py").read_text(encoding="utf-8")
-    for value in ("#dcefe3", "#f2e8d8", "#f4ded9", "#f6edd7"):
-        assert value in source
+def test_runtime_status_colors_are_theme_semantics_not_local_pills() -> None:
+    runtime = (ROOT / "gui/zap2_gui/widgets/runtime_controls.py").read_text(encoding="utf-8")
+    theme = (ROOT / "gui/zap2_gui/theme_profiles.py").read_text(encoding="utf-8")
+    for key in ("statusRunning", "statusStopped", "statusWarning", "statusUnknown", "noticeBg", "noticeBorder"):
+        assert key in theme
+    assert 'QLabel#runtimeStatusIndicator {' in runtime
+    assert "background: transparent;" in runtime
+    assert "#dcefe3" not in runtime
+    assert "#f2e8d8" not in runtime

@@ -87,6 +87,12 @@ class GuiPrivilegedResult:
     def ok(self) -> bool:
         return self.returncode == 0 and not self.skipped_reason
 
+    @property
+    def success(self) -> bool:
+        """Backward-compatible success alias used by GUI transaction adapters."""
+
+        return self.ok
+
     def to_text(self) -> str:
         lines = [
             f"GUI privileged workflow {self.action}: {'OK' if self.ok else 'FAILED'}",

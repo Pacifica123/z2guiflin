@@ -39,7 +39,8 @@ from ..adapters.launch_composer import (
     launch_composer_stop_to_text,
 )
 from ..qt_compat import require_pyqt
-from ..ui_icons import misc_icon, section_icon
+from ..ui_icons import misc_icon, section_icon, tinted_misc_icon
+from ..theme_profiles import theme_profile_from_settings
 
 
 def _is_started(root: Path | None) -> bool:
@@ -80,8 +81,10 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     status_row.setSpacing(10)
 
     toggle_button = QtWidgets.QPushButton()
-    toggle_button.setIcon(misc_icon("toggle-start"))
-    toggle_button.setIconSize(_QtCore.QSize(24, 24))
+    settings = _QtCore.QSettings("The Grey Network", "z2guiflin")
+    initial_theme = theme_profile_from_settings(settings)
+    toggle_button.setIcon(tinted_misc_icon("toggle-start", initial_theme.colors["accent"], 30) or misc_icon("toggle-start"))
+    toggle_button.setIconSize(_QtCore.QSize(30, 30))
     toggle_button.setFixedSize(46, 46)
     toggle_button.setObjectName("primaryRunButton")
     toggle_button.setToolTip("Включить/выключить Default workflow")
@@ -422,7 +425,15 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             all_selected_running = selected_components_all_running()
             selected_summary = selected_components_status_summary()
             toggle_button.setText("")
-            toggle_button.setIcon(misc_icon("toggle-stop") if all_selected_running else misc_icon("toggle-start"))
+            current_theme = theme_profile_from_settings(settings)
+            toggle_button.setIcon(
+                tinted_misc_icon(
+                    "toggle-stop" if all_selected_running else "toggle-start",
+                    current_theme.colors["statusStopped"] if all_selected_running else current_theme.colors["accent"],
+                    30,
+                )
+                or (misc_icon("toggle-stop") if all_selected_running else misc_icon("toggle-start"))
+            )
             if all_selected_running:
                 indicator.setText("● Всё запущено")
                 indicator.setProperty("state", "running")
@@ -441,7 +452,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             render_overview_table()
         except Exception:
             toggle_button.setText("")
-            toggle_button.setIcon(misc_icon("toggle-start"))
+            current_theme = theme_profile_from_settings(settings)
+            toggle_button.setIcon(tinted_misc_icon("toggle-start", current_theme.colors["accent"], 30) or misc_icon("toggle-start"))
             indicator.setText("? Неизвестно")
             indicator.setProperty("state", "unknown")
             status_text.setText("Статус не прочитан")
@@ -583,9 +595,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         QPushButton#primaryRunButton {
             font-size: 24px;
             font-weight: 700;
-            border-radius: 23px;
             padding: 0;
-            background: #f2edf4;
+            background: transparent;
         }
         QTabBar::tab {
             padding: 8px 12px;
@@ -593,42 +604,23 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         QTableWidget#guiFirstOverviewTable {
             gridline-color: rgba(90, 90, 90, 0.10);
         }
-        QFrame#launchIssueBanner {
-            color: #4b3d32;
-            border: 1px solid #d9b864;
-            border-radius: 8px;
-            background: #f6edd7;
-        }
         QLabel#launchIssueCode {
-            color: #4b3d32;
             font-family: monospace;
             font-weight: 700;
             padding: 2px 6px;
-            border-radius: 5px;
-            background: #efe0b8;
         }
         QLabel#launchIssueMessage {
-            color: #4b3d32;
             font-weight: 600;
         }
         QLabel#runtimeStatusIndicator {
-            color: #3f3945;
             font-weight: 700;
-            padding: 6px 10px;
-            border-radius: 12px;
-            background: #eee8f1;
-        }
-        QLabel#runtimeStatusIndicator[state="running"] {
-            background: #dcefe3;
-        }
-        QLabel#runtimeStatusIndicator[state="stopped"] {
-            background: #f2e8d8;
-        }
-        QLabel#runtimeStatusIndicator[state="mismatch"] {
-            background: #f4ded9;
+            padding: 6px 2px;
+            background: transparent;
+            border: 0;
         }
         """
     )
     details_box.setVisible(False)
     refresh_visual_state()
+    page.refresh_runtime_state = refresh_visual_state
     return page

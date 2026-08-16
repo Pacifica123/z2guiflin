@@ -8,8 +8,8 @@ from .theme import THEME_DARK, THEME_LIGHT, apply_application_theme, normalize_t
 
 SCHEMA_VERSION = 1
 SETTINGS_KEY = "ui/theme-profile-json"
-LIGHT_COLORS = {"text":"#3f3945","muted":"#756d7b","window":"#f6f3f7","surface":"#faf8fb","card":"#fdfcfd","input":"#fffefe","border":"#ded6e2","control":"#eee8f1","hover":"#e5dce9","selection":"#d9cbe1","selectionText":"#352d3a","accent":"#8e70a0"}
-DARK_COLORS = {"text":"#e8e1ec","muted":"#b8adbe","window":"#211e25","surface":"#27232b","card":"#2d2932","input":"#242128","border":"#443d49","control":"#36303b","hover":"#413949","selection":"#5b4765","selectionText":"#fff7ff","accent":"#b493c4"}
+LIGHT_COLORS = {"text":"#3f3945","muted":"#756d7b","window":"#f6f3f7","surface":"#faf8fb","card":"#fdfcfd","input":"#fffefe","border":"#ded6e2","control":"#eee8f1","hover":"#e5dce9","selection":"#d9cbe1","selectionText":"#352d3a","accent":"#8e70a0","noticeBg":"#f6edd7","noticeBorder":"#d9b864","noticeText":"#4b3d32","noticeBadge":"#efe0b8","noticeBadgeText":"#4b3d32","statusRunning":"#4f8b68","statusStopped":"#8a7355","statusWarning":"#b66b5e","statusUnknown":"#756d7b"}
+DARK_COLORS = {"text":"#e8e1ec","muted":"#b8adbe","window":"#211e25","surface":"#27232b","card":"#2d2932","input":"#242128","border":"#443d49","control":"#36303b","hover":"#413949","selection":"#5b4765","selectionText":"#fff7ff","accent":"#b493c4","noticeBg":"#3a3325","noticeBorder":"#8a7745","noticeText":"#f0e3c6","noticeBadge":"#4b402b","noticeBadgeText":"#f4e7c7","statusRunning":"#83c69c","statusStopped":"#c9a978","statusWarning":"#e69a89","statusUnknown":"#b8adbe"}
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 @dataclass(frozen=True)
@@ -81,6 +81,16 @@ QTableView::viewport,QTreeView::viewport,QListView::viewport,QComboBox QAbstract
 QListWidget#navigationList::item:hover {{ background:{c['hover']}; }}
 QListWidget#navigationList::item:selected {{ background:{c['selection']}; color:{c['selectionText']}; }}
 QHeaderView::section {{ color:{c['text']}; background:{c['control']}; border-color:{c['border']}; }}
+QPushButton#primaryRunButton {{ color:{c['accent']}; background:transparent; border:1px solid {c['accent']}; border-radius:{max(8,r)}px; }}
+QPushButton#primaryRunButton:hover {{ background:{c['hover']}; }}
+QFrame#launchIssueBanner {{ color:{c['noticeText']}; border:1px solid {c['noticeBorder']}; border-radius:{r}px; background:{c['noticeBg']}; }}
+QLabel#launchIssueCode {{ color:{c['noticeBadgeText']}; background:{c['noticeBadge']}; border-radius:{max(4,r//2)}px; }}
+QLabel#launchIssueMessage {{ color:{c['noticeText']}; }}
+QLabel#runtimeStatusIndicator {{ background:transparent; border:0; color:{c['statusUnknown']}; }}
+QLabel#runtimeStatusIndicator[state="running"] {{ color:{c['statusRunning']}; }}
+QLabel#runtimeStatusIndicator[state="stopped"] {{ color:{c['statusStopped']}; }}
+QLabel#runtimeStatusIndicator[state="mismatch"] {{ color:{c['statusWarning']}; }}
+QLabel#runtimeStatusIndicator[state="unknown"] {{ color:{c['statusUnknown']}; }}
 '''
 
 def apply_theme_profile(app: Any, profile: ThemeProfile) -> ThemeProfile:

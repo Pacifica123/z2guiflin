@@ -153,4 +153,4 @@ C Tor остаётся системным backend, Arti добавлен отд�
 
 ### Настройка интерфейса и каталога пресетов
 
-Hot-swap пресетов, portable JSON-темы, `Ctrl+F`-поиск и встроенный read-only каталог strat_collection описаны в `docs/CUSTOMIZATION.md`.
+Hot-swap пресетов, portable JSON-темы, `Ctrl+F`-поиск и встроенный strat_collection с консервативным автопортом однозначно совместимых записей описаны в `docs/CUSTOMIZATION.md`.

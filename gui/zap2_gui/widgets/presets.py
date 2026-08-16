@@ -24,6 +24,10 @@ from ..adapters.presets import (
 from ..adapters.preset_txt_import import analyze_txt_preset, import_txt_preset
 from ..adapters.preset_hot_swap import hot_swap_preset
 from ..adapters.strat_collection import load_strat_collection
+from ..adapters.strat_collection_port import (
+    analyze_strat_port,
+    port_strat_collection_entry,
+)
 from ..qt_compat import require_pyqt
 from .preset_constructor import edit_traffic_profile_dialog
 
@@ -56,7 +60,7 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
     intro = QtWidgets.QLabel(
         "Пресет — это полный набор параметров nfqws2. Профили проверяются сверху вниз: "
         "при первом совпадении filter выбирается один профиль. Один клик может выполнить безопасную замену активного preset. "
-        "strat_collection встроен как read-only каталог legacy zapret1 для анализа и ручного порта в nfqws2."
+        "strat_collection встроен как legacy-каталог: однозначно совместимые записи можно безопасно портировать в nfqws2, остальные остаются read-only."
     )
     intro.setWordWrap(True)
 
@@ -164,8 +168,9 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
     collection_layout = QtWidgets.QVBoxLayout(collection_tab)
     collection_layout.setContentsMargins(0, 0, 0, 0)
     collection_hint = QtWidgets.QLabel(
-        "Встроенный snapshot strat_collection. BAT/winws никогда не исполняются; автоматический перевод zapret1 → nfqws2 намеренно запрещён. "
-        "Каталог показывает метаданные, параметры и зависимости для анализа/ручного порта."
+        "Встроенный snapshot strat_collection. BAT/winws никогда не исполняются. "
+        "Для стратегий, где все legacy-опции имеют однозначное соответствие в Zapret2, доступен консервативный автопорт "
+        "в обычный owner-managed preset; неоднозначные варианты остаются read-only."
     )
     collection_hint.setWordWrap(True)
     collection_table = QtWidgets.QTableWidget(0, 6)
@@ -191,7 +196,16 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
     tabs.addTab(local_tab, "Zapret2 пресеты")
     tabs.addTab(collection_tab, "strat_collection")
 
-    state: dict[str, Any] = {"catalog": None, "entry": None, "managed": False, "busy": False, "strat": None, "strat_rows": []}
+    state: dict[str, Any] = {
+        "catalog": None,
+        "entry": None,
+        "managed": False,
+        "busy": False,
+        "strat": None,
+        "strat_rows": [],
+        "strat_selected_id": "",
+        "strat_plans": {},
+    }
 
     def _user_role() -> Any:
         try:
@@ -277,12 +291,13 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
         _set_constructor_enabled(managed)
 
     def refresh(selected_preset_id: str | None = None, select_row: int = 0) -> None:
+        previous_current = _current_preset_id()
         preset_list.clear()
         profile_table.setRowCount(0)
         try:
             catalog = load_preset_catalog(root)
             state["catalog"] = catalog
-            active = selected_preset_id or _current_preset_id() or catalog.selected_preset_id
+            active = selected_preset_id or previous_current or catalog.selected_preset_id
             for entry in catalog.entries:
                 item = QtWidgets.QListWidgetItem(_preset_item_text(entry, catalog.selected_preset_id))
                 item.setData(_user_role(), entry.preset.preset_id)
@@ -320,7 +335,7 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
         finally:
             state["busy"] = False
             page.unsetCursor()
-            select_button.setEnabled(True)
+            _update_apply_button()
 
     def one_click_apply(_item: Any) -> None:
         if settings.value("presets/one-click-apply", True, type=bool):
@@ -541,29 +556,176 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
             item.setHidden(bool(words) and not all(word in haystack for word in words))
         refresh_strat()
 
-    def _show_strat_details() -> None:
+    def _current_strat_entry() -> Any | None:
         row = collection_table.currentRow()
         rows = state.get("strat_rows") or []
-        if 0 <= row < len(rows):
-            collection_details.setPlainText(rows[row].to_text(root if root is not None else state["strat"].root.parents[2]))
+        if not 0 <= row < len(rows):
+            return None
+        return rows[row]
+
+    def _strat_plan(entry: Any) -> Any:
+        cache = state.setdefault("strat_plans", {})
+        if entry.entry_id not in cache:
+            cache[entry.entry_id] = analyze_strat_port(entry, root)
+        return cache[entry.entry_id]
+
+    def _existing_strat_ports() -> dict[str, str]:
+        catalog = state.get("catalog") or load_preset_catalog(root)
+        result: dict[str, str] = {}
+        for item in catalog.entries:
+            source = item.metadata.source_preset or {}
+            entry_id = str(source.get("stratCollectionEntryId") or "")
+            if entry_id:
+                result[entry_id] = item.preset.preset_id
+        return result
+
+    def _update_apply_button() -> None:
+        if state.get("busy"):
+            select_button.setEnabled(False)
+            return
+        if tabs.currentIndex() == 0:
+            select_button.setText("Применить пресет")
+            select_button.setToolTip("Выбрать Zapret2 preset и применить его через hot-swap")
+            select_button.setEnabled(bool(_current_preset_id()))
+            return
+        entry = _current_strat_entry()
+        if entry is None:
+            select_button.setText("Автопорт недоступен")
+            select_button.setToolTip("Выберите стратегию strat_collection")
+            select_button.setEnabled(False)
+            return
+        existing = _existing_strat_ports().get(entry.entry_id, "")
+        if existing:
+            select_button.setText("Применить порт")
+            select_button.setToolTip(f"Применить уже созданный Zapret2 preset: {existing}")
+            select_button.setEnabled(True)
+            return
+        plan = _strat_plan(entry)
+        if plan.can_port:
+            select_button.setText("Портировать + применить")
+            select_button.setToolTip("Создать owner-managed Zapret2 preset по явным mappings и применить через hot-swap")
+            select_button.setEnabled(True)
+        else:
+            select_button.setText("Автопорт недоступен")
+            reason = "; ".join(plan.unsupported[:3]) or "неоднозначная legacy-стратегия"
+            select_button.setToolTip("Безопасный автопорт заблокирован: " + reason)
+            select_button.setEnabled(False)
+
+    def _show_strat_details() -> None:
+        entry = _current_strat_entry()
+        if entry is None:
+            _update_apply_button()
+            return
+        state["strat_selected_id"] = entry.entry_id
+        base_root = root if root is not None else state["strat"].root.parents[2]
+        plan = _strat_plan(entry)
+        existing = _existing_strat_ports().get(entry.entry_id, "")
+        extra = ["", plan.to_text()]
+        if existing:
+            extra.extend(["", f"existing Zapret2 port: {existing}"])
+        collection_details.setPlainText(entry.to_text(base_root) + "\n" + "\n".join(extra))
+        _update_apply_button()
 
     def refresh_strat() -> None:
         try:
             catalog = state.get("strat") or load_strat_collection(root)
             state["strat"] = catalog
+            desired_id = str(state.get("strat_selected_id") or "")
             rows = list(catalog.search(search_edit.text()))
             state["strat_rows"] = rows
             collection_table.setRowCount(len(rows))
+            selected_row = -1
             for row, entry in enumerate(rows):
-                values = (entry.name, entry.provider or "-", entry.label or "-", entry.ports or "-", ", ".join(entry.desync_modes) or "-", entry.compatibility)
+                plan = _strat_plan(entry)
+                existing = _existing_strat_ports().get(entry.entry_id, "")
+                compatibility = "Zapret2 port готов" if existing else ("автопорт Zapret2" if plan.can_port else "legacy / read-only")
+                values = (
+                    entry.name,
+                    entry.provider or "-",
+                    entry.label or "-",
+                    entry.ports or "-",
+                    ", ".join(entry.desync_modes) or "-",
+                    compatibility,
+                )
                 for column, value in enumerate(values):
-                    collection_table.setItem(row, column, QtWidgets.QTableWidgetItem(value))
+                    item = QtWidgets.QTableWidgetItem(value)
+                    if column == 0:
+                        item.setData(_user_role(), entry.entry_id)
+                    collection_table.setItem(row, column, item)
+                if entry.entry_id == desired_id:
+                    selected_row = row
             if rows:
-                collection_table.selectRow(0); _show_strat_details()
+                if selected_row < 0:
+                    selected_row = 0
+                collection_table.selectRow(selected_row)
+                _show_strat_details()
             else:
                 collection_details.setPlainText("Ничего не найдено")
+                _update_apply_button()
         except Exception as exc:
             collection_details.setPlainText(f"strat_collection: ошибка\n{exc}")
+            _update_apply_button()
+
+    def apply_current_strat() -> None:
+        entry = _current_strat_entry()
+        if entry is None or state.get("busy"):
+            return
+        state["strat_selected_id"] = entry.entry_id
+        existing = _existing_strat_ports().get(entry.entry_id, "")
+        plan = _strat_plan(entry)
+        if not existing and not plan.can_port:
+            message = "\n".join(plan.unsupported[:8]) or "Нет безопасного однозначного mapping."
+            QtWidgets.QMessageBox.warning(
+                page,
+                "Автопорт strat_collection недоступен",
+                "Эта legacy-стратегия не будет угадываться или исполняться через winws.\n\n" + message,
+            )
+            collection_details.setPlainText(plan.to_text())
+            _update_apply_button()
+            return
+        if not existing:
+            answer = QtWidgets.QMessageBox.question(
+                page,
+                "Портировать strat_collection в Zapret2",
+                (
+                    f"Создать owner-managed Zapret2 preset из `{entry.name}` и сразу применить его?\n\n"
+                    "Будут перенесены только опции с явным соответствием в vendored Zapret2; Windows capture flags удаляются. "
+                    "BAT/winws не запускаются. Исходная запись strat_collection не изменяется."
+                ),
+            )
+            if answer != QtWidgets.QMessageBox.StandardButton.Yes:
+                return
+
+        state["busy"] = True
+        page.setCursor(QtCore.Qt.CursorShape.WaitCursor)
+        _update_apply_button()
+        try:
+            port_text = ""
+            preset_id = existing
+            if not preset_id:
+                mutation = port_strat_collection_entry(entry.entry_id, root)
+                preset_id = mutation.preset_id
+                port_text = mutation.to_text() + "\n\n"
+            result = hot_swap_preset(preset_id, root=root, profile_id="default", reason="gui-strat-collection-port")
+            collection_details.setPlainText(port_text + result.to_text())
+            refresh(selected_preset_id=result.selected_preset_id)
+            tabs.setCurrentIndex(1)
+            if not result.success:
+                QtWidgets.QMessageBox.warning(page, "Hot-swap завершён с ошибкой", result.message)
+        except Exception as exc:
+            collection_details.setPlainText(f"strat_collection port/hot-swap: ошибка\n{exc}")
+            QtWidgets.QMessageBox.critical(page, "strat_collection не применён", str(exc))
+        finally:
+            state["busy"] = False
+            page.unsetCursor()
+            refresh_strat()
+            _update_apply_button()
+
+    def apply_current_selection() -> None:
+        if tabs.currentIndex() == 1:
+            apply_current_strat()
+        else:
+            apply_current_preset()
 
     preset_list.currentItemChanged.connect(lambda _current, _previous: _fill_profiles())
     preset_list.itemClicked.connect(one_click_apply)
@@ -577,9 +739,10 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
     move_up_button.clicked.connect(lambda _checked=False: move_profile(-1))
     move_down_button.clicked.connect(lambda _checked=False: move_profile(1))
     refresh_button.clicked.connect(lambda _checked=False: refresh(selected_preset_id=_current_preset_id()))
-    select_button.clicked.connect(lambda _checked=False: apply_current_preset())
+    select_button.clicked.connect(lambda _checked=False: apply_current_selection())
     catalog_button.clicked.connect(lambda _checked=False: details.setPlainText(preset_catalog_to_text(root)))
     collection_table.itemSelectionChanged.connect(_show_strat_details)
+    tabs.currentChanged.connect(lambda _index: _update_apply_button())
     search_edit.textChanged.connect(lambda _text: _apply_search())
     search_clear.clicked.connect(search_edit.clear)
     find_shortcut = QtGui.QShortcut(QtGui.QKeySequence("Ctrl+F"), page)

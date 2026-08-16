@@ -14,8 +14,23 @@
     "hover": "#413949",
     "selection": "#5b4765",
     "selectionText": "#fff7ff",
-    "accent": "#b493c4"
+    "accent": "#b493c4",
+    "noticeBg": "#3a3325",
+    "noticeBorder": "#8a7745",
+    "noticeText": "#f0e3c6",
+    "noticeBadge": "#4b402b",
+    "noticeBadgeText": "#f4e7c7",
+    "statusRunning": "#83c69c",
+    "statusStopped": "#c9a978",
+    "statusWarning": "#e69a89",
+    "statusUnknown": "#b8adbe"
   },
-  "font": {"family": "", "sizePt": 10},
-  "metrics": {"cornerRadiusPx": 8, "navigationWidthPx": 224}
+  "font": {
+    "family": "",
+    "sizePt": 10
+  },
+  "metrics": {
+    "cornerRadiusPx": 8,
+    "navigationWidthPx": 224
+  }
 }

@@ -6,7 +6,7 @@ from ..qt_compat import require_pyqt
 from ..theme import THEME_DARK, THEME_LIGHT, apply_application_theme, normalize_theme_name
 from ..theme_profiles import ThemeProfile, apply_theme_profile, builtin_theme_profile, clear_theme_profile, load_theme_profile, save_theme_profile, save_theme_profile_to_settings, theme_profile_from_settings
 
-_COLOR_FIELDS=(("text","Текст"),("muted","Вторичный текст"),("window","Фон окна"),("surface","Поверхность"),("card","Карточки"),("input","Поля ввода"),("border","Границы"),("control","Кнопки/навигация"),("hover","Наведение"),("selection","Выделение"),("selectionText","Текст выделения"),("accent","Акцент"))
+_COLOR_FIELDS=(("text","Текст"),("muted","Вторичный текст"),("window","Фон окна"),("surface","Поверхность"),("card","Карточки"),("input","Поля ввода"),("border","Границы"),("control","Кнопки/навигация"),("hover","Наведение"),("selection","Выделение"),("selectionText","Текст выделения"),("accent","Акцент / Пуск"),("noticeBg","Уведомление: фон"),("noticeBorder","Уведомление: граница"),("noticeText","Уведомление: текст"),("noticeBadge","Уведомление: код"),("noticeBadgeText","Уведомление: текст кода"),("statusRunning","Индикатор: запущено"),("statusStopped","Индикатор: остановлено"),("statusWarning","Индикатор: проблема"),("statusUnknown","Индикатор: неизвестно"))
 
 def make_settings_page(settings: Any) -> Any:
     QtCore,QtWidgets=require_pyqt(); from PyQt6 import QtGui

@@ -140,6 +140,10 @@ def create_main_window(root: object | None = None) -> Any:
             self.content_stack.setCurrentIndex(row)
             self.page_subtitle.setText(section.purpose)
             self._settings.setValue("ui/last-page", row)
+            page = self.content_stack.currentWidget()
+            refresh = getattr(page, "refresh_runtime_state", None)
+            if callable(refresh):
+                refresh()
 
         def closeEvent(self, event: Any) -> None:  # noqa: N802
             self._settings.setValue("ui/window-geometry", self.saveGeometry())
