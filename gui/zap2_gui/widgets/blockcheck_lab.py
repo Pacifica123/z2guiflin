@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
+import sys
 from typing import Any, Callable
 
 from ..adapters.blockcheck_gui import (
@@ -31,6 +33,11 @@ from ..adapters.blockcheck_gui import (
     write_blockcheck_last_log,
 )
 from ..adapters.discord_verification import discord_non_voice_verification_plan_to_text
+from ..adapters.discord_machine_diagnostics import (
+    discord_machine_diagnostics_command,
+    discord_machine_summary_text,
+    parse_discord_machine_diagnostics_json,
+)
 from ..adapters.discord_endpoint_discovery import (
     discord_endpoint_discovery_plan_to_text,
     discord_endpoint_report_to_text,
@@ -106,6 +113,25 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     )
     intro.setWordWrap(True)
     intro.setObjectName("blockcheckIntro")
+
+    discord_box = QtWidgets.QGroupBox("Discord: состояние машины и сети")
+    discord_box.setObjectName("discordMachineDiagnosticsBox")
+    discord_layout = QtWidgets.QHBoxLayout(discord_box)
+    discord_layout.setContentsMargins(10, 12, 10, 10)
+    discord_layout.setSpacing(10)
+    discord_hint = QtWidgets.QLabel(
+        "Read-only probe: установки pacman/pamac/Flatpak, updater_bootstrap и процессы, "
+        "sanitized локальные логи/config, DNS/TLS/HTTPS, updater manifest, Gateway WebSocket, CDN и HTTP/3 при наличии."
+    )
+    discord_hint.setObjectName("mutedText")
+    discord_hint.setWordWrap(True)
+    discord_probe_button = QtWidgets.QPushButton("Проверить Discord")
+    discord_probe_button.setObjectName("discordMachineProbeButton")
+    discord_probe_button.setMinimumHeight(34)
+    discord_probe_button.setMinimumWidth(170)
+    discord_layout.addWidget(discord_hint, 1)
+    discord_layout.addWidget(discord_probe_button, 0)
+    discord_probe_state: dict[str, Any] = {"process": None}
 
     form_box = QtWidgets.QGroupBox("Параметры scan")
     form_box.setObjectName("blockcheckScanBox")
@@ -369,6 +395,129 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         "custom_targets": "",
         "syncing_target_preset": False,
     }
+
+    def show_discord_machine_dialog(payload: dict[str, Any] | None, technical_text: str, *, error_text: str = "") -> None:
+        dialog = QtWidgets.QDialog(page)
+        dialog.setObjectName("discordMachineDiagnosticsDialog")
+        dialog.setWindowTitle("Диагностика Discord")
+        dialog.resize(760, 520)
+        dialog_layout = QtWidgets.QVBoxLayout(dialog)
+        dialog_layout.setContentsMargins(16, 16, 16, 16)
+        dialog_layout.setSpacing(10)
+
+        summary_frame = QtWidgets.QFrame()
+        summary_frame.setObjectName("discordMachineSummaryFrame")
+        summary_layout = QtWidgets.QVBoxLayout(summary_frame)
+        summary_layout.setContentsMargins(12, 12, 12, 12)
+        summary_layout.setSpacing(6)
+        severity_label = QtWidgets.QLabel("Диагностика завершена")
+        severity_label.setObjectName("discordMachineSummarySeverity")
+        summary_label = QtWidgets.QLabel()
+        summary_label.setObjectName("discordMachineSummaryText")
+        summary_label.setWordWrap(True)
+
+        if payload is not None:
+            summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+            severity = str(summary.get("severity", "info"))
+            severity_label.setProperty("severity", severity)
+            severity_label.setText({"error": "Обнаружена проблема", "warning": "Есть подозрительные сигналы", "ok": "Базовые проверки пройдены"}.get(severity, "Диагностика завершена"))
+            summary_label.setText(discord_machine_summary_text(payload))
+        else:
+            severity_label.setProperty("severity", "error")
+            severity_label.setText("Probe завершился с ошибкой")
+            summary_label.setText(error_text or "Не удалось разобрать результат standalone-тулзы.")
+
+        summary_layout.addWidget(severity_label)
+        summary_layout.addWidget(summary_label)
+        dialog_layout.addWidget(summary_frame)
+
+        details_toggle = QtWidgets.QToolButton()
+        details_toggle.setObjectName("discordMachineDetailsToggle")
+        details_toggle.setText("Техническая информация")
+        details_toggle.setCheckable(True)
+        details_toggle.setChecked(False)
+        details_toggle.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        details_toggle.setArrowType(QtCore.Qt.ArrowType.RightArrow)
+        dialog_layout.addWidget(details_toggle)
+
+        details_frame = QtWidgets.QFrame()
+        details_frame.setObjectName("discordMachineDetailsFrame")
+        details_layout = QtWidgets.QVBoxLayout(details_frame)
+        details_layout.setContentsMargins(0, 0, 0, 0)
+        details_layout.setSpacing(6)
+        technical_output = QtWidgets.QPlainTextEdit()
+        technical_output.setObjectName("discordMachineTechnicalOutput")
+        technical_output.setReadOnly(True)
+        technical_output.setPlainText(technical_text)
+        technical_output.setMinimumHeight(230)
+        copy_button = QtWidgets.QPushButton("Копировать техническую информацию")
+        copy_button.setObjectName("discordMachineCopyButton")
+        copy_button.clicked.connect(lambda _checked=False: QtWidgets.QApplication.clipboard().setText(technical_output.toPlainText()))
+        details_layout.addWidget(technical_output, 1)
+        details_layout.addWidget(copy_button, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        details_frame.setVisible(False)
+        dialog_layout.addWidget(details_frame, 1)
+
+        def toggle_details(checked: bool) -> None:
+            details_frame.setVisible(checked)
+            details_toggle.setArrowType(QtCore.Qt.ArrowType.DownArrow if checked else QtCore.Qt.ArrowType.RightArrow)
+
+        details_toggle.toggled.connect(toggle_details)
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject)
+        dialog_layout.addWidget(buttons)
+        dialog.exec()
+
+    def start_discord_machine_probe() -> None:
+        if discord_probe_state.get("process") is not None:
+            return
+        command = discord_machine_diagnostics_command(root=root, python_executable=sys.executable, timeout_seconds=4.0)
+        process = QtCore.QProcess(page)
+        discord_probe_state["process"] = process
+        discord_probe_button.setEnabled(False)
+        discord_probe_button.setText("Проверяю…")
+        process.setProgram(command[0])
+        process.setArguments(list(command[1:]))
+        process.setProcessChannelMode(QtCore.QProcess.ProcessChannelMode.SeparateChannels)
+
+        def finish_discord_probe(exit_code: int, _exit_status: Any) -> None:
+            if discord_probe_state.get("process") is not process:
+                return
+            stdout = bytes(process.readAllStandardOutput()).decode("utf-8", errors="replace")
+            stderr = bytes(process.readAllStandardError()).decode("utf-8", errors="replace")
+            discord_probe_state["process"] = None
+            discord_probe_button.setEnabled(True)
+            discord_probe_button.setText("Проверить Discord")
+            technical = stdout.strip()
+            if stderr.strip():
+                technical = (technical + "\n\n[stderr]\n" + stderr.strip()).strip()
+            if exit_code != 0:
+                show_discord_machine_dialog(None, technical, error_text=f"Standalone probe завершился с кодом {exit_code}.")
+            else:
+                try:
+                    payload = parse_discord_machine_diagnostics_json(stdout)
+                except Exception as exc:
+                    show_discord_machine_dialog(None, technical, error_text=f"Некорректный JSON результата: {exc}")
+                else:
+                    pretty = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+                    if stderr.strip():
+                        pretty += "\n\n[stderr]\n" + stderr.strip()
+                    show_discord_machine_dialog(payload, pretty)
+            process.deleteLater()
+
+        def fail_discord_probe(error: Any) -> None:
+            if discord_probe_state.get("process") is None:
+                return
+            stderr = bytes(process.readAllStandardError()).decode("utf-8", errors="replace")
+            discord_probe_state["process"] = None
+            discord_probe_button.setEnabled(True)
+            discord_probe_button.setText("Проверить Discord")
+            show_discord_machine_dialog(None, stderr, error_text=f"Не удалось запустить standalone probe: {error}")
+            process.deleteLater()
+
+        process.finished.connect(finish_discord_probe)
+        process.errorOccurred.connect(fail_discord_probe)
+        process.start()
 
     def selected_target_preset_id() -> str:
         preset_id = target_preset_combo.currentData()
@@ -1085,6 +1234,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         status.setText("Статус: stop requested; ожидается cleanup…")
         request_process_stop(process)
 
+    discord_probe_button.clicked.connect(lambda _checked=False: start_discord_machine_probe())
+
     target_preset_combo.currentIndexChanged.connect(
         lambda _index=0: apply_target_preset(selected_target_preset_id())
     )
@@ -1165,6 +1316,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     status.setMinimumWidth(BLOCKCHECK_LAB_SIDE_MIN_WIDTH)
     layout.addWidget(title)
     layout.addWidget(intro)
+    layout.addWidget(discord_box)
     layout.addWidget(body, 1)
 
     page.setStyleSheet(

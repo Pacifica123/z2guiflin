@@ -91,6 +91,15 @@ QLabel#runtimeStatusIndicator[state="running"] {{ color:{c['statusRunning']}; }}
 QLabel#runtimeStatusIndicator[state="stopped"] {{ color:{c['statusStopped']}; }}
 QLabel#runtimeStatusIndicator[state="mismatch"] {{ color:{c['statusWarning']}; }}
 QLabel#runtimeStatusIndicator[state="unknown"] {{ color:{c['statusUnknown']}; }}
+QGroupBox#discordMachineDiagnosticsBox, QFrame#discordMachineSummaryFrame {{ background:{c['card']}; border:1px solid {c['border']}; border-radius:{r}px; }}
+QPushButton#discordMachineProbeButton {{ color:{c['accent']}; background:transparent; border:1px solid {c['accent']}; border-radius:{max(8,r)}px; }}
+QPushButton#discordMachineProbeButton:hover {{ background:{c['hover']}; }}
+QDialog#discordMachineDiagnosticsDialog {{ background:{c['window']}; }}
+QToolButton#discordMachineDetailsToggle {{ color:{c['accent']}; background:transparent; border:0; text-align:left; }}
+QLabel#discordMachineSummarySeverity {{ color:{c['statusUnknown']}; font-weight:700; }}
+QLabel#discordMachineSummarySeverity[severity="error"] {{ color:{c['statusWarning']}; }}
+QLabel#discordMachineSummarySeverity[severity="warning"] {{ color:{c['statusStopped']}; }}
+QLabel#discordMachineSummarySeverity[severity="ok"] {{ color:{c['statusRunning']}; }}
 '''
 
 def apply_theme_profile(app: Any, profile: ThemeProfile) -> ThemeProfile:

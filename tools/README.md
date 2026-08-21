@@ -13,3 +13,5 @@
 
 Инструменты, обслуживающие сам процесс патчей и рабочие области, лежат отдельно
 в `meta_tools/`.
+- `discord_machine_diagnostics.py` — автономная read-only диагностика Discord на текущей Arch-like машине: установки, updater/process/log context, DNS/TLS/HTTPS/Gateway/CDN и текущие сетевые обходы. Скрипт не зависит от проекта и может запускаться отдельно; подробности — `docs/DISCORD_MACHINE_DIAGNOSTICS.md`.
+
