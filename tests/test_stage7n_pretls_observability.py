@@ -66,7 +66,7 @@ def test_stage7n_runtime_nft_state_is_read_only_text(tmp_path: Path) -> None:
     assert "Runtime nft/NFQUEUE state snapshot" in text
     assert "community-discord-pretls-diagnostic-pktdebug" in text
     assert "capture policy: desktop-early-flow-v1" in text
-    assert "sudo nft -a list table inet zap2_default" in text
+    assert "sudo nft -a list table inet zap2_" in text
     assert "read-only: yes" in text
     assert "executes now: no" in text
 

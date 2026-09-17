@@ -13,7 +13,10 @@ def make_settings_page(settings: Any) -> Any:
     class ThemeToggle(QtWidgets.QAbstractButton):
         def __init__(self): super().__init__(); self.setCheckable(True); self.setFixedSize(48,26); self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         def paintEvent(self,_event):
-            p=QtGui.QPainter(self); p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing); p.setPen(QtCore.Qt.PenStyle.NoPen); p.setBrush(QtGui.QColor("#8e70a0" if self.isChecked() else "#cfc6d4")); p.drawRoundedRect(self.rect(),13,13); p.setBrush(QtGui.QColor("#fffaff")); p.drawEllipse(self.width()-23 if self.isChecked() else 3,3,20,20)
+            colors = theme_profile_from_settings(settings).colors
+            painter=QtGui.QPainter(self); painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing); painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(QtGui.QColor(colors["accent"] if self.isChecked() else colors["border"])); painter.drawRoundedRect(self.rect(),13,13)
+            painter.setBrush(QtGui.QColor(colors["input"])); painter.drawEllipse(self.width()-23 if self.isChecked() else 3,3,20,20)
     page=QtWidgets.QWidget(); layout=QtWidgets.QVBoxLayout(page); layout.setContentsMargins(10,10,10,10); layout.setSpacing(12)
     title=QtWidgets.QLabel("Настройки"); title.setObjectName("pageTitle"); intro=QtWidgets.QLabel("Тема настраивается полностью через семантические цвета и метрики; профиль можно импортировать/экспортировать как JSON."); intro.setWordWrap(True)
     scroll=QtWidgets.QScrollArea(); scroll.setWidgetResizable(True); scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame); body=QtWidgets.QWidget(); bl=QtWidgets.QVBoxLayout(body); bl.setContentsMargins(0,0,6,0)

@@ -27,7 +27,7 @@ def test_workspace_queue_is_stable_and_not_fixed_global_200(tmp_path: Path) -> N
     q1 = resolve_runtime_queue(project, "default")
     q2 = resolve_runtime_queue(project, "default")
     assert q1.qnum == q2.qnum
-    assert q1.source == "workspace-hash"
+    assert q1.source == "owner-workspace-hash"
     assert 200 <= q1.qnum <= 599
 
 

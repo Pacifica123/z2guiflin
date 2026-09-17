@@ -48,7 +48,7 @@ while running:
 
 
 def main() -> int:
-    from zap2_gui.adapters.runtime_apply import RuntimeCommandResult
+    from zap2_gui.adapters.runtime_apply import RuntimeCommandResult, create_runtime_apply_plan
     from zap2_gui.adapters.runtime_default import (
         DEFAULT_WORKFLOW_MARKER,
         execute_default_workflow,
@@ -87,9 +87,21 @@ def main() -> int:
             return 1
 
         calls: list[tuple[str, ...]] = []
+        table_text = ""
 
         def fake_runner(argv: tuple[str, ...]) -> RuntimeCommandResult:
+            nonlocal table_text
             calls.append(argv)
+            if argv[:4] == ("nft", "list", "table", "inet"):
+                if not table_text:
+                    return RuntimeCommandResult(argv=argv, returncode=1, stderr="Error: No such file or directory")
+                return RuntimeCommandResult(argv=argv, returncode=0, stdout=table_text)
+            if argv[:3] == ("nft", "--check", "-f"):
+                return RuntimeCommandResult(argv=argv, returncode=0)
+            if argv[:2] == ("nft", "-f"):
+                transaction = Path(argv[2]).read_text(encoding="utf-8")
+                table_text = "" if transaction.lstrip().startswith("delete table") else transaction
+                return RuntimeCommandResult(argv=argv, returncode=0)
             return RuntimeCommandResult(argv=argv, returncode=0)
 
         confirm_runtime_plan(project, start_plan.plan_id)
@@ -114,25 +126,26 @@ def main() -> int:
             print("Default stop должен связывать runtime-stop и owner-rules-revert")
             return 1
         confirm_runtime_plan(project, stop_plan.plan_id)
-        stop_calls: list[tuple[str, ...]] = []
-
-        def fake_revert(argv: tuple[str, ...]) -> RuntimeCommandResult:
-            stop_calls.append(argv)
-            return RuntimeCommandResult(argv=argv, returncode=0)
-
+        stop_call_index = len(calls)
         stopped = execute_default_workflow(
             project,
             action="stop",
             profile_id="default",
             confirm_plan_id=stop_plan.plan_id,
-            apply_runner=fake_revert,
+            apply_runner=fake_runner,
             allow_without_root=True,
         )
+        stop_calls = calls[stop_call_index:]
         if stopped.state != "stopped" or stopped.apply_result is None or stopped.apply_result.state != "reverted":
             print("Fake default-stop должен остановить session и выполнить revert")
             return 1
-        if stop_calls != [("nft", "delete", "table", "inet", "zap2_default")]:
-            print("Default stop должен удалять только owned nft table")
+        owned_table = create_runtime_apply_plan(project, action="apply", profile_id="default").nft_table
+        if len(stop_calls) != 3 or stop_calls[0] != ("nft", "list", "table", "inet", owned_table):
+            print("Default stop должен сначала проверить только свою owner-scoped nft table")
+            return 1
+        revert_transactions = [Path(call[2]).read_text(encoding="utf-8") for call in stop_calls if call[:2] == ("nft", "-f")]
+        if revert_transactions != [f"delete table inet {owned_table}\n"]:
+            print("Default stop должен удалять только owner-scoped nft table через checked batch")
             return 1
         workflow_state = json.loads(stopped.workflow_state_path.read_text(encoding="utf-8"))
         if workflow_state.get("containsUpstreamInstallerScript") is not False or workflow_state.get("usesServiceMode") is not False:

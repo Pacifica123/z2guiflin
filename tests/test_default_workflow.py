@@ -54,12 +54,32 @@ exit 1
     return binary
 
 
-def _ok_runner(calls: list[tuple[str, ...]]):
-    def run(argv: tuple[str, ...]) -> RuntimeCommandResult:
-        calls.append(argv)
+class FakeNftRunner:
+    def __init__(self, calls: list[tuple[str, ...]]):
+        self.calls = calls
+        self.exists = False
+        self.table_text = ""
+
+    def __call__(self, argv: tuple[str, ...]) -> RuntimeCommandResult:
+        self.calls.append(argv)
+        if argv[:4] == ("nft", "list", "table", "inet"):
+            if not self.exists:
+                return RuntimeCommandResult(argv=argv, returncode=1, stderr="Error: No such file or directory")
+            return RuntimeCommandResult(argv=argv, returncode=0, stdout=self.table_text)
+        if argv[:3] == ("nft", "--check", "-f"):
+            return RuntimeCommandResult(argv=argv, returncode=0)
+        if argv[:2] == ("nft", "-f"):
+            text = Path(argv[2]).read_text(encoding="utf-8")
+            if text.lstrip().startswith("delete table"):
+                self.exists = False; self.table_text = ""
+            else:
+                self.exists = True; self.table_text = text
+            return RuntimeCommandResult(argv=argv, returncode=0)
         return RuntimeCommandResult(argv=argv, returncode=0)
 
-    return run
+
+def _ok_runner(calls: list[tuple[str, ...]]):
+    return FakeNftRunner(calls)
 
 
 def test_default_start_plan_prepares_composite_and_child_plans(tmp_path):
@@ -169,8 +189,8 @@ def test_default_start_rolls_back_owner_rules_when_session_fails(tmp_path):
     assert result.state == "failed-rolled-back"
     assert result.rollback_result is not None
     assert result.rollback_result.state == "reverted"
-    assert len(calls) == 4
-    assert calls[-1] == ("nft", "delete", "table", "inet", "zap2_default")
+    assert len(calls) == 6
+    assert calls[-1][0:2] == ("nft", "-f")
     state = json.loads(result.workflow_state_path.read_text(encoding="utf-8"))
     assert state["state"] == "failed-rolled-back"
     assert state["ownerRulesRollbackResult"]["state"] == "reverted"
@@ -182,12 +202,14 @@ def test_default_stop_stops_session_and_reverts_owner_rules(tmp_path):
     _install_fake_nfqws2(project)
     start_plan = prepare_default_workflow_plan(project, action="start", profile_id="default")
     confirm_runtime_plan(project, start_plan.plan_id)
+    nft_calls: list[tuple[str, ...]] = []
+    nft_runner = _ok_runner(nft_calls)
     execute_default_workflow(
         project,
         action="start",
         profile_id="default",
         confirm_plan_id=start_plan.plan_id,
-        apply_runner=_ok_runner([]),
+        apply_runner=nft_runner,
         allow_without_root=True,
     )
 
@@ -199,7 +221,7 @@ def test_default_stop_stops_session_and_reverts_owner_rules(tmp_path):
         action="stop",
         profile_id="default",
         confirm_plan_id=stop_plan.plan_id,
-        apply_runner=_ok_runner(calls),
+        apply_runner=nft_runner,
         allow_without_root=True,
     )
 
@@ -208,7 +230,9 @@ def test_default_stop_stops_session_and_reverts_owner_rules(tmp_path):
     assert result.session_result.state == "stopped"
     assert result.apply_result is not None
     assert result.apply_result.state == "reverted"
-    assert calls == [("nft", "delete", "table", "inet", "zap2_default")]
+    assert nft_calls[-3][0:4] == ("nft", "list", "table", "inet")
+    assert nft_calls[-2][0:3] == ("nft", "--check", "-f")
+    assert nft_calls[-1][0:2] == ("nft", "-f")
     state = json.loads(result.workflow_state_path.read_text(encoding="utf-8"))
     assert state["state"] == "stopped"
     assert "default-stop-stopped" in result.log_path.read_text(encoding="utf-8")

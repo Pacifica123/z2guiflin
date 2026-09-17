@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import os
+import subprocess
 from pathlib import Path
+import os
+import subprocess
 import json
 import os
 import signal
@@ -43,7 +47,7 @@ def test_blockcheck_options_are_batch_and_youtube_oriented() -> None:
     assert env["ENABLE_HTTPS_TLS12"] == "1"
     assert env["ENABLE_HTTPS_TLS13"] == "1"
     assert env["ENABLE_HTTP3"] == "1"
-    assert env["SKIP_DNSCHECK"] == "1"
+    assert env["SKIP_DNSCHECK"] == "0"
     assert env["SCANLEVEL"] == "quick"
 
 
@@ -66,7 +70,9 @@ def test_blockcheck_command_uses_sudo_askpass_and_state_dir() -> None:
 
     assert command.argv[:3] == ("sudo", "-A", "env")
     assert "/bin/sh" in command.argv
-    assert str(ROOT / "core" / "zapret2" / "blockcheck2.sh") in command.argv
+    assert str(ROOT / "tools" / "blockcheck_target_preflight.sh") in command.argv
+    assert command.script_env["ZAP2_BLOCKCHECK_SCRIPT"] == str(ROOT / "core" / "zapret2" / "blockcheck2.sh")
+    assert command.script_env["ZAP2_TARGET_HOSTS"] == "youtube.com"
     assert "SUDO_ASKPASS" in command.env_overrides
     assert any(item.startswith("ZAPRET_RW=") and "/.zap2/blockcheck/rw" in item for item in command.argv)
     assert any(item == "DOMAINS=youtube.com" for item in command.argv)
@@ -487,3 +493,79 @@ def test_blockcheck_lab_widget_exposes_service_target_selector() -> None:
     assert "SERVICE_TARGET_CUSTOM" in source
     assert "domains_edit.setReadOnly(True)" in source
     assert "state[\"custom_targets\"]" in source
+
+
+def test_target_dns_guard_fails_before_upstream_script_when_mdig_has_no_answer(tmp_path: Path) -> None:
+    core = tmp_path / "core"
+    (core / "mdig").mkdir(parents=True)
+    mdig = core / "mdig" / "mdig"
+    mdig.write_text("#!/bin/sh\ncat >/dev/null\nexit 0\n", encoding="utf-8")
+    mdig.chmod(0o755)
+    upstream = tmp_path / "upstream.sh"
+    marker = tmp_path / "upstream-ran"
+    upstream.write_text(f"#!/bin/sh\ntouch {marker}\n", encoding="utf-8")
+    upstream.chmod(0o755)
+    env = dict(os.environ)
+    env.update({
+        "ZAPRET_BASE": str(core),
+        "ZAP2_BLOCKCHECK_SCRIPT": str(upstream),
+        "ZAP2_TARGET_HOSTS": "youtube.com",
+        "IPVS": "4",
+    })
+    completed = subprocess.run(
+        ["/bin/sh", str(ROOT / "tools" / "blockcheck_target_preflight.sh")],
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, check=False,
+    )
+    assert completed.returncode == 6
+    assert "target DNS preflight FAILED" in completed.stderr
+    assert "firewall was not touched" in completed.stderr
+    assert not marker.exists()
+
+
+def test_target_dns_guard_execs_upstream_after_resolution(tmp_path: Path) -> None:
+    core = tmp_path / "core"
+    (core / "mdig").mkdir(parents=True)
+    mdig = core / "mdig" / "mdig"
+    mdig.write_text("#!/bin/sh\ncat >/dev/null\nprintf '203.0.113.10\\n'\n", encoding="utf-8")
+    mdig.chmod(0o755)
+    upstream = tmp_path / "upstream.sh"
+    upstream.write_text("#!/bin/sh\necho UPSTREAM-RAN\n", encoding="utf-8")
+    upstream.chmod(0o755)
+    env = dict(os.environ)
+    env.update({
+        "ZAPRET_BASE": str(core),
+        "ZAP2_BLOCKCHECK_SCRIPT": str(upstream),
+        "ZAP2_TARGET_HOSTS": "youtube.com",
+        "IPVS": "4",
+    })
+    completed = subprocess.run(
+        ["/bin/sh", str(ROOT / "tools" / "blockcheck_target_preflight.sh")],
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, check=False,
+    )
+    assert completed.returncode == 0
+    assert "target DNS preflight OK" in completed.stdout
+    assert "UPSTREAM-RAN" in completed.stdout
+
+
+def test_target_dns_wrapper_stops_before_upstream_when_mdig_has_no_answer(tmp_path: Path) -> None:
+    fake_base = tmp_path / "zapret2"
+    (fake_base / "mdig").mkdir(parents=True)
+    mdig = fake_base / "mdig" / "mdig"
+    mdig.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    mdig.chmod(0o755)
+    marker = tmp_path / "upstream-ran"
+    upstream = tmp_path / "blockcheck2.sh"
+    upstream.write_text(f"#!/bin/sh\necho ran > {marker}\n", encoding="utf-8")
+    upstream.chmod(0o755)
+    wrapper = ROOT / "tools" / "blockcheck_target_preflight.sh"
+    env = dict(os.environ)
+    env.update({
+        "ZAPRET_BASE": str(fake_base),
+        "ZAP2_BLOCKCHECK_SCRIPT": str(upstream),
+        "ZAP2_TARGET_HOSTS": "youtube.com",
+        "IPVS": "4",
+    })
+    completed = subprocess.run(["/bin/sh", str(wrapper)], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    assert completed.returncode == 6
+    assert "target DNS preflight FAILED" in completed.stderr
+    assert not marker.exists()

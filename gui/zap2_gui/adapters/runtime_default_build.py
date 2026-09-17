@@ -24,7 +24,8 @@ from .build_dependencies import (
     run_build_dependency_preflight,
 )
 from .local_build import BuildCommand, LocalBuildPlan, create_local_build_plan, inspect_artifacts
-from .runtime_state import append_runtime_event, ensure_runtime_store, plan_payload_hash
+from .runtime_state import append_runtime_event, ensure_runtime_store, plan_payload_hash, atomic_write_json
+from .core_provenance import write_core_build_receipt
 from .workspace_profiles import load_workspace_catalog
 from ..project_paths import discover_layout
 
@@ -175,7 +176,7 @@ def _utc_now() -> str:
 
 
 def _write_json(path: Path, data: dict[str, Any]) -> None:
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(path, data)
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -455,6 +456,10 @@ def execute_default_build(
         state = "failed"
         message = "build command completed, but expected executable artifacts are missing"
 
+    receipt_path: Path | None = None
+    if state == "built":
+        receipt_path = write_core_build_receipt(paths.root, (path for path, exists, _exec, _size in statuses if exists), local_plan.target)
+
     state_path = paths.sessions_dir / f"{profile_id}.default-build.json"
     state_record = {
         "schemaVersion": DEFAULT_BUILD_SCHEMA_VERSION,
@@ -476,6 +481,7 @@ def execute_default_build(
             {"path": str(path.relative_to(paths.root)) if path.is_relative_to(paths.root) else str(path), "exists": exists, "executable": executable, "sizeBytes": size}
             for path, exists, executable, size in statuses
         ],
+        "coreBuildReceipt": str(receipt_path.relative_to(paths.root)) if receipt_path else None,
         "requiresSudo": False,
         "mutatesFirewallOrServicesNow": False,
         "managesServiceNow": False,

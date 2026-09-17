@@ -65,7 +65,7 @@ profile/strategy -> runtime plan -> owner confirmation -> execute locally -> log
 
 После Stage 12 runtime lifecycle получает отдельный слой системных правил. Apply/revert больше не являются абстрактной строкой в runtime plan: они представлены typed-plan в `runtime_apply.py`, сохраняются в `.zap2/runtime`, подтверждаются через `planHash` и только затем могут быть исполнены владельцем.
 
-Автоматические проверки не исполняют реальные `nft`-команды. Первый backend создаёт и удаляет только owned nftables table `inet zap2_default`, чтобы будущий default start/stop workflow мог включать apply/revert без upstream installer scripts.
+Автоматические проверки не исполняют реальные `nft`-команды. Первый backend создаёт и удаляет только workspace-owned nftables table `inet zap2_u<uid>_<workspace>_<profile>` с owner marker. Apply выполняется единым checked batch, а read-only reconciliation не удаляет unknown/conflicting resources. Подробности: `docs/RUNTIME_OWNERSHIP_RECOVERY.md`.
 
 ## Stage 13: service plans
 

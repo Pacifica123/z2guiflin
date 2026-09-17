@@ -23,7 +23,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 from .runtime_plan_generator import GeneratedRuntimePlan, create_runtime_plan
-from .runtime_queue import resolve_runtime_queue, find_nfqueue_processes
+from .runtime_queue import resolve_runtime_queue, find_nfqueue_processes, ensure_nfqueue_available
+from .core_provenance import verify_core_bundle
 from .strategy_file_inputs import split_strategy_file_arg, strategy_file_dependency_error_text
 from .runtime_state import (
     append_runtime_event,
@@ -31,11 +32,12 @@ from .runtime_state import (
     generated_runtime_plan_to_payload,
     plan_payload_hash,
     runtime_store_paths,
+    atomic_write_json,
 )
 from ..project_paths import discover_layout
 
 SESSION_STAGE = "v0.3-beta_stage_11"
-SESSION_SCHEMA_VERSION = 1
+SESSION_SCHEMA_VERSION = 2
 SESSION_MARKER = "zap2-runtime-session-v1"
 PROCESS_START_GRACE_SECONDS = 0.25
 PROCESS_STOP_TIMEOUT_SECONDS = 5.0
@@ -215,7 +217,7 @@ def _utc_now() -> str:
 
 
 def _write_json(path: Path, data: dict[str, Any]) -> None:
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(path, data)
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -670,6 +672,9 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
             "nfqws2 binary отсутствует или не исполняемый: "
             f"{binary_path}. Сначала соберите build target {plan.profile.build_target}."
         )
+    provenance = verify_core_bundle(paths.root, binary_path)
+    if provenance.hard_error:
+        raise ValueError(f"core provenance gate: {provenance.message}")
 
     session_path = paths.sessions_dir / f"{profile_id}.session.json"
     args_path = paths.sessions_dir / f"{profile_id}.nfqws2.args"
@@ -755,12 +760,86 @@ def _pid_alive(pid: int) -> bool:
 
 def _proc_cmdline(pid: int) -> tuple[str, ...] | None:
     proc_cmdline = Path("/proc") / str(pid) / "cmdline"
-    if not proc_cmdline.exists():
+    try:
+        raw = proc_cmdline.read_bytes()
+    except (FileNotFoundError, ProcessLookupError, PermissionError, OSError):
         return None
-    raw = proc_cmdline.read_bytes()
     if not raw:
         return ()
     return tuple(part.decode("utf-8", errors="replace") for part in raw.split(b"\0") if part)
+
+
+def _boot_id() -> str | None:
+    try:
+        value = Path("/proc/sys/kernel/random/boot_id").read_text(encoding="ascii").strip()
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+    return value or None
+
+
+def _proc_starttime(pid: int) -> str | None:
+    """Return Linux proc starttime (clock ticks since boot) for PID.
+
+    Field 22 must be parsed after the closing ``)`` because comm can contain
+    spaces and parentheses. Missing/denied proc data is intentionally unknown.
+    """
+
+    try:
+        text = (Path("/proc") / str(pid) / "stat").read_text(encoding="utf-8", errors="replace")
+    except (FileNotFoundError, ProcessLookupError, PermissionError, OSError):
+        return None
+    close = text.rfind(")")
+    if close < 0:
+        return None
+    fields_after_comm = text[close + 2 :].split()
+    # field 3 (state) is index 0 here; field 22 (starttime) is index 19.
+    if len(fields_after_comm) <= 19:
+        return None
+    return fields_after_comm[19]
+
+
+def _proc_executable(pid: int) -> str | None:
+    try:
+        return os.path.realpath(os.readlink(Path("/proc") / str(pid) / "exe"))
+    except (FileNotFoundError, ProcessLookupError, PermissionError, OSError):
+        return None
+
+
+def _cmdline_digest(cmdline: tuple[str, ...] | None) -> str | None:
+    if not cmdline:
+        return None
+    raw = b"\0".join(part.encode("utf-8", errors="surrogatepass") for part in cmdline)
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _file_sha256(path: Path) -> str | None:
+    try:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+
+
+def _capture_process_identity(pid: int, binary_path: Path) -> dict[str, Any] | None:
+    cmdline = _proc_cmdline(pid)
+    boot_id = _boot_id()
+    starttime = _proc_starttime(pid)
+    proc_exe = _proc_executable(pid)
+    cmdline_sha = _cmdline_digest(cmdline)
+    if not boot_id or not starttime or not proc_exe or not cmdline_sha:
+        return None
+    return {
+        "bootId": boot_id,
+        "procStartTime": starttime,
+        "procExecutable": proc_exe,
+        "cmdlineSha256": cmdline_sha,
+        # Diagnostic/provenance only. A binary may legitimately be replaced
+        # after start; stop identity therefore does not compare this hash.
+        "binarySha256AtStart": _file_sha256(binary_path),
+    }
 
 
 def _path_belongs_to_root(path_value: object, root: Path) -> bool:
@@ -778,22 +857,62 @@ def _path_belongs_to_root(path_value: object, root: Path) -> bool:
 
 
 def _record_matches_process(record: dict[str, Any]) -> bool:
-    pid = int(record.get("pid", 0))
-    binary_path = str(record.get("binaryPath", ""))
-    cmdline = _proc_cmdline(pid)
-    if cmdline is None:
-        # На системах без /proc опираемся на PID только после проверки session marker.
-        return True
-    if not cmdline:
+    """Verify that PID is the exact Linux task created for this session.
+
+    Old schema-1 records intentionally fail closed: a numeric PID plus argv
+    text is not enough to safely send signals after reboot/PID reuse.
+    """
+
+    try:
+        pid = int(record.get("pid", 0))
+    except (TypeError, ValueError):
         return False
-    expected = os.path.realpath(binary_path)
-    for part in cmdline:
-        candidate = part[1:] if part.startswith("@") else part
-        if not candidate.startswith("/"):
-            continue
-        if os.path.realpath(candidate) == expected:
-            return True
-    return False
+    identity = record.get("processIdentity")
+    if pid <= 1 or not isinstance(identity, dict):
+        return False
+    current_boot = _boot_id()
+    current_start = _proc_starttime(pid)
+    current_exe = _proc_executable(pid)
+    current_cmdline = _cmdline_digest(_proc_cmdline(pid))
+    if not all((current_boot, current_start, current_exe, current_cmdline)):
+        return False
+    return (
+        str(identity.get("bootId", "")) == current_boot
+        and str(identity.get("procStartTime", "")) == current_start
+        and os.path.realpath(str(identity.get("procExecutable", ""))) == current_exe
+        and str(identity.get("cmdlineSha256", "")) == current_cmdline
+    )
+
+
+def _signal_verified_process(record: dict[str, Any], sig: int) -> None:
+    """Signal the recorded task, using pidfd when Python/kernel provide it.
+
+    Identity is checked before and after pidfd_open. Without pidfd we perform a
+    second check immediately before os.kill. Any uncertainty fails closed.
+    """
+
+    pid = int(record.get("pid", 0))
+    if not _record_matches_process(record):
+        raise ValueError("PID identity no longer matches recorded runtime session")
+
+    pidfd_open = getattr(os, "pidfd_open", None)
+    pidfd_send_signal = getattr(signal, "pidfd_send_signal", None)
+    if callable(pidfd_open) and callable(pidfd_send_signal):
+        try:
+            fd = pidfd_open(pid, 0)
+        except OSError as exc:
+            raise ValueError(f"cannot open pidfd for verified session pid {pid}: {exc}") from exc
+        try:
+            if not _record_matches_process(record):
+                raise ValueError("PID identity changed while opening pidfd; signal refused")
+            pidfd_send_signal(fd, sig, None, 0)
+            return
+        finally:
+            os.close(fd)
+
+    if not _record_matches_process(record):
+        raise ValueError("PID identity changed before signal; signal refused")
+    os.kill(pid, sig)
 
 
 def _load_session_record(path: Path) -> dict[str, Any] | None:
@@ -835,10 +954,10 @@ def runtime_session_status(root: Path | None = None, profile_id: str = "default"
         message = "session ранее остановлена runner-ом"
     elif alive and matches:
         state = "running"
-        message = "recorded process alive and matches session binary"
+        message = "recorded process alive and exact process identity matches"
     elif alive and not matches:
         state = "unknown"
-        message = "PID жив, но process command не совпадает с session record; stop запрещён"
+        message = "PID жив, но точная process identity не совпадает/неизвестна; stop запрещён"
     else:
         state = "stale"
         message = "session record есть, но процесс не найден"
@@ -874,6 +993,10 @@ def start_runtime_session(root: Path | None = None, profile_id: str = "default")
         )
 
     config = build_runtime_session_config(paths.root, profile_id)
+    # Re-check immediately before Popen. A positive /proc match means this
+    # queue is already owned elsewhere; fail closed instead of relying on
+    # nfq_create_queue() to fail after firewall apply.
+    ensure_nfqueue_available(config.nfqueue_num)
     _write_args_file(config)
     config.stdout_log_path.parent.mkdir(parents=True, exist_ok=True)
     config.stderr_log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -951,6 +1074,7 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         process_group_id = os.getpgid(pid)
     except OSError:
         process_group_id = None
+    provenance = verify_core_bundle(config.root_path, config.binary_path)
     return {
         "schemaVersion": SESSION_SCHEMA_VERSION,
         "stage": SESSION_STAGE,
@@ -964,6 +1088,7 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "pid": pid,
         "processGroupId": process_group_id,
         "startedAt": _utc_now(),
+        "processIdentity": _capture_process_identity(pid, config.binary_path),
         "binaryPath": str(config.binary_path),
         "cwd": str(config.cwd),
         "argv": list(config.argv),
@@ -971,6 +1096,11 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "nfqueueNum": config.nfqueue_num,
         "nfqueueSource": config.nfqueue_source,
         "nfqueueExistingProcessesAtStart": list(find_nfqueue_processes(config.nfqueue_num)),
+        "coreProvenance": {
+            "state": provenance.state,
+            "message": provenance.message,
+            "receiptPath": str(provenance.receipt_path),
+        },
         "sessionInputsDir": str(config.session_inputs_dir),
         "publicSessionInputsDir": str(config.public_session_inputs_dir) if config.public_session_inputs_dir else None,
         "hostlistInputPaths": [str(path) for path in config.hostlist_input_paths],
@@ -986,7 +1116,8 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "stopPolicy": {
             "stopsOnlyRecordedPid": True,
             "requiresOwnedMarker": True,
-            "checksProcCmdlineWhenAvailable": True,
+            "requiresExactProcessIdentity": True,
+            "usesPidfdWhenAvailable": True,
             "termTimeoutSeconds": PROCESS_STOP_TIMEOUT_SECONDS,
         },
         "mutatesFirewallOrServicesNow": False,
@@ -1077,12 +1208,12 @@ def stop_runtime_session(root: Path | None = None, profile_id: str = "default") 
         return RuntimeSessionResult("stop", "stale", profile_id, "процесс уже не существует; signal не отправлялся", session_path, pid, plan_id, plan_hash, log_path)
 
     if not _record_matches_process(record):
-        raise ValueError("PID из session state не совпадает с recorded binary; stop отклонён, чтобы не остановить чужой процесс")
+        raise ValueError("PID из session state не подтверждён exact process identity; stop отклонён, чтобы не остановить чужой процесс")
 
-    os.kill(pid, signal.SIGTERM)
+    _signal_verified_process(record, signal.SIGTERM)
     terminated = _wait_until_dead(pid, PROCESS_STOP_TIMEOUT_SECONDS)
     if not terminated:
-        os.kill(pid, signal.SIGKILL)
+        _signal_verified_process(record, signal.SIGKILL)
         terminated = _wait_until_dead(pid, PROCESS_STOP_TIMEOUT_SECONDS)
 
     updated = dict(record)

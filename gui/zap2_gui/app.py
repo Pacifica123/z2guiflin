@@ -44,6 +44,7 @@ from .adapters.runtime_plan_generator import (
 from .adapters.runtime_apply import (
     execute_runtime_owner_rules,
     prepare_runtime_owner_rules_plan,
+    reconcile_runtime_owner_rules,
     runtime_apply_plan_to_text,
 )
 from .adapters.runtime_state import (
@@ -162,6 +163,17 @@ from .adapters.discord_tunnel import (
     tunnel_connections_to_text,
 )
 from .adapters.strategy_parser_preflight import strategy_parser_preflight_to_text
+from .adapters.security_blocklist import (
+    apply_security_blocklist,
+    install_security_blocklist_timer,
+    refresh_security_blocklist,
+    remove_security_blocklist,
+    remove_security_blocklist_timer,
+    security_blocklist_status,
+    security_blocklist_timer_plan,
+    set_security_blocklist_enabled,
+    update_security_blocklist,
+)
 from .adapters.tor_backends import (
     DEFAULT_TOR_BACKEND,
     DEFAULT_TOR_SOCKS_PORT,
@@ -258,6 +270,17 @@ def build_parser() -> argparse.ArgumentParser:
         default="all",
         help="цель для --build-plan: all, nfqws2, ip2net, mdig или clean",
     )
+
+    parser.add_argument("--security-blocklist-status", action="store_true", help="показать config/cache state security IP blocklist без сетевых изменений")
+    parser.add_argument("--security-blocklist-enable", action="store_true", help="включить outbound security blocklist policy в локальном config; apply отдельно")
+    parser.add_argument("--security-blocklist-enable-inbound", action="store_true", help="включить также inbound blocking (host-wide INPUT); требует осознанного выбора")
+    parser.add_argument("--security-blocklist-disable", action="store_true", help="выключить policy в config и удалить только owned nft table")
+    parser.add_argument("--security-blocklist-update", action="store_true", help="скачать/валидировать external lists и атомарно заменить last-known-good cache; firewall не меняется")
+    parser.add_argument("--security-blocklist-apply", action="store_true", help="применить validated cache в isolated owned nft table; требует root")
+    parser.add_argument("--security-blocklist-refresh", action="store_true", help="periodic path: update с LKG fallback + apply; требует root")
+    parser.add_argument("--security-blocklist-timer-plan", action="store_true", help="показать systemd service/timer для 2h periodic refresh; без установки")
+    parser.add_argument("--security-blocklist-install-timer", action="store_true", help="установить workspace-scoped systemd timer; требует root")
+    parser.add_argument("--security-blocklist-remove-timer", action="store_true", help="удалить только workspace-scoped blocklist timer; firewall не меняет")
 
 
     parser.add_argument(
@@ -356,6 +379,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--runtime-revert",
         action="store_true",
         help="исполнить подтверждённый owner-rules revert plan; требует sudo локально",
+    )
+    parser.add_argument(
+        "--runtime-reconcile",
+        action="store_true",
+        help="read-only reconcile saved owner state с observed nft table; unknown/conflict не удаляются автоматически",
     )
     parser.add_argument(
         "--confirm",
@@ -931,7 +959,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--blockcheck-dnscheck",
         action="store_true",
-        help="включить upstream DNS precheck; по умолчанию пропускается",
+        help="совместимость: upstream DNS precheck уже включён по умолчанию",
+    )
+    parser.add_argument(
+        "--blockcheck-skip-dnscheck",
+        action="store_true",
+        help="явно пропустить upstream DNS precheck; mdig всё равно нужен для strategy tests",
     )
     parser.add_argument(
         "--blockcheck-repeats",
@@ -1035,7 +1068,7 @@ def _blockcheck_options_from_args(args: argparse.Namespace) -> BlockcheckOptions
         enable_https_tls12=not args.blockcheck_disable_tls12,
         enable_https_tls13=not args.blockcheck_disable_tls13,
         enable_http3=not args.blockcheck_disable_http3,
-        skip_dnscheck=not args.blockcheck_dnscheck,
+        skip_dnscheck=bool(args.blockcheck_skip_dnscheck and not args.blockcheck_dnscheck),
         repeats=args.blockcheck_repeats,
         curl_max_time=args.blockcheck_curl_timeout,
         dead_target_guard=_blockcheck_dead_target_guard_from_args(args),
@@ -1060,6 +1093,46 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2
+
+    if args.security_blocklist_status:
+        print(security_blocklist_status().to_text()); return 0
+    if args.security_blocklist_enable or args.security_blocklist_enable_inbound:
+        set_security_blocklist_enabled(None, True, inbound=bool(args.security_blocklist_enable_inbound), outbound=True)
+        print(security_blocklist_status().to_text()); return 0
+    if args.security_blocklist_disable:
+        try:
+            set_security_blocklist_enabled(None, False)
+            print(remove_security_blocklist().to_text()); return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr); return 2
+    if args.security_blocklist_update:
+        try:
+            print(update_security_blocklist().to_text()); return 0
+        except (OSError, ValueError) as exc:
+            print(str(exc), file=sys.stderr); return 2
+    if args.security_blocklist_apply:
+        try:
+            print(apply_security_blocklist().to_text()); return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr); return 2
+    if args.security_blocklist_refresh:
+        try:
+            print(refresh_security_blocklist().to_text()); return 0
+        except (OSError, ValueError) as exc:
+            print(str(exc), file=sys.stderr); return 2
+    if args.security_blocklist_timer_plan:
+        service_name,timer_name,service,timer=security_blocklist_timer_plan()
+        print(f"===== {service_name} =====\n{service}\n===== {timer_name} =====\n{timer}"); return 0
+    if args.security_blocklist_install_timer:
+        try:
+            print(install_security_blocklist_timer().to_text()); return 0
+        except (OSError, ValueError) as exc:
+            print(str(exc), file=sys.stderr); return 2
+    if args.security_blocklist_remove_timer:
+        try:
+            print(remove_security_blocklist_timer().to_text()); return 0
+        except (OSError, ValueError) as exc:
+            print(str(exc), file=sys.stderr); return 2
 
 
     if args.launch_composer_status:
@@ -1439,6 +1512,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.runtime_revert:
         try:
             print(execute_runtime_owner_rules(action="revert", profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.runtime_reconcile:
+        try:
+            print(reconcile_runtime_owner_rules(profile_id=args.profile).to_text())
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)

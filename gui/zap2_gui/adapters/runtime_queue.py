@@ -6,10 +6,10 @@ manually-started/stale nfqws2 process can keep queue 200 bound outside the
 current workspace state. The next GUI start then reaches nfq_create_queue() and
 fails with EPERM, while apply/revert still works correctly.
 
-This module gives every workspace/profile pair a deterministic queue number in a
-small private range. The number is stable for a workspace, appears in both
-nftables apply plan and nfqws2 session args, and can be overridden explicitly
-with ZAP2_NFQUEUE_NUM for local diagnostics.
+This module gives every runtime owner identity (desktop UID + workspace + profile)
+a deterministic queue number in a small private range. The number is stable for
+that identity, appears in both nftables apply plan and nfqws2 session args, and
+can be overridden explicitly with ZAP2_NFQUEUE_NUM for local diagnostics.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Iterable
 
 from ..project_paths import discover_layout
+from .runtime_owner import runtime_owner_identity
 
 NFQUEUE_BASE = 200
 NFQUEUE_SPAN = 400
@@ -75,13 +76,14 @@ def _parse_env_qnum(value: str | None) -> int | None:
 
 
 def _stable_workspace_qnum(root: Path, profile_id: str) -> int:
-    key = f"{root.resolve()}|{profile_id}".encode("utf-8")
+    identity = runtime_owner_identity(root, profile_id)
+    key = identity.owner_key.encode("utf-8")
     digest = hashlib.sha256(key).hexdigest()
     return NFQUEUE_BASE + (int(digest[:12], 16) % NFQUEUE_SPAN)
 
 
 def resolve_runtime_queue(root: Path | None = None, profile_id: str = "default") -> RuntimeQueueSelection:
-    """Resolve stable NFQUEUE number for one workspace/profile.
+    """Resolve stable NFQUEUE number for one runtime owner identity.
 
     The default is no longer the global queue 200. This intentionally avoids
     collisions with older experimental sessions that may still be bound to 200
@@ -92,7 +94,7 @@ def resolve_runtime_queue(root: Path | None = None, profile_id: str = "default")
     if env_qnum is not None:
         return RuntimeQueueSelection(profile_id=profile_id, qnum=env_qnum, source="env")
     layout = discover_layout(root)
-    return RuntimeQueueSelection(profile_id=profile_id, qnum=_stable_workspace_qnum(layout.root, profile_id), source="workspace-hash")
+    return RuntimeQueueSelection(profile_id=profile_id, qnum=_stable_workspace_qnum(layout.root, profile_id), source="owner-workspace-hash")
 
 
 def resolve_nfqueue_num(root: Path | None = None, profile_id: str = "default") -> int:
@@ -161,3 +163,23 @@ def find_nfqueue_processes(qnum: int) -> tuple[dict[str, object], ...]:
         if direct or via_args:
             matches.append({"pid": pid, "cmdline": list(cmdline), "match": "direct" if direct else "args-file"})
     return tuple(matches)
+
+
+def ensure_nfqueue_available(qnum: int) -> None:
+    """Fail before launch when another nfqws2 already owns the queue.
+
+    The /proc scan is best-effort, but a positive match is actionable evidence.
+    We intentionally do not allocate a random replacement queue because queue
+    identity is part of the confirmed runtime plan.
+    """
+
+    conflicts = find_nfqueue_processes(qnum)
+    if not conflicts:
+        return
+    details = "; ".join(
+        f"pid={item.get('pid')} ({item.get('match')})" for item in conflicts[:8]
+    )
+    raise ValueError(
+        f"NFQUEUE {qnum} уже используется другим nfqws2 process: {details}. "
+        "Остановите внешний/старый runtime или выберите явный ZAP2_NFQUEUE_NUM и заново подтвердите plan."
+    )

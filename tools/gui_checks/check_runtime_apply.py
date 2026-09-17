@@ -51,16 +51,27 @@ def main() -> int:
             print("Stage 12 apply plan содержит запрещённые команды:", ", ".join(bad))
             return 1
         expected_qnum = resolve_nfqueue_num(project, "default")
-        if "nft add table inet zap2_default" not in command_text or f"queue num {expected_qnum} bypass" not in command_text:
-            print(f"Apply plan должен явно использовать отдельную nft table и workspace NFQUEUE {expected_qnum}")
+        if f"nft add table inet {plan.nft_table}" not in command_text or f"queue num {expected_qnum} bypass" not in command_text:
+            print(f"Apply plan должен явно использовать owner-scoped nft table и workspace NFQUEUE {expected_qnum}")
             return 1
 
         prepared = prepare_runtime_owner_rules_plan(project, action="apply", profile_id="default")
         confirm_runtime_plan(project, prepared.plan_id)
         calls: list[tuple[str, ...]] = []
+        table_text = ""
 
         def fake_runner(argv: tuple[str, ...]) -> RuntimeCommandResult:
+            nonlocal table_text
             calls.append(argv)
+            if argv[:4] == ("nft", "list", "table", "inet"):
+                if not table_text:
+                    return RuntimeCommandResult(argv=argv, returncode=1, stderr="Error: No such file or directory")
+                return RuntimeCommandResult(argv=argv, returncode=0, stdout=table_text)
+            if argv[:3] == ("nft", "--check", "-f"):
+                return RuntimeCommandResult(argv=argv, returncode=0)
+            if argv[:2] == ("nft", "-f"):
+                table_text = Path(argv[2]).read_text(encoding="utf-8")
+                return RuntimeCommandResult(argv=argv, returncode=0)
             return RuntimeCommandResult(argv=argv, returncode=0)
 
         result = execute_runtime_owner_rules(
@@ -75,13 +86,13 @@ def main() -> int:
             print("Fake apply runner должен исполнить три nft-команды и вернуть state=applied")
             return 1
         state = json.loads(result.state_path.read_text(encoding="utf-8"))
-        if state.get("marker") != "zap2-runtime-apply-v1" or state.get("nftTable") != "zap2_default":
-            print("Stage 12 apply state должен иметь marker и owned nft table")
+        if state.get("marker") != "zap2-runtime-apply-v1" or state.get("nftTable") != plan.nft_table:
+            print("Stage 12 apply state должен иметь marker и owner-scoped nft table")
             return 1
 
         revert_plan = create_runtime_apply_plan(project, action="revert", profile_id="default")
-        if revert_plan.commands[0].argv != ("nft", "delete", "table", "inet", "zap2_default"):
-            print("Stage 12 revert должен удалять только owned nft table")
+        if revert_plan.commands[0].argv != ("nft", "delete", "table", "inet", plan.nft_table):
+            print("Stage 12 revert должен удалять только owner-scoped nft table")
             return 1
         print("Runtime apply/revert Stage 12 OK; проверки не вызывают sudo/root/nft")
         return 0

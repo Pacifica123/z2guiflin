@@ -105,7 +105,7 @@ Runtime session runner запускает vendored binary `core/zapret2/nfq2/nfq
 
 Upstream zapret2 описывает Linux interception через netfilter/nftables/iptables и отделяет `nfqws2` от startup scripts. Stage 12 следует этой модели: мы не запускаем upstream installer scripts и не копируем init/systemd-обвязку, а создаём минимальный собственный nftables backend как application-layer plan.
 
-Default Stage 12 backend intentionally narrow: локальный `output` hook, отдельная table `inet zap2_default`, NFQUEUE `200`. Это не претензия на полное покрытие router-сценариев upstream. Расширение до WAN/LAN профилей должно идти через новые стратегии и profiles, а не через скрытый installer.
+Default Stage 12 backend intentionally narrow: локальный `output` hook, отдельная owner-scoped table `inet zap2_u<uid>_<workspace-digest>_<profile>` и детерминированная workspace/owner NFQUEUE. Runtime shell проверяет owner marker и qnum conflict до mutation; это не upstream-функция и не претензия на полное покрытие router-сценариев. Расширение до WAN/LAN профилей должно идти через новые стратегии и profiles, а не через скрытый installer.
 
 ## Stage 13: соответствие service mode vendored core
 
@@ -113,7 +113,7 @@ Service plan использует тот же локальный `nfqws2`, ко�
 
 ## Stage 14 и отношение к upstream
 
-Default workflow Stage 14 использует vendored upstream binary path `core/zapret2/nfq2/nfqws2`, но не вызывает upstream installer scripts и не копирует upstream service lifecycle. Наш слой отвечает за planHash confirmation, runtime state, logs, rollback notes и owned nftables table `inet zap2_default`.
+Default workflow Stage 14 использует vendored upstream binary path `core/zapret2/nfq2/nfqws2`, но не вызывает upstream installer scripts и не копирует upstream service lifecycle. Наш слой отвечает за planHash confirmation, runtime state, logs, rollback/reconciliation и owner-scoped nftables table, адресованную общей runtime owner identity.
 
 
 ## v0.3-beta Stage 1 и локальная сборка upstream binary

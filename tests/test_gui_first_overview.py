@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 from zap2_gui.adapters.gui_first_overview import gui_first_runtime_overview, gui_first_runtime_overview_to_text
 from zap2_gui.adapters.runtime_default import prepare_default_workflow_plan
+from zap2_gui.adapters.runtime_session import _capture_process_identity
 from zap2_gui.adapters.workspace_profiles import select_workspace_strategy
 from zap2_gui.app import main
 
@@ -74,7 +76,7 @@ def test_gui_first_overview_detects_running_strategy_mismatch(tmp_path: Path) ->
             {
                 "state": "applied",
                 "strategyId": "manual-local",
-                "nftTable": "zap2_default",
+                "nftTable": "zap2_u1000_deadbeef_default",
                 "nfqueueNum": 224,
                 "queuedTcpPorts": ["80", "443-65535"],
                 "queuedUdpPorts": ["80", "443-65535"],
@@ -91,16 +93,24 @@ def test_gui_first_overview_detects_running_strategy_mismatch(tmp_path: Path) ->
     fake_binary.chmod(0o755)
     proc = subprocess.Popen([str(fake_binary), "60"])
     try:
+        identity = None
+        for _ in range(20):
+            identity = _capture_process_identity(proc.pid, fake_binary)
+            if identity is not None:
+                break
+            time.sleep(0.01)
+        assert identity is not None
         (sessions / "default.session.json").write_text(
             json.dumps(
                 {
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "stage": "test",
                     "marker": "zap2-runtime-session-v1",
                     "state": "running",
                     "profileId": "default",
                     "rootPath": str(project),
                     "pid": proc.pid,
+                    "processIdentity": identity,
                     "binaryPath": str(fake_binary),
                     "planId": "runtime-default-manual-local-start-plan",
                 },

@@ -41,8 +41,10 @@ from .runtime_state import (
     ensure_runtime_store,
     plan_payload_hash,
     prepare_runtime_plan,
+    atomic_write_json,
 )
 from .workspace_profiles import load_workspace_catalog
+from .runtime_queue import ensure_nfqueue_available
 from ..project_paths import discover_layout
 
 DEFAULT_WORKFLOW_STAGE = "v0.3-beta_stage_3"
@@ -211,7 +213,7 @@ def _utc_now() -> str:
 
 
 def _write_json(path: Path, data: dict[str, Any]) -> None:
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(path, data)
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -564,7 +566,8 @@ def execute_default_workflow(
     if action == "start":
         # Preflight до firewall apply: бинарник должен существовать и быть executable.
         try:
-            build_runtime_session_config(paths.root, profile_id)
+            preflight_config = build_runtime_session_config(paths.root, profile_id)
+            ensure_nfqueue_available(preflight_config.nfqueue_num)
         except ValueError as exc:
             message = str(exc)
             if "nfqws2 binary отсутствует" in message:

@@ -37,6 +37,8 @@
 - `RUNTIME_STATE_AND_CONFIRMATION.md` — plan/hash/confirmation.
 - `RUNTIME_APPLY_REVERT.md` — owned-правила `nftables`.
 - `RUNTIME_SESSION_RUNNER.md` — управляемая сессия `nfqws2`.
+- `RUNTIME_OWNERSHIP_RECOVERY.md` — workspace owner identity, checked nft transaction, process identity и reconciliation/recovery.
+- `SECURITY_IPBLOCKLIST.md` — изолированная threat-IP policy, LKG update и explicit timer.
 - `RUNTIME_SERVICE_PLANS.md` — планы service mode; это ещё не готовый пользовательский сервис.
 
 ## Диагностика Discord и исторические исследования

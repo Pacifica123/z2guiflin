@@ -241,7 +241,7 @@ def run_profile_blockcheck_dialog(
             enable_https_tls12=enable_tls12,
             enable_https_tls13=enable_tls13,
             enable_http3=enable_quic,
-            skip_dnscheck=True,
+            skip_dnscheck=False,
             repeats=1,
             curl_max_time=3,
             timeout_seconds=0,

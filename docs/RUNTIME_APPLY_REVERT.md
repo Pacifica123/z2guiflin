@@ -33,11 +33,13 @@ sudo PYTHONPATH=gui python -m zap2_gui.app --runtime-revert --profile default --
 
 ## Что именно делает apply
 
-Stage 12 использует `nftables` как первый backend. Default profile создаёт отдельную owned table:
+Stage 12 использует `nftables` как первый backend. Имя owned table теперь выводится из единой runtime owner identity `{desktop UID + canonical workspace digest + profile}`. Для default profile оно имеет вид:
 
 ```text
-inet zap2_default
+inet zap2_u<uid>_<workspace-digest>_default
 ```
+
+Имя таблицы и встроенный owner marker должны совпасть с сохранённым plan/state. Совпадение одного имени больше не считается доказательством владения. Legacy/чужая таблица не удаляется автоматически.
 
 Внутри неё создаётся отдельная chain для локального исходящего трафика:
 
@@ -45,19 +47,19 @@ inet zap2_default
 local_out
 ```
 
-Правила направляют локальный TCP 80/443 и UDP 443 в workspace-specific NFQUEUE с `queue bypass`. Номер очереди больше не фиксируется глобально на `200`: он детерминированно выбирается для пары workspace/profile и одинаково используется в nftables apply plan и session args `nfqws2`. Это снижает риск конфликта со stale/manual процессом из предыдущего workspace.
+Правила направляют выбранный локальный TCP/UDP-трафик в workspace-specific NFQUEUE с `queue bypass`. Номер очереди не фиксируется глобально на `200`: он детерминированно выбирается для owner identity и одинаково используется в nftables apply plan и session args `nfqws2`. Перед firewall mutation runtime дополнительно проверяет, не занят ли этот qnum внешним `nfqws2`; при подтверждённом конфликте start останавливается до apply.
 
 Stage 12 не пытается покрыть все возможные router/LAN/WAN схемы upstream zapret2. Это минимальный single-user desktop-oriented backend для default strategy. Расширенные схемы interception должны появляться отдельными strategy/profile options после того, как базовый lifecycle станет устойчивым.
 
 ## Что делает revert
 
-Revert удаляет только owned table:
+Revert удаляет только owner-scoped table из подтверждённого saved plan, например:
 
 ```text
-nft delete table inet zap2_default
+nft delete table inet zap2_u1000_a1b2c3d4_default
 ```
 
-Он не очищает чужие tables/chains/rules и не делает глобальный firewall reset. Если owned table уже отсутствует, guarded executor считает это безопасным состоянием для повторного stop workflow.
+Перед удалением executor читает существующую table и сверяет owner marker. Чужая/legacy/непроверяемая table не удаляется. Если owned table уже отсутствует, guarded executor считает это безопасным состоянием для повторного stop workflow. Apply/revert выполняются через сохранённый nft batch: сначала `nft --check -f`, затем один `nft -f`; lifecycle одного owner key сериализован lock-файлом.
 
 ## Граница безопасности
 
@@ -95,9 +97,14 @@ Stage 16 меняет смысл default apply с «перехватить вс�
   packets`, а не всем TCP/UDP потоком.
 
 Это не финальная оптимальная zapret2-схема, а безопасный следующий шаг для GUI
-runtime: если соединение ломается, stop/revert по-прежнему удаляет только owned
-`inet zap2_default`, а диагностика показывает конкретный UID, mark и список
-портов, которые были поставлены в очередь.
+runtime: если соединение ломается, stop/revert по-прежнему удаляет только доказанно
+owned `inet zap2_u<uid>_<workspace-digest>_<profile>`, а диагностика показывает
+owner key, конкретный UID, mark и список портов, которые были поставлены в очередь.
+
+Read-only reconciliation различает `clean`, `consistent-applied`, `stale-state`,
+`cleanup-required`, `conflict` и `unknown`. Неизвестное состояние не трактуется как
+`stopped`; явный recovery использует обычный подтверждаемый revert plan только для
+ресурса с совпавшим owner marker.
 
 
 ## v0.3-dev Stage 17 — saved-plan execution under sudo

@@ -116,3 +116,33 @@ def test_settings_ui_exports_theme_and_controls_hot_swap() -> None:
     assert "Импорт темы…" in source
     assert 'settings.value("presets/one-click-apply",True,type=bool)' in source
     assert "navigationRail" in source
+
+
+def test_hot_swap_exception_during_new_start_restores_old_selection_and_runtime(monkeypatch) -> None:
+    events: list[str] = []
+
+    class Catalog:
+        selected_preset_id = "old"
+        def by_id(self): return {"old": object(), "new": object()}
+
+    statuses = iter((_status("running"), _status("not-started"), _status("running")))
+    calls = {"start": 0}
+    monkeypatch.setattr(preset_hot_swap, "load_preset_catalog", lambda _root: Catalog())
+    monkeypatch.setattr(preset_hot_swap, "default_workflow_status", lambda **_kw: next(statuses))
+    monkeypatch.setattr(preset_hot_swap, "select_preset", lambda preset_id, **_kw: events.append(f"select:{preset_id}"))
+
+    def run(_root, action, _profile):
+        events.append(action)
+        if action == "stop":
+            return True, "stop ok"
+        calls["start"] += 1
+        if calls["start"] == 1:
+            raise RuntimeError("new start exploded")
+        return True, "old start ok"
+
+    monkeypatch.setattr(preset_hot_swap, "_run", run)
+    result = preset_hot_swap.hot_swap_preset("new", ROOT)
+    assert result.state == "start-failed-rolled-back"
+    assert result.selected_preset_id == "old"
+    assert events == ["stop", "select:new", "start", "select:old", "start"]
+    assert "new start exploded" in result.start_output

@@ -25,7 +25,7 @@ def _write_active_owner_rules(project: Path) -> None:
             {
                 "state": "applied",
                 "strategyId": "community-discord-pretls-diagnostic-pktdebug",
-                "nftTable": "zap2_default",
+                "nftTable": "zap2_u1000_deadbeef_default",
                 "nfqueueNum": 421,
                 "queuedTcpPorts": ["443", "5222"],
                 "queuedUdpPorts": [],
@@ -54,7 +54,7 @@ def test_stage7n1_runtime_nft_state_prefers_active_owner_rules(tmp_path: Path) -
     assert "strategy mismatch: yes" in text
     assert "queued edge IPs: 162.159.128.233" in text
     assert "capture policy: desktop-early-flow-v1" in text
-    assert "sudo nft -a list table inet zap2_default" in text
+    assert "sudo nft -a list table inet zap2_" in text
     assert "sudo nft list table" not in text
 
 

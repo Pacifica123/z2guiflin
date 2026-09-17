@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 from zap2_gui.adapters.discord_endpoint_discovery import DiscordEndpointObservation, DiscordEndpointSnapshot
@@ -12,6 +13,7 @@ from zap2_gui.adapters.discord_pretls_guided_probe import (
     run_discord_pretls_guided_probe,
 )
 from zap2_gui.adapters.workspace_profiles import select_workspace_strategy
+from zap2_gui.adapters.runtime_session import _capture_process_identity
 from zap2_gui.app import main
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,7 +33,7 @@ def _write_active_owner_rules(project: Path, *, qnum: int = 421) -> None:
             {
                 "state": "applied",
                 "strategyId": "community-discord-pretls-diagnostic-pktdebug",
-                "nftTable": "zap2_default",
+                "nftTable": "zap2_u1000_deadbeef_default",
                 "nfqueueNum": qnum,
                 "queuedTcpPorts": ["443", "5222"],
                 "queuedUdpPorts": [],
@@ -64,8 +66,15 @@ def _write_running_session(project: Path, *, qnum: int = 421) -> subprocess.Pope
     shutil.copyfile("/bin/sleep", fake_binary)
     fake_binary.chmod(0o755)
     proc = subprocess.Popen([str(fake_binary), "60"])
+    identity = None
+    for _ in range(20):
+        identity = _capture_process_identity(proc.pid, fake_binary)
+        if identity is not None:
+            break
+        time.sleep(0.01)
+    assert identity is not None
     record = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "stage": "v0.3-beta_stage_11",
         "marker": "zap2-runtime-session-v1",
         "state": "running",
@@ -75,6 +84,7 @@ def _write_running_session(project: Path, *, qnum: int = 421) -> subprocess.Pope
         "planId": "runtime-default-community-discord-pretls-diagnostic-pktdebug-start-plan",
         "planHash": "abc123",
         "pid": proc.pid,
+        "processIdentity": identity,
         "processGroupId": os.getpgrp(),
         "startedAt": "2026-06-09T16:00:00Z",
         "binaryPath": str(fake_binary),
@@ -97,21 +107,21 @@ def _write_running_session(project: Path, *, qnum: int = 421) -> subprocess.Pope
 
 def _nft_text(out_packets: int, out_bytes: int = 0, synack_packets: int = 0, udp_packets: int = 0) -> str:
     return f'''
-table inet zap2_default {{
+table inet zap2_u1000_deadbeef_default {{
     chain local_out {{
-        ip daddr {{ 162.159.128.233 }} tcp dport {{ 443, 5222 }} counter packets {out_packets} bytes {out_bytes} queue flags bypass to 421 comment "zap2:zap2_default:tcp-out" # handle 5
-        udp dport {{ 80, 443-65535 }} counter packets {udp_packets} bytes 0 queue flags bypass to 421 comment "zap2:zap2_default:udp-out" # handle 6
+        ip daddr {{ 162.159.128.233 }} tcp dport {{ 443, 5222 }} counter packets {out_packets} bytes {out_bytes} queue flags bypass to 421 comment "zap2:zap2_u1000_deadbeef_default:tcp-out" # handle 5
+        udp dport {{ 80, 443-65535 }} counter packets {udp_packets} bytes 0 queue flags bypass to 421 comment "zap2:zap2_u1000_deadbeef_default:udp-out" # handle 6
     }}
     chain local_in {{
-        ip saddr {{ 162.159.128.233 }} tcp sport {{ 443, 5222 }} counter packets {synack_packets} bytes 0 queue flags bypass to 421 comment "zap2:zap2_default:tcp-in-synack" # handle 8
-        ip saddr {{ 162.159.128.233 }} tcp sport {{ 443, 5222 }} counter packets 0 bytes 0 queue flags bypass to 421 comment "zap2:zap2_default:tcp-in-fin-rst" # handle 11
+        ip saddr {{ 162.159.128.233 }} tcp sport {{ 443, 5222 }} counter packets {synack_packets} bytes 0 queue flags bypass to 421 comment "zap2:zap2_u1000_deadbeef_default:tcp-in-synack" # handle 8
+        ip saddr {{ 162.159.128.233 }} tcp sport {{ 443, 5222 }} counter packets 0 bytes 0 queue flags bypass to 421 comment "zap2:zap2_u1000_deadbeef_default:tcp-in-fin-rst" # handle 11
     }}
 }}
 '''
 
 
 def test_stage7n2_nft_counter_parser_supports_text_output() -> None:
-    counters = read_nft_counters("zap2_default", runner=lambda table: (0, _nft_text(11, 660, 0), ""))
+    counters = read_nft_counters("zap2_u1000_deadbeef_default", runner=lambda table: (0, _nft_text(11, 660, 0), ""))
 
     assert counters.read_ok is True
     assert counters.tcp_out.packets == 11
@@ -250,7 +260,7 @@ def _write_windows_v3_owner_rules(project: Path, *, qnum: int = 421) -> None:
             {
                 "state": "applied",
                 "strategyId": "windows-all-tcp-udp-v3-2-linux-bridge",
-                "nftTable": "zap2_default",
+                "nftTable": "zap2_u1000_deadbeef_default",
                 "nfqueueNum": qnum,
                 "queuedTcpPorts": ["80", "443-65535"],
                 "queuedUdpPorts": ["80", "443-65535"],

@@ -221,7 +221,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     https12_check.setChecked(True)
     https13_check.setChecked(True)
     http3_check.setChecked(True)
-    dns_check.setChecked(False)
+    dns_check.setChecked(True)
     dead_guard_check.setChecked(True)
 
     def form_label(text: str) -> Any:
@@ -1354,14 +1354,11 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             border-radius: 9px;
         }
         QLabel#blockcheckStatusPill {
-            color: #3f3945;
             font-weight: 700;
             padding: 6px 10px;
             border-radius: 12px;
-            background: #eee8f1;
         }
         QLabel#mutedText, QLabel#blockcheckPresetHint {
-            color: #756d7b;
             font-size: 12px;
         }
         QCheckBox {

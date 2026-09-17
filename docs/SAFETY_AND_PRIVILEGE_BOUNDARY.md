@@ -62,3 +62,10 @@ plan -> owner confirmation -> execution -> log -> rollback/revert
 ```
 
 Если будущий патч добавляет настоящий executor, он должен отдельно объяснить, какие действия требуют привилегий, где сохраняется runtime state, как владелец подтверждает конкретный plan hash и как выполняется точечный откат.
+
+
+## Security blocklist boundary
+
+Threat-IP blocking живёт в отдельной workspace-owned nft table и не переиспользует zapret NFQUEUE ownership. Списки являются внешними данными, не вендорятся и обновляются только через HTTPS с полной валидацией до atomic cache replacement. Network failure не очищает last-known-good cache. Inbound policy по умолчанию выключена; outbound policy ограничивается UID владельца.
+
+Periodic systemd timer устанавливается только явной root-командой после того, как owner создал локальный config. Автоматические devctl tests не выполняют download, `nft` или `systemctl`; они используют fake fetcher/runner.

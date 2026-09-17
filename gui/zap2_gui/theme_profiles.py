@@ -66,41 +66,100 @@ def clear_theme_profile(settings: Any, base: str) -> ThemeProfile:
     p=builtin_theme_profile(base); settings.setValue("ui/theme",p.base); settings.remove(SETTINGS_KEY); settings.sync(); return p
 
 def custom_stylesheet(profile: ThemeProfile) -> str:
-    p=profile.normalized(); c=p.colors; family=f'font-family: "{p.font_family.replace(chr(34),"")}";' if p.font_family else ""
-    r=p.corner_radius_px
-    return f'''\n/* z2guiflin custom theme profile */
+    p = profile.normalized()
+    c = p.colors
+    family = f'font-family: "{p.font_family.replace(chr(34), "")}";' if p.font_family else ""
+    r = p.corner_radius_px
+    return f"""
+/* z2guiflin semantic custom theme profile */
 QWidget {{ color:{c['text']}; font-size:{p.font_size_pt}pt; {family} }}
 QMainWindow, QWidget#appShell, QStackedWidget#contentStack {{ background:{c['window']}; }}
-QFrame#navigationRail {{ background:{c['control']}; border-color:{c['border']}; border-radius:{r}px; }}
-QFrame#contentSurface, QGroupBox, QFrame#settingsCard {{ background:{c['card']}; border-color:{c['border']}; border-radius:{r}px; }}
-QLabel#brandSubtitle, QLabel#navigationHint, QLabel#pageSubtitle, QLabel#mutedText, QLabel#settingsValueHint {{ color:{c['muted']}; }}
-QPushButton, QToolButton {{ color:{c['text']}; background:{c['control']}; border-color:{c['border']}; border-radius:{r}px; }}
-QPushButton:hover, QToolButton:hover {{ background:{c['hover']}; }}
-QLineEdit,QPlainTextEdit,QTextEdit,QComboBox,QSpinBox,QDoubleSpinBox,QTableView,QTreeView,QListView {{ color:{c['text']}; background:{c['input']}; border-color:{c['border']}; selection-background-color:{c['selection']}; selection-color:{c['selectionText']}; border-radius:{r}px; }}
-QTableView::viewport,QTreeView::viewport,QListView::viewport,QComboBox QAbstractItemView {{ background:{c['input']}; color:{c['text']}; selection-background-color:{c['selection']}; selection-color:{c['selectionText']}; }}
+QWidget#page-overview,QWidget#page-core,QWidget#page-strategies,QWidget#page-diagnostics,QWidget#page-tunnel,QWidget#page-settings,QWidget#page-logs,QWidget#blockcheckLabContent {{ background:transparent; }}
+QFrame#navigationRail {{ background:{c['control']}; border:1px solid {c['border']}; border-radius:{r}px; }}
+QFrame#contentSurface {{ background:{c['surface']}; border:1px solid {c['border']}; border-radius:{r}px; }}
+QGroupBox,QFrame#settingsCard,QGroupBox#discordMachineDiagnosticsBox,QFrame#discordMachineSummaryFrame {{ color:{c['text']}; background:{c['card']}; border:1px solid {c['border']}; border-radius:{r}px; }}
+QGroupBox::title,QLabel#brandTitle,QLabel#pageTitle,QLabel#settingsCardTitle {{ color:{c['text']}; background:transparent; }}
+QLabel#brandSubtitle,QLabel#navigationHint,QLabel#pageSubtitle,QLabel#mutedText,QLabel#settingsValueHint,QLabel#blockcheckPresetHint {{ color:{c['muted']}; background:transparent; }}
+QListWidget#navigationList,QListWidget#navigationList::viewport {{ background:transparent; border:0; }}
 QListWidget#navigationList::item:hover {{ background:{c['hover']}; }}
 QListWidget#navigationList::item:selected {{ background:{c['selection']}; color:{c['selectionText']}; }}
-QHeaderView::section {{ color:{c['text']}; background:{c['control']}; border-color:{c['border']}; }}
-QPushButton#primaryRunButton {{ color:{c['accent']}; background:transparent; border:1px solid {c['accent']}; border-radius:{max(8,r)}px; }}
-QPushButton#primaryRunButton:hover {{ background:{c['hover']}; }}
+QPushButton,QToolButton {{ color:{c['text']}; background:{c['control']}; border:1px solid {c['border']}; border-radius:{r}px; }}
+QPushButton:hover,QToolButton:hover {{ background:{c['hover']}; border-color:{c['accent']}; }}
+QPushButton:pressed,QToolButton:pressed {{ background:{c['selection']}; }}
+QPushButton:disabled,QToolButton:disabled {{ color:{c['muted']}; background:{c['surface']}; border-color:{c['border']}; }}
+QLineEdit,QPlainTextEdit,QTextEdit,QComboBox,QSpinBox,QDoubleSpinBox,QTableView,QTreeView,QListView {{ color:{c['text']}; background:{c['input']}; border:1px solid {c['border']}; selection-background-color:{c['selection']}; selection-color:{c['selectionText']}; border-radius:{r}px; }}
+QLineEdit:focus,QPlainTextEdit:focus,QTextEdit:focus,QComboBox:focus,QSpinBox:focus,QDoubleSpinBox:focus {{ border:1px solid {c['accent']}; }}
+QLineEdit:disabled,QPlainTextEdit:disabled,QTextEdit:disabled,QComboBox:disabled,QSpinBox:disabled,QDoubleSpinBox:disabled,QTableView:disabled,QTreeView:disabled,QListView:disabled {{ color:{c['muted']}; background:{c['surface']}; }}
+QComboBox::drop-down,QAbstractSpinBox::up-button,QAbstractSpinBox::down-button {{ background:{c['card']}; border-color:{c['border']}; }}
+QComboBox QAbstractItemView,QTableView::viewport,QTreeView::viewport,QListView::viewport {{ background:{c['input']}; color:{c['text']}; selection-background-color:{c['selection']}; selection-color:{c['selectionText']}; }}
+QCheckBox,QRadioButton {{ color:{c['text']}; background:transparent; }}
+QTabBar::tab {{ color:{c['text']}; background:{c['control']}; border-color:{c['border']}; }}
+QTabBar::tab:selected {{ color:{c['selectionText']}; background:{c['selection']}; }}
+QTabBar::tab:disabled {{ color:{c['muted']}; background:{c['surface']}; }}
+QHeaderView::section,QTableCornerButton::section {{ color:{c['text']}; background:{c['control']}; border-color:{c['border']}; }}
+QTableView,QTreeView,QListView {{ alternate-background-color:{c['surface']}; gridline-color:{c['border']}; }}
+QTableView::item,QTreeView::item,QListView::item {{ color:{c['text']}; background:{c['input']}; }}
+QTableView::item:alternate,QTreeView::item:alternate,QListView::item:alternate {{ background:{c['surface']}; }}
+QTableView::item:selected,QTreeView::item:selected,QListView::item:selected {{ color:{c['selectionText']}; background:{c['selection']}; }}
+QScrollBar:vertical,QScrollBar:horizontal {{ background:transparent; }}
+QScrollBar::handle:vertical,QScrollBar::handle:horizontal {{ background:{c['border']}; border-radius:{max(2,r//2)}px; }}
+QScrollBar::handle:vertical:hover,QScrollBar::handle:horizontal:hover {{ background:{c['accent']}; }}
+QToolTip {{ color:{c['selectionText']}; background:{c['selection']}; border:1px solid {c['border']}; }}
+QPushButton#primaryRunButton,QPushButton#blockcheckPrimaryRunButton,QPushButton#discordMachineProbeButton {{ color:{c['accent']}; background:transparent; border:1px solid {c['accent']}; border-radius:{max(8,r)}px; }}
+QPushButton#primaryRunButton:hover,QPushButton#blockcheckPrimaryRunButton:hover,QPushButton#discordMachineProbeButton:hover {{ background:{c['hover']}; }}
+QLabel#blockcheckStatusPill {{ color:{c['text']}; background:{c['control']}; border:1px solid {c['border']}; border-radius:{max(8,r)}px; }}
 QFrame#launchIssueBanner {{ color:{c['noticeText']}; border:1px solid {c['noticeBorder']}; border-radius:{r}px; background:{c['noticeBg']}; }}
 QLabel#launchIssueCode {{ color:{c['noticeBadgeText']}; background:{c['noticeBadge']}; border-radius:{max(4,r//2)}px; }}
 QLabel#launchIssueMessage {{ color:{c['noticeText']}; }}
-QLabel#runtimeStatusIndicator {{ background:transparent; border:0; color:{c['statusUnknown']}; }}
-QLabel#runtimeStatusIndicator[state="running"] {{ color:{c['statusRunning']}; }}
-QLabel#runtimeStatusIndicator[state="stopped"] {{ color:{c['statusStopped']}; }}
-QLabel#runtimeStatusIndicator[state="mismatch"] {{ color:{c['statusWarning']}; }}
+QLabel#runtimeStatusIndicator,QLabel#discordMachineSummarySeverity {{ background:transparent; border:0; color:{c['statusUnknown']}; }}
+QLabel#runtimeStatusIndicator[state="running"],QLabel#discordMachineSummarySeverity[severity="ok"] {{ color:{c['statusRunning']}; }}
+QLabel#runtimeStatusIndicator[state="stopped"],QLabel#discordMachineSummarySeverity[severity="warning"] {{ color:{c['statusStopped']}; }}
+QLabel#runtimeStatusIndicator[state="mismatch"],QLabel#discordMachineSummarySeverity[severity="error"] {{ color:{c['statusWarning']}; }}
 QLabel#runtimeStatusIndicator[state="unknown"] {{ color:{c['statusUnknown']}; }}
-QGroupBox#discordMachineDiagnosticsBox, QFrame#discordMachineSummaryFrame {{ background:{c['card']}; border:1px solid {c['border']}; border-radius:{r}px; }}
-QPushButton#discordMachineProbeButton {{ color:{c['accent']}; background:transparent; border:1px solid {c['accent']}; border-radius:{max(8,r)}px; }}
-QPushButton#discordMachineProbeButton:hover {{ background:{c['hover']}; }}
 QDialog#discordMachineDiagnosticsDialog {{ background:{c['window']}; }}
 QToolButton#discordMachineDetailsToggle {{ color:{c['accent']}; background:transparent; border:0; text-align:left; }}
-QLabel#discordMachineSummarySeverity {{ color:{c['statusUnknown']}; font-weight:700; }}
-QLabel#discordMachineSummarySeverity[severity="error"] {{ color:{c['statusWarning']}; }}
-QLabel#discordMachineSummarySeverity[severity="warning"] {{ color:{c['statusStopped']}; }}
-QLabel#discordMachineSummarySeverity[severity="ok"] {{ color:{c['statusRunning']}; }}
-'''
+"""
+
+
+def _apply_profile_palette(app: Any, profile: ThemeProfile) -> None:
+    from PyQt6 import QtGui  # type: ignore[import-not-found]
+
+    c = profile.colors
+    palette = QtGui.QPalette()
+    mapping = {
+        QtGui.QPalette.ColorRole.Window: c["window"],
+        QtGui.QPalette.ColorRole.WindowText: c["text"],
+        QtGui.QPalette.ColorRole.Base: c["input"],
+        QtGui.QPalette.ColorRole.AlternateBase: c["surface"],
+        QtGui.QPalette.ColorRole.ToolTipBase: c["selection"],
+        QtGui.QPalette.ColorRole.ToolTipText: c["selectionText"],
+        QtGui.QPalette.ColorRole.Text: c["text"],
+        QtGui.QPalette.ColorRole.Button: c["control"],
+        QtGui.QPalette.ColorRole.ButtonText: c["text"],
+        QtGui.QPalette.ColorRole.Highlight: c["selection"],
+        QtGui.QPalette.ColorRole.HighlightedText: c["selectionText"],
+        QtGui.QPalette.ColorRole.PlaceholderText: c["muted"],
+    }
+    for role, value in mapping.items():
+        palette.setColor(role, QtGui.QColor(value))
+    disabled = QtGui.QPalette.ColorGroup.Disabled
+    for role in (QtGui.QPalette.ColorRole.WindowText, QtGui.QPalette.ColorRole.Text, QtGui.QPalette.ColorRole.ButtonText):
+        palette.setColor(disabled, role, QtGui.QColor(c["muted"]))
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.Base, QtGui.QColor(c["surface"]))
+    palette.setColor(disabled, QtGui.QPalette.ColorRole.Button, QtGui.QColor(c["surface"]))
+    app.setPalette(palette)
 
 def apply_theme_profile(app: Any, profile: ThemeProfile) -> ThemeProfile:
-    p=profile.normalized(); apply_application_theme(app,p.base); app.setStyleSheet(app.styleSheet()+custom_stylesheet(p)); return p
+    p = profile.normalized()
+    apply_application_theme(app, p.base)
+    _apply_profile_palette(app, p)
+    try:
+        font = app.font()
+        if p.font_family:
+            font.setFamily(p.font_family)
+        font.setPointSize(p.font_size_pt)
+        app.setFont(font)
+    except Exception:
+        pass
+    app.setStyleSheet(app.styleSheet() + custom_stylesheet(p))
+    return p

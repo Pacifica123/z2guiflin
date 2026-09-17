@@ -37,6 +37,7 @@ from ..models.service_targets import (
     normalize_service_targets,
     service_target_coverage_policy_to_text,
     service_target_export_slug,
+    service_target_host_token,
     service_target_layer_for_target,
     service_target_ordered_targets,
     service_target_phase_chain,
@@ -152,7 +153,7 @@ class BlockcheckOptions:
     enable_https_tls12: bool = True
     enable_https_tls13: bool = True
     enable_http3: bool = True
-    skip_dnscheck: bool = True
+    skip_dnscheck: bool = False
     repeats: int = 1
     curl_max_time: int = 3
     timeout_seconds: int = 0
@@ -751,6 +752,12 @@ def blockcheck_preflight(root: Path | None = None) -> BlockcheckPreflight:
             hint="vendored upstream blockcheck2.sh должен быть в core/zapret2",
         ),
         BlockcheckArtifactStatus(
+            label="target DNS guard",
+            path_or_command=str(layout.root / "tools" / "blockcheck_target_preflight.sh"),
+            ok=(layout.root / "tools" / "blockcheck_target_preflight.sh").is_file(),
+            hint="локальный read-only wrapper проверяет mdig для выбранного target до upstream firewall mutation",
+        ),
+        BlockcheckArtifactStatus(
             label="nfqws2 binary",
             path_or_command=str(core_root / "nfq2" / "nfqws2"),
             ok=_is_executable(core_root / "nfq2" / "nfqws2"),
@@ -937,6 +944,8 @@ def build_blockcheck_command(root: Path | None = None, options: BlockcheckOption
         "ZAPRET_CONFIG": str(rw_root / "config"),
         "WS_UID": str(worker_identity.uid),
         "WS_GID": str(worker_identity.gid),
+        "ZAP2_BLOCKCHECK_SCRIPT": str(script),
+        "ZAP2_TARGET_HOSTS": " ".join(service_target_host_token(item) for item in opts.normalized_domains()),
         **opts.to_env(),
     }
     env_argv = tuple(f"{key}={value}" for key, value in sorted(env_assignments.items()))
@@ -946,7 +955,7 @@ def build_blockcheck_command(root: Path | None = None, options: BlockcheckOption
         "env",
         *env_argv,
         "/bin/sh",
-        str(script),
+        str(layout.root / "tools" / "blockcheck_target_preflight.sh"),
     )
     return BlockcheckCommand(
         options=opts,

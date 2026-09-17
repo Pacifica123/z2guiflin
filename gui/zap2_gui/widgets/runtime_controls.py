@@ -601,9 +601,6 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         QTabBar::tab {
             padding: 8px 12px;
         }
-        QTableWidget#guiFirstOverviewTable {
-            gridline-color: rgba(90, 90, 90, 0.10);
-        }
         QLabel#launchIssueCode {
             font-family: monospace;
             font-weight: 700;

@@ -8,7 +8,7 @@
 
 ## Правило
 
-Номер очереди выбирается детерминированно для пары `workspace root + profile id` в диапазоне `200..599`. Один resolver используется и для:
+Номер очереди выбирается детерминированно для общей runtime owner identity `desktop UID + canonical workspace digest + profile id` в диапазоне `200..599`. Один resolver используется и для:
 
 - nftables apply plan (`queue num <qnum> bypass`);
 - session args `nfqws2` (`--qnum=<qnum>`);
@@ -24,7 +24,7 @@ Override должен использоваться только локально
 
 ## Ограничения
 
-Это не заменяет stop/revert. Если где-то остался старый процесс `nfqws2`, его всё равно нужно обнаружить и корректно остановить. Но новый workspace больше не обязан конфликтовать с историческим номером `200`.
+Это не заменяет stop/revert. Перед firewall mutation runtime теперь делает read-only `/proc` scan и при положительном свидетельстве, что выбранный qnum уже занят другим `nfqws2`, останавливает start вместо случайного выбора новой очереди. Это сохраняет подтверждённую plan identity и не маскирует конфликт.
 
 ## v0.3-dev Stage 16 — queue scope и loop guard
 

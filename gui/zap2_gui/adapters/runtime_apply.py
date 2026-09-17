@@ -13,11 +13,13 @@ firewall. Тесты используют fake runner.
 
 from __future__ import annotations
 
+import fcntl
 import ipaddress
 import json
 import os
 import shutil
 import subprocess
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,8 +33,10 @@ from .runtime_state import (
     ensure_runtime_store,
     plan_payload_hash,
     runtime_store_paths,
+    atomic_write_json,
 )
 from .workspace_profiles import load_workspace_catalog
+from .runtime_owner import owned_nft_table_name, runtime_owner_identity, runtime_owner_uid
 from ..project_paths import discover_layout
 
 APPLY_STAGE = "v0.3-alpha_stage_12"
@@ -92,6 +96,8 @@ class RuntimeApplyPlan:
     queue_input_fin_rst: bool
     owner_uid: int
     owner_uid_source: str
+    owner_key: str
+    owner_marker: str
     desync_mark: str
     commands: tuple[RuntimeApplyCommand, ...]
     rollback_notes: tuple[str, ...]
@@ -128,6 +134,8 @@ class RuntimeApplyPlan:
             "nftCountersEnabled": True,
             "ownerUid": self.owner_uid,
             "ownerUidSource": self.owner_uid_source,
+            "ownerKey": self.owner_key,
+            "ownerMarker": self.owner_marker,
             "desyncMark": self.desync_mark,
             "binaryRelativePath": self.binary_relative_path,
             "hostlists": list(self.hostlists),
@@ -173,6 +181,8 @@ class RuntimeApplyPlan:
                 f"input FIN/RST queue: {'yes' if self.queue_input_fin_rst else 'no'}",
                 "nft counters: yes",
                 f"owner uid scope: {self.owner_uid} ({self.owner_uid_source})",
+                f"owner key: {self.owner_key}",
+                f"owner marker: {self.owner_marker}",
                 f"desync mark loop guard: {self.desync_mark}",
                 f"binary: {self.binary_relative_path}",
                 "commands:",
@@ -250,16 +260,15 @@ def _utc_now() -> str:
 
 
 def _write_json(path: Path, data: dict[str, Any]) -> None:
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(path, data)
 
 
 def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _nft_table_name(profile_id: str) -> str:
-    safe_profile = "".join(ch if ch.isalnum() else "_" for ch in profile_id.lower()).strip("_") or "default"
-    return f"{DEFAULT_NFT_TABLE_PREFIX}_{safe_profile}"
+def _nft_table_name(root: Path, profile_id: str) -> str:
+    return owned_nft_table_name(root, profile_id, prefix=DEFAULT_NFT_TABLE_PREFIX)
 
 
 def _valid_port_token(value: str) -> bool:
@@ -371,28 +380,7 @@ def _parse_non_negative_int(value: str | None) -> int | None:
 
 
 def _runtime_owner_uid(root: Path) -> tuple[int, str]:
-    """Return the local owner UID whose web traffic should be intercepted.
-
-    GUI prepares plans as the desktop user and executes them through sudo -A.
-    During privileged execution ``SUDO_UID`` lets us recreate the same plan hash
-    without accidentally queueing NetworkManager/root traffic.
-    """
-
-    sudo_uid = _parse_non_negative_int(os.environ.get("SUDO_UID"))
-    if sudo_uid is not None:
-        return sudo_uid, "sudo-owner"
-    getuid = getattr(os, "getuid", None)
-    if getuid is not None:
-        uid = int(getuid())
-        if uid != 0:
-            return uid, "current-user"
-    try:
-        stat_uid = root.stat().st_uid
-    except OSError:
-        stat_uid = 0
-    if stat_uid != 0:
-        return int(stat_uid), "workspace-owner"
-    return 0, "root-fallback"
+    return runtime_owner_uid(root)
 
 
 def _nft_common_filter(owner_uid: int) -> str:
@@ -406,6 +394,7 @@ def _nft_apply_commands(
     tcp_ports: tuple[str, ...],
     udp_ports: tuple[str, ...],
     owner_uid: int,
+    owner_marker: str,
     *,
     edge_ips: tuple[str, ...] = (),
     queue_input_syn_ack: bool = False,
@@ -420,7 +409,21 @@ def _nft_apply_commands(
             argv=("nft", "add", "table", "inet", table),
             requires_sudo=True,
             mutates_system=True,
-            description="Создать отдельную nftables table, принадлежащую workspace profile.",
+            description="Создать отдельную nftables table, принадлежащую owner UID + workspace + profile.",
+        ),
+        RuntimeApplyCommand(
+            label="nft-add-owner-meta-chain",
+            argv=("nft", "add", "chain", "inet", table, "owner_meta"),
+            requires_sudo=True,
+            mutates_system=True,
+            description="Создать служебную chain с доказуемым owner marker.",
+        ),
+        RuntimeApplyCommand(
+            label="nft-add-owner-marker",
+            argv=("nft", "add", "rule", "inet", table, "owner_meta", f'counter comment "{owner_marker}"'),
+            requires_sudo=True,
+            mutates_system=True,
+            description="Записать owner marker; revert разрешён только при его совпадении.",
         ),
         RuntimeApplyCommand(
             label="nft-add-local-out-chain",
@@ -526,8 +529,9 @@ def create_runtime_apply_plan(root: Path | None = None, action: RuntimeApplyActi
     edge_ips = _capture_policy_edge_ips(capture_policy)
     queue_input_syn_ack = bool((capture_policy or {}).get("queueInputSynAck", False))
     queue_input_fin_rst = bool((capture_policy or {}).get("queueInputFinRst", False))
-    owner_uid, owner_uid_source = _runtime_owner_uid(layout.root)
-    table = _nft_table_name(profile.profile_id)
+    identity = runtime_owner_identity(layout.root, profile.profile_id)
+    owner_uid, owner_uid_source = identity.uid, identity.uid_source
+    table = _nft_table_name(layout.root, profile.profile_id)
     plan_id = f"runtime-{profile.profile_id}-{profile.strategy_id}-{action}-owner-rules-plan"
     queue = resolve_runtime_queue(layout.root, profile.profile_id)
     commands = (
@@ -538,6 +542,7 @@ def create_runtime_apply_plan(root: Path | None = None, action: RuntimeApplyActi
             tcp_ports,
             udp_ports,
             owner_uid,
+            identity.marker,
             edge_ips=edge_ips,
             queue_input_syn_ack=queue_input_syn_ack,
             queue_input_fin_rst=queue_input_fin_rst,
@@ -573,6 +578,8 @@ def create_runtime_apply_plan(root: Path | None = None, action: RuntimeApplyActi
         queue_input_fin_rst=queue_input_fin_rst if action == "apply" else False,
         owner_uid=owner_uid,
         owner_uid_source=owner_uid_source,
+        owner_key=identity.owner_key,
+        owner_marker=identity.marker,
         desync_mark=DEFAULT_DESYNC_MARK,
         commands=commands,
         rollback_notes=rollback_notes,
@@ -643,7 +650,7 @@ def prepare_runtime_owner_rules_plan(root: Path | None = None, action: RuntimeAp
             "planHash": plan_hash,
             "message": f"Prepared owner-confirmed runtime {action} rules plan for profile {profile_id}; execution disabled until explicit --runtime-{action}.",
             "createdAt": _utc_now(),
-            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": plan.nft_table, "nfqueueNum": plan.nfqueue_num, "ownerUid": plan.owner_uid, "queuedTcpPorts": list(plan.queued_tcp_ports), "queuedUdpPorts": list(plan.queued_udp_ports), "queuedEdgeIps": list(plan.queued_edge_ips), "capturePolicy": plan.capture_policy or {}, "nftCountersEnabled": True},
+            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": plan.nft_table, "nfqueueNum": plan.nfqueue_num, "ownerUid": plan.owner_uid, "ownerKey": plan.owner_key, "queuedTcpPorts": list(plan.queued_tcp_ports), "queuedUdpPorts": list(plan.queued_udp_ports), "queuedEdgeIps": list(plan.queued_edge_ips), "capturePolicy": plan.capture_policy or {}, "nftCountersEnabled": True},
             "executesNow": False,
             "mutatesFirewallOrServicesNow": False,
             "managesServiceNow": False,
@@ -745,6 +752,176 @@ def _missing_table_is_ok(result: RuntimeCommandResult) -> bool:
     return result.returncode != 0 and ("no such file" in text or "no such table" in text or "not found" in text)
 
 
+
+
+def _nft_batch_line(command: RuntimeApplyCommand) -> str:
+    if not command.argv or command.argv[0] != "nft":
+        raise ValueError(f"Unexpected non-nft runtime command: {command.argv}")
+    return " ".join(command.argv[1:])
+
+
+def _apply_batch_text(commands: tuple[RuntimeApplyCommand, ...], *, table_exists: bool) -> str:
+    lines: list[str] = []
+    for command in commands:
+        if table_exists and command.label == "nft-add-table":
+            lines.append(f"flush table inet {command.argv[4]}")
+            continue
+        lines.append(_nft_batch_line(command))
+    return "\n".join(lines) + "\n"
+
+
+def _revert_batch_text(table: str) -> str:
+    return f"delete table inet {table}\n"
+
+
+def _table_probe(runner: CommandRunner, table: str) -> RuntimeCommandResult:
+    return runner(("nft", "list", "table", "inet", table))
+
+
+def _table_probe_missing(result: RuntimeCommandResult) -> bool:
+    return result.returncode != 0 and _missing_table_is_ok(result)
+
+
+def _table_has_owner_marker(result: RuntimeCommandResult, owner_marker: str) -> bool:
+    return result.ok and owner_marker in f"{result.stdout}\n{result.stderr}"
+
+
+def _write_nft_transaction(paths: Any, profile_id: str, plan_hash: str, action: str, text: str) -> Path:
+    path = paths.transactions_dir / f"{profile_id}.{action}.{plan_hash[:12]}.nft"
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+    return path
+
+
+@contextmanager
+def _runtime_owner_lock(paths: Any, owner_key: str, profile_id: str):
+    lock_path = paths.locks_dir / f"{owner_key}.{profile_id}.lock"
+    handle = lock_path.open("a+", encoding="utf-8")
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        yield lock_path
+    finally:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        handle.close()
+
+@dataclass(frozen=True)
+class RuntimeOwnerReconciliation:
+    """Read-only comparison of saved owner state and observed nft resources."""
+
+    state: str
+    profile_id: str
+    nft_table: str
+    owner_key: str
+    state_path: Path
+    observed_table: bool | None
+    owner_marker_matches: bool | None
+    message: str
+
+    def to_text(self) -> str:
+        observed = "unknown" if self.observed_table is None else ("yes" if self.observed_table else "no")
+        marker = "unknown" if self.owner_marker_matches is None else ("yes" if self.owner_marker_matches else "no")
+        return "\n".join([
+            f"Runtime owner reconciliation: {self.state}",
+            f"profile: {self.profile_id}",
+            f"nft table: inet {self.nft_table}",
+            f"owner key: {self.owner_key}",
+            f"observed table: {observed}",
+            f"owner marker matches: {marker}",
+            f"saved state: {self.state_path}",
+            f"message: {self.message}",
+            "mutates firewall/services now: no",
+            "automatic cleanup: no",
+        ])
+
+
+def reconcile_runtime_owner_rules(
+    root: Path | None = None,
+    profile_id: str = "default",
+    *,
+    runner: CommandRunner | None = None,
+) -> RuntimeOwnerReconciliation:
+    """Observe owned nft resources without changing them.
+
+    Unknown or conflicting ownership is never treated as stopped and never
+    triggers automatic deletion.  A cleanup-required result can be recovered
+    through the normal owner-confirmed revert plan.
+    """
+
+    layout = discover_layout(root)
+    paths = ensure_runtime_store(layout.root)
+    expected = create_runtime_apply_plan(paths.root, action="apply", profile_id=profile_id)
+    state_path = paths.sessions_dir / f"{profile_id}.owner-rules.json"
+    saved: dict[str, Any] | None = None
+    if state_path.is_file():
+        try:
+            loaded = _read_json(state_path)
+            if isinstance(loaded, dict):
+                saved = loaded
+        except (OSError, ValueError, json.JSONDecodeError):
+            return RuntimeOwnerReconciliation(
+                state="unknown", profile_id=profile_id, nft_table=expected.nft_table,
+                owner_key=expected.owner_key, state_path=state_path, observed_table=None,
+                owner_marker_matches=None, message="saved owner-rules state is unreadable; no cleanup was attempted",
+            )
+
+    if runner is None:
+        if shutil.which("nft") is None:
+            return RuntimeOwnerReconciliation(
+                state="unknown", profile_id=profile_id, nft_table=expected.nft_table,
+                owner_key=expected.owner_key, state_path=state_path, observed_table=None,
+                owner_marker_matches=None, message="nft command is unavailable; observed firewall state is unknown",
+            )
+        runner = _default_runner
+
+    try:
+        probe = _table_probe(runner, expected.nft_table)
+    except OSError as exc:
+        return RuntimeOwnerReconciliation(
+            state="unknown", profile_id=profile_id, nft_table=expected.nft_table,
+            owner_key=expected.owner_key, state_path=state_path, observed_table=None,
+            owner_marker_matches=None, message=f"could not inspect nft table: {exc}",
+        )
+
+    if _table_probe_missing(probe):
+        saved_applied = bool(saved and saved.get("state") == "applied")
+        return RuntimeOwnerReconciliation(
+            state="stale-state" if saved_applied else "clean", profile_id=profile_id,
+            nft_table=expected.nft_table, owner_key=expected.owner_key, state_path=state_path,
+            observed_table=False, owner_marker_matches=None,
+            message=("saved state says applied but the owned table is absent; state is stale, firewall cleanup is not required"
+                     if saved_applied else "owned nft table is absent"),
+        )
+    if not probe.ok:
+        return RuntimeOwnerReconciliation(
+            state="unknown", profile_id=profile_id, nft_table=expected.nft_table,
+            owner_key=expected.owner_key, state_path=state_path, observed_table=None,
+            owner_marker_matches=None, message="nft table could not be inspected; ownership is unknown",
+        )
+
+    marker_matches = _table_has_owner_marker(probe, expected.owner_marker)
+    if not marker_matches:
+        return RuntimeOwnerReconciliation(
+            state="conflict", profile_id=profile_id, nft_table=expected.nft_table,
+            owner_key=expected.owner_key, state_path=state_path, observed_table=True,
+            owner_marker_matches=False, message="table name exists but owner marker differs; automatic cleanup is refused",
+        )
+
+    saved_matches = bool(
+        saved
+        and saved.get("state") == "applied"
+        and saved.get("ownerKey") == expected.owner_key
+        and saved.get("nftTable") == expected.nft_table
+    )
+    return RuntimeOwnerReconciliation(
+        state="consistent-applied" if saved_matches else "cleanup-required",
+        profile_id=profile_id, nft_table=expected.nft_table, owner_key=expected.owner_key,
+        state_path=state_path, observed_table=True, owner_marker_matches=True,
+        message=("saved state and observed owned table agree" if saved_matches
+                 else "owned table exists without matching applied state; use the normal confirmed revert workflow for explicit recovery"),
+    )
+
+
 def execute_runtime_owner_rules(
     root: Path | None = None,
     action: RuntimeApplyAction = "apply",
@@ -773,18 +950,60 @@ def execute_runtime_owner_rules(
     results: list[RuntimeCommandResult] = []
     state = "applied" if action == "apply" else "reverted"
     message = f"owner-confirmed {action} completed"
-    for command in commands:
-        result = runner(command.argv)
-        results.append(result)
-        if result.ok:
-            continue
-        if action == "revert" and command.ignore_missing_on_revert and _missing_table_is_ok(result):
-            state = "reverted"
-            message = "owned nft table was already missing; revert considered safe"
-            continue
-        state = "failed"
-        message = f"command failed: {command.label}"
-        break
+    saved_table = str(saved.get("nftTable", expected.nft_table))
+    owner_key = str(saved.get("ownerKey", expected.owner_key))
+    owner_marker = str(saved.get("ownerMarker", expected.owner_marker))
+    transaction_path: Path | None = None
+
+    with _runtime_owner_lock(paths, owner_key, profile_id):
+        probe = _table_probe(runner, saved_table)
+        results.append(probe)
+        table_missing = _table_probe_missing(probe)
+        if action == "apply":
+            if not table_missing and not probe.ok:
+                state = "failed"
+                message = "could not inspect existing nft table before apply"
+            elif probe.ok and not _table_has_owner_marker(probe, owner_marker):
+                state = "conflict"
+                message = "nft table exists but owner marker does not match; refusing to reuse or delete it"
+            else:
+                batch = _apply_batch_text(commands, table_exists=probe.ok)
+                transaction_path = _write_nft_transaction(paths, profile_id, plan_hash, action, batch)
+                check_result = runner(("nft", "--check", "-f", str(transaction_path)))
+                results.append(check_result)
+                if not check_result.ok:
+                    state = "failed"
+                    message = "nft transaction precheck failed; existing rules were not changed"
+                else:
+                    apply_batch_result = runner(("nft", "-f", str(transaction_path)))
+                    results.append(apply_batch_result)
+                    if not apply_batch_result.ok:
+                        state = "failed"
+                        message = "nft transaction failed; nftables rejected the batch"
+        else:
+            if table_missing:
+                state = "reverted"
+                message = "owned nft table was already missing; revert considered safe"
+            elif not probe.ok:
+                state = "failed"
+                message = "could not inspect nft table before revert"
+            elif not _table_has_owner_marker(probe, owner_marker):
+                state = "conflict"
+                message = "nft table owner marker does not match; revert refused"
+            else:
+                batch = _revert_batch_text(saved_table)
+                transaction_path = _write_nft_transaction(paths, profile_id, plan_hash, action, batch)
+                check_result = runner(("nft", "--check", "-f", str(transaction_path)))
+                results.append(check_result)
+                if not check_result.ok:
+                    state = "failed"
+                    message = "nft revert precheck failed; owned table was left intact"
+                else:
+                    revert_result = runner(("nft", "-f", str(transaction_path)))
+                    results.append(revert_result)
+                    if not revert_result.ok:
+                        state = "failed"
+                        message = "nft revert transaction failed"
 
     state_path = paths.sessions_dir / f"{profile_id}.owner-rules.json"
     state_record = {
@@ -809,6 +1028,9 @@ def execute_runtime_owner_rules(
         "nftCountersEnabled": bool(saved.get("nftCountersEnabled", True)),
         "ownerUid": int(saved.get("ownerUid", expected.owner_uid)),
         "ownerUidSource": str(saved.get("ownerUidSource", expected.owner_uid_source)),
+        "ownerKey": owner_key,
+        "ownerMarker": owner_marker,
+        "transactionPath": str(transaction_path.relative_to(paths.root)) if transaction_path is not None else None,
         "desyncMark": str(saved.get("desyncMark", expected.desync_mark)),
         "updatedAt": _utc_now(),
         "commands": [
@@ -835,7 +1057,7 @@ def execute_runtime_owner_rules(
             "planHash": plan_hash,
             "message": message,
             "createdAt": _utc_now(),
-            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": saved_nft_table, "ownerUid": saved_owner_uid, "statePath": str(state_path.relative_to(paths.root))},
+            "metadata": {"profileId": profile_id, "engine": "nftables", "nftTable": saved_nft_table, "ownerUid": saved_owner_uid, "ownerKey": owner_key, "statePath": str(state_path.relative_to(paths.root))},
             "executesNow": True,
             "mutatesFirewallOrServicesNow": True,
             "managesServiceNow": False,

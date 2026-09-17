@@ -11,7 +11,7 @@ lab для владельца. Цель stage — не автоматическ�
 - Дефолтные targets: `youtube.com www.youtube.com`.
 - Дефолтные protocol checks: HTTPS TLS1.2, HTTPS TLS1.3 и HTTP/3 QUIC.
 - HTTP выключен по умолчанию, потому что для YouTube он обычно не главный сигнал.
-- DNS precheck выключен по умолчанию, чтобы не смешивать подбор DPI-strategy с
+- DNS precheck включён по умолчанию: Blockcheck всё равно обязан разрешить target через `mdig`, поэтому ранняя DNS-диагностика предотвращает неясный `curl code 6`; отключать её следует только для осознанной диагностики. Раньше precheck был выключен, что маскировало resolver failures.
   отдельной DNS-диагностикой.
 - Результат сохраняется в `.zap2/blockcheck/logs/last-blockcheck.txt`.
 - Adapter пытается вытащить из stdout краткие строки `SUMMARY` и `working
@@ -375,3 +375,13 @@ run через `QProcess.terminate()` сразу после `AVAILABLE`. Так�
 
 Один `AVAILABLE` остаётся доказательством только для одного target/probe. Он не
 является готовым составным preset для всего сервиса.
+
+
+## Target-specific DNS guard
+
+GUI/CLI wrapper выполняет read-only `mdig` probe для каждого выбранного service target в том же sudo/QProcess-контексте, который затем запускает upstream `blockcheck2.sh`. Если выбранный target не получает адрес для requested `IPVS`, wrapper завершает run до upstream firewall preparation с кодом 6 и прямым сообщением `target DNS preflight FAILED`. Общая DNS/hijack диагностика остаётся внутри upstream Blockcheck; `SKIP_DNSCHECK` по умолчанию выключен.
+
+
+## Target-specific DNS gate
+
+Перед privileged upstream scan локальный `tools/blockcheck_target_preflight.sh` проверяет выбранные service targets через тот же vendored `mdig` и требуемые `IPVS`. Если конкретный target не возвращает адрес, run завершается кодом 6 **до** запуска `blockcheck2.sh` и до временных firewall changes. Upstream `DNS precheck` остаётся включённым по умолчанию и отвечает за общую DNS/hijack диагностику; wrapper не дублирует её, а закрывает отдельный случай, когда общая DNS-проверка проходит, но выбранный `youtube.com`/Discord endpoint не резолвится.

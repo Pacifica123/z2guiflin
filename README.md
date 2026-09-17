@@ -40,10 +40,11 @@
 - модель `пресет -> упорядоченные профили -> filter/range/direction/strategy`;
 - каталог стратегий, выбор активной стратегии и экспорт результатов Blockcheck;
 - Blockcheck Lab, service targets, проверку покрытия, матрицу наблюдений и универсальный HAR workbench;
-- owner-confirmed runtime: plan, hash, confirmation, `nftables`, NFQUEUE, запуск и остановку только управляемого `nfqws2`;
+- owner-confirmed runtime: workspace-scoped ownership, checked nft batch, reconciliation, plan/hash/confirmation, NFQUEUE и остановку только точно идентифицированного managed `nfqws2`;
 - отдельную экспериментальную ветку SOCKS5/VLESS с импортом профиля, внешним core, probes и безопасным запуском Discord через локальный SOCKS;
 - GUI `sudo -A` bridge без хранения пароля;
-- светлую и тёмную тему.
+- светлую и тёмную тему с полной семантической привязкой настраиваемых цветов;
+- опциональную изолированную security IP blocklist policy с validated last-known-good cache и явным periodic systemd timer.
 
 Подробный текущий статус: `docs/PROJECT_STATUS.md`.
 
@@ -112,7 +113,7 @@ meta_tools/   инструменты процесса разработки, вк
 - печатать VLESS URI, UUID и другие секреты в логи;
 - применять внешние Windows-пресеты без перевода на Linux/NFQUEUE модель.
 
-Подробности: `docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md`.
+Подробности: `docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md`. Runtime recovery: `docs/RUNTIME_OWNERSHIP_RECOVERY.md`. Security blocklist: `docs/SECURITY_IPBLOCKLIST.md`.
 
 ## Документация
 

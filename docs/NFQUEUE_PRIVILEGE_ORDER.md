@@ -39,4 +39,4 @@ nfq_create_queue(): Operation not permitted
 
 ## Дополнение Stage 14: номер очереди
 
-Stage 13 изменил порядок открытия NFQUEUE, но пользовательский лог показал, что падение может сохраняться уже на другом уровне: fixed queue `200` слишком хрупка для частых devctl-workspace запусков. Stage 14 поэтому добавляет workspace-specific NFQUEUE policy: номер очереди больше не зашит в apply/session как глобальный `200`, а вычисляется общим resolver-ом.
+Stage 13 изменил порядок открытия NFQUEUE, но пользовательский лог показал, что падение может сохраняться уже на другом уровне: fixed queue `200` слишком хрупка для частых devctl-workspace запусков. Stage 14 поэтому добавляет owner/workspace-scoped NFQUEUE policy: номер очереди больше не зашит в apply/session как глобальный `200`, а вычисляется общим resolver-ом из desktop UID + canonical workspace digest + profile. Перед apply положительно обнаруженная занятая очередь теперь блокирует start.

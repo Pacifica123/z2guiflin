@@ -13,7 +13,9 @@
 - Пресеты состоят из упорядоченных профилей с фильтром, диапазоном, направлением и стратегией.
 - Blockcheck Lab умеет работать с сервисными целями, сохранять результаты и экспортировать стратегии.
 - HAR workbench разбирает HAR любого ресурса, группирует проблемные hosts и предлагает кандидатов для покрытия.
-- Runtime использует plan/hash/confirmation, owned-таблицу `nftables`, отдельную NFQUEUE и управляемый PID `nfqws2`.
+- Runtime использует plan/hash/confirmation, owner-scoped `nftables` table + marker, детерминированную NFQUEUE, process identity (`boot_id`/starttime/exe/argv digest) и управляемый `nfqws2`.
+- Apply/revert используют checked nft batch, lifecycle lock и read-only reconciliation вместо слепого удаления одноимённой table.
+- Security IP blocklist живёт в отдельной owned nft table: outbound C2/malicious destinations UID-scoped, тяжёлый inbound opt-in, обновления используют validated immutable generations и last-known-good fallback.
 - GUI может запускать и останавливать привилегированный workflow через `sudo -A`, не сохраняя пароль.
 - Есть отдельная экспериментальная ветка SOCKS5/VLESS с внешним core, redacted-хранилищем профиля и probes.
 - В целевой среде владельца существуют стратегии, которые помогают YouTube и основному desktop Discord: запуску и сообщениям.
@@ -25,7 +27,7 @@
 - Discord Voice/UDP не доведён до стабильного результата.
 - Tunnel lane не является прозрачным системным VPN и зависит от внешнего core/upstream.
 - `systemd` service mode существует на уровне планов и адаптеров, но не оформлен как готовая установка/автозапуск.
-- Нет AUR-пакета, встроенного updater и автоматического обновления hostlist/ipset.
+- Нет AUR-пакета и общего updater vendored core/hostlist/ipset. Security-IP blocklist имеет отдельный явный updater/timer и не подменяет этот будущий механизм.
 - Реальные сетевые результаты нельзя проверить автономными тестами проекта.
 
 ## Как трактовать неудачную стратегию

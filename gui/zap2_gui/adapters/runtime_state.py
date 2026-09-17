@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,7 +31,7 @@ from ..project_paths import discover_layout
 RUNTIME_STATE_SCHEMA_VERSION = 1
 RUNTIME_STATE_STAGE = "v0.3-alpha_stage_10"
 RUNTIME_STATE_DIRNAME = ".zap2"
-RUNTIME_SUBDIRS = ("plans", "confirmations", "sessions", "logs", "rollback", "session-inputs")
+RUNTIME_SUBDIRS = ("plans", "confirmations", "sessions", "logs", "rollback", "session-inputs", "locks", "transactions")
 
 
 @dataclass(frozen=True)
@@ -45,6 +47,8 @@ class RuntimeStorePaths:
     logs_dir: Path
     rollback_dir: Path
     session_inputs_dir: Path
+    locks_dir: Path
+    transactions_dir: Path
 
     @property
     def required_dirs(self) -> tuple[Path, ...]:
@@ -57,6 +61,8 @@ class RuntimeStorePaths:
             self.logs_dir,
             self.rollback_dir,
             self.session_inputs_dir,
+            self.locks_dir,
+            self.transactions_dir,
         )
 
     def as_text_lines(self) -> tuple[str, ...]:
@@ -68,6 +74,8 @@ class RuntimeStorePaths:
             f"logs: {self.logs_dir}",
             f"rollback: {self.rollback_dir}",
             f"session inputs: {self.session_inputs_dir}",
+            f"locks: {self.locks_dir}",
+            f"transactions: {self.transactions_dir}",
         )
 
 
@@ -143,6 +151,8 @@ def runtime_store_paths(root: Path | None = None) -> RuntimeStorePaths:
         logs_dir=runtime_root / "logs",
         rollback_dir=runtime_root / "rollback",
         session_inputs_dir=runtime_root / "session-inputs",
+        locks_dir=runtime_root / "locks",
+        transactions_dir=runtime_root / "transactions",
     )
 
 
@@ -163,8 +173,28 @@ def _stable_json(data: Any) -> str:
     return json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+def atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+    """Atomically replace one runtime JSON record in its destination directory."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    finally:
+        try:
+            temp_path.unlink()
+        except FileNotFoundError:
+            pass
+
+
 def _write_json(path: Path, data: dict[str, Any]) -> None:
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(path, data)
 
 
 def _command_to_dict(command: RuntimePlanCommandPreview) -> dict[str, Any]:

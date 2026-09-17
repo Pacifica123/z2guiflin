@@ -27,7 +27,9 @@ def test_item_views_have_explicit_light_background_and_selection() -> None:
 def test_blockcheck_local_style_no_longer_assumes_dark_theme() -> None:
     source = (ROOT / "gui/zap2_gui/widgets/blockcheck_lab.py").read_text(encoding="utf-8")
     assert "rgba(220, 220, 220" not in source
-    assert "color: #756d7b" in source
+    assert "color: #756d7b" not in source
+    profile_source = (ROOT / "gui/zap2_gui/theme_profiles.py").read_text(encoding="utf-8")
+    assert "QLabel#blockcheckPresetHint" in profile_source
     assert "(tournament_button, 3, 1, 1, 1)" in source
     assert "(endpoint_button, 4, 1, 1, 1)" in source
 
@@ -41,3 +43,14 @@ def test_runtime_status_colors_are_theme_semantics_not_local_pills() -> None:
     assert "background: transparent;" in runtime
     assert "#dcefe3" not in runtime
     assert "#f2e8d8" not in runtime
+
+
+def test_widget_local_styles_do_not_pin_literal_colors_outside_theme_mapping() -> None:
+    import re
+    literal = re.compile(r"#[0-9A-Fa-f]{6}\b|rgba?\(")
+    offenders = []
+    for path in sorted((ROOT / "gui/zap2_gui/widgets").glob("*.py")):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if literal.search(line):
+                offenders.append(f"{path.name}:{number}:{line.strip()}")
+    assert not offenders, "widget-local literal colors bypass theme settings: " + "; ".join(offenders)

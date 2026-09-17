@@ -23,6 +23,29 @@ def _copy_project(tmp_path: Path) -> Path:
     shutil.copytree(ROOT, target, ignore=ignore)
     return target
 
+class FakeNftRunner:
+    def __init__(self, calls: list[tuple[str, ...]]):
+        self.calls = calls
+        self.exists = False
+        self.table_text = ""
+
+    def __call__(self, argv: tuple[str, ...]) -> RuntimeCommandResult:
+        self.calls.append(argv)
+        if argv[:4] == ("nft", "list", "table", "inet"):
+            if not self.exists:
+                return RuntimeCommandResult(argv=argv, returncode=1, stderr="Error: No such file or directory")
+            return RuntimeCommandResult(argv=argv, returncode=0, stdout=self.table_text)
+        if argv[:3] == ("nft", "--check", "-f"):
+            return RuntimeCommandResult(argv=argv, returncode=0)
+        if argv[:2] == ("nft", "-f"):
+            text = Path(argv[2]).read_text(encoding="utf-8")
+            if text.lstrip().startswith("delete table"):
+                self.exists = False; self.table_text = ""
+            else:
+                self.exists = True; self.table_text = text
+            return RuntimeCommandResult(argv=argv, returncode=0)
+        return RuntimeCommandResult(argv=argv, returncode=0)
+
 
 def test_runtime_apply_plan_is_owner_confirmed_nft_plan():
     plan = create_runtime_apply_plan(action="apply", profile_id="default")
@@ -30,7 +53,9 @@ def test_runtime_apply_plan_is_owner_confirmed_nft_plan():
     assert plan.plan_id == "runtime-default-manual-local-apply-owner-rules-plan"
     assert plan.profile_id == "default"
     assert plan.strategy_id == "manual-local"
-    assert plan.nft_table == "zap2_default"
+    assert plan.nft_table.startswith("zap2_u")
+    assert plan.nft_table.endswith("_default")
+    assert plan.owner_key in plan.owner_marker
     assert plan.nfqueue_num == resolve_nfqueue_num(profile_id="default")
     assert 200 <= plan.nfqueue_num <= 599
     assert plan.requires_sudo is True
@@ -45,7 +70,8 @@ def test_runtime_apply_plan_is_owner_confirmed_nft_plan():
     assert plan.desync_mark == "0x40000000"
     assert plan.owner_uid >= 0
     all_argv = "\n".join(" ".join(command.argv) for command in plan.commands)
-    assert "nft add table inet zap2_default" in all_argv
+    assert f"nft add table inet {plan.nft_table}" in all_argv
+    assert plan.owner_marker in all_argv
     assert f"queue num {plan.nfqueue_num} bypass" in all_argv
     assert "udp dport" not in all_argv
     assert f"meta skuid {plan.owner_uid}" in all_argv
@@ -61,7 +87,7 @@ def test_runtime_revert_plan_deletes_only_owned_table():
 
     assert plan.plan_id == "runtime-default-manual-local-revert-owner-rules-plan"
     assert len(plan.commands) == 1
-    assert plan.commands[0].argv == ("nft", "delete", "table", "inet", "zap2_default")
+    assert plan.commands[0].argv == ("nft", "delete", "table", "inet", plan.nft_table)
     assert plan.commands[0].ignore_missing_on_revert is True
     assert "чужие" in "\n".join(plan.rollback_notes)
 
@@ -85,9 +111,7 @@ def test_prepare_confirm_and_execute_apply_with_fake_runner(tmp_path):
     confirm_runtime_plan(project, prepared.plan_id)
     calls: list[tuple[str, ...]] = []
 
-    def fake_runner(argv: tuple[str, ...]) -> RuntimeCommandResult:
-        calls.append(argv)
-        return RuntimeCommandResult(argv=argv, returncode=0)
+    fake_runner = FakeNftRunner(calls)
 
     result = execute_runtime_owner_rules(
         project,
@@ -104,7 +128,10 @@ def test_prepare_confirm_and_execute_apply_with_fake_runner(tmp_path):
     state = json.loads(result.state_path.read_text(encoding="utf-8"))
     assert state["marker"] == "zap2-runtime-apply-v1"
     assert state["state"] == "applied"
-    assert state["nftTable"] == "zap2_default"
+    assert state["nftTable"].startswith("zap2_u")
+    assert state["ownerKey"]
+    assert state["ownerMarker"].startswith("zap2-owner:")
+    assert state["transactionPath"]
     assert state["queuedTcpPorts"] == ["80", "443"]
     assert state["queuedUdpPorts"] == []
     assert state["desyncMark"] == "0x40000000"
@@ -124,9 +151,7 @@ def test_execute_apply_uses_saved_owner_rules_after_sudo_identity_drift(tmp_path
     monkeypatch.setenv("SUDO_UID", "0")
     calls: list[tuple[str, ...]] = []
 
-    def fake_runner(argv: tuple[str, ...]) -> RuntimeCommandResult:
-        calls.append(argv)
-        return RuntimeCommandResult(argv=argv, returncode=0)
+    fake_runner = FakeNftRunner(calls)
 
     result = execute_runtime_owner_rules(
         project,
@@ -138,10 +163,10 @@ def test_execute_apply_uses_saved_owner_rules_after_sudo_identity_drift(tmp_path
     )
 
     assert result.state == "applied"
-    all_argv = "\n".join(" ".join(call) for call in calls)
-    assert "meta skuid 1234" in all_argv
-    assert "meta skuid 0" not in all_argv
     state = json.loads(result.state_path.read_text(encoding="utf-8"))
+    transaction = (project / state["transactionPath"]).read_text(encoding="utf-8")
+    assert "meta skuid 1234" in transaction
+    assert "meta skuid 0" not in transaction
     assert state["ownerUid"] == 1234
 
 

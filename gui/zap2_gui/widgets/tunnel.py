@@ -446,9 +446,6 @@ def make_tunnel_page(root: Path | None = None) -> Any:
             padding: 8px;
         }
         QLineEdit#discordSocksCommand, QLineEdit#tunnelCoreBinary, QLineEdit#torBackendBinary { font-family: monospace; }
-        QTableWidget#tunnelConnectionsTable {
-            gridline-color: rgba(90, 90, 90, 0.14);
-        }
         """
     )
     return page
