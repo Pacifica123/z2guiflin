@@ -14,6 +14,7 @@ from ..adapters.discord_tunnel import (
     discord_proxy_route_plan_to_text,
     discord_stop_launched_to_text,
     discord_tunnel_https_probe_to_text,
+    discord_tunnel_evidence_to_text,
     discord_tunnel_plan_to_text,
     discord_tunnel_probe_to_text,
     discord_tunnel_route_diagnose_to_text,
@@ -396,16 +397,18 @@ def make_tunnel_page(root: Path | None = None) -> Any:
         pass
     route_plan_button = QtWidgets.QPushButton("План маршрута")
     route_diagnose_button = QtWidgets.QPushButton("Диагноз маршрута")
+    evidence_button = QtWidgets.QPushButton("Evidence / capability")
     https_probe_button = QtWidgets.QPushButton("HTTPS probe")
     launch_button = QtWidgets.QPushButton("Запустить Discord / Vesktop через SOCKS")
     stop_discord_button = QtWidgets.QPushButton("Остановить Discord launch")
     tun_plan_button = QtWidgets.QPushButton("TUN/TProxy план")
-    for widget in (mode_label, mode_combo, route_plan_button, route_diagnose_button, https_probe_button, launch_button, stop_discord_button, tun_plan_button):
+    for widget in (mode_label, mode_combo, route_plan_button, route_diagnose_button, evidence_button, https_probe_button, launch_button, stop_discord_button, tun_plan_button):
         mode_row.addWidget(widget)
     mode_row.addStretch(1)
 
     route_plan_button.clicked.connect(lambda _checked=False: run_action("План маршрута", lambda: discord_proxy_route_plan_to_text(root=root)))
     route_diagnose_button.clicked.connect(lambda _checked=False: run_action("Диагноз маршрута", lambda: discord_tunnel_route_diagnose_to_text(root=root)))
+    evidence_button.clicked.connect(lambda _checked=False: run_action("Evidence / capability", lambda: discord_tunnel_evidence_to_text(root=root)))
     https_probe_button.clicked.connect(lambda _checked=False: run_action("HTTPS probe", lambda: discord_tunnel_https_probe_to_text(root=root)))
     tun_plan_button.clicked.connect(lambda _checked=False: run_action("TUN/TProxy план", lambda: discord_tunnel_tun_plan_to_text(root=root)))
     launch_button.clicked.connect(

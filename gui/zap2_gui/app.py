@@ -151,6 +151,7 @@ from .adapters.discord_tunnel import (
     discord_tunnel_guided_run_to_text,
     discord_tunnel_https_probe_to_text,
     discord_tunnel_core_preflight_to_text,
+    discord_tunnel_evidence_to_text,
     discord_tunnel_plan_to_text,
     discord_tunnel_probe_to_text,
     discord_tunnel_route_diagnose_to_text,
@@ -537,6 +538,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--discord-tunnel-route-diagnose",
         action="store_true",
         help="Stage 8c: свести tunnel/SOCKS/upstream/Discord logs в короткий route verdict; read-only",
+    )
+    parser.add_argument(
+        "--discord-tunnel-evidence",
+        action="store_true",
+        help="P01: показать current-run EvidenceGraph и CapabilityVerdict без вывода секретов; read-only",
     )
     parser.add_argument(
         "--tunnel-probe-host",
@@ -1378,6 +1384,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.discord_tunnel_route_diagnose:
         print(discord_tunnel_route_diagnose_to_text(profile_id=args.profile))
+        return 0
+
+    if args.discord_tunnel_evidence:
+        print(discord_tunnel_evidence_to_text(profile_id=args.profile))
         return 0
 
     if args.discord_tunnel_guided_run:

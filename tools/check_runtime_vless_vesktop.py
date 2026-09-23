@@ -18,6 +18,8 @@ from pathlib import Path
 from zap2_gui.adapters.discord_tunnel import (
     _discord_launch_argv,
     discord_tunnel_plan_to_text,
+    discord_tunnel_probe_to_text,
+    discord_tunnel_evidence_to_text,
     discord_tunnel_start_to_text,
     discord_tunnel_stop_to_text,
     generate_xray_vless_socks_config,
@@ -121,6 +123,31 @@ def check_tunnel_readiness() -> None:
         require("Discord tunnel start: started" in started, "SOCKS-capable fake core did not start")
         session = json.loads((root / ".zap2/tunnel/runtime/default.session.json").read_text(encoding="utf-8"))
         require(session.get("socksReady") is True, "successful start did not persist socksReady=true")
+        require(bool(session.get("runId")), "successful start lacks run-bound identity")
+        require(bool(session.get("connectionReceiptId")), "successful start lacks connection receipt binding")
+        require(bool(session.get("configHash")), "successful start lacks config hash binding")
+        graph_path = Path(str(session.get("evidenceGraphPath", "")))
+        require(graph_path.exists(), "successful start lacks EvidenceGraph")
+        graph = json.loads(graph_path.read_text(encoding="utf-8"))
+        verdicts = {item["capabilityId"]: item for item in graph.get("capabilityVerdicts", [])}
+        require(verdicts.get("vesktop.bootstrap", {}).get("support") == "UNKNOWN", "local SOCKS PASS falsely promoted Vesktop capability")
+        probe = discord_tunnel_probe_to_text(root=root)
+        require("verdict: T0_SOCKS_READY" in probe, "legacy local compatibility verdict disappeared")
+        require("local SOCKS readiness != remote route/TLS/HTTP/Vesktop support" in probe, "probe does not state network-truth boundary")
+        evidence = discord_tunnel_evidence_to_text(root=root)
+        require("vesktop bootstrap capability: UNKNOWN" in evidence, "typed evidence falsely reports Vesktop support")
+        require("Truth rule: process/listener/SOCKS PASS never implies" in evidence, "typed evidence truth rule missing")
+        receipt_path = Path(str(session.get("connectionReceiptPath", "")))
+        if not receipt_path.is_absolute():
+            receipt_path = root / receipt_path
+        receipt_text = receipt_path.read_text(encoding="utf-8")
+        receipt = json.loads(receipt_text)
+        require("vless://" not in receipt_text and "11111111-2222-4333-8444-555555555555" not in receipt_text, "ConnectionReceipt leaked raw credential")
+        generation = receipt.get("generation", {})
+        require(generation.get("support") == "SUPPORTED", "known smoke VLESS semantics were not accepted as fully represented")
+        require(generation.get("semanticDiff", {}).get("equal") is True, "source/generated semantic projections differ in smoke fixture")
+        require(generation.get("sourceSemanticHash") == generation.get("generatedSemanticHash"), "semantic hashes differ in smoke fixture")
+        require(session.get("containment", {}).get("randomPortIsAuthentication") is False, "random SOCKS port was treated as authentication")
         stopped = discord_tunnel_stop_to_text(root=root)
         require("Discord tunnel stop: stopped" in stopped, "managed fake core did not stop")
 
@@ -157,6 +184,8 @@ def check_vesktop_launch_composer() -> None:
     widget_source = (project_root / "gui/zap2_gui/widgets/tunnel.py").read_text(encoding="utf-8")
     combined = app_source + "\n" + widget_source
     require("Vesktop" in combined, "GUI/CLI sources do not expose Vesktop")
+    require("--discord-tunnel-evidence" in app_source, "CLI does not expose typed EvidenceGraph")
+    require("Evidence / capability" in widget_source, "GUI does not expose typed capability view")
 
 
 def check_legacy_session_adoption() -> None:

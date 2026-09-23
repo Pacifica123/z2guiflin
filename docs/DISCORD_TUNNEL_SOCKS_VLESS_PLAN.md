@@ -99,7 +99,7 @@ PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-stop
 PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-probe
 ```
 
-Проверяется managed PID и доступность loopback SOCKS port.
+Проверяется managed PID, loopback listener и SOCKS5 method negotiation. Это **только локальные spans**: их PASS не означает, что VLESS route/TLS/Discord/Vesktop работает. Текущий typed truth contract описан в `docs/P01_NETWORK_TRUTH_EVIDENCE.md`.
 
 ### HTTPS через SOCKS
 
@@ -115,7 +115,11 @@ PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-https-probe
 PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-route-diagnose
 ```
 
-Команда сводит core state, SOCKS probe, HTTPS preflight и логи в короткий verdict.
+Команда сводит core state, SOCKS probe, HTTPS preflight и логи в короткий diagnostic verdict. Логовые эвристики не повышают `CapabilityVerdict`. Для авторитетного current-run графа используйте:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-evidence
+```
 
 ## Запуск Discord
 
@@ -130,6 +134,8 @@ Preflight блокирует запуск Electron в заведомо слом�
 ```text
 --discord-launch-allow-failed-preflight
 ```
+
+Override разрешает действие, но не меняет typed capability: `bypassChangesVerdict=false`. Failed/UNKNOWN route не становится green-ready.
 
 Запущенная process group может быть остановлена через:
 

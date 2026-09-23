@@ -23,6 +23,7 @@
 ./run.sh --strategy-parser-preflight
 ./run.sh --discord-tunnel-core-preflight --tunnel-core-binary /usr/bin/xray --tunnel-core-kind xray
 ./run.sh --discord-tunnel-status
+./run.sh --discord-tunnel-evidence   # current-run EvidenceGraph / CapabilityVerdict
 ```
 
 Полный список CLI:
@@ -42,6 +43,7 @@
 - Blockcheck Lab, service targets, проверку покрытия, матрицу наблюдений и универсальный HAR workbench;
 - owner-confirmed runtime: workspace-scoped ownership, checked nft batch, reconciliation, plan/hash/confirmation, NFQUEUE и остановку только точно идентифицированного managed `nfqws2`;
 - отдельную экспериментальную ветку SOCKS5/VLESS с импортом профиля, внешним core, probes и безопасным запуском Discord через локальный SOCKS;
+- typed network truth для tunnel lane: local SOCKS не считается remote/app readiness; evidence привязан к run/config/receipt, а semantic-loss/bypass не могут дать ложный green verdict;
 - GUI `sudo -A` bridge без хранения пароля;
 - светлую и тёмную тему с полной семантической привязкой настраиваемых цветов;
 - опциональную изолированную security IP blocklist policy с validated last-known-good cache и явным periodic systemd timer.
@@ -155,3 +157,12 @@ C Tor остаётся системным backend, Arti добавлен отд�
 ### Настройка интерфейса и каталога пресетов
 
 Hot-swap пресетов, portable JSON-темы, `Ctrl+F`-поиск и встроенный strat_collection с консервативным автопортом однозначно совместимых записей описаны в `docs/CUSTOMIZATION.md`.
+
+### Тестовое окружение UserTestSpace
+
+`devctl start` намеренно не зависит от pytest. После успешного применения патча
+перейдите в созданный `UserTestSpace/<version>/project` и выполните
+`bash meta_tools/uts_prepare.sh`. Скрипт проверит UTS test environment, при
+необходимости установит pytest системным package manager на Arch-like системе
+или создаст fallback `.uts-venv` рядом с `project/`. Режимы `--p01` и `--full`
+запускают regression без pytest cache и Python bytecode.

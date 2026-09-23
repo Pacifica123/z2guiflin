@@ -31,9 +31,27 @@ from urllib.parse import parse_qsl, unquote, urlsplit
 from .runtime_default import default_workflow_status
 from .runtime_state import confirm_runtime_plan, ensure_runtime_store, plan_payload_hash
 from ..project_paths import discover_layout
+from ..models.network_evidence import (
+    CONNECTION_RECEIPT_SCHEMA_VERSION,
+    EvidenceGraph,
+    EXPERIMENTAL,
+    FAIL,
+    PASS,
+    UNKNOWN,
+    ProbeSpan,
+    SUPPORT_UNKNOWN,
+    SUPPORTED,
+    UNSUPPORTED,
+    aggregate_capability_verdicts,
+    capability_from_required_spans,
+    hash_json as evidence_hash_json,
+    new_run_id,
+    redact_for_support,
+    sha256_text,
+)
 
 TUNNEL_STAGE = "v0.4-alpha_stage8g"
-TUNNEL_SCHEMA_VERSION = 1
+TUNNEL_SCHEMA_VERSION = 2
 TUNNEL_MARKER = "zap2-discord-tunnel-v1"
 DEFAULT_PROFILE_ID = "default"
 DEFAULT_SOCKS_HOST = "127.0.0.1"
@@ -152,6 +170,8 @@ class TunnelStorePaths:
     logs_dir: Path
     plans_dir: Path
     confirmations_dir: Path
+    receipts_dir: Path
+    evidence_dir: Path
 
     @property
     def required_dirs(self) -> tuple[Path, ...]:
@@ -163,6 +183,8 @@ class TunnelStorePaths:
             self.logs_dir,
             self.plans_dir,
             self.confirmations_dir,
+            self.receipts_dir,
+            self.evidence_dir,
         )
 
 
@@ -205,6 +227,8 @@ def tunnel_store_paths(root: Path | None = None) -> TunnelStorePaths:
         logs_dir=tunnel_root / "logs",
         plans_dir=runtime_paths.plans_dir,
         confirmations_dir=runtime_paths.confirmations_dir,
+        receipts_dir=tunnel_root / "receipts",
+        evidence_dir=tunnel_root / "evidence",
     )
 
 
@@ -213,6 +237,19 @@ def ensure_tunnel_store(root: Path | None = None) -> TunnelStorePaths:
     for directory in paths.required_dirs:
         directory.mkdir(parents=True, exist_ok=True)
     return paths
+
+
+def _connection_receipt_id(profile: "VlessConnectionProfile") -> str:
+    normalized = profile.normalized_hash or profile.fingerprint
+    return f"receipt-{profile.connection_id}-{normalized[:12]}"
+
+
+def _connection_receipt_path(paths: TunnelStorePaths, profile_id: str, profile: "VlessConnectionProfile") -> Path:
+    return paths.receipts_dir / f"{profile_id}.{_connection_receipt_id(profile)}.json"
+
+
+def _evidence_graph_path(paths: TunnelStorePaths, profile_id: str, run_id: str) -> Path:
+    return paths.evidence_dir / f"{profile_id}.{run_id}.evidence.json"
 
 
 @dataclass(frozen=True)
@@ -245,6 +282,8 @@ class VlessConnectionProfile:
     unknown_query: dict[str, str]
     imported_at: str
     source: str
+    source_hash: str
+    normalized_hash: str
 
     @property
     def fingerprint(self) -> str:
@@ -291,6 +330,8 @@ class VlessConnectionProfile:
             "unknownQuery": dict(self.unknown_query),
             "importedAt": self.imported_at,
             "source": self.source,
+            "sourceHash": self.source_hash,
+            "normalizedHash": self.normalized_hash,
             "fingerprint": self.fingerprint,
         }
 
@@ -325,6 +366,8 @@ class VlessConnectionProfile:
             unknown_query={str(k): str(v) for k, v in dict(data.get("unknownQuery", {})).items()},
             imported_at=str(data.get("importedAt", _utc_now())),
             source=str(data.get("source", "stored")),
+            source_hash=str(data.get("sourceHash", "")),
+            normalized_hash=str(data.get("normalizedHash", data.get("fingerprint", ""))),
         )
 
     def redacted_dict(self) -> dict[str, Any]:
@@ -350,6 +393,8 @@ class VlessConnectionProfile:
             "xhttpMode": self.xhttp_mode,
             "allowInsecure": self.allow_insecure,
             "unknownQueryKeys": sorted(self.unknown_query),
+            "sourceHash": self.source_hash,
+            "normalizedHash": self.normalized_hash,
             "fingerprint": self.fingerprint[:16],
         }
 
@@ -449,6 +494,89 @@ def _query_int(query: dict[str, str], key: str) -> int | None:
         return None
 
 
+def _receipt_source_kind(source: str) -> str:
+    """Keep support receipts useful without leaking owner filesystem paths."""
+
+    value = str(source or "unknown")
+    if value.startswith("file:"):
+        return "file"
+    return value.split(":", 1)[0] if ":" in value else value
+
+
+def _hashed_presence(value: str) -> dict[str, Any]:
+    text = str(value or "")
+    if not text:
+        return {"present": False}
+    return {"present": True, "sha256": sha256_text(text)}
+
+
+def _connection_receipt_summary(profile: VlessConnectionProfile) -> dict[str, Any]:
+    """Redacted semantic summary suitable for non-secret support evidence."""
+
+    return {
+        "connectionId": profile.connection_id,
+        "scheme": profile.scheme,
+        "userId": _hashed_presence(profile.user_id),
+        "server": _redact_host(profile.server),
+        "port": profile.port,
+        "remarks": _hashed_presence(profile.remarks),
+        "encryption": profile.encryption,
+        "security": profile.security,
+        "network": profile.network,
+        "headerType": profile.header_type,
+        "host": _redact_host(profile.host) if profile.host else "",
+        "sni": _redact_host(profile.sni) if profile.sni else "",
+        "alpn": list(profile.alpn),
+        "flow": profile.flow,
+        "path": _hashed_presence(profile.path),
+        "serviceName": _hashed_presence(profile.service_name),
+        "authority": _redact_host(profile.authority) if profile.authority else "",
+        "xhttpMode": profile.xhttp_mode,
+        "xhttpExtra": _hashed_presence(profile.xhttp_extra),
+        "allowInsecure": profile.allow_insecure,
+        "kcpSeed": _hashed_presence(profile.kcp_seed),
+        "kcpMtu": profile.kcp_mtu,
+        "kcpTti": profile.kcp_tti,
+        "finalMask": _hashed_presence(profile.final_mask),
+        "unknownQueryKeys": sorted(profile.unknown_query),
+        "sourceHash": profile.source_hash or None,
+        "normalizedHash": profile.normalized_hash or profile.fingerprint,
+        "fingerprint": profile.fingerprint[:16],
+    }
+
+
+def _write_import_connection_receipt(paths: TunnelStorePaths, profile_id: str, profile: VlessConnectionProfile) -> Path:
+    source_state = "captured" if profile.source_hash else "historically_unrecoverable"
+    payload = {
+        "schemaVersion": CONNECTION_RECEIPT_SCHEMA_VERSION,
+        "receiptId": _connection_receipt_id(profile),
+        "createdAt": _utc_now(),
+        "profileId": profile_id,
+        "connectionId": profile.connection_id,
+        "source": {
+            "kind": _receipt_source_kind(profile.source),
+            "state": source_state,
+            "sourceHash": profile.source_hash or None,
+        },
+        "normalizedHash": profile.normalized_hash or profile.fingerprint,
+        "recognizedQueryKeys": sorted(key for key in profile.raw_query if key in KNOWN_VLESS_QUERY_KEYS),
+        "unknownQueryKeys": sorted(profile.unknown_query),
+        "connection": _connection_receipt_summary(profile),
+        "generation": {
+            "coreKind": None,
+            "generatedSemanticHash": None,
+            "semanticFidelity": "unbound",
+            "requiredLoss": [],
+            "support": SUPPORT_UNKNOWN,
+            "reason": "generator/core not bound yet",
+        },
+        "rawUriStored": False,
+    }
+    path = _connection_receipt_path(paths, profile_id, profile)
+    _write_json(path, payload, secret=False)
+    return path
+
+
 def parse_vless_uri(uri_text: str, *, source: str = "manual") -> VlessConnectionProfile:
     """Parse a VLESS share link without doing any network access."""
 
@@ -470,12 +598,35 @@ def parse_vless_uri(uri_text: str, *, source: str = "manual") -> VlessConnection
         raise ValueError("VLESS URI должен содержать server host")
     if parsed.port is None or parsed.port <= 0 or parsed.port > 65535:
         raise ValueError("VLESS URI должен содержать корректный port 1..65535")
-    query = {key: value for key, value in parse_qsl(parsed.query, keep_blank_values=True)}
+    query_items = parse_qsl(parsed.query, keep_blank_values=True)
+    seen_query_keys: set[str] = set()
+    duplicate_query_keys: set[str] = set()
+    for key, _value in query_items:
+        if key in seen_query_keys:
+            duplicate_query_keys.add(key)
+        seen_query_keys.add(key)
+    if duplicate_query_keys:
+        raise ValueError(
+            "VLESS URI содержит повторяющиеся query-параметры, которые нельзя нормализовать без риска потери семантики: "
+            + ", ".join(sorted(duplicate_query_keys))
+        )
+    query = dict(query_items)
     if not query:
         raise ValueError("VLESS URI должен содержать query-параметры; минимум encryption=none")
     unknown = {key: value for key, value in query.items() if key not in KNOWN_VLESS_QUERY_KEYS}
     remarks = unquote(parsed.fragment or "").strip() or "unnamed-vless"
     raw_id_material = f"{parsed.scheme.lower()}://{user_id}@{parsed.hostname}:{parsed.port}?{parsed.query}#{parsed.fragment}"
+    source_hash = sha256_text(raw)
+    normalized_hash = evidence_hash_json(
+        {
+            "scheme": "vless",
+            "userId": user_id,
+            "server": parsed.hostname,
+            "port": int(parsed.port),
+            "query": {key: query[key] for key in sorted(query)},
+            "remarks": remarks,
+        }
+    )
     return VlessConnectionProfile(
         connection_id=f"vless-{_sha12(raw_id_material)}",
         scheme="vless",
@@ -505,6 +656,8 @@ def parse_vless_uri(uri_text: str, *, source: str = "manual") -> VlessConnection
         unknown_query=unknown,
         imported_at=_utc_now(),
         source=source,
+        source_hash=source_hash,
+        normalized_hash=normalized_hash,
     )
 
 
@@ -616,7 +769,9 @@ def tunnel_connection_import_vless_text_to_text(text: str, *, profile_id: str = 
     connections_path = _save_connections(paths, profile_id, connections)
     selected_id = imported_ids[0]
     select_text = select_tunnel_connection(selected_id, profile_id=profile_id, root=paths.root)
+    receipt_paths: list[Path] = []
     for profile in preview.valid_profiles:
+        receipt_paths.append(_write_import_connection_receipt(paths, profile_id, profile))
         _append_event(paths, profile_id, "connection-imported", "VLESS tunnel connection imported from text source", profile.redacted_dict())
 
     lines = [
@@ -627,6 +782,7 @@ def tunnel_connection_import_vless_text_to_text(text: str, *, profile_id: str = 
         f"imported valid profiles: {preview.valid_count}",
         f"rejected candidates: {len(preview.rejected)}",
         f"connections file: {connections_path}",
+        f"connection receipts: {len(receipt_paths)} in {paths.receipts_dir}",
         "raw uri printed now: no",
         "raw uri committed to repo: no",
         f"auto-selected: {selected_id}",
@@ -800,6 +956,7 @@ def tunnel_connection_import_vless_to_text(value: str, *, profile_id: str = DEFA
     connections_path = _save_connections(paths, profile_id, connections)
     select_text = select_tunnel_connection(profile.connection_id, profile_id=profile_id, root=paths.root)
     redacted = profile.redacted_dict()
+    receipt_path = _write_import_connection_receipt(paths, profile_id, profile)
     _append_event(paths, profile_id, "connection-imported", "VLESS tunnel connection imported", redacted)
     return "\n".join(
         [
@@ -813,6 +970,7 @@ def tunnel_connection_import_vless_to_text(value: str, *, profile_id: str = DEFA
             f"host override: {redacted['host'] or 'нет'}",
             f"unknown query keys: {', '.join(redacted['unknownQueryKeys']) if redacted['unknownQueryKeys'] else 'нет'}",
             f"connections file: {connections_path}",
+            f"connection receipt: {receipt_path}",
             "raw uri printed now: no",
             "raw uri committed to repo: no",
             "auto-selected: yes",
@@ -989,7 +1147,7 @@ def _stream_settings(profile: VlessConnectionProfile, *, core_kind: str = "xray"
             tls["serverName"] = server_name
         if profile.alpn:
             tls["alpn"] = list(profile.alpn)
-        if profile.allow_insecure and not profile.raw_query.get("pcs"):
+        if profile.allow_insecure:
             tls["allowInsecure"] = True
         if profile.raw_query.get("fp"):
             tls["fingerprint"] = profile.raw_query["fp"]
@@ -1143,6 +1301,663 @@ def generate_xray_vless_socks_config(
     }
 
 
+def _canonical_transport_name(network: str, core_kind: str) -> str:
+    value = (network or "tcp").lower()
+    kind = (core_kind or "xray").lower()
+    if kind == "xray":
+        aliases = {
+            "tcp": "raw",
+            "raw": "raw",
+            "ws": "websocket",
+            "websocket": "websocket",
+            "kcp": "mkcp",
+            "mkcp": "mkcp",
+            "splithttp": "xhttp",
+            "xhttp": "xhttp",
+        }
+    else:
+        aliases = {
+            "raw": "tcp",
+            "tcp": "tcp",
+            "websocket": "ws",
+            "ws": "ws",
+            "mkcp": "kcp",
+            "kcp": "kcp",
+            "http": "h2",
+            "h2": "h2",
+        }
+    return aliases.get(value, value)
+
+
+def _json_or_raw(value: str) -> Any:
+    text = str(value or "")
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return text
+
+
+def _source_semantic_projection(profile: VlessConnectionProfile, core_kind: str) -> dict[str, Any]:
+    """Canonical semantics requested by the imported VLESS URI.
+
+    This projection is intentionally independent from the generated JSON shape;
+    it lets P01 compare meaning rather than just checking that query-key names
+    appeared somewhere in generator code.
+    """
+
+    network = (profile.network or "tcp").lower()
+    security = (profile.security or "none").lower()
+    result: dict[str, Any] = {
+        "protocol": "vless",
+        "server": profile.server,
+        "port": profile.port,
+        "userId": profile.user_id,
+        "encryption": profile.encryption or "none",
+        "flow": profile.flow or "",
+        "security": security,
+        "transport": _canonical_transport_name(network, core_kind),
+    }
+    if security == "tls":
+        result["tls"] = {
+            "serverName": profile.sni or profile.host or "",
+            "alpn": list(profile.alpn),
+            "allowInsecure": bool(profile.allow_insecure),
+            "fingerprint": profile.raw_query.get("fp", ""),
+            "echConfigList": profile.raw_query.get("ech", ""),
+            "verifyPeerCertByName": profile.raw_query.get("vcn", ""),
+            "pinnedPeerCertSha256": profile.raw_query.get("pcs", ""),
+        }
+    elif security == "reality":
+        result["reality"] = {
+            "serverName": profile.sni or profile.host or "",
+            "publicKey": profile.raw_query.get("pbk", ""),
+            "fingerprint": profile.raw_query.get("fp", ""),
+            "shortId": profile.raw_query.get("sid", ""),
+            "spiderX": profile.raw_query.get("spx", ""),
+            "mldsa65Verify": profile.raw_query.get("pqv", ""),
+            "alpn": list(profile.alpn),
+        }
+
+    if network in {"tcp", "raw"}:
+        result["transportSettings"] = {
+            "headerType": profile.header_type or "none",
+            "host": profile.host if profile.header_type == "http" else "",
+        }
+    elif network in {"ws", "websocket"}:
+        result["transportSettings"] = {"path": profile.path or "", "host": profile.host or ""}
+    elif network in {"kcp", "mkcp"}:
+        result["transportSettings"] = {
+            "headerType": profile.header_type or "none",
+            "seed": profile.kcp_seed or "",
+            "mtu": profile.kcp_mtu,
+            "tti": profile.kcp_tti,
+        }
+    elif network == "httpupgrade":
+        result["transportSettings"] = {"host": profile.host or "", "path": profile.path or "/"}
+    elif network in {"http", "h2"}:
+        result["transportSettings"] = {
+            "host": [item.strip() for item in profile.host.split(",") if item.strip()],
+            "path": profile.path or "/",
+        }
+    elif network in XHTTP_LIKE_TRANSPORTS:
+        result["transportSettings"] = {
+            "host": profile.host or "",
+            "path": profile.path or "/",
+            "mode": profile.xhttp_mode or "",
+            "extra": _json_or_raw(profile.xhttp_extra),
+        }
+    elif network == "grpc":
+        result["transportSettings"] = {
+            "serviceName": profile.service_name or "",
+            "authority": profile.authority or "",
+            "multiMode": profile.raw_query.get("mode", "") == "multi",
+        }
+
+    if profile.final_mask:
+        result["finalmask"] = _json_or_raw(profile.final_mask)
+    return result
+
+
+def _generated_semantic_projection(config: dict[str, Any], core_kind: str) -> dict[str, Any]:
+    outbound = dict(config.get("outbounds", [{}])[0])
+    settings = dict(outbound.get("settings", {}))
+    stream = dict(outbound.get("streamSettings", {}))
+    kind = (core_kind or "xray").lower()
+    if "vnext" in settings:
+        vnext = dict((settings.get("vnext") or [{}])[0])
+        user = dict((vnext.get("users") or [{}])[0])
+        server = vnext.get("address", "")
+        port = vnext.get("port")
+        user_id = user.get("id", "")
+        encryption = user.get("encryption", "none") or "none"
+        flow = user.get("flow", "") or ""
+    else:
+        server = settings.get("address", "")
+        port = settings.get("port")
+        user_id = settings.get("id", "")
+        encryption = settings.get("encryption", "none") or "none"
+        flow = settings.get("flow", "") or ""
+
+    raw_transport = stream.get("method") if kind == "xray" and stream.get("method") else stream.get("network", "tcp")
+    transport = _canonical_transport_name(str(raw_transport), core_kind)
+    security = str(stream.get("security", "none") or "none").lower()
+    result: dict[str, Any] = {
+        "protocol": str(outbound.get("protocol", "")),
+        "server": server,
+        "port": port,
+        "userId": user_id,
+        "encryption": encryption,
+        "flow": flow,
+        "security": security,
+        "transport": transport,
+    }
+
+    if security == "tls":
+        tls = dict(stream.get("tlsSettings", {}))
+        result["tls"] = {
+            "serverName": tls.get("serverName", "") or "",
+            "alpn": list(tls.get("alpn", []) or []),
+            "allowInsecure": bool(tls.get("allowInsecure", False)),
+            "fingerprint": tls.get("fingerprint", "") or "",
+            "echConfigList": tls.get("echConfigList", "") or "",
+            "verifyPeerCertByName": tls.get("verifyPeerCertByName", "") or "",
+            "pinnedPeerCertSha256": tls.get("pinnedPeerCertSha256", "") or "",
+        }
+    elif security == "reality":
+        reality = dict(stream.get("realitySettings", {}))
+        result["reality"] = {
+            "serverName": reality.get("serverName", "") or "",
+            "publicKey": reality.get("password", reality.get("publicKey", "")) or "",
+            "fingerprint": reality.get("fingerprint", "") or "",
+            "shortId": reality.get("shortId", "") or "",
+            "spiderX": reality.get("spiderX", "") or "",
+            "mldsa65Verify": reality.get("mldsa65Verify", "") or "",
+            "alpn": list(reality.get("alpn", []) or []),
+        }
+
+    if transport in {"raw", "tcp"}:
+        raw = dict(stream.get("rawSettings" if kind == "xray" else "tcpSettings", {}))
+        header = dict(raw.get("header", {}))
+        host = ""
+        try:
+            host_values = header.get("request", {}).get("headers", {}).get("Host", [])
+            host = str(host_values[0]) if host_values else ""
+        except (AttributeError, IndexError, TypeError):
+            host = ""
+        result["transportSettings"] = {"headerType": header.get("type", "none") or "none", "host": host}
+    elif transport in {"websocket", "ws"}:
+        ws = dict(stream.get("wsSettings", {}))
+        result["transportSettings"] = {
+            "path": ws.get("path", "") or "",
+            "host": dict(ws.get("headers", {})).get("Host", "") or "",
+        }
+    elif transport in {"mkcp", "kcp"}:
+        kcp = dict(stream.get("kcpSettings", {}))
+        result["transportSettings"] = {
+            "headerType": dict(kcp.get("header", {})).get("type", "none") or "none",
+            "seed": kcp.get("seed", "") or "",
+            "mtu": kcp.get("mtu"),
+            "tti": kcp.get("tti"),
+        }
+    elif transport == "httpupgrade":
+        hu = dict(stream.get("httpupgradeSettings", {}))
+        result["transportSettings"] = {"host": hu.get("host", "") or "", "path": hu.get("path", "/") or "/"}
+    elif transport == "h2":
+        h2 = dict(stream.get("httpSettings", {}))
+        result["transportSettings"] = {"host": list(h2.get("host", []) or []), "path": h2.get("path", "/") or "/"}
+    elif transport == "xhttp":
+        xhttp = dict(stream.get("xhttpSettings", {}))
+        result["transportSettings"] = {
+            "host": xhttp.get("host", "") or "",
+            "path": xhttp.get("path", "/") or "/",
+            "mode": xhttp.get("mode", "") or "",
+            "extra": xhttp.get("extra"),
+        }
+    elif transport == "grpc":
+        grpc = dict(stream.get("grpcSettings", {}))
+        result["transportSettings"] = {
+            "serviceName": grpc.get("serviceName", "") or "",
+            "authority": grpc.get("authority", "") or "",
+            "multiMode": bool(grpc.get("multiMode", False)),
+        }
+    if "finalmask" in stream:
+        result["finalmask"] = stream.get("finalmask")
+    return result
+
+
+def _semantic_diff_labels(expected: Any, observed: Any, prefix: str = "") -> list[str]:
+    if isinstance(expected, dict) and isinstance(observed, dict):
+        labels: list[str] = []
+        for key in sorted(expected):
+            child = f"{prefix}.{key}" if prefix else key
+            if key not in observed:
+                labels.append(child)
+            else:
+                labels.extend(_semantic_diff_labels(expected[key], observed[key], child))
+        return labels
+    if expected != observed:
+        return [prefix or "semantic-root"]
+    return []
+
+
+def _represented_vless_query_keys(profile: VlessConnectionProfile, core_kind: str) -> set[str]:
+    represented = {"encryption", "security", "type", "flow"}
+    security = (profile.security or "none").lower()
+    network = (profile.network or "tcp").lower()
+    if security == "tls":
+        represented.update({"sni", "alpn", "insecure", "allowInsecure", "allow_insecure", "fp", "ech", "vcn", "pcs"})
+    elif security == "reality":
+        represented.update({"sni", "alpn", "pbk", "fp", "sid", "spx", "pqv"})
+    if network in {"tcp", "raw"}:
+        represented.add("headerType")
+        if profile.header_type == "http":
+            represented.add("host")
+    elif network in {"ws", "websocket"}:
+        represented.update({"host", "path"})
+    elif network in {"kcp", "mkcp"}:
+        represented.update({"headerType", "seed", "mtu", "tti"})
+    elif network == "httpupgrade":
+        represented.update({"host", "path"})
+    elif network in {"http", "h2"}:
+        represented.update({"host", "path"})
+    elif network in XHTTP_LIKE_TRANSPORTS:
+        represented.update({"host", "path", "mode", "extra"})
+    elif network == "grpc":
+        represented.update({"serviceName", "authority"})
+        if profile.raw_query.get("mode", "") == "multi":
+            represented.add("mode")
+    if profile.final_mask:
+        represented.add("fm")
+    return represented
+
+
+def _generator_scope(core_kind: str) -> dict[str, list[str]]:
+    kind = (core_kind or "xray").lower()
+    if kind == "xray":
+        transports = ["tcp", "raw", "ws", "websocket", "kcp", "mkcp", "grpc", "httpupgrade", "http", "h2", "xhttp", "splithttp"]
+        securities = ["none", "tls", "reality"]
+    elif kind == "v2ray":
+        transports = ["tcp", "ws", "websocket", "kcp", "mkcp", "grpc", "httpupgrade", "http", "h2"]
+        securities = ["none", "tls"]
+    else:
+        transports = []
+        securities = []
+    return {
+        "transports": transports,
+        "securities": securities,
+        "fields": sorted(KNOWN_VLESS_QUERY_KEYS),
+    }
+
+
+def _generation_fidelity(profile: VlessConnectionProfile, config: dict[str, Any], core_kind: str) -> dict[str, Any]:
+    scope = _generator_scope(core_kind)
+    network = (profile.network or "tcp").lower()
+    security = (profile.security or "none").lower()
+    represented = _represented_vless_query_keys(profile, core_kind)
+    required_loss: list[str] = []
+    if network not in scope["transports"]:
+        required_loss.append(f"transport:{network}")
+    if security not in scope["securities"]:
+        required_loss.append(f"security:{security}")
+
+    # Do not normalize malformed recognized values into a different meaning and
+    # then call the result lossless.  The owner must fix/re-import them first.
+    for key in ("insecure", "allowInsecure", "allow_insecure"):
+        value = profile.raw_query.get(key)
+        if value not in {None, "", "0", "1"}:
+            required_loss.append(f"query:{key}-invalid-bool")
+    for key in ("mtu", "tti"):
+        value = profile.raw_query.get(key)
+        if value not in {None, ""} and _query_int(profile.raw_query, key) is None:
+            required_loss.append(f"query:{key}-invalid-int")
+    if network == "grpc" and profile.raw_query.get("mode") not in {None, "", "multi"}:
+        required_loss.append("query:mode-unsupported-value")
+
+    for key, value in sorted(profile.raw_query.items()):
+        if key not in KNOWN_VLESS_QUERY_KEYS or value in {"", None}:
+            continue
+        if key not in represented:
+            required_loss.append(f"query:{key}")
+    if profile.final_mask:
+        try:
+            json.loads(profile.final_mask)
+        except json.JSONDecodeError:
+            required_loss.append("query:fm-invalid-json")
+
+    source_projection = _source_semantic_projection(profile, core_kind)
+    generated_projection = _generated_semantic_projection(config, core_kind)
+    semantic_mismatches = _semantic_diff_labels(source_projection, generated_projection)
+    required_loss.extend(f"semantic:{label}" for label in semantic_mismatches)
+    # Deterministic, de-duplicated order keeps receipts stable and reviewable.
+    required_loss = sorted(set(required_loss))
+
+    unknown = sorted(profile.unknown_query)
+    if required_loss:
+        support = UNSUPPORTED
+        fidelity = "loss"
+        reason = "required VLESS semantics differ from the generated/core-lane representation"
+    elif unknown or not profile.source_hash:
+        support = EXPERIMENTAL
+        fidelity = "partial"
+        reason = "known semantics round-trip exactly, but unknown keys or historical source provenance prevent full support"
+    else:
+        support = SUPPORTED
+        fidelity = "full"
+        reason = "all recognized required semantics round-trip exactly and source provenance is captured"
+    return {
+        "coreKind": core_kind,
+        "sourceSemanticHash": evidence_hash_json(source_projection),
+        "generatedSemanticHash": evidence_hash_json(generated_projection),
+        "semanticDiff": {
+            "equal": not semantic_mismatches,
+            "mismatchFields": semantic_mismatches,
+        },
+        "semanticFidelity": fidelity,
+        "requiredLoss": required_loss,
+        "unclassifiedQueryKeys": unknown,
+        "representedQueryKeys": sorted(represented.intersection(profile.raw_query)),
+        "support": support,
+        "reason": reason,
+    }
+
+
+def _write_generated_connection_receipt(
+    paths: TunnelStorePaths,
+    profile_id: str,
+    profile: VlessConnectionProfile,
+    *,
+    core_kind: str,
+    config: dict[str, Any],
+) -> tuple[Path, dict[str, Any]]:
+    path = _connection_receipt_path(paths, profile_id, profile)
+    if path.exists():
+        try:
+            payload = _read_json(path)
+        except Exception:
+            payload = {}
+    else:
+        payload = {}
+    generation = _generation_fidelity(profile, config, core_kind)
+    payload.update(
+        {
+            "schemaVersion": CONNECTION_RECEIPT_SCHEMA_VERSION,
+            "receiptId": _connection_receipt_id(profile),
+            "createdAt": str(payload.get("createdAt") or _utc_now()),
+            "updatedAt": _utc_now(),
+            "profileId": profile_id,
+            "connectionId": profile.connection_id,
+            "source": {
+                "kind": _receipt_source_kind(profile.source),
+                "state": "captured" if profile.source_hash else "historically_unrecoverable",
+                "sourceHash": profile.source_hash or None,
+            },
+            "normalizedHash": profile.normalized_hash or profile.fingerprint,
+            "recognizedQueryKeys": sorted(key for key in profile.raw_query if key in KNOWN_VLESS_QUERY_KEYS),
+            "unknownQueryKeys": sorted(profile.unknown_query),
+            "connection": _connection_receipt_summary(profile),
+            "generation": generation,
+            "rawUriStored": False,
+        }
+    )
+    _write_json(path, payload, secret=False)
+    return path, payload
+
+
+def _sha256_file(path: str) -> str:
+    file_path = Path(path)
+    if not file_path.is_file():
+        return ""
+    digest = hashlib.sha256()
+    with file_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _core_version_text(core_binary: str, core_kind: str) -> str:
+    if not core_binary or not Path(core_binary).is_file():
+        return ""
+    try:
+        result = subprocess.run((core_binary, "version"), text=True, capture_output=True, timeout=0.5, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    text = (result.stdout or result.stderr or "").strip().splitlines()
+    return text[0][:240] if text else ""
+
+
+def _core_capability_record(
+    core_binary: str,
+    core_kind: str,
+    *,
+    config_test: str,
+    config_hash: str,
+) -> dict[str, Any]:
+    binary_hash = _sha256_file(core_binary)
+    # Runtime start must not execute an arbitrary/owner test core a second time
+    # merely to obtain cosmetic version text. Concrete preflight records may
+    # probe version; runtime-local records remain hash-bound and truthful.
+    version = _core_version_text(core_binary, core_kind) if config_test in {"PASS", "FAIL", "TIMEOUT", "UNAVAILABLE"} else ""
+    scope = _generator_scope(core_kind)
+    identity_hash = evidence_hash_json({"kind": core_kind, "binarySha256": binary_hash, "version": version})
+    return {
+        "kind": core_kind,
+        "version": version or "unknown",
+        "binarySha256": binary_hash or None,
+        "identityHash": identity_hash,
+        "configHash": config_hash,
+        "configTest": config_test,
+        "supportedFields": scope["fields"],
+        "supportedTransports": scope["transports"],
+        "supportedSecurity": scope["securities"],
+        "scopeNote": "generator-declared scope; actual binary support requires configTest PASS for the concrete config",
+    }
+
+
+VESKTOP_MANDATORY_HTTP_TARGETS = ("updates.discord.com", "discord.com")
+VESKTOP_GATEWAY_TARGET = "gateway.discord.gg"
+VESKTOP_MAIN_WINDOW_TARGET = "vesktop-main-window"
+
+
+def _probe_failure_class(kind: str, result: str, detail: dict[str, Any] | None = None) -> str:
+    if result != FAIL:
+        return ""
+    info = detail or {}
+    message = str(info.get("message", "")).lower()
+    stage = str(info.get("stage", "")).lower()
+    if kind == "process":
+        return "core_process"
+    if kind == "listener":
+        return "local_listener"
+    if kind == "socks_method":
+        return "socks_method"
+    if kind == "socks_connect":
+        return "socks_connect"
+    if kind == "target_tls":
+        if "timeout" in message or "timed out" in message:
+            return "target_tls_timeout"
+        if "eof" in message or "closed" in message or "reset" in message:
+            return "target_tls_eof_or_reset"
+        if "certificate" in message or "cert" in message or "verify" in message:
+            return "target_tls_validation"
+        return "target_tls"
+    if kind == "target_http":
+        if "timeout" in message or "timed out" in message:
+            return "target_http_timeout"
+        if "eof" in message or "closed" in message or "reset" in message:
+            return "target_http_eof_or_reset"
+        return "target_http"
+    if kind == "websocket":
+        return "gateway_websocket"
+    if kind == "electron_navigation":
+        return "electron_navigation"
+    return stage.replace("-", "_") or f"{kind}_failure"
+
+
+def _probe_span(
+    *,
+    run_id: str,
+    kind: str,
+    result: str,
+    target: str = "",
+    deps: tuple[str, ...] = (),
+    input_hashes: dict[str, str] | None = None,
+    detail: dict[str, Any] | None = None,
+    limits: tuple[str, ...] = (),
+    failure_class: str = "",
+) -> ProbeSpan:
+    detail_payload = detail or {}
+    return ProbeSpan(
+        span_id=f"{run_id}:{kind}:{uuid.uuid4().hex[:12]}",
+        kind=kind,
+        run_id=run_id,
+        result=result,
+        failure_class=failure_class or _probe_failure_class(kind, result, detail_payload),
+        target=target,
+        deps=deps,
+        input_hashes=input_hashes or {},
+        detail=detail_payload,
+        limits=limits,
+    )
+
+
+def _write_evidence_graph(paths: TunnelStorePaths, graph: EvidenceGraph) -> Path:
+    path = _evidence_graph_path(paths, graph.profile_id, graph.run_id)
+    _write_json(path, graph.to_dict(), secret=False)
+    return path
+
+
+def _load_evidence_graph(paths: TunnelStorePaths, profile_id: str, run_id: str) -> EvidenceGraph:
+    path = _evidence_graph_path(paths, profile_id, run_id)
+    if not path.exists():
+        raise ValueError(f"EvidenceGraph не найден для runId={run_id}")
+    return EvidenceGraph.from_dict(_read_json(path))
+
+
+def _load_bound_evidence_graph(paths: TunnelStorePaths, profile_id: str, session: dict[str, Any]) -> EvidenceGraph:
+    """Load current evidence only when every run/config/receipt/core binding matches."""
+
+    run_id = str(session.get("runId", ""))
+    if not run_id:
+        raise ValueError("session has no runId; historical/unbound evidence cannot satisfy current capability")
+    graph = _load_evidence_graph(paths, profile_id, run_id)
+    core_capability = dict(session.get("coreCapability", {}))
+    expected = {
+        "runId": run_id,
+        "profileId": profile_id,
+        "connectionId": str(session.get("connectionId", "")),
+        "connectionReceiptId": str(session.get("connectionReceiptId", "")),
+        "configHash": str(session.get("configHash", "")),
+        "coreIdentityHash": str(core_capability.get("identityHash", "")),
+    }
+    observed = {
+        "runId": graph.run_id,
+        "profileId": graph.profile_id,
+        "connectionId": graph.connection_id,
+        "connectionReceiptId": graph.connection_receipt_id,
+        "configHash": graph.config_hash,
+        "coreIdentityHash": graph.core_identity_hash,
+    }
+    mismatches: list[str] = []
+    for key, expected_value in expected.items():
+        if not expected_value:
+            mismatches.append(f"{key}:missing-session-binding")
+        elif observed.get(key) != expected_value:
+            mismatches.append(f"{key}:expected={expected_value},observed={observed.get(key, '')}")
+    span_ids: set[str] = set()
+    for span in graph.spans:
+        if span.run_id != graph.run_id:
+            mismatches.append(f"span:{span.span_id}:runId={span.run_id}")
+        if span.span_id in span_ids:
+            mismatches.append(f"span:{span.span_id}:duplicate")
+        span_ids.add(span.span_id)
+    for verdict in graph.verdicts:
+        if verdict.run_id != graph.run_id:
+            mismatches.append(f"verdict:{verdict.capability_id}:runId={verdict.run_id}")
+    if mismatches:
+        raise ValueError("EvidenceGraph binding mismatch; current capability stays UNKNOWN: " + "; ".join(mismatches))
+    return graph
+
+
+def _route_capability(graph: EvidenceGraph, target_host: str):
+    return capability_from_required_spans(
+        capability_id=f"route.https:{target_host}",
+        run_id=graph.run_id,
+        spans=graph.spans,
+        requirements=(
+            ("process", None),
+            ("listener", None),
+            ("socks_method", None),
+            ("socks_connect", target_host),
+            ("target_tls", target_host),
+            ("target_http", target_host),
+        ),
+        scope={"target": target_host, "transport": "HTTPS-over-SOCKS"},
+        next_experiment=f"repeat current-run HTTPS probe for {target_host}; if TLS fails, inspect correlated core/server evidence before changing knobs",
+    )
+
+
+def _refresh_capability_verdicts(graph: EvidenceGraph, *, client_kind: str = "vesktop") -> None:
+    route_verdicts = []
+    for target in VESKTOP_MANDATORY_HTTP_TARGETS:
+        verdict = _route_capability(graph, target)
+        graph.add_verdict(verdict)
+        route_verdicts.append(verdict)
+    gateway = capability_from_required_spans(
+        capability_id="discord.bootstrap.gateway",
+        run_id=graph.run_id,
+        spans=graph.spans,
+        requirements=(("websocket", VESKTOP_GATEWAY_TARGET),),
+        scope={"target": VESKTOP_GATEWAY_TARGET, "subsystem": "gateway-websocket"},
+        next_experiment="capture a current-run Gateway WebSocket handshake through the managed proxy path",
+    )
+    graph.add_verdict(gateway)
+    navigation = capability_from_required_spans(
+        capability_id="vesktop.navigation",
+        run_id=graph.run_id,
+        spans=graph.spans,
+        requirements=(("electron_navigation", VESKTOP_MAIN_WINDOW_TARGET),),
+        scope={"client": client_kind, "subsystem": "main-window"},
+        next_experiment="launch Vesktop with the managed proxy and record a current-run main-window navigation result",
+    )
+    graph.add_verdict(navigation)
+    app = aggregate_capability_verdicts(
+        capability_id="vesktop.bootstrap",
+        run_id=graph.run_id,
+        verdicts=(*route_verdicts, gateway, navigation),
+        scope={
+            "client": client_kind,
+            "mandatoryHttpTargets": list(VESKTOP_MANDATORY_HTTP_TARGETS),
+            "mandatoryGateway": VESKTOP_GATEWAY_TARGET,
+        },
+        next_experiment="satisfy the first missing/failed current-run mandatory predicate; bypass flags do not alter this verdict",
+    )
+    graph.add_verdict(app)
+
+
+def _graph_summary_lines(graph: EvidenceGraph) -> list[str]:
+    current = {item.capability_id: item for item in graph.verdicts}
+    app = current.get("vesktop.bootstrap")
+    lines = [
+        f"evidence run: {graph.run_id}",
+        f"evidence spans: {len(graph.spans)}",
+        f"route updates.discord.com: {current.get('route.https:updates.discord.com').support if current.get('route.https:updates.discord.com') else SUPPORT_UNKNOWN}",
+        f"route discord.com: {current.get('route.https:discord.com').support if current.get('route.https:discord.com') else SUPPORT_UNKNOWN}",
+        f"gateway websocket: {current.get('discord.bootstrap.gateway').support if current.get('discord.bootstrap.gateway') else SUPPORT_UNKNOWN}",
+        f"vesktop navigation: {current.get('vesktop.navigation').support if current.get('vesktop.navigation') else SUPPORT_UNKNOWN}",
+        f"vesktop bootstrap capability: {app.support if app else SUPPORT_UNKNOWN}",
+    ]
+    if app and app.support != SUPPORTED:
+        if app.failed_requirements:
+            lines.append("failed mandatory predicates: " + ", ".join(app.failed_requirements))
+        if app.missing_requirements:
+            lines.append("missing mandatory predicates: " + ", ".join(app.missing_requirements))
+        if app.next_experiment:
+            lines.append("next experiment: " + app.next_experiment)
+    return lines
+
+
 def _redact_core_config(config: dict[str, Any]) -> dict[str, Any]:
     redacted = json.loads(json.dumps(config))
     try:
@@ -1172,6 +1987,37 @@ def _redact_core_config(config: dict[str, Any]) -> dict[str, Any]:
     except (KeyError, IndexError, TypeError):
         pass
     return redacted
+
+
+def _write_core_capability_report(
+    paths: TunnelStorePaths,
+    profile_id: str,
+    *,
+    core_binary: str,
+    core_kind: str,
+    config_hash: str,
+    config_test: str,
+    connection_receipt_id: str,
+) -> tuple[Path, dict[str, Any]]:
+    capability = _core_capability_record(
+        core_binary,
+        core_kind,
+        config_test=config_test,
+        config_hash=config_hash,
+    )
+    payload = {
+        "schemaVersion": 1,
+        "createdAt": _utc_now(),
+        "profileId": profile_id,
+        "connectionReceiptId": connection_receipt_id,
+        "coreCapability": capability,
+    }
+    reports_dir = paths.tunnel_root / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
+    path = reports_dir / f"{profile_id}.core-capability-{stamp}.json"
+    _write_json(path, payload, secret=False)
+    return path, capability
 
 
 def discord_tunnel_core_preflight_to_text(
@@ -1227,12 +2073,24 @@ def discord_tunnel_core_preflight_to_text(
             ]
         )
         return "\n".join(lines)
+    config = generate_xray_vless_socks_config(connection, socks_host=DEFAULT_SOCKS_HOST, socks_port=socks_port, core_kind=kind)
+    config_hash = _sha256_json(config)
+    receipt_path, receipt = _write_generated_connection_receipt(paths, profile_id, connection, core_kind=kind, config=config)
+    receipt_id = str(receipt.get("receiptId", ""))
+    _write_json(config_path, config, secret=True)
     if not binary_ready:
-        lines.extend(["verdict: UNAVAILABLE_CORE", "next: install/select executable Xray core and repeat preflight"])
+        capability_path, _ = _write_core_capability_report(
+            paths, profile_id, core_binary=resolved_binary, core_kind=kind, config_hash=config_hash,
+            config_test="UNAVAILABLE", connection_receipt_id=receipt_id,
+        )
+        lines.extend([
+            "verdict: UNAVAILABLE_CORE",
+            f"connection receipt: {receipt_path}",
+            f"core capability: {capability_path}",
+            "next: install/select executable Xray core and repeat preflight",
+        ])
         return "\n".join(lines)
 
-    config = generate_xray_vless_socks_config(connection, socks_host=DEFAULT_SOCKS_HOST, socks_port=socks_port, core_kind=kind)
-    _write_json(config_path, config, secret=True)
     candidates = _core_test_argv_candidates(resolved_binary, kind, config_path)
     result = None
     argv: tuple[str, ...] = ()
@@ -1257,19 +2115,38 @@ def discord_tunnel_core_preflight_to_text(
     if result is None and timeout_error is not None:
         stdout = _tail_file_text(timeout_error.stdout if isinstance(timeout_error.stdout, str) else "", max_chars=1200)
         stderr = _tail_file_text(timeout_error.stderr if isinstance(timeout_error.stderr, str) else "", max_chars=1600)
-        lines.extend(["verdict: TIMEOUT", f"timeout seconds: {timeout_seconds:g}"])
+        capability_path, _ = _write_core_capability_report(
+            paths, profile_id, core_binary=resolved_binary, core_kind=kind, config_hash=config_hash,
+            config_test="TIMEOUT", connection_receipt_id=receipt_id,
+        )
+        lines.extend(["verdict: TIMEOUT", f"timeout seconds: {timeout_seconds:g}", f"connection receipt: {receipt_path}", f"core capability: {capability_path}"])
         if stdout:
             lines.extend(["stdout tail:", stdout])
         if stderr:
             lines.extend(["stderr tail:", stderr])
         return "\n".join(lines)
     if result is None:
-        lines.extend(["verdict: FAIL", "reason: no compatible core test CLI candidate completed"])
+        capability_path, _ = _write_core_capability_report(
+            paths, profile_id, core_binary=resolved_binary, core_kind=kind, config_hash=config_hash,
+            config_test="FAIL", connection_receipt_id=receipt_id,
+        )
+        lines.extend(["verdict: FAIL", "reason: no compatible core test CLI candidate completed", f"connection receipt: {receipt_path}", f"core capability: {capability_path}"])
         return "\n".join(lines)
 
     stdout = _tail_file_text(result.stdout, max_chars=1200)
     stderr = _tail_file_text(result.stderr, max_chars=1600)
-    lines.extend([f"argv: {shlex.join(argv)}", f"exit code: {result.returncode}", f"verdict: {'PASS' if result.returncode == 0 else 'FAIL'}"])
+    config_test = "PASS" if result.returncode == 0 else "FAIL"
+    capability_path, _ = _write_core_capability_report(
+        paths, profile_id, core_binary=resolved_binary, core_kind=kind, config_hash=config_hash,
+        config_test=config_test, connection_receipt_id=receipt_id,
+    )
+    lines.extend([
+        f"argv: {shlex.join(argv)}",
+        f"exit code: {result.returncode}",
+        f"verdict: {config_test}",
+        f"connection receipt: {receipt_path}",
+        f"core capability: {capability_path}",
+    ])
     if stdout:
         lines.extend(["stdout tail:", stdout])
     if stderr:
@@ -1370,7 +2247,14 @@ def _build_plan_payload(*, root: Path, profile_id: str, connection: VlessConnect
             "kind": core_kind,
             "argvKind": core_kind,
         },
-        "localSocks": {"host": socks_host, "port": socks_port, "udp": False},
+        "localSocks": {
+            "host": socks_host,
+            "port": socks_port,
+            "udp": False,
+            "auth": "noauth",
+            "accessScope": "loopback-explicit-app-proxy",
+            "randomPortIsAuthentication": False,
+        },
         "generatedConfigPath": str(config_path.relative_to(root)),
         "generatedConfigHash": core_config_hash,
         "safety": {
@@ -1383,6 +2267,13 @@ def _build_plan_payload(*, root: Path, profile_id: str, connection: VlessConnect
             "containsRemoteBootstrap": False,
             "containsUpstreamInstallerScript": False,
             "downloadsExternalBinaries": False,
+            "socksContainment": {
+                "loopbackOnly": socks_host == DEFAULT_SOCKS_HOST,
+                "auth": "noauth",
+                "udp": False,
+                "appAccess": "explicit proxy env/flags only",
+                "randomPortIsAuthentication": False,
+            },
         },
         "execution": {"executesNow": False, "startsTunnelNow": False, "executesDiscordNow": False},
     }
@@ -1404,6 +2295,10 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
     config = generate_xray_vless_socks_config(connection, socks_host=DEFAULT_SOCKS_HOST, socks_port=socks_port, core_kind=kind)
     config_hash = _sha256_json(config)
     config_path = _generated_config_path(paths, profile_id)
+    receipt_path, receipt = _write_generated_connection_receipt(
+        paths, profile_id, connection, core_kind=kind, config=config
+    )
+    generation = dict(receipt.get("generation", {}))
     payload = _build_plan_payload(
         root=paths.root,
         profile_id=profile_id,
@@ -1415,6 +2310,15 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
         config_path=config_path,
         core_config_hash=config_hash,
     )
+    payload["connectionReceipt"] = {
+        "receiptId": receipt.get("receiptId"),
+        "path": str(receipt_path.relative_to(paths.root)),
+        "normalizedHash": receipt.get("normalizedHash"),
+        "generationSupport": generation.get("support", SUPPORT_UNKNOWN),
+        "semanticFidelity": generation.get("semanticFidelity", "unbound"),
+        "requiredLoss": list(generation.get("requiredLoss", [])),
+        "unknownQueryKeys": list(receipt.get("unknownQueryKeys", [])),
+    }
     plan_hash = plan_payload_hash(payload)
     record = {
         **payload,
@@ -1460,6 +2364,13 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
         log_path=log_path,
         core_exists=core_exists,
     ).to_text()
+    text += "\n" + f"connection receipt: {receipt_path}"
+    text += "\n" + f"semantic fidelity: {generation.get('semanticFidelity', 'unbound')}"
+    text += "\n" + f"generation support: {generation.get('support', SUPPORT_UNKNOWN)}"
+    if generation.get("requiredLoss"):
+        text += "\nrequired semantic loss: " + ", ".join(str(item) for item in generation.get("requiredLoss", []))
+    if receipt.get("unknownQueryKeys"):
+        text += "\nunclassified query keys: " + ", ".join(str(item) for item in receipt.get("unknownQueryKeys", []))
     warning = _core_transport_warning(connection, kind)
     if warning:
         text += "\n\ncompatibility warning:\n" + warning
@@ -1595,6 +2506,26 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         raise ValueError("Active tunnel connection changed after plan confirmation. Re-run --discord-tunnel-plan and --runtime-confirm.")
     core_binary = str(plan["core"].get("binary", ""))
     core_kind = str(plan["core"].get("kind", "xray"))
+    receipt_ref = dict(plan.get("connectionReceipt", {}))
+    if str(receipt_ref.get("generationSupport", SUPPORT_UNKNOWN)) == UNSUPPORTED:
+        blocked_lines = [
+            "Discord tunnel start: blocked",
+            f"profile: {profile_id}",
+            f"connection: {connection.connection_id}",
+            "reason: VLESS generation has required semantic loss",
+            "required loss: " + ", ".join(str(item) for item in receipt_ref.get("requiredLoss", [])),
+            "capability: UNSUPPORTED",
+        ]
+        compatibility_warning = _core_transport_warning(connection, core_kind)
+        if compatibility_warning:
+            blocked_lines.extend(["", "compatibility issue:", compatibility_warning])
+        blocked_lines.extend(
+            [
+                "next: import a compatible profile or use a generator/core lane that represents every required semantic",
+                "executes core now: no",
+            ]
+        )
+        return "\n".join(blocked_lines)
     if core_kind == "sing-box":
         return "\n".join(
             [
@@ -1650,8 +2581,12 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
     socks_host = str(socks.get("host", DEFAULT_SOCKS_HOST))
     socks_port = int(socks.get("port", DEFAULT_SOCKS_PORT))
     config = generate_xray_vless_socks_config(connection, socks_host=socks_host, socks_port=socks_port, core_kind=core_kind)
+    config_hash = _sha256_json(config)
+    if config_hash != str(plan.get("generatedConfigHash", "")):
+        raise ValueError("Generated tunnel config changed after plan confirmation. Re-run --discord-tunnel-plan and --runtime-confirm.")
     config_path = _generated_config_path(paths, profile_id)
     _write_json(config_path, config, secret=True)
+    run_id = new_run_id("tunnel")
     stdout_path = _stdout_path(paths, profile_id)
     stderr_path = _stderr_path(paths, profile_id)
     process: subprocess.Popen[bytes] | None = None
@@ -1691,6 +2626,13 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
                 except subprocess.TimeoutExpired:
                     pass
     assert process is not None
+    process_alive = process.poll() is None
+    core_capability = _core_capability_record(
+        core_binary,
+        core_kind,
+        config_test="RUNTIME_LOCAL_ACCEPTANCE" if running else "RUNTIME_LOCAL_REJECTED",
+        config_hash=config_hash,
+    )
     session_payload = {
         "schemaVersion": TUNNEL_SCHEMA_VERSION,
         "stage": TUNNEL_STAGE,
@@ -1698,7 +2640,11 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         "profileId": profile_id,
         "planId": confirm_plan_id,
         "planHash": str(plan.get("planHash")),
+        "runId": run_id,
         "connectionId": connection.connection_id,
+        "connectionReceiptId": str(receipt_ref.get("receiptId", "")),
+        "connectionReceiptPath": str(receipt_ref.get("path", "")),
+        "generationSupport": str(receipt_ref.get("generationSupport", SUPPORT_UNKNOWN)),
         "coreBinary": core_binary,
         "coreKind": core_kind,
         "argv": list(argv),
@@ -1707,8 +2653,16 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         "startedAt": _utc_now(),
         "socksHost": socks_host,
         "socksPort": socks_port,
+        "containment": {
+            "loopbackOnly": socks_host == DEFAULT_SOCKS_HOST,
+            "auth": "noauth",
+            "udp": False,
+            "appAccess": "explicit proxy env/flags only",
+            "randomPortIsAuthentication": False,
+        },
         "configPath": str(config_path),
-        "configHash": _sha256_json(config),
+        "configHash": config_hash,
+        "coreCapability": core_capability,
         "stdoutLog": str(stdout_path),
         "stderrLog": str(stderr_path),
         "runningAfterGrace": running,
@@ -1716,6 +2670,43 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         "socksProbe": socks_probe,
         "state": "running" if running else "failed",
     }
+    graph = EvidenceGraph(
+        run_id=run_id,
+        profile_id=profile_id,
+        connection_id=connection.connection_id,
+        connection_receipt_id=str(receipt_ref.get("receiptId", "")),
+        core_identity_hash=str(core_capability.get("identityHash", "")),
+        config_hash=config_hash,
+        environment={"coreKind": core_kind, "socksBind": socks_host, "socksPort": socks_port},
+    )
+    process_span = _probe_span(
+        run_id=run_id,
+        kind="process",
+        result=PASS if process_alive else FAIL,
+        detail={"pid": process.pid, "coreKind": core_kind},
+        input_hashes={"config": config_hash, "core": str(core_capability.get("binarySha256") or "")},
+    )
+    graph.add_span(process_span)
+    listener_span = _probe_span(
+        run_id=run_id,
+        kind="listener",
+        result=PASS if bool(socks_probe.get("portOpen")) else FAIL,
+        deps=(process_span.span_id,),
+        detail={"bind": socks_host, "port": socks_port, "message": socks_probe.get("message", "")},
+    )
+    graph.add_span(listener_span)
+    method_span = _probe_span(
+        run_id=run_id,
+        kind="socks_method",
+        result=PASS if bool(socks_probe.get("ok")) else FAIL,
+        deps=(listener_span.span_id,),
+        detail={"method": "noauth", "message": socks_probe.get("message", "")},
+        limits=("SOCKS method PASS proves only local proxy protocol readiness, not remote route/TLS/app capability",),
+    )
+    graph.add_span(method_span)
+    _refresh_capability_verdicts(graph)
+    evidence_path = _write_evidence_graph(paths, graph)
+    session_payload["evidenceGraphPath"] = str(evidence_path)
     _write_json(session_path, session_payload, secret=True)
     log_path = _append_event(
         paths,
@@ -1737,6 +2728,10 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
             f"stdout: {stdout_path}",
             f"stderr: {stderr_path}",
             f"tunnel log: {log_path}",
+            f"run id: {run_id}",
+            f"evidence graph: {evidence_path}",
+            f"generation support: {receipt_ref.get('generationSupport', SUPPORT_UNKNOWN)}",
+            "network truth: local SOCKS readiness does NOT imply remote route/TLS/Vesktop support",
             "owner confirmation verified: yes",
             "requires sudo: no",
             "mutates firewall/services: no",
@@ -1869,11 +2864,59 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
         verdict = "T0_CORE_FAILED"
     else:
         verdict = "T0_CORE_NOT_READY"
+
+    run_id = str(session.get("runId", ""))
+    evidence_path = ""
+    graph: EvidenceGraph | None = None
+    if run_id:
+        try:
+            graph = _load_bound_evidence_graph(paths, profile_id, session)
+            input_hashes = {
+                "configHash": str(session.get("configHash", "")),
+                "coreIdentityHash": str((session.get("coreCapability") or {}).get("identityHash", "")),
+            }
+            process_span = _probe_span(
+                run_id=run_id,
+                kind="process",
+                result=PASS if running else FAIL,
+                input_hashes=input_hashes,
+                detail={"pid": pid, "storedState": stored_state, "procState": _proc_state(pid) if pid else "none"},
+                limits=("process liveness does not prove listener, route, TLS, HTTP, or application readiness",),
+            )
+            graph.add_span(process_span)
+            listener_span = _probe_span(
+                run_id=run_id,
+                kind="listener",
+                result=PASS if port_open else FAIL,
+                deps=(process_span.span_id,),
+                input_hashes=input_hashes,
+                detail={"host": socks_host, "port": socks_port, "portOpen": port_open},
+                limits=("local TCP listener does not prove SOCKS semantics or upstream reachability",),
+            )
+            graph.add_span(listener_span)
+            method_span = _probe_span(
+                run_id=run_id,
+                kind="socks_method",
+                result=PASS if handshake_ok else FAIL,
+                deps=(listener_span.span_id,),
+                input_hashes=input_hashes,
+                detail={"method": "NO_AUTH", "probeStage": socks_probe.get("stage", ""), "message": socks_probe.get("message", "")},
+                limits=("SOCKS method negotiation is local-only evidence; it cannot satisfy remote route/TLS/application predicates",),
+            )
+            graph.add_span(method_span)
+            _refresh_capability_verdicts(graph)
+            evidence_path = str(_write_evidence_graph(paths, graph))
+        except (ValueError, OSError, TypeError):
+            graph = None
+
     report = {
         "schemaVersion": TUNNEL_SCHEMA_VERSION,
         "stage": TUNNEL_STAGE,
         "createdAt": _utc_now(),
         "profileId": profile_id,
+        "runId": run_id or None,
+        "connectionReceiptId": session.get("connectionReceiptId"),
+        "configHash": session.get("configHash"),
         "pid": pid,
         "coreRunning": running,
         "storedState": stored_state,
@@ -1884,13 +2927,16 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
         "socksHandshakeOk": handshake_ok,
         "socksHandshake": socks_probe,
         "upstreamTested": False,
+        "localVerdict": verdict,
+        "evidenceGraph": evidence_path or None,
+        "capabilityNote": "local SOCKS evidence cannot satisfy remote route/TLS/HTTP/Vesktop predicates",
         "verdict": verdict,
     }
     reports_dir = paths.tunnel_root / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
     report_path = reports_dir / f"{profile_id}.tunnel-probe.json"
     _write_json(report_path, report, secret=False)
-    _append_event(paths, profile_id, "tunnel-probed", "Tunnel SOCKS handshake probe completed", {"verdict": verdict, "socksPortOpen": port_open, "socksHandshakeOk": handshake_ok})
+    _append_event(paths, profile_id, "tunnel-probed", "Tunnel SOCKS handshake probe completed", {"runId": run_id or None, "verdict": verdict, "socksPortOpen": port_open, "socksHandshakeOk": handshake_ok})
     lines.extend(
         [
             f"pid: {pid if pid else 'нет'}",
@@ -1903,18 +2949,83 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
             f"probe message: {socks_probe.get('message', 'n/a')}",
             "upstream tested: no",
             f"verdict: {verdict}",
+            "verdict scope: local compatibility status only; remote/application capability is separate",
+            "capability truth: local SOCKS readiness != remote route/TLS/HTTP/Vesktop support",
             f"report: {report_path}",
         ]
     )
+    if graph is not None:
+        lines.extend(["", "Typed EvidenceGraph (authoritative for capability):", *_graph_summary_lines(graph), f"evidence graph: {evidence_path}"])
+    else:
+        lines.extend(["", "Typed EvidenceGraph: unavailable/legacy-unbound session; no remote capability may be inferred."])
     failure = _last_core_failure_summary(paths, profile_id) if verdict == "T0_CORE_FAILED" else ""
     if failure:
         lines.extend(["", "core failure details:", failure])
     if verdict == "T0_CORE_FAILED":
         lines.append("NEXT: fix the core/profile compatibility, then run tunnel start again. Do not launch Discord yet.")
     else:
-        lines.append("NEXT: run --discord-tunnel-https-probe to test the VLESS upstream path through this SOCKS listener.")
+        lines.append("NEXT: run --discord-tunnel-https-probe for each required remote target; local SOCKS PASS is insufficient.")
+    lines.extend(["executes Discord now: no", "mutates firewall/services: no"])
+    return "\n".join(lines)
+
+
+def discord_tunnel_evidence_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: Path | None = None) -> str:
+    """Render the current run-bound evidence graph and capability verdicts read-only."""
+
+    paths = ensure_tunnel_store(root)
+    session_path = _session_path(paths, profile_id)
+    lines = ["Discord tunnel typed evidence", f"stage: {TUNNEL_STAGE}", f"profile: {profile_id}"]
+    if not session_path.exists():
+        return "\n".join([*lines, "state: no tunnel session", "capability: UNKNOWN", "reason: no current run-bound evidence"])
+    session = _read_json(session_path)
+    run_id = str(session.get("runId", ""))
+    if not run_id:
+        return "\n".join([*lines, "state: legacy/unbound session", "capability: UNKNOWN", "reason: session has no runId; stale/legacy success is not accepted as current evidence"])
+    try:
+        graph = _load_bound_evidence_graph(paths, profile_id, session)
+    except (ValueError, OSError, TypeError) as exc:
+        return "\n".join([*lines, f"run: {run_id}", "capability: UNKNOWN", f"reason: {exc}"])
+
+    _refresh_capability_verdicts(graph)
+    evidence_path = _write_evidence_graph(paths, graph)
     lines.extend(
         [
+            f"run: {graph.run_id}",
+            f"connection receipt: {graph.connection_receipt_id or 'unknown'}",
+            f"config hash: {graph.config_hash or 'unknown'}",
+            f"core identity hash: {graph.core_identity_hash or 'unknown'}",
+            f"evidence graph: {evidence_path}",
+            "",
+            "Capability summary:",
+            *_graph_summary_lines(graph),
+            "",
+            "Probe spans (current graph):",
+        ]
+    )
+    for span in graph.spans:
+        target = f" @{span.target}" if span.target else ""
+        deps = f" deps={','.join(span.deps)}" if span.deps else ""
+        failure = f" failureClass={span.failure_class}" if span.failure_class else ""
+        lines.append(f"  {span.result:8} {span.kind}{target}; id={span.span_id}{deps}{failure}")
+        for limit in span.limits:
+            lines.append(f"    limit: {limit}")
+    lines.extend(["", "Capability verdicts:"])
+    for verdict in sorted(graph.verdicts, key=lambda item: item.capability_id):
+        lines.append(f"  {verdict.capability_id}: {verdict.support} — {verdict.reason}")
+        if verdict.failed_requirements:
+            lines.append("    failed: " + ", ".join(verdict.failed_requirements))
+        if verdict.missing_requirements:
+            lines.append("    missing/unknown: " + ", ".join(verdict.missing_requirements))
+        if verdict.stale_evidence_ignored:
+            lines.append("    stale ignored: " + ", ".join(verdict.stale_evidence_ignored))
+        if verdict.next_experiment and verdict.support != SUPPORTED:
+            lines.append("    next: " + verdict.next_experiment)
+    lines.extend(
+        [
+            "",
+            "Truth rule: process/listener/SOCKS PASS never implies route/TLS/HTTP/application PASS.",
+            "Truth rule: bypass/force-launch controls execution only; they never alter CapabilityVerdict.",
+            "read-only: yes",
             "executes Discord now: no",
             "mutates firewall/services: no",
         ]
@@ -2093,6 +3204,8 @@ def discord_launch_through_socks_to_text(
         )
     preflight_result: dict[str, Any] | None = None
     preflight_report_path: Path | None = None
+    preflight_evidence_path: Path | None = None
+    preflight_route_support = SUPPORT_UNKNOWN
     if upstream_preflight:
         try:
             preflight_result = _https_head_through_socks(
@@ -2103,7 +3216,25 @@ def discord_launch_through_socks_to_text(
                 timeout=float(preflight_timeout),
             )
         except Exception as exc:  # captured into report so the owner can attach it
-            preflight_result = {"ok": False, "stage": "exception", "message": str(exc), "elapsedMs": None}
+            preflight_result = {
+                "ok": False,
+                "stage": "exception",
+                "socksMethodOk": None,
+                "socksConnectOk": None,
+                "targetTlsOk": None,
+                "targetHttpOk": None,
+                "message": str(exc),
+                "elapsedMs": None,
+            }
+        preflight_evidence_path, preflight_route_support = _record_https_probe_evidence(
+            paths,
+            profile_id,
+            session,
+            target_host=preflight_host,
+            target_path=preflight_path,
+            result=preflight_result,
+            producer="discord-launch-preflight",
+        )
         reports_dir = paths.tunnel_root / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
@@ -2116,11 +3247,16 @@ def discord_launch_through_socks_to_text(
                 "createdAt": _utc_now(),
                 "profileId": profile_id,
                 "targetHost": preflight_host,
-                "targetPath": preflight_path,
+                "targetPath": _hashed_presence(preflight_path),
                 "socksHost": socks_host,
                 "socksPort": socks_port,
+                "runId": session.get("runId"),
+                "connectionReceiptId": session.get("connectionReceiptId"),
+                "configHash": session.get("configHash"),
                 "result": preflight_result,
                 "verdict": "T1_HTTPS_THROUGH_SOCKS_OK" if preflight_result.get("ok") else "T1_HTTPS_THROUGH_SOCKS_FAILED",
+                "routeCapability": preflight_route_support,
+                "evidenceGraph": str(preflight_evidence_path) if preflight_evidence_path else None,
             },
             secret=False,
         )
@@ -2136,7 +3272,7 @@ def discord_launch_through_socks_to_text(
                 "Upstream preflight не прошёл, поэтому Discord не запущен. "
                 f"target=https://{preflight_host}{preflight_path if preflight_path.startswith('/') else '/' + preflight_path}; "
                 f"stage={preflight_result.get('stage', 'n/a')}; message={preflight_result.get('message', 'n/a')}. "
-                f"report: {preflight_report_path}. "
+                f"report: {preflight_report_path}. routeCapability={preflight_route_support}. "
                 "Это защищает от запуска Electron в заведомо сломанный VLESS route. "
                 "Для ручного эксперимента можно повторить с --discord-launch-allow-failed-preflight."
             )
@@ -2163,6 +3299,10 @@ def discord_launch_through_socks_to_text(
         "schemaVersion": TUNNEL_SCHEMA_VERSION,
         "stage": TUNNEL_STAGE,
         "profileId": profile_id,
+        "runId": session.get("runId"),
+        "connectionReceiptId": session.get("connectionReceiptId"),
+        "configHash": session.get("configHash"),
+        "evidenceGraph": str(preflight_evidence_path or session.get("evidenceGraphPath", "")),
         "launchMode": launch_mode,
         "discordCommand": raw_command,
         "clientKind": client_kind,
@@ -2179,11 +3319,13 @@ def discord_launch_through_socks_to_text(
         "upstreamPreflight": {
             "enabled": bool(upstream_preflight),
             "targetHost": preflight_host if upstream_preflight else "",
-            "targetPath": preflight_path if upstream_preflight else "",
+            "targetPath": _hashed_presence(preflight_path) if upstream_preflight else {"present": False},
             "ok": bool(preflight_result.get("ok")) if preflight_result else None,
             "stage": preflight_result.get("stage") if preflight_result else "",
             "report": str(preflight_report_path) if preflight_report_path else "",
             "allowFailed": bool(allow_failed_preflight),
+            "routeCapability": preflight_route_support if upstream_preflight else SUPPORT_UNKNOWN,
+            "bypassChangesVerdict": False,
         },
     }
     discord_session_path = _discord_session_path(paths, profile_id)
@@ -2205,7 +3347,10 @@ def discord_launch_through_socks_to_text(
             f"discord stdout: {stdout_path}",
             f"discord stderr: {stderr_path}",
             f"upstream preflight: {'ok' if preflight_result and preflight_result.get('ok') else 'skipped' if not upstream_preflight else 'failed-but-allowed'}",
+            f"preflight route capability: {preflight_route_support if upstream_preflight else SUPPORT_UNKNOWN}",
             f"preflight report: {preflight_report_path if preflight_report_path else 'нет'}",
+            f"evidence graph: {preflight_evidence_path or session.get('evidenceGraphPath', 'нет')}",
+            f"failed-preflight bypass changes capability verdict: no",
             "ROUTING NOTE:",
             "  The tunnel is not transparent. Discord must be launched/configured through SOCKS; already-open app/browser windows are not rerouted.",
             "MANUAL ACTION:",
@@ -2310,12 +3455,26 @@ def _socks5_connect(sock: socket.socket, host: str, port: int) -> dict[str, Any]
     sock.sendall(b"\x05\x01\x00")
     hello = _read_exact(sock, 2)
     if hello != b"\x05\x00":
-        return {"ok": False, "stage": "socks-auth", "replyHex": hello.hex(), "message": "SOCKS5 no-auth was not accepted"}
+        return {
+            "ok": False,
+            "methodOk": False,
+            "connectOk": False,
+            "stage": "socks-auth",
+            "replyHex": hello.hex(),
+            "message": "SOCKS5 no-auth was not accepted",
+        }
     request = b"\x05\x01\x00\x03" + bytes([len(host_bytes)]) + host_bytes + int(port).to_bytes(2, "big")
     sock.sendall(request)
     header = _read_exact(sock, 4)
     if len(header) != 4 or header[0] != 5:
-        return {"ok": False, "stage": "socks-connect", "replyHex": header.hex(), "message": "SOCKS5 connect returned malformed header"}
+        return {
+            "ok": False,
+            "methodOk": True,
+            "connectOk": False,
+            "stage": "socks-connect",
+            "replyHex": header.hex(),
+            "message": "SOCKS5 connect returned malformed header",
+        }
     atyp = header[3]
     if atyp == 1:
         _read_exact(sock, 4)
@@ -2325,25 +3484,93 @@ def _socks5_connect(sock: socket.socket, host: str, port: int) -> dict[str, Any]
     elif atyp == 4:
         _read_exact(sock, 16)
     else:
-        return {"ok": False, "stage": "socks-connect", "replyHex": header.hex(), "message": f"SOCKS5 connect returned unsupported ATYP {atyp}"}
+        return {
+            "ok": False,
+            "methodOk": True,
+            "connectOk": False,
+            "stage": "socks-connect",
+            "replyHex": header.hex(),
+            "message": f"SOCKS5 connect returned unsupported ATYP {atyp}",
+        }
     _read_exact(sock, 2)
     rep = header[1]
     if rep != 0:
-        return {"ok": False, "stage": "socks-connect", "replyCode": rep, "message": f"SOCKS5 connect failed with REP={rep}"}
-    return {"ok": True, "stage": "socks-connect", "message": "SOCKS5 connect established"}
+        return {
+            "ok": False,
+            "methodOk": True,
+            "connectOk": False,
+            "stage": "socks-connect",
+            "replyCode": rep,
+            "message": f"SOCKS5 connect failed with REP={rep}",
+        }
+    return {
+        "ok": True,
+        "methodOk": True,
+        "connectOk": True,
+        "stage": "socks-connect",
+        "message": "SOCKS5 connect established",
+    }
 
 
 def _https_head_through_socks(*, socks_host: str, socks_port: int, target_host: str, target_path: str, timeout: float) -> dict[str, Any]:
+    """Probe SOCKS method/connect, TLS and HTTP as distinct evidence stages."""
+
     started = time.monotonic()
     target_path = target_path if target_path.startswith("/") else f"/{target_path}"
-    with socket.create_connection((socks_host, int(socks_port)), timeout=timeout) as raw_sock:
+    try:
+        raw_sock = socket.create_connection((socks_host, int(socks_port)), timeout=timeout)
+    except OSError as exc:
+        return {
+            "ok": False,
+            "stage": "socks-listener",
+            "socksMethodOk": False,
+            "socksConnectOk": False,
+            "targetTlsOk": None,
+            "targetHttpOk": None,
+            "message": str(exc),
+            "elapsedMs": int((time.monotonic() - started) * 1000),
+        }
+    with raw_sock:
         raw_sock.settimeout(timeout)
-        socks_result = _socks5_connect(raw_sock, target_host, 443)
+        try:
+            socks_result = _socks5_connect(raw_sock, target_host, 443)
+        except (OSError, ValueError) as exc:
+            return {
+                "ok": False,
+                "stage": "socks-connect",
+                "socksMethodOk": None,
+                "socksConnectOk": False,
+                "targetTlsOk": None,
+                "targetHttpOk": None,
+                "message": str(exc),
+                "elapsedMs": int((time.monotonic() - started) * 1000),
+            }
+        method_ok = bool(socks_result.get("methodOk"))
+        connect_ok = bool(socks_result.get("connectOk"))
         if not socks_result.get("ok"):
-            socks_result["elapsedMs"] = int((time.monotonic() - started) * 1000)
-            return socks_result
+            return {
+                **socks_result,
+                "socksMethodOk": method_ok,
+                "socksConnectOk": connect_ok,
+                "targetTlsOk": None,
+                "targetHttpOk": None,
+                "elapsedMs": int((time.monotonic() - started) * 1000),
+            }
         context = ssl.create_default_context()
-        with context.wrap_socket(raw_sock, server_hostname=target_host) as tls_sock:
+        try:
+            tls_sock = context.wrap_socket(raw_sock, server_hostname=target_host)
+        except (ssl.SSLError, OSError, socket.timeout) as exc:
+            return {
+                "ok": False,
+                "stage": "target-tls",
+                "socksMethodOk": True,
+                "socksConnectOk": True,
+                "targetTlsOk": False,
+                "targetHttpOk": None,
+                "message": str(exc),
+                "elapsedMs": int((time.monotonic() - started) * 1000),
+            }
+        with tls_sock:
             tls_sock.settimeout(timeout)
             request = (
                 f"HEAD {target_path} HTTP/1.1\r\n"
@@ -2351,8 +3578,20 @@ def _https_head_through_socks(*, socks_host: str, socks_port: int, target_host: 
                 "User-Agent: Zap2GUIfLin-tunnel-probe/1\r\n"
                 "Connection: close\r\n\r\n"
             ).encode("ascii")
-            tls_sock.sendall(request)
-            response = tls_sock.recv(768)
+            try:
+                tls_sock.sendall(request)
+                response = tls_sock.recv(768)
+            except (ssl.SSLError, OSError, socket.timeout) as exc:
+                return {
+                    "ok": False,
+                    "stage": "target-http",
+                    "socksMethodOk": True,
+                    "socksConnectOk": True,
+                    "targetTlsOk": True,
+                    "targetHttpOk": False,
+                    "message": str(exc),
+                    "elapsedMs": int((time.monotonic() - started) * 1000),
+                }
     first_line = response.splitlines()[0].decode("iso-8859-1", errors="replace") if response else ""
     status_code = None
     if first_line.startswith("HTTP/"):
@@ -2362,13 +3601,100 @@ def _https_head_through_socks(*, socks_host: str, socks_port: int, target_host: 
     ok = status_code is not None and 100 <= status_code < 600
     return {
         "ok": ok,
-        "stage": "https-head",
+        "stage": "target-http",
+        "socksMethodOk": True,
+        "socksConnectOk": True,
+        "targetTlsOk": True,
+        "targetHttpOk": ok,
         "statusLine": first_line,
         "statusCode": status_code,
         "elapsedMs": int((time.monotonic() - started) * 1000),
         "message": "HTTPS HEAD through SOCKS completed" if ok else "HTTPS HEAD through SOCKS did not return an HTTP status line",
     }
 
+
+def _probe_state(value: Any, *, failed_if_false: bool = True) -> str:
+    if value is True:
+        return PASS
+    if value is False and failed_if_false:
+        return FAIL
+    return UNKNOWN
+
+
+def _record_https_probe_evidence(
+    paths: TunnelStorePaths,
+    profile_id: str,
+    session: dict[str, Any],
+    *,
+    target_host: str,
+    target_path: str,
+    result: dict[str, Any],
+    producer: str,
+) -> tuple[Path | None, str]:
+    run_id = str(session.get("runId", ""))
+    if not run_id:
+        return None, SUPPORT_UNKNOWN
+    try:
+        graph = _load_bound_evidence_graph(paths, profile_id, session)
+    except ValueError:
+        return None, SUPPORT_UNKNOWN
+    local_method = next((item for item in reversed(graph.spans) if item.kind == "socks_method" and item.run_id == run_id), None)
+    method_result = _probe_state(result.get("socksMethodOk"))
+    connect_result = _probe_state(result.get("socksConnectOk"))
+    tls_result = _probe_state(result.get("targetTlsOk"))
+    http_result = _probe_state(result.get("targetHttpOk"))
+    method_span = _probe_span(
+        run_id=run_id,
+        kind="socks_method",
+        result=method_result,
+        target=target_host,
+        deps=(local_method.span_id,) if local_method else (),
+        detail={"producer": producer, "message": result.get("message", "")},
+        limits=("target-bound method observation does not prove remote TLS/HTTP",),
+    )
+    graph.add_span(method_span)
+    connect_span = _probe_span(
+        run_id=run_id,
+        kind="socks_connect",
+        result=connect_result,
+        target=target_host,
+        deps=(method_span.span_id,),
+        detail={"port": 443, "producer": producer, "stage": result.get("stage", "")},
+        limits=("SOCKS CONNECT acceptance proves only proxy-side acceptance of the target request",),
+    )
+    graph.add_span(connect_span)
+    tls_span = _probe_span(
+        run_id=run_id,
+        kind="target_tls",
+        result=tls_result,
+        target=target_host,
+        deps=(connect_span.span_id,),
+        detail={"producer": producer, "stage": result.get("stage", ""), "message": result.get("message", "")},
+    )
+    graph.add_span(tls_span)
+    http_span = _probe_span(
+        run_id=run_id,
+        kind="target_http",
+        result=http_result,
+        target=target_host,
+        deps=(tls_span.span_id,),
+        detail={
+            "producer": producer,
+            "path": _hashed_presence(target_path),
+            "statusCode": result.get("statusCode"),
+            "statusLine": result.get("statusLine", ""),
+            "message": result.get("message", ""),
+        },
+    )
+    graph.add_span(http_span)
+    # Every explicitly probed target receives its own route verdict, including
+    # neutral/control hosts. Mandatory Vesktop endpoints are refreshed as a
+    # separate aggregate and never inherit success from the control target.
+    route = _route_capability(graph, target_host)
+    graph.add_verdict(route)
+    _refresh_capability_verdicts(graph)
+    path = _write_evidence_graph(paths, graph)
+    return path, route.support
 
 def _load_running_tunnel_session(paths: TunnelStorePaths, profile_id: str) -> dict[str, Any]:
     session_path = _session_path(paths, profile_id)
@@ -2403,7 +3729,7 @@ def discord_tunnel_https_probe_to_text(
         "createdAt": _utc_now(),
         "profileId": profile_id,
         "targetHost": target_host,
-        "targetPath": target_path,
+        "targetPath": _hashed_presence(target_path),
         "socksHost": socks_host,
         "socksPort": socks_port,
         "tunnelPid": int(session.get("pid", 0) or 0),
@@ -2419,7 +3745,25 @@ def discord_tunnel_https_probe_to_text(
     except Exception as exc:  # deliberately captured into report for owner diagnosis
         result = {"ok": False, "stage": "exception", "message": str(exc), "elapsedMs": None}
     verdict = "T1_HTTPS_THROUGH_SOCKS_OK" if result.get("ok") else "T1_HTTPS_THROUGH_SOCKS_FAILED"
-    report = {**report_base, "result": result, "verdict": verdict}
+    evidence_path, route_support = _record_https_probe_evidence(
+        paths,
+        profile_id,
+        session,
+        target_host=target_host,
+        target_path=target_path,
+        result=result,
+        producer="discord-tunnel-https-probe",
+    )
+    report = {
+        **report_base,
+        "runId": session.get("runId"),
+        "connectionReceiptId": session.get("connectionReceiptId"),
+        "configHash": session.get("configHash"),
+        "result": result,
+        "verdict": verdict,
+        "routeCapability": route_support,
+        "evidenceGraph": str(evidence_path) if evidence_path else None,
+    }
     reports_dir = paths.tunnel_root / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
@@ -2434,6 +3778,9 @@ def discord_tunnel_https_probe_to_text(
             f"target: https://{target_host}{target_path if target_path.startswith('/') else '/' + target_path}",
             f"local socks: socks5://{socks_host}:{socks_port}",
             f"verdict: {verdict}",
+            f"route capability: {route_support}",
+            f"run id: {session.get('runId', 'legacy-unbound')}",
+            f"evidence graph: {evidence_path if evidence_path else 'legacy/unbound'}",
             f"probe stage: {result.get('stage', 'n/a')}",
             f"message: {result.get('message', 'n/a')}",
             f"status line: {result.get('statusLine', 'n/a')}",
@@ -2505,6 +3852,7 @@ def discord_tunnel_route_diagnose_to_text(*, profile_id: str = DEFAULT_PROFILE_I
     tunnel_state = "not-started"
     tunnel_pid = 0
     socks_probe: dict[str, Any] = {"ok": False, "message": "no tunnel session"}
+    session: dict[str, Any] = {}
     if session_path.exists():
         session = _read_json(session_path)
         tunnel_pid = int(session.get("pid", 0) or 0)
@@ -2544,6 +3892,17 @@ def discord_tunnel_route_diagnose_to_text(*, profile_id: str = DEFAULT_PROFILE_I
 
     latest_https = _latest_report_path(paths, profile_id, "https-probe-*.json")
     latest_preflight = _latest_report_path(paths, profile_id, "launch-preflight-*.json")
+
+    typed_graph: EvidenceGraph | None = None
+    typed_graph_path = ""
+    typed_run_id = str(session.get("runId", "")) if session else ""
+    if typed_run_id:
+        try:
+            typed_graph = _load_bound_evidence_graph(paths, profile_id, session)
+            _refresh_capability_verdicts(typed_graph)
+            typed_graph_path = str(_write_evidence_graph(paths, typed_graph))
+        except (ValueError, OSError, TypeError):
+            typed_graph = None
 
     if not session_path.exists():
         verdict = "TD_NO_TUNNEL_SESSION"
@@ -2612,11 +3971,20 @@ def discord_tunnel_route_diagnose_to_text(*, profile_id: str = DEFAULT_PROFILE_I
         f"  HTTPS probe: {_report_verdict(latest_https)}",
         f"  launch preflight: {_report_verdict(latest_preflight)}",
         "",
+        "Typed evidence (authoritative for capability; log heuristics above are diagnostic only):",
+    ]
+    if typed_graph is not None:
+        lines.extend([f"  evidence graph: {typed_graph_path}", *[f"  {item}" for item in _graph_summary_lines(typed_graph)]])
+    else:
+        lines.append("  unavailable/legacy-unbound: capability remains UNKNOWN; no log symptom may promote it")
+    lines.extend([
+        "",
+        "Invariant: bypass/force-launch or historical log traffic cannot turn a failed/unknown CapabilityVerdict green.",
         f"Next: {next_step}",
         "read-only: yes",
         "executes Discord now: no",
         "mutates firewall/services: no",
-    ]
+    ])
     return "\n".join(lines)
 
 
@@ -2717,6 +4085,34 @@ def discord_tunnel_guided_run_to_text(
     if interactive and updater_result == "unknown":
         observed_result = _prompt_updater_result(emit=emit)
     https_verdict = "T1_HTTPS_THROUGH_SOCKS_OK" if "verdict: T1_HTTPS_THROUGH_SOCKS_OK" in https_text else "T1_HTTPS_THROUGH_SOCKS_FAILED"
+    evidence_path: Path | None = None
+    app_support = SUPPORT_UNKNOWN
+    run_id = str(discord_session.get("runId", ""))
+    client_kind = str(discord_session.get("clientKind", ""))
+    if run_id and client_kind == "vesktop" and observed_result in {"passed", "stuck"}:
+        try:
+            tunnel_session = _read_json(_session_path(paths, profile_id))
+            graph = _load_bound_evidence_graph(paths, profile_id, tunnel_session)
+            navigation_span = _probe_span(
+                run_id=run_id,
+                kind="electron_navigation",
+                result=PASS if observed_result == "passed" else FAIL,
+                target=VESKTOP_MAIN_WINDOW_TARGET,
+                detail={
+                    "source": "owner-observation",
+                    "ownerUpdaterResult": observed_result,
+                    "discordPid": discord_pid,
+                    "clientKind": client_kind,
+                },
+                limits=("owner observation proves this run/client window only; it does not prove Gateway/media capability",),
+            )
+            graph.add_span(navigation_span)
+            _refresh_capability_verdicts(graph, client_kind=client_kind)
+            evidence_path = _write_evidence_graph(paths, graph)
+            app = next((item for item in graph.verdicts if item.capability_id == "vesktop.bootstrap"), None)
+            app_support = app.support if app else SUPPORT_UNKNOWN
+        except ValueError:
+            pass
     verdict = _updater_verdict_from_result(observed_result, https_verdict, discord_pid)
     report = {
         "schemaVersion": TUNNEL_SCHEMA_VERSION,
@@ -2731,6 +4127,9 @@ def discord_tunnel_guided_run_to_text(
         "observeSeconds": observe_seconds,
         "ownerUpdaterResult": observed_result,
         "httpsProbeVerdict": https_verdict,
+        "runId": run_id or None,
+        "vesktopCapability": app_support,
+        "evidenceGraph": str(evidence_path or discord_session.get("evidenceGraph", "")) or None,
         "verdict": verdict,
     }
     reports_dir = paths.tunnel_root / "reports"
@@ -2746,11 +4145,14 @@ def discord_tunnel_guided_run_to_text(
             f"profile: {profile_id}",
             f"launch mode: {launch_mode}",
             f"plan auto-confirmed: {plan_id}",
-            f"tunnel core: {'started/ready' if 'Discord tunnel start: started' in start_text or 'already-running' in start_text else 'check start output'}",
+            f"tunnel core local state: {'started/SOCKS-local' if 'Discord tunnel start: started' in start_text or 'already-running' in start_text else 'check start output'}",
             f"https probe verdict: {https_verdict}",
             f"discord pid: {discord_pid if discord_pid else 'нет'}",
             f"owner updater result: {observed_result}",
-            f"verdict: {verdict}",
+            f"legacy guided verdict: {verdict}",
+            f"vesktop bootstrap capability: {app_support}",
+            f"evidence run: {run_id or 'legacy/unbound'}",
+            f"evidence graph: {evidence_path or discord_session.get('evidenceGraph', 'legacy/unbound')}",
             f"report: {report_path}",
             "",
             "SUMMARY OF SUB-STEPS:",
