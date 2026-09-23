@@ -123,7 +123,7 @@ def test_prepare_confirm_and_execute_apply_with_fake_runner(tmp_path):
     )
 
     assert result.state == "applied"
-    assert len(calls) == 3
+    assert len(calls) == 4
     assert result.state_path.exists()
     state = json.loads(result.state_path.read_text(encoding="utf-8"))
     assert state["marker"] == "zap2-runtime-apply-v1"

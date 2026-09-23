@@ -24,6 +24,26 @@ SAMPLE_VLESS = (
     "?security=&encryption=none&host=www.example.org&headerType=http&type=tcp#Sample%20Profile"
 )
 
+FAKE_SOCKS_CORE = r'''#!/usr/bin/env python3
+import json, socket, sys, time
+from pathlib import Path
+config = None
+for index, arg in enumerate(sys.argv):
+    if arg in {"-config", "-c"} and index + 1 < len(sys.argv):
+        config = Path(sys.argv[index + 1]); break
+if "-test" in sys.argv:
+    raise SystemExit(0)
+port = int(json.loads(config.read_text(encoding="utf-8"))["inbounds"][0]["port"])
+server = socket.socket(); server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server.bind(("127.0.0.1", port)); server.listen(8); server.settimeout(0.2)
+started=time.time()
+while time.time()-started < 30:
+    try: conn,_=server.accept()
+    except socket.timeout: continue
+    with conn:
+        if conn.recv(3) == b"\x05\x01\x00": conn.sendall(b"\x05\x00")
+'''
+
 
 def _executable(path: Path, body: str) -> Path:
     path.write_text(body, encoding="utf-8")
@@ -79,7 +99,7 @@ def test_stage7z_planned_component_is_visible_but_blocked(tmp_path: Path) -> Non
 
 def test_stage7z_can_start_and_stop_vless_only_with_fake_core(tmp_path: Path) -> None:
     tunnel_connection_import_vless_to_text(SAMPLE_VLESS, root=tmp_path)
-    fake_core = _executable(tmp_path / "xray", "#!/bin/sh\nsleep 30\n")
+    fake_core = _executable(tmp_path / "xray", FAKE_SOCKS_CORE)
 
     start = launch_composer_start_to_text(
         root=tmp_path,

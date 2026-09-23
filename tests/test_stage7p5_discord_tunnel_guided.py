@@ -121,7 +121,7 @@ def test_guided_run_auto_prepares_confirms_starts_and_blocks_launch_when_socks_i
     assert not (tmp_path / ".zap2" / "tunnel" / "runtime" / "default.discord-session.json").exists()
     reports = list((tmp_path / ".zap2" / "tunnel" / "reports").glob("default.guided-run-*.json"))
     assert reports
-    assert "Discord tunnel stop: stopped" in discord_tunnel_stop_to_text(root=tmp_path)
+    assert "Discord tunnel stop: stale" in discord_tunnel_stop_to_text(root=tmp_path)
 
 
 def test_stage8a_launch_through_socks_accepts_flatpak_command_string(tmp_path: Path) -> None:
@@ -151,7 +151,9 @@ def test_stage8a_launch_through_socks_accepts_flatpak_command_string(tmp_path: P
         __import__("os").environ["PATH"] = old_path
 
     assert "Discord launch through SOCKS: started" in text
-    assert "discord command: flatpak run com.discordapp.Discord" in text
+    assert "discord/vesktop command: flatpak run com.discordapp.Discord" in text
+    assert "client kind: discord" in text
+    assert "--disable-quic" in text
     assert "flatpak command: yes" in text
     assert "discord stdout:" in text
     assert f"--proxy-server=socks5://127.0.0.1:{socks_port}" in text
@@ -164,7 +166,7 @@ def test_stage8a_launch_through_socks_accepts_flatpak_command_string(tmp_path: P
 
 def test_stage8b_launch_is_blocked_when_tunnel_session_is_stopped(tmp_path: Path) -> None:
     tunnel_connection_import_vless_to_text(SAMPLE_VLESS, root=tmp_path)
-    fake_core = _executable(tmp_path / "xray", "#!/bin/sh\nsleep 30\n")
+    fake_core = _executable(tmp_path / "xray", FAKE_SOCKS_CORE)
     fake_discord = _executable(tmp_path / "discord", "#!/bin/sh\nsleep 30\n")
 
     from zap2_gui.adapters.discord_tunnel import discord_tunnel_plan_to_text, discord_tunnel_start_to_text, discord_tunnel_stop_to_text
@@ -263,3 +265,39 @@ def test_stage8c_launch_preflight_blocks_discord_before_spawn(tmp_path: Path) ->
 
 def test_stage8c_cli_exposes_route_diagnose() -> None:
     assert main(["--discord-tunnel-route-diagnose"]) == 0
+
+
+def test_vesktop_launch_uses_socks_flag_and_disables_quic(tmp_path: Path) -> None:
+    import os
+    from zap2_gui.adapters.discord_tunnel import discord_tunnel_plan_to_text, discord_tunnel_start_to_text
+    from zap2_gui.adapters.runtime_state import confirm_runtime_plan
+
+    tunnel_connection_import_vless_to_text(SAMPLE_VLESS, root=tmp_path)
+    fake_core = _executable(tmp_path / "xray", FAKE_SOCKS_CORE)
+    _executable(tmp_path / "vesktop", "#!/bin/sh\nsleep 30\n")
+    socks_port = _unused_tcp_port()
+    old_path = os.environ.get("PATH", "")
+    os.environ["PATH"] = f"{tmp_path}:{old_path}"
+    try:
+        discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=socks_port)
+        plan_id = "runtime-default-discord-tunnel-socks-start-plan"
+        confirm_runtime_plan(root=tmp_path, plan_id=plan_id)
+        assert "Discord tunnel start: started" in discord_tunnel_start_to_text(root=tmp_path, confirm_plan_id=plan_id)
+        text = discord_launch_through_socks_to_text(
+            root=tmp_path,
+            discord_binary="vesktop",
+            launch_mode="socks-flag-only",
+        )
+        assert "client kind: vesktop" in text
+        assert f"--proxy-server=socks5://127.0.0.1:{socks_port}" in text
+        assert "--disable-quic" in text
+    finally:
+        os.environ["PATH"] = old_path
+        try:
+            discord_stop_launched_to_text(root=tmp_path)
+        except Exception:
+            pass
+        try:
+            discord_tunnel_stop_to_text(root=tmp_path)
+        except Exception:
+            pass

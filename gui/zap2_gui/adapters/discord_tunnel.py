@@ -42,6 +42,9 @@ DEFAULT_CORE_KIND = "auto"
 SUPPORTED_CORE_KINDS = ("auto", "xray", "v2ray", "sing-box")
 SUPPORTED_LAUNCH_MODES = ("socks-updater-window", "socks-full-session", "socks-env-only", "socks-flag-only")
 DEFAULT_DISCORD_COMMAND = "discord"
+VESKTOP_COMMAND = "vesktop"
+FLATPAK_VESKTOP_COMMAND = "flatpak run dev.vencord.Vesktop"
+AUTO_DISCORD_COMMAND = "auto"
 XHTTP_LIKE_TRANSPORTS = {"xhttp", "splithttp"}
 
 
@@ -58,13 +61,17 @@ def _tail_file(path: Path, *, max_chars: int = 1400) -> str:
 
 def _core_transport_warning(profile: "VlessConnectionProfile", core_kind: str) -> str:
     network = (profile.network or "tcp").lower()
+    security = (profile.security or "none").lower()
     kind = (core_kind or "auto").lower()
+    if kind == "v2ray" and security == "reality":
+        return (
+            "security=reality относится к Xray/XTLS lane и обычным V2Ray core не поддерживается. "
+            "Выберите Xray core для этого VLESS profile или используйте профиль без REALITY."
+        )
     if network in XHTTP_LIKE_TRANSPORTS and kind == "v2ray":
         return (
             f"transport {network} обычно не поддерживается V2Ray core. "
-            "В этом workspace уже типичный симптом: core stderr может содержать "
-            "'unknown transport protocol'. Используйте Xray с поддержкой этого transport "
-            "или импортируйте VLESS profile с type=tcp/ws/grpc."
+            "Используйте Xray с поддержкой XHTTP или импортируйте VLESS profile с type=tcp/ws/grpc."
         )
     return ""
 
@@ -901,18 +908,80 @@ def _resolve_core_binary(value: str | None) -> tuple[str, str]:
     return "", "not-found"
 
 
-def _core_argv(core_binary: str, core_kind: str, config_path: Path) -> tuple[str, ...]:
+def _core_argv_candidates(core_binary: str, core_kind: str, config_path: Path) -> tuple[tuple[str, ...], ...]:
+    """Runtime CLI candidates, modern first with compatibility fallbacks."""
+
     if core_kind == "sing-box":
-        return (core_binary, "run", "-c", str(config_path))
-    return (core_binary, "run", "-config", str(config_path))
+        return ((core_binary, "run", "-c", str(config_path)),)
+    if core_kind == "v2ray":
+        return (
+            (core_binary, "run", "-c", str(config_path)),
+            (core_binary, "-config", str(config_path)),
+        )
+    return (
+        (core_binary, "run", "-c", str(config_path)),
+        (core_binary, "run", "-config", str(config_path)),
+    )
 
 
-def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
-    security = profile.security or "none"
-    network = profile.network or "tcp"
-    stream: dict[str, Any] = {"network": network}
+def _core_argv(core_binary: str, core_kind: str, config_path: Path) -> tuple[str, ...]:
+    return _core_argv_candidates(core_binary, core_kind, config_path)[0]
+
+
+def _core_test_argv_candidates(core_binary: str, core_kind: str, config_path: Path) -> tuple[tuple[str, ...], ...]:
+    if core_kind == "v2ray":
+        return (
+            (core_binary, "run", "-test", "-c", str(config_path)),
+            (core_binary, "-test", "-config", str(config_path)),
+        )
+    if core_kind == "xray":
+        return (
+            (core_binary, "run", "-test", "-c", str(config_path)),
+            (core_binary, "run", "-test", "-config", str(config_path)),
+        )
+    return ()
+
+
+def _core_test_argv(core_binary: str, core_kind: str, config_path: Path) -> tuple[str, ...]:
+    candidates = _core_test_argv_candidates(core_binary, core_kind, config_path)
+    return candidates[0] if candidates else ()
+
+
+def _stream_settings(profile: VlessConnectionProfile, *, core_kind: str = "xray") -> dict[str, Any]:
+    """Translate a VLESS URI transport into the selected core schema.
+
+    Xray's current schema uses ``method``/``rawSettings`` and REALITY
+    ``password``.  V2Ray keeps the classic ``network``/``tcpSettings`` lane.
+    The split is intentional: generating one hybrid JSON for both cores made
+    dry-runs look successful while the real core could reject or misinterpret
+    the transport.
+    """
+
+    security = (profile.security or "none").lower()
+    network = (profile.network or "tcp").lower()
+    kind = (core_kind or "xray").lower()
+    modern_xray = kind == "xray"
+
+    if modern_xray:
+        method_map = {
+            "tcp": "raw",
+            "raw": "raw",
+            "ws": "websocket",
+            "websocket": "websocket",
+            "kcp": "mkcp",
+            "mkcp": "mkcp",
+            "grpc": "grpc",
+            "httpupgrade": "httpupgrade",
+            "xhttp": "xhttp",
+            "splithttp": "xhttp",
+        }
+        stream: dict[str, Any] = {"method": method_map.get(network, network)}
+    else:
+        stream = {"network": network}
+
     if security != "none":
         stream["security"] = security
+
     if security == "tls":
         tls: dict[str, Any] = {}
         server_name = profile.sni or profile.host
@@ -942,7 +1011,8 @@ def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
         if server_name:
             reality["serverName"] = server_name
         if public_key:
-            reality["publicKey"] = public_key
+            # Current Xray renamed the client field from publicKey to password.
+            reality["password" if modern_xray else "publicKey"] = public_key
         if fingerprint:
             reality["fingerprint"] = fingerprint
         if short_id:
@@ -955,12 +1025,13 @@ def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
             reality["alpn"] = list(profile.alpn)
         if reality:
             stream["realitySettings"] = reality
-    if network == "tcp" and profile.header_type and profile.header_type != "none":
+
+    if network in {"tcp", "raw"} and profile.header_type and profile.header_type != "none":
         header: dict[str, Any] = {"type": profile.header_type}
         if profile.header_type == "http" and profile.host:
             header["request"] = {"headers": {"Host": [profile.host]}}
-        stream["tcpSettings"] = {"header": header}
-    elif network == "ws":
+        stream["rawSettings" if modern_xray else "tcpSettings"] = {"header": header}
+    elif network in {"ws", "websocket"}:
         ws: dict[str, Any] = {}
         if profile.path:
             ws["path"] = profile.path
@@ -968,7 +1039,7 @@ def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
             ws["headers"] = {"Host": profile.host}
         if ws:
             stream["wsSettings"] = ws
-    elif network == "kcp":
+    elif network in {"kcp", "mkcp"}:
         kcp: dict[str, Any] = {}
         if profile.kcp_mtu is not None:
             kcp["mtu"] = profile.kcp_mtu
@@ -982,6 +1053,9 @@ def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
     elif network == "httpupgrade":
         stream["httpupgradeSettings"] = {"host": profile.host, "path": profile.path or "/"}
     elif network in {"http", "h2"}:
+        # h2 is a legacy transport name. Keep the legacy representation rather
+        # than silently converting it to a different transport.
+        stream.pop("method", None)
         stream["network"] = "h2"
         stream["httpSettings"] = {
             "host": [item.strip() for item in profile.host.split(",") if item.strip()],
@@ -997,7 +1071,8 @@ def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
             except json.JSONDecodeError:
                 xhttp["extra"] = profile.xhttp_extra
         stream["xhttpSettings"] = xhttp
-        stream["network"] = "xhttp"
+        if not modern_xray:
+            stream["network"] = "xhttp"
     elif network == "grpc":
         grpc: dict[str, Any] = {"serviceName": profile.service_name}
         if profile.authority:
@@ -1005,6 +1080,7 @@ def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
         if profile.raw_query.get("mode") == "multi":
             grpc["multiMode"] = True
         stream["grpcSettings"] = grpc
+
     if profile.final_mask:
         try:
             stream["finalmask"] = json.loads(profile.final_mask)
@@ -1013,10 +1089,33 @@ def _stream_settings(profile: VlessConnectionProfile) -> dict[str, Any]:
     return stream
 
 
-def generate_xray_vless_socks_config(profile: VlessConnectionProfile, *, socks_host: str = DEFAULT_SOCKS_HOST, socks_port: int = DEFAULT_SOCKS_PORT, udp: bool = False) -> dict[str, Any]:
+def generate_xray_vless_socks_config(
+    profile: VlessConnectionProfile,
+    *,
+    socks_host: str = DEFAULT_SOCKS_HOST,
+    socks_port: int = DEFAULT_SOCKS_PORT,
+    udp: bool = False,
+    core_kind: str = "xray",
+) -> dict[str, Any]:
+    kind = (core_kind or "xray").lower()
     user: dict[str, Any] = {"id": profile.user_id, "encryption": profile.encryption or "none", "level": 8}
     if profile.flow:
         user["flow"] = profile.flow
+
+    if kind == "xray":
+        vless_settings: dict[str, Any] = {
+            "address": profile.server,
+            "port": profile.port,
+            "id": profile.user_id,
+            "encryption": profile.encryption or "none",
+            "level": 8,
+        }
+        if profile.flow:
+            vless_settings["flow"] = profile.flow
+    else:
+        # V2Ray's stable JSON schema remains vnext/users.
+        vless_settings = {"vnext": [{"address": profile.server, "port": profile.port, "users": [user]}]}
+
     return {
         "log": {"loglevel": "warning"},
         "inbounds": [
@@ -1033,8 +1132,8 @@ def generate_xray_vless_socks_config(profile: VlessConnectionProfile, *, socks_h
             {
                 "tag": "proxy",
                 "protocol": "vless",
-                "settings": {"vnext": [{"address": profile.server, "port": profile.port, "users": [user]}]},
-                "streamSettings": _stream_settings(profile),
+                "settings": vless_settings,
+                "streamSettings": _stream_settings(profile, core_kind=kind),
                 "mux": {"enabled": False},
             },
             {"tag": "direct", "protocol": "freedom"},
@@ -1047,16 +1146,24 @@ def generate_xray_vless_socks_config(profile: VlessConnectionProfile, *, socks_h
 def _redact_core_config(config: dict[str, Any]) -> dict[str, Any]:
     redacted = json.loads(json.dumps(config))
     try:
-        vnext = redacted["outbounds"][0]["settings"]["vnext"][0]
-        vnext["address"] = _redact_host(vnext.get("address", ""))
-        for user in vnext.get("users", []):
-            if "id" in user:
-                user["id"] = _redact_uuid(str(user["id"]))
+        settings = redacted["outbounds"][0]["settings"]
+        if "vnext" in settings:
+            vnext = settings["vnext"][0]
+            vnext["address"] = _redact_host(vnext.get("address", ""))
+            for user in vnext.get("users", []):
+                if "id" in user:
+                    user["id"] = _redact_uuid(str(user["id"]))
+        else:
+            if "address" in settings:
+                settings["address"] = _redact_host(str(settings["address"]))
+            if "id" in settings:
+                settings["id"] = _redact_uuid(str(settings["id"]))
         reality = redacted["outbounds"][0].get("streamSettings", {}).get("realitySettings", {})
         if "serverName" in reality:
             reality["serverName"] = _redact_host(str(reality["serverName"]))
-        if "publicKey" in reality:
-            reality["publicKey"] = str(reality["publicKey"])[:8] + "…"
+        for key in ("password", "publicKey"):
+            if key in reality:
+                reality[key] = str(reality[key])[:8] + "…"
         if "shortId" in reality:
             reality["shortId"] = str(reality["shortId"])[:4] + "…"
         tls = redacted["outbounds"][0].get("streamSettings", {}).get("tlsSettings", {})
@@ -1112,11 +1219,11 @@ def discord_tunnel_core_preflight_to_text(
         "starts persistent core/listener: no",
     ]
 
-    if kind != "xray":
+    if kind == "sing-box":
         lines.extend(
             [
                 "verdict: UNSUPPORTED_CORE_PREFLIGHT",
-                "reason: this preflight intentionally implements only Xray upstream `run -test`; no compatible validator is assumed for v2ray/sing-box",
+                "reason: sing-box requires a separate native config generator; Xray/V2Ray JSON is not reused",
             ]
         )
         return "\n".join(lines)
@@ -1124,31 +1231,45 @@ def discord_tunnel_core_preflight_to_text(
         lines.extend(["verdict: UNAVAILABLE_CORE", "next: install/select executable Xray core and repeat preflight"])
         return "\n".join(lines)
 
-    config = generate_xray_vless_socks_config(connection, socks_host=DEFAULT_SOCKS_HOST, socks_port=socks_port)
+    config = generate_xray_vless_socks_config(connection, socks_host=DEFAULT_SOCKS_HOST, socks_port=socks_port, core_kind=kind)
     _write_json(config_path, config, secret=True)
-    argv = (resolved_binary, "run", "-test", "-config", str(config_path))
-    try:
-        result = subprocess.run(
-            argv,
-            cwd=paths.root,
-            text=True,
-            capture_output=True,
-            timeout=timeout_seconds,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        stdout = _tail_file_text(exc.stdout if isinstance(exc.stdout, str) else "", max_chars=1200)
-        stderr = _tail_file_text(exc.stderr if isinstance(exc.stderr, str) else "", max_chars=1600)
+    candidates = _core_test_argv_candidates(resolved_binary, kind, config_path)
+    result = None
+    argv: tuple[str, ...] = ()
+    timeout_error: subprocess.TimeoutExpired | None = None
+    for candidate in candidates:
+        argv = candidate
+        try:
+            attempt = subprocess.run(
+                candidate,
+                cwd=paths.root,
+                text=True,
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            timeout_error = exc
+            continue
+        result = attempt
+        if attempt.returncode == 0:
+            break
+    if result is None and timeout_error is not None:
+        stdout = _tail_file_text(timeout_error.stdout if isinstance(timeout_error.stdout, str) else "", max_chars=1200)
+        stderr = _tail_file_text(timeout_error.stderr if isinstance(timeout_error.stderr, str) else "", max_chars=1600)
         lines.extend(["verdict: TIMEOUT", f"timeout seconds: {timeout_seconds:g}"])
         if stdout:
             lines.extend(["stdout tail:", stdout])
         if stderr:
             lines.extend(["stderr tail:", stderr])
         return "\n".join(lines)
+    if result is None:
+        lines.extend(["verdict: FAIL", "reason: no compatible core test CLI candidate completed"])
+        return "\n".join(lines)
 
     stdout = _tail_file_text(result.stdout, max_chars=1200)
     stderr = _tail_file_text(result.stderr, max_chars=1600)
-    lines.extend([f"exit code: {result.returncode}", f"verdict: {'PASS' if result.returncode == 0 else 'FAIL'}"])
+    lines.extend([f"argv: {shlex.join(argv)}", f"exit code: {result.returncode}", f"verdict: {'PASS' if result.returncode == 0 else 'FAIL'}"])
     if stdout:
         lines.extend(["stdout tail:", stdout])
     if stderr:
@@ -1280,7 +1401,7 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
             "а sing-box использует другую config schema. Нужен отдельный native sing-box generator + `sing-box check`."
         )
     core_exists = bool(resolved_binary and Path(resolved_binary).exists() and os.access(resolved_binary, os.X_OK))
-    config = generate_xray_vless_socks_config(connection, socks_host=DEFAULT_SOCKS_HOST, socks_port=socks_port)
+    config = generate_xray_vless_socks_config(connection, socks_host=DEFAULT_SOCKS_HOST, socks_port=socks_port, core_kind=kind)
     config_hash = _sha256_json(config)
     config_path = _generated_config_path(paths, profile_id)
     payload = _build_plan_payload(
@@ -1528,21 +1649,48 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
     socks = dict(plan.get("localSocks", {}))
     socks_host = str(socks.get("host", DEFAULT_SOCKS_HOST))
     socks_port = int(socks.get("port", DEFAULT_SOCKS_PORT))
-    config = generate_xray_vless_socks_config(connection, socks_host=socks_host, socks_port=socks_port)
+    config = generate_xray_vless_socks_config(connection, socks_host=socks_host, socks_port=socks_port, core_kind=core_kind)
     config_path = _generated_config_path(paths, profile_id)
     _write_json(config_path, config, secret=True)
-    argv = _core_argv(core_binary, core_kind, config_path)
     stdout_path = _stdout_path(paths, profile_id)
     stderr_path = _stderr_path(paths, profile_id)
-    stdout_handle = stdout_path.open("ab")
-    stderr_handle = stderr_path.open("ab")
-    try:
-        process = subprocess.Popen(argv, cwd=str(paths.root), stdout=stdout_handle, stderr=stderr_handle, start_new_session=True)
-    finally:
-        stdout_handle.close()
-        stderr_handle.close()
-    time.sleep(0.5)
-    running = process.poll() is None
+    process: subprocess.Popen[bytes] | None = None
+    argv: tuple[str, ...] = ()
+    socks_probe: dict[str, Any] = {"ok": False, "message": "core was not started"}
+    running = False
+    attempted_argv: list[list[str]] = []
+    for candidate in _core_argv_candidates(core_binary, core_kind, config_path):
+        argv = candidate
+        attempted_argv.append(list(candidate))
+        stdout_handle = stdout_path.open("ab")
+        stderr_handle = stderr_path.open("ab")
+        try:
+            process = subprocess.Popen(candidate, cwd=str(paths.root), stdout=stdout_handle, stderr=stderr_handle, start_new_session=True)
+        finally:
+            stdout_handle.close()
+            stderr_handle.close()
+        socks_probe = _wait_for_socks5_handshake(socks_host, socks_port, deadline_seconds=3.0, timeout=0.35)
+        process_alive = process.poll() is None
+        running = process_alive and bool(socks_probe.get("ok"))
+        if running:
+            break
+        if process_alive:
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except OSError:
+                pass
+            try:
+                process.wait(timeout=1.0)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+                try:
+                    process.wait(timeout=1.0)
+                except subprocess.TimeoutExpired:
+                    pass
+    assert process is not None
     session_payload = {
         "schemaVersion": TUNNEL_SCHEMA_VERSION,
         "stage": TUNNEL_STAGE,
@@ -1554,6 +1702,7 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         "coreBinary": core_binary,
         "coreKind": core_kind,
         "argv": list(argv),
+        "attemptedArgv": attempted_argv,
         "pid": process.pid,
         "startedAt": _utc_now(),
         "socksHost": socks_host,
@@ -1563,12 +1712,20 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         "stdoutLog": str(stdout_path),
         "stderrLog": str(stderr_path),
         "runningAfterGrace": running,
+        "socksReady": bool(socks_probe.get("ok")),
+        "socksProbe": socks_probe,
         "state": "running" if running else "failed",
     }
     _write_json(session_path, session_payload, secret=True)
-    log_path = _append_event(paths, profile_id, "tunnel-started" if running else "tunnel-start-failed", "External tunnel core launched" if running else "External tunnel core exited during start grace", {"pid": process.pid, "running": running, "connection": connection.redacted_dict()})
-    return "\n".join(
-        [
+    log_path = _append_event(
+        paths,
+        profile_id,
+        "tunnel-started" if running else "tunnel-start-failed",
+        "External tunnel core launched and SOCKS5 became ready" if running else "External tunnel core did not expose a valid SOCKS5 listener",
+        {"pid": process.pid, "running": running, "socksProbe": socks_probe, "connection": connection.redacted_dict()},
+    )
+    failure_tail = _last_core_failure_summary(paths, profile_id) if not running else ""
+    result_lines = [
             f"Discord tunnel start: {'started' if running else 'failed'}",
             f"profile: {profile_id}",
             f"connection: {connection.connection_id}",
@@ -1585,9 +1742,13 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
             "mutates firewall/services: no",
             f"parallel with zapret allowed: {'yes' if allow_parallel_with_zapret else 'no'}",
             "executes Discord now: no",
-            "NEXT: PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-probe",
+            "NEXT: PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-probe" if running else "NEXT: inspect core stderr/config, fix profile/core compatibility, then start again",
         ]
-    )
+    if not running:
+        result_lines.extend([f"SOCKS readiness: failed ({socks_probe.get('message', 'unknown')})"] )
+        if failure_tail:
+            result_lines.extend(["", "core failure details:", failure_tail])
+    return "\n".join(result_lines)
 
 
 def discord_tunnel_stop_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: Path | None = None) -> str:
@@ -1761,18 +1922,62 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
     return "\n".join(lines)
 
 
+def _flatpak_app_installed(app_id: str) -> bool:
+    flatpak = shutil.which("flatpak")
+    if not flatpak:
+        return False
+    try:
+        result = subprocess.run(
+            (flatpak, "info", app_id),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=2.0,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
+
+
+def _auto_discord_command() -> str:
+    # Prefer Vesktop because it is the requested compatibility target, then
+    # fall back to the official Discord clients.  No installation is attempted.
+    if shutil.which(VESKTOP_COMMAND):
+        return VESKTOP_COMMAND
+    if _flatpak_app_installed("dev.vencord.Vesktop"):
+        return FLATPAK_VESKTOP_COMMAND
+    if shutil.which(DEFAULT_DISCORD_COMMAND):
+        return DEFAULT_DISCORD_COMMAND
+    if _flatpak_app_installed("com.discordapp.Discord"):
+        return FLATPAK_DISCORD_COMMAND
+    raise ValueError(
+        "Discord/Vesktop command не найден. Установите native/Flatpak client или передайте явный --discord-binary."
+    )
+
+
+def _client_kind_from_command(argv: tuple[str, ...], raw: str) -> str:
+    haystack = " ".join((*argv, raw)).lower()
+    if "vesktop" in haystack or "dev.vencord.vesktop" in haystack:
+        return "vesktop"
+    if "discord" in haystack or "com.discordapp.discord" in haystack:
+        return "discord"
+    return "electron-client"
+
+
 def _resolve_discord_launch_command(discord_command: str) -> tuple[tuple[str, ...], str]:
-    raw = (discord_command or DEFAULT_DISCORD_COMMAND).strip()
+    raw = (discord_command or AUTO_DISCORD_COMMAND).strip()
+    if raw.lower() == AUTO_DISCORD_COMMAND:
+        raw = _auto_discord_command()
     if not raw:
-        raise ValueError("Discord command пустой. Передайте --discord-binary discord или --discord-binary 'flatpak run com.discordapp.Discord'.")
+        raise ValueError("Discord/Vesktop command пустой.")
     parts = tuple(shlex.split(raw)) if any(ch.isspace() for ch in raw) else (raw,)
     if not parts:
-        raise ValueError("Discord command пустой после parsing.")
+        raise ValueError("Discord/Vesktop command пустой после parsing.")
     first = parts[0]
     resolved_first = shutil.which(first) or str(Path(first).expanduser())
     if not resolved_first or not Path(resolved_first).exists():
         raise ValueError(
-            "Discord command не найден. Примеры: --discord-binary discord или --discord-binary 'flatpak run com.discordapp.Discord'."
+            "Discord/Vesktop command не найден. Примеры: vesktop, 'flatpak run dev.vencord.Vesktop', discord."
         )
     return (resolved_first, *parts[1:]), raw
 
@@ -1780,10 +1985,14 @@ def _resolve_discord_launch_command(discord_command: str) -> tuple[tuple[str, ..
 def _discord_launch_argv(discord_command: str, socks_host: str, socks_port: int, mode: str) -> tuple[tuple[str, ...], str]:
     base_argv, raw = _resolve_discord_launch_command(discord_command)
     proxy = f"socks5://{socks_host}:{socks_port}"
-    # Electron/Chromium candidate flag. Environment variables are set separately.
     if mode == "socks-env-only":
         return base_argv, raw
-    return (*base_argv, f"--proxy-server={proxy}"), raw
+    extra: list[str] = [f"--proxy-server={proxy}"]
+    # Discord/Vesktop are Chromium/Electron. Disabling QUIC keeps updater/web
+    # traffic on the TCP SOCKS path instead of allowing UDP/443 to bypass it.
+    if not any(item == "--disable-quic" for item in base_argv):
+        extra.append("--disable-quic")
+    return (*base_argv, *extra), raw
 
 
 def _is_flatpak_command(argv: tuple[str, ...]) -> bool:
@@ -1820,8 +2029,9 @@ def discord_proxy_route_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, ro
             "- Zapret owner-rules and SOCKS tunnel are separate lanes unless a client is explicitly launched/configured to use SOCKS.",
             "",
             "Useful commands:",
+            f"- Auto (Vesktop first): PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks --discord-binary auto",
+            f"- Flatpak Vesktop: PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks --discord-binary \"{FLATPAK_VESKTOP_COMMAND}\"",
             f"- Flatpak Discord: PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks --discord-binary \"{FLATPAK_DISCORD_COMMAND}\"",
-            f"- Native Discord:  PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks --discord-binary discord",
             f"- Curl check:      curl --socks5-hostname {socks_host}:{socks_port} -I https://updates.discord.com/",
             "",
             "Firefox/web Discord:",
@@ -1936,6 +2146,7 @@ def discord_launch_through_socks_to_text(
     if launch_mode != "socks-flag-only":
         env.update({"ALL_PROXY": proxy, "HTTPS_PROXY": proxy, "HTTP_PROXY": proxy, "all_proxy": proxy, "https_proxy": proxy, "http_proxy": proxy})
     argv, raw_command = _discord_launch_argv(discord_binary, socks_host, socks_port, launch_mode)
+    client_kind = _client_kind_from_command(argv, raw_command)
     flatpak = _is_flatpak_command(argv)
     stdout_path = _discord_stdout_path(paths, profile_id)
     stderr_path = _discord_stderr_path(paths, profile_id)
@@ -1954,6 +2165,7 @@ def discord_launch_through_socks_to_text(
         "profileId": profile_id,
         "launchMode": launch_mode,
         "discordCommand": raw_command,
+        "clientKind": client_kind,
         "argv": list(argv),
         "pid": process.pid,
         "startedAt": _utc_now(),
@@ -1976,14 +2188,15 @@ def discord_launch_through_socks_to_text(
     }
     discord_session_path = _discord_session_path(paths, profile_id)
     _write_json(discord_session_path, discord_session, secret=False)
-    _append_event(paths, profile_id, "discord-launched-through-socks", "Discord launched with SOCKS env/flag candidates", {"pid": process.pid, "launchMode": launch_mode, "socks": proxy, "runningAfterGrace": discord_running, "upstreamPreflight": bool(upstream_preflight), "upstreamPreflightOk": bool(preflight_result.get("ok")) if preflight_result else None})
+    _append_event(paths, profile_id, "discord-launched-through-socks", "Discord/Vesktop launched with SOCKS env/flag candidates", {"pid": process.pid, "clientKind": client_kind, "launchMode": launch_mode, "socks": proxy, "runningAfterGrace": discord_running, "upstreamPreflight": bool(upstream_preflight), "upstreamPreflightOk": bool(preflight_result.get("ok")) if preflight_result else None})
     return "\n".join(
         [
             "Discord launch through SOCKS: started",
             f"profile: {profile_id}",
             f"launch mode: {launch_mode}",
-            f"discord command: {raw_command}",
-            f"discord pid: {process.pid}",
+            f"discord/vesktop command: {raw_command}",
+            f"client kind: {client_kind}",
+            f"discord/vesktop pid: {process.pid}",
             f"discord running after grace: {'yes' if discord_running else 'no'}",
             f"argv: {shlex.join(argv)}",
             f"proxy env: {proxy}",
@@ -2472,7 +2685,16 @@ def discord_tunnel_guided_run_to_text(
     confirmation = confirm_runtime_plan(root=paths.root, plan_id=plan_id)
     start_text = discord_tunnel_start_to_text(profile_id=profile_id, confirm_plan_id=plan_id, root=paths.root)
     core_probe_text = discord_tunnel_probe_to_text(profile_id=profile_id, root=paths.root)
-    https_text = discord_tunnel_https_probe_to_text(profile_id=profile_id, root=paths.root)
+    try:
+        https_text = discord_tunnel_https_probe_to_text(profile_id=profile_id, root=paths.root)
+    except ValueError as exc:
+        https_text = "\n".join(
+            [
+                "Discord tunnel HTTPS probe: blocked",
+                f"reason: {exc}",
+                "verdict: T1_HTTPS_THROUGH_SOCKS_FAILED",
+            ]
+        )
     try:
         launch_text = discord_launch_through_socks_to_text(profile_id=profile_id, discord_binary=discord_binary, launch_mode=launch_mode, root=paths.root)
     except ValueError as exc:

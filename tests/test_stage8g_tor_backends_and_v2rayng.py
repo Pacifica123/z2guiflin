@@ -37,7 +37,7 @@ def test_v2rayng_style_vless_fields_are_preserved() -> None:
     assert profile.allow_insecure is True
     config = generate_xray_vless_socks_config(profile)
     stream = config["outbounds"][0]["streamSettings"]
-    assert stream["network"] == "xhttp"
+    assert stream["method"] == "xhttp"
     assert stream["xhttpSettings"]["path"] == "/x"
     assert stream["xhttpSettings"]["extra"]["scMaxEachPostBytes"] == 1000
     assert stream["tlsSettings"]["allowInsecure"] is True

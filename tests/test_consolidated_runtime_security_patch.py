@@ -228,3 +228,112 @@ def test_security_blocklist_generation_integrity_failure_is_fail_closed(tmp_path
     else:
         raise AssertionError("tampered cache generation must not be applied")
     assert not any(call[:2] == ("nft", "-f") for call in nft.calls)
+
+
+def test_legacy_runtime_session_is_adopted_only_after_exact_pidfile_exe_argv_match(tmp_path: Path) -> None:
+    from zap2_gui.adapters.runtime_session import SESSION_MARKER, runtime_session_status, stop_runtime_session
+
+    project = _copy_project(tmp_path)
+    binary = project / "legacy-sleep"
+    shutil.copyfile("/bin/sleep", binary)
+    binary.chmod(0o755)
+    sessions = project / ".zap2" / "runtime" / "sessions"
+    sessions.mkdir(parents=True, exist_ok=True)
+    pidfile = sessions / "default.pid"
+    session_path = sessions / "default.session.json"
+    proc = subprocess.Popen([str(binary), "30"])
+    try:
+        pidfile.write_text(str(proc.pid), encoding="utf-8")
+        session_path.write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "marker": SESSION_MARKER,
+                    "state": "running",
+                    "profileId": "default",
+                    "rootPath": str(project),
+                    "sessionPath": str(session_path),
+                    "pid": proc.pid,
+                    "binaryPath": str(binary),
+                    "argv": [str(binary), "30"],
+                    "pidfilePath": str(pidfile),
+                    "planId": "legacy-plan",
+                    "planHash": "legacy-hash",
+                }
+            ),
+            encoding="utf-8",
+        )
+        status = runtime_session_status(project, "default")
+        assert status.state == "running"
+        upgraded = json.loads(session_path.read_text(encoding="utf-8"))
+        assert upgraded["schemaVersion"] == 2
+        assert upgraded["processIdentity"]["procStartTime"]
+        assert upgraded["legacyIdentityUpgrade"].startswith("schema-1 exact")
+        stopped = stop_runtime_session(project, "default")
+        assert stopped.state == "stopped"
+    finally:
+        if proc.poll() is None:
+            proc.terminate()
+            proc.wait(timeout=5)
+
+
+def test_apply_migrates_proven_workspace_sync_legacy_table_in_same_transaction(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    prepared = prepare_runtime_owner_rules_plan(project, "apply", "default")
+    confirm_runtime_plan(project, prepared.plan_id)
+    expected = create_runtime_apply_plan(project, "apply", "default")
+    state_path = project / ".zap2" / "runtime" / "sessions" / "default.owner-rules.json"
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "marker": "zap2-runtime-apply-v1",
+                "state": "applied",
+                "profileId": "default",
+                "nftTable": "zap2_default",
+                "ownerUid": expected.owner_uid,
+            }
+        ),
+        encoding="utf-8",
+    )
+    calls: list[tuple[str, ...]] = []
+
+    def runner(argv: tuple[str, ...]) -> RuntimeCommandResult:
+        calls.append(argv)
+        if argv[:4] == ("nft", "list", "table", "inet"):
+            table = argv[4]
+            if table == "zap2_default":
+                return RuntimeCommandResult(argv, 0, stdout="table inet zap2_default { chain local_out { } }")
+            return RuntimeCommandResult(argv, 1, stderr="No such table")
+        return RuntimeCommandResult(argv, 0)
+
+    result = execute_runtime_owner_rules(project, "apply", "default", prepared.plan_id, runner=runner, allow_without_root=True)
+    assert result.state == "applied"
+    state = json.loads(result.state_path.read_text(encoding="utf-8"))
+    assert state["legacyNftTableMigrated"] == "zap2_default"
+    transaction = (project / state["transactionPath"]).read_text(encoding="utf-8")
+    assert transaction.splitlines()[0] == "delete table inet zap2_default"
+    assert f"add table inet {expected.nft_table}" in transaction
+
+
+def test_apply_refuses_unproven_legacy_table(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    prepared = prepare_runtime_owner_rules_plan(project, "apply", "default")
+    confirm_runtime_plan(project, prepared.plan_id)
+    executed_batch = False
+
+    def runner(argv: tuple[str, ...]) -> RuntimeCommandResult:
+        nonlocal executed_batch
+        if argv[:4] == ("nft", "list", "table", "inet"):
+            if argv[4] == "zap2_default":
+                return RuntimeCommandResult(argv, 0, stdout="table inet zap2_default { }")
+            return RuntimeCommandResult(argv, 1, stderr="No such table")
+        if argv[:2] == ("nft", "-f"):
+            executed_batch = True
+        return RuntimeCommandResult(argv, 0)
+
+    result = execute_runtime_owner_rules(project, "apply", "default", prepared.plan_id, runner=runner, allow_without_root=True)
+    assert result.state == "conflict"
+    assert "ownership cannot be proven" in result.message
+    assert executed_batch is False

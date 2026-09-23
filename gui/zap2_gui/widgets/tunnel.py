@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ..adapters.discord_tunnel import (
+    AUTO_DISCORD_COMMAND,
     FLATPAK_DISCORD_COMMAND,
+    FLATPAK_VESKTOP_COMMAND,
     SUPPORTED_LAUNCH_MODES,
     discord_launch_through_socks_to_text,
     discord_proxy_route_plan_to_text,
@@ -375,11 +377,11 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     route_hint.setWordWrap(True)
 
     command_row = QtWidgets.QHBoxLayout()
-    command_label = QtWidgets.QLabel("Discord command:")
+    command_label = QtWidgets.QLabel("Discord / Vesktop command:")
     command_input = QtWidgets.QLineEdit()
     command_input.setObjectName("discordSocksCommand")
-    command_input.setText(FLATPAK_DISCORD_COMMAND)
-    command_input.setPlaceholderText("discord или flatpak run com.discordapp.Discord")
+    command_input.setText(AUTO_DISCORD_COMMAND)
+    command_input.setPlaceholderText("auto, vesktop, flatpak run dev.vencord.Vesktop, discord, flatpak run com.discordapp.Discord")
     command_row.addWidget(command_label)
     command_row.addWidget(command_input, 1)
 
@@ -395,7 +397,7 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     route_plan_button = QtWidgets.QPushButton("План маршрута")
     route_diagnose_button = QtWidgets.QPushButton("Диагноз маршрута")
     https_probe_button = QtWidgets.QPushButton("HTTPS probe")
-    launch_button = QtWidgets.QPushButton("Запустить Discord через SOCKS")
+    launch_button = QtWidgets.QPushButton("Запустить Discord / Vesktop через SOCKS")
     stop_discord_button = QtWidgets.QPushButton("Остановить Discord launch")
     tun_plan_button = QtWidgets.QPushButton("TUN/TProxy план")
     for widget in (mode_label, mode_combo, route_plan_button, route_diagnose_button, https_probe_button, launch_button, stop_discord_button, tun_plan_button):
@@ -408,10 +410,10 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     tun_plan_button.clicked.connect(lambda _checked=False: run_action("TUN/TProxy план", lambda: discord_tunnel_tun_plan_to_text(root=root)))
     launch_button.clicked.connect(
         lambda _checked=False: run_action(
-            "Запустить Discord через SOCKS",
+            "Запустить Discord / Vesktop через SOCKS",
             lambda: discord_launch_through_socks_to_text(
                 root=root,
-                discord_binary=command_input.text().strip() or FLATPAK_DISCORD_COMMAND,
+                discord_binary=command_input.text().strip() or AUTO_DISCORD_COMMAND,
                 launch_mode=str(mode_combo.currentText()),
                 upstream_preflight=True,
             ),

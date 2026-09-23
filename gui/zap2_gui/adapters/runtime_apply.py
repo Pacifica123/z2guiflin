@@ -271,6 +271,13 @@ def _nft_table_name(root: Path, profile_id: str) -> str:
     return owned_nft_table_name(root, profile_id, prefix=DEFAULT_NFT_TABLE_PREFIX)
 
 
+def _legacy_nft_table_name(profile_id: str) -> str:
+    """Table name used by the pre-runtime-security workspace-sync build."""
+
+    safe_profile = "".join(ch if ch.isalnum() else "_" for ch in profile_id.lower()).strip("_") or "default"
+    return f"{DEFAULT_NFT_TABLE_PREFIX}_{safe_profile}"
+
+
 def _valid_port_token(value: str) -> bool:
     """Return whether a strategy port token is safe to embed in an nft set.
 
@@ -760,8 +767,15 @@ def _nft_batch_line(command: RuntimeApplyCommand) -> str:
     return " ".join(command.argv[1:])
 
 
-def _apply_batch_text(commands: tuple[RuntimeApplyCommand, ...], *, table_exists: bool) -> str:
+def _apply_batch_text(
+    commands: tuple[RuntimeApplyCommand, ...],
+    *,
+    table_exists: bool,
+    legacy_table_to_delete: str | None = None,
+) -> str:
     lines: list[str] = []
+    if legacy_table_to_delete:
+        lines.append(f"delete table inet {legacy_table_to_delete}")
     for command in commands:
         if table_exists and command.label == "nft-add-table":
             lines.append(f"flush table inet {command.argv[4]}")
@@ -922,6 +936,36 @@ def reconcile_runtime_owner_rules(
     )
 
 
+def _saved_owner_rules_state(paths: Any, profile_id: str) -> dict[str, Any] | None:
+    state_path = paths.sessions_dir / f"{profile_id}.owner-rules.json"
+    if not state_path.exists():
+        return None
+    try:
+        return _read_json(state_path)
+    except Exception:
+        return None
+
+
+def _legacy_table_is_proven_owned(paths: Any, profile_id: str, expected: RuntimeApplyPlan, legacy_table: str) -> bool:
+    """Return True only for an applied legacy state owned by this workspace user/profile.
+
+    Old builds had no workspace digest in the table name, so the table itself is
+    not enough proof.  We require the old state file, marker, profile, owner UID
+    and exact legacy table name before a migration is allowed to delete it.
+    """
+
+    state = _saved_owner_rules_state(paths, profile_id)
+    if state is None:
+        return False
+    return bool(
+        state.get("marker") == APPLY_MARKER
+        and state.get("state") == "applied"
+        and state.get("profileId") == profile_id
+        and state.get("nftTable") == legacy_table
+        and int(state.get("ownerUid", -1)) == int(expected.owner_uid)
+    )
+
+
 def execute_runtime_owner_rules(
     root: Path | None = None,
     action: RuntimeApplyAction = "apply",
@@ -954,6 +998,9 @@ def execute_runtime_owner_rules(
     owner_key = str(saved.get("ownerKey", expected.owner_key))
     owner_marker = str(saved.get("ownerMarker", expected.owner_marker))
     transaction_path: Path | None = None
+    legacy_table = _legacy_nft_table_name(profile_id)
+    legacy_table_migrated: str | None = None
+    prior_owner_state = _saved_owner_rules_state(paths, profile_id)
 
     with _runtime_owner_lock(paths, owner_key, profile_id):
         probe = _table_probe(runner, saved_table)
@@ -967,19 +1014,43 @@ def execute_runtime_owner_rules(
                 state = "conflict"
                 message = "nft table exists but owner marker does not match; refusing to reuse or delete it"
             else:
-                batch = _apply_batch_text(commands, table_exists=probe.ok)
-                transaction_path = _write_nft_transaction(paths, profile_id, plan_hash, action, batch)
-                check_result = runner(("nft", "--check", "-f", str(transaction_path)))
-                results.append(check_result)
-                if not check_result.ok:
-                    state = "failed"
-                    message = "nft transaction precheck failed; existing rules were not changed"
-                else:
-                    apply_batch_result = runner(("nft", "-f", str(transaction_path)))
-                    results.append(apply_batch_result)
-                    if not apply_batch_result.ok:
+                legacy_delete: str | None = None
+                should_probe_legacy = legacy_table != saved_table and (
+                    prior_owner_state is None or str(prior_owner_state.get("nftTable", "")) == legacy_table
+                )
+                if should_probe_legacy:
+                    legacy_probe = _table_probe(runner, legacy_table)
+                    results.append(legacy_probe)
+                    legacy_missing = _table_probe_missing(legacy_probe)
+                    if not legacy_missing and not legacy_probe.ok:
                         state = "failed"
-                        message = "nft transaction failed; nftables rejected the batch"
+                        message = "could not inspect legacy nft table before apply"
+                    elif legacy_probe.ok:
+                        if _legacy_table_is_proven_owned(paths, profile_id, expected, legacy_table):
+                            legacy_delete = legacy_table
+                        else:
+                            state = "conflict"
+                            message = (
+                                f"legacy nft table inet {legacy_table} exists but ownership cannot be proven from old applied state; "
+                                "automatic deletion is refused"
+                            )
+                if state == "applied":
+                    batch = _apply_batch_text(commands, table_exists=probe.ok, legacy_table_to_delete=legacy_delete)
+                    transaction_path = _write_nft_transaction(paths, profile_id, plan_hash, action, batch)
+                    check_result = runner(("nft", "--check", "-f", str(transaction_path)))
+                    results.append(check_result)
+                    if not check_result.ok:
+                        state = "failed"
+                        message = "nft transaction precheck failed; existing rules were not changed"
+                    else:
+                        apply_batch_result = runner(("nft", "-f", str(transaction_path)))
+                        results.append(apply_batch_result)
+                        if not apply_batch_result.ok:
+                            state = "failed"
+                            message = "nft transaction failed; nftables rejected the batch"
+                        elif legacy_delete:
+                            legacy_table_migrated = legacy_delete
+                            message = f"owner-confirmed apply completed; migrated legacy nft table inet {legacy_delete}"
         else:
             if table_missing:
                 state = "reverted"
@@ -1031,6 +1102,7 @@ def execute_runtime_owner_rules(
         "ownerKey": owner_key,
         "ownerMarker": owner_marker,
         "transactionPath": str(transaction_path.relative_to(paths.root)) if transaction_path is not None else None,
+        "legacyNftTableMigrated": legacy_table_migrated,
         "desyncMark": str(saved.get("desyncMark", expected.desync_mark)),
         "updatedAt": _utc_now(),
         "commands": [

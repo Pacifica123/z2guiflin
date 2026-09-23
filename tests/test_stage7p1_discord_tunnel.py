@@ -33,6 +33,26 @@ REALITY_VLESS = (
     "&sni=storage.example.net&fp=firefox&pbk=PUBLICKEY123&sid=0905b6e16602f326&spx=%2F#Reality"
 )
 
+FAKE_SOCKS_CORE = r'''#!/usr/bin/env python3
+import json, socket, sys, time
+from pathlib import Path
+config = None
+for index, arg in enumerate(sys.argv):
+    if arg in {"-config", "-c"} and index + 1 < len(sys.argv):
+        config = Path(sys.argv[index + 1]); break
+if "-test" in sys.argv:
+    raise SystemExit(0)
+port = int(json.loads(config.read_text(encoding="utf-8"))["inbounds"][0]["port"])
+server = socket.socket(); server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server.bind(("127.0.0.1", port)); server.listen(8); server.settimeout(0.2)
+started=time.time()
+while time.time()-started < 30:
+    try: conn,_=server.accept()
+    except socket.timeout: continue
+    with conn:
+        if conn.recv(3) == b"\x05\x01\x00": conn.sendall(b"\x05\x00")
+'''
+
 
 def test_vless_parser_redacts_and_preserves_transport_fields() -> None:
     profile = parse_vless_uri(SAMPLE_VLESS)
@@ -60,11 +80,11 @@ def test_vless_config_generates_loopback_socks_and_http_header() -> None:
     assert inbound["protocol"] == "socks"
     outbound = config["outbounds"][0]
     assert outbound["protocol"] == "vless"
-    assert outbound["settings"]["vnext"][0]["address"] == "example.net"
-    assert outbound["settings"]["vnext"][0]["users"][0]["encryption"] == "none"
-    assert outbound["streamSettings"]["network"] == "tcp"
-    assert outbound["streamSettings"]["tcpSettings"]["header"]["type"] == "http"
-    assert outbound["streamSettings"]["tcpSettings"]["header"]["request"]["headers"]["Host"] == ["www.example.org"]
+    assert outbound["settings"]["address"] == "example.net"
+    assert outbound["settings"]["encryption"] == "none"
+    assert outbound["streamSettings"]["method"] == "raw"
+    assert outbound["streamSettings"]["rawSettings"]["header"]["type"] == "http"
+    assert outbound["streamSettings"]["rawSettings"]["header"]["request"]["headers"]["Host"] == ["www.example.org"]
 
 
 def test_vless_config_preserves_reality_settings_for_openray_links() -> None:
@@ -73,12 +93,21 @@ def test_vless_config_preserves_reality_settings_for_openray_links() -> None:
     stream = config["outbounds"][0]["streamSettings"]
 
     assert stream["security"] == "reality"
-    assert stream["network"] == "tcp"
+    assert stream["method"] == "raw"
     assert stream["realitySettings"]["serverName"] == "storage.example.net"
     assert stream["realitySettings"]["fingerprint"] == "firefox"
-    assert stream["realitySettings"]["publicKey"] == "PUBLICKEY123"
+    assert stream["realitySettings"]["password"] == "PUBLICKEY123"
     assert stream["realitySettings"]["shortId"] == "0905b6e16602f326"
     assert stream["realitySettings"]["spiderX"] == "/"
+
+
+def test_v2ray_config_keeps_classic_vnext_schema() -> None:
+    profile = parse_vless_uri(SAMPLE_VLESS)
+    config = generate_xray_vless_socks_config(profile, socks_port=19082, core_kind="v2ray")
+    outbound = config["outbounds"][0]
+    assert outbound["settings"]["vnext"][0]["address"] == "example.net"
+    assert outbound["streamSettings"]["network"] == "tcp"
+    assert outbound["streamSettings"]["tcpSettings"]["header"]["type"] == "http"
 
 
 def test_import_list_and_plan_do_not_print_raw_secret(tmp_path: Path) -> None:
@@ -89,7 +118,7 @@ def test_import_list_and_plan_do_not_print_raw_secret(tmp_path: Path) -> None:
     assert "Sample Profile" in list_text
     assert "11111111-2222-4333-8444-555555555555" not in list_text
     fake_core = tmp_path / "xray"
-    fake_core.write_text("#!/bin/sh\nsleep 30\n", encoding="utf-8")
+    fake_core.write_text(FAKE_SOCKS_CORE, encoding="utf-8")
     fake_core.chmod(fake_core.stat().st_mode | stat.S_IXUSR)
     plan_text = discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=19080)
     assert "core binary exists/executable: yes" in plan_text
@@ -106,7 +135,7 @@ def test_import_list_and_plan_do_not_print_raw_secret(tmp_path: Path) -> None:
 def test_confirm_start_probe_stop_with_fake_core(tmp_path: Path) -> None:
     tunnel_connection_import_vless_to_text(SAMPLE_VLESS, root=tmp_path)
     fake_core = tmp_path / "xray"
-    fake_core.write_text("#!/bin/sh\nsleep 30\n", encoding="utf-8")
+    fake_core.write_text(FAKE_SOCKS_CORE, encoding="utf-8")
     fake_core.chmod(fake_core.stat().st_mode | stat.S_IXUSR)
     discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=19991)
     plan_id = "runtime-default-discord-tunnel-socks-start-plan"
@@ -119,9 +148,8 @@ def test_confirm_start_probe_stop_with_fake_core(tmp_path: Path) -> None:
     assert generated.exists()
     assert stat.S_IMODE(generated.stat().st_mode) == 0o600
     probe_text = discord_tunnel_probe_to_text(root=tmp_path)
-    # The fake core does not open SOCKS, but the probe must return a clear report instead of crashing.
-    assert "verdict: T0_CORE_NOT_READY" in probe_text
-    assert "socks handshake: no" in probe_text
+    assert "verdict: T0_SOCKS_READY" in probe_text
+    assert "socks handshake: ok" in probe_text
     assert "upstream tested: no" in probe_text
     stop_text = discord_tunnel_stop_to_text(root=tmp_path)
     assert "Discord tunnel stop: stopped" in stop_text
@@ -132,6 +160,7 @@ def test_stage8a_proxy_route_plan_explains_non_transparent_socks(tmp_path: Path)
 
     assert "Discord proxy route plan" in text
     assert "Starting VLESS tunnel only opens a local SOCKS listener" in text
+    assert "flatpak run dev.vencord.Vesktop" in text
     assert "flatpak run com.discordapp.Discord" in text
     assert "Firefox/web Discord" in text
     assert "read-only: yes" in text

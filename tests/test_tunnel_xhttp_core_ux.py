@@ -49,7 +49,7 @@ def test_start_blocks_xhttp_with_v2ray_before_writing_failed_session(tmp_path: P
 
     assert "Discord tunnel start: blocked" in text
     assert "compatibility issue:" in text
-    assert "unknown transport protocol" in text
+    assert "transport xhttp" in text
     assert "executes core now: no" in text
     assert not (tmp_path / ".zap2" / "tunnel" / "runtime" / "default.session.json").exists()
 

@@ -856,6 +856,61 @@ def _path_belongs_to_root(path_value: object, root: Path) -> bool:
         return False
 
 
+def _upgrade_legacy_session_identity(record: dict[str, Any], root: Path) -> dict[str, Any] | None:
+    """Adopt a schema-1 live session only when every legacy proof still matches.
+
+    runtime-security tightened stop/start safety with exact /proc identity.  A live
+    session created by the previous workspace-sync build has no processIdentity,
+    which otherwise leaves the queue occupied but impossible to stop.  We only
+    upgrade records that prove workspace scope, pidfile ownership, executable and
+    the full saved argv against the currently running task.
+    """
+
+    if isinstance(record.get("processIdentity"), dict):
+        return record
+    try:
+        pid = int(record.get("pid", 0))
+    except (TypeError, ValueError):
+        return None
+    if pid <= 1 or not _pid_alive(pid):
+        return None
+    for key in ("binaryPath", "sessionPath", "pidfilePath"):
+        if not _path_belongs_to_root(record.get(key), root):
+            return None
+    pidfile_value = str(record.get("pidfilePath", "") or "")
+    if not pidfile_value:
+        return None
+    try:
+        if int(Path(pidfile_value).read_text(encoding="utf-8").strip()) != pid:
+            return None
+    except (OSError, ValueError):
+        return None
+
+    binary_value = str(record.get("binaryPath", "") or "")
+    saved_argv = tuple(str(item) for item in record.get("argv", []))
+    current_argv = _proc_cmdline(pid)
+    current_exe = _proc_executable(pid)
+    if not binary_value or not saved_argv or not current_argv or not current_exe:
+        return None
+    if os.path.realpath(saved_argv[0]) != os.path.realpath(binary_value):
+        return None
+    if os.path.realpath(current_argv[0]) != os.path.realpath(binary_value):
+        return None
+    if current_argv[1:] != saved_argv[1:]:
+        return None
+    if current_exe != os.path.realpath(binary_value):
+        return None
+    identity = _capture_process_identity(pid, Path(binary_value))
+    if not identity:
+        return None
+    updated = dict(record)
+    updated["schemaVersion"] = SESSION_SCHEMA_VERSION
+    updated["processIdentity"] = identity
+    updated["legacyIdentityUpgradedAt"] = _utc_now()
+    updated["legacyIdentityUpgrade"] = "schema-1 exact pidfile/exe/argv match"
+    return updated
+
+
 def _record_matches_process(record: dict[str, Any]) -> bool:
     """Verify that PID is the exact Linux task created for this session.
 
@@ -948,6 +1003,11 @@ def runtime_session_status(root: Path | None = None, profile_id: str = "default"
     pid = int(record.get("pid", 0))
     recorded_state = str(record.get("state", "unknown"))
     alive = _pid_alive(pid)
+    if alive and not isinstance(record.get("processIdentity"), dict):
+        upgraded = _upgrade_legacy_session_identity(record, layout.root)
+        if upgraded is not None:
+            record = upgraded
+            _write_json(session_path, record)
     matches = _record_matches_process(record) if alive else False
     if recorded_state == "stopped":
         state: SessionState = "stopped"
@@ -1195,6 +1255,12 @@ def stop_runtime_session(root: Path | None = None, profile_id: str = "default") 
             plan_hash=plan_hash,
             log_path=paths.logs_dir / f"{profile_id}.runtime.jsonl",
         )
+    if _pid_alive(pid) and not isinstance(record.get("processIdentity"), dict):
+        upgraded = _upgrade_legacy_session_identity(record, paths.root)
+        if upgraded is not None:
+            record = upgraded
+            _write_json(session_path, record)
+
     if not _pid_alive(pid):
         updated = dict(record)
         updated["state"] = "stale"

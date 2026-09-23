@@ -608,8 +608,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--discord-binary",
-        default="discord",
-        help="Discord command для --discord-launch-through-socks; примеры: discord или 'flatpak run com.discordapp.Discord'",
+        default="auto",
+        help="Discord/Vesktop command; auto предпочитает Vesktop, затем Discord. Примеры: vesktop, 'flatpak run dev.vencord.Vesktop', discord",
     )
     parser.add_argument(
         "--discord-launch-mode",
