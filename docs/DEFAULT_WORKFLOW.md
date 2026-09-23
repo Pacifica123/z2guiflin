@@ -33,7 +33,7 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-l
 Запустить дефолтную стратегию:
 
 ```bash
-sudo PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-default-manual-local-default-start-workflow-plan
+PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-default-manual-local-default-start-workflow-plan
 ```
 
 Подготовить отключение:
@@ -51,7 +51,7 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-l
 Отключить дефолтную стратегию:
 
 ```bash
-sudo PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-default-manual-local-default-stop-workflow-plan
+PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-default-manual-local-default-stop-workflow-plan
 ```
 
 Журнал можно читать так:

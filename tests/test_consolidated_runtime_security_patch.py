@@ -232,6 +232,7 @@ def test_security_blocklist_generation_integrity_failure_is_fail_closed(tmp_path
 
 def test_legacy_runtime_session_is_adopted_only_after_exact_pidfile_exe_argv_match(tmp_path: Path) -> None:
     from zap2_gui.adapters.runtime_session import SESSION_MARKER, runtime_session_status, stop_runtime_session
+    from zap2_gui.adapters.runtime_migration import migrate_runtime_session_state
 
     project = _copy_project(tmp_path)
     binary = project / "legacy-sleep"
@@ -264,7 +265,12 @@ def test_legacy_runtime_session_is_adopted_only_after_exact_pidfile_exe_argv_mat
             encoding="utf-8",
         )
         status = runtime_session_status(project, "default")
-        assert status.state == "running"
+        assert status.state == "migration-required"
+        # Read-only status must not silently rewrite legacy state.
+        assert json.loads(session_path.read_text(encoding="utf-8"))["schemaVersion"] == 1
+        receipt = migrate_runtime_session_state(project, "default")
+        assert receipt.state == "migrated"
+        assert receipt.backup_path is not None and receipt.backup_path.is_file()
         upgraded = json.loads(session_path.read_text(encoding="utf-8"))
         assert upgraded["schemaVersion"] == 2
         assert upgraded["processIdentity"]["procStartTime"]

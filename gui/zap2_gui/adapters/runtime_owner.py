@@ -46,6 +46,31 @@ def runtime_owner_uid(root: Path) -> tuple[int, str]:
     return 0, "root-fallback"
 
 
+def runtime_owner_gid(root: Path) -> tuple[int, str]:
+    """Return the desktop owner GID consistently before and after sudo.
+
+    P02 needs an explicit uid+gid tuple in the immutable runtime plan so the
+    bounded privileged executor never has to infer an owner identity from
+    mutable environment after confirmation.
+    """
+
+    sudo_gid = _parse_non_negative_int(os.environ.get("SUDO_GID"))
+    if sudo_gid is not None:
+        return sudo_gid, "sudo-owner"
+    getgid = getattr(os, "getgid", None)
+    if getgid is not None:
+        gid = int(getgid())
+        if gid != 0:
+            return gid, "current-user"
+    try:
+        stat_gid = int(root.resolve().stat().st_gid)
+    except OSError:
+        stat_gid = 0
+    if stat_gid != 0:
+        return stat_gid, "workspace-owner"
+    return 0, "root-fallback"
+
+
 def _profile_token(profile_id: str) -> str:
     token = _OWNER_TOKEN_RE.sub("_", profile_id.strip().lower()).strip("_")
     return token or "default"
@@ -110,6 +135,7 @@ __all__ = [
     "RuntimeOwnerIdentity",
     "owned_nft_table_name",
     "runtime_owner_identity",
+    "runtime_owner_gid",
     "runtime_owner_uid",
     "workspace_identity_digest",
 ]

@@ -42,21 +42,16 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-l
 
 ## Защищённое исполнение
 
-Stage 13 разрешает guarded execution только для:
+Исторически Stage 13 имел guarded `install/remove`, но P02 закрывает broad-root application path.
 
-```text
-install
-remove
-```
-
-Команды:
+Текущая truth-модель P02: **все service actions plan-only**.
 
 ```bash
-sudo PYTHONPATH=gui python -m zap2_gui.app --service-apply install --profile default --confirm runtime-default-manual-local-service-install-plan
-sudo PYTHONPATH=gui python -m zap2_gui.app --service-apply remove --profile default --confirm runtime-default-manual-local-service-remove-plan
+PYTHONPATH=gui python -m zap2_gui.app --service-plan install --profile default
+PYTHONPATH=gui python -m zap2_gui.app --service-plan remove --profile default
 ```
 
-`start` и `stop` пока остаются plan-only. Это сделано намеренно: default runtime workflow для одиночной разработки должен сначала пройти через session mode, apply/revert и только потом получать service start/stop как полноценный режим.
+`--service-apply` намеренно возвращает unsupported до отдельного finite systemd executor action.
 
 ## Что делает install plan
 
@@ -94,3 +89,10 @@ service mode exists, but is not default workflow
 ## Граница проверок
 
 Автоматические проверки могут создавать временную service-dir и fake runner. Они не вызывают настоящий `systemctl`, не пишут в `/etc/systemd/system`, не требуют root и не меняют сервисы машины.
+
+## P02 status
+
+P02 truth для service execution: **plan-only**. `--service-plan` остаётся для review/confirmation,
+но `--service-apply` намеренно возвращает unsupported, пока systemd actions не получат отдельный
+finite privileged executor contract. Старые примеры `sudo ... python -m zap2_gui.app --service-apply`
+не являются поддерживаемым стандартным runtime path после P02.

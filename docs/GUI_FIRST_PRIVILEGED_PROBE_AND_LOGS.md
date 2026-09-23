@@ -1,3 +1,5 @@
+> **P02 update (2026-09-23):** описанный ниже broad-root `sudo -A ... PYTHONPATH=<workspace>` путь является историческим Stage 7 поведением и больше не поддерживается. P02 оставляет privileged Discord probe staged/unsupported, пока для него не появится отдельный finite executor action. Standard start/stop использует root-owned bounded executor и не импортирует GUI как root.
+
 # GUI-first: privileged probe и разделение логов обзора
 
 Дата: 2026-06-29
@@ -12,23 +14,18 @@
 
 ## Что изменено
 
-### Privileged Discord probe
+### Discord probe после P02
 
-Кнопка `Проверить Discord` теперь вызывает read-only probe через тот же GUI sudo-askpass подход, который уже используется для start/stop workflow.
+Исторически кнопка `Проверить Discord` запускала весь `zap2_gui.app` через `sudo -A` ради чтения nft counters. P02 запрещает этот broad-root bridge: diagnostic probe не является основанием расширять root executor.
 
-Команда запускается как:
+Текущее поведение:
 
-```text
-sudo -A env PYTHONPATH=<workspace>/gui ZAP2_GUI_PRIVILEGE_BRIDGE=sudo-askpass python -m zap2_gui.app --runtime-discord-pretls-guided-probe --profile default --pretls-probe-no-wait --pretls-probe-wait-seconds 30
-```
+- GUI privileged Discord probe помечен `staged/unsupported` и не запускает root Python из workspace;
+- owner-run read-only diagnostics остаются доступны без расширения privilege surface;
+- standard start/stop использует только `/usr/local/libexec/zap2-runtime-executor` с finite action ID и confirmed PlanHash;
+- если для Discord counters в будущем понадобится root observation, она должна появиться отдельным bounded action с собственным contract/evidence, а не возвратом старой команды.
 
-Свойства:
-
-- терминальный ввод пароля не используется;
-- пароль не сохраняется;
-- firewall и сервисы не меняются;
-- probe только читает runtime state, nft counters, состояние `nfqws2`, логи и endpoint snapshots;
-- GUI заранее предупреждает пользователя открыть Discord во время 30-секундного окна.
+Историческая команда вида `sudo -A env PYTHONPATH=<workspace>/gui ... python -m zap2_gui.app ...` приведена только в истории проекта и **не должна использоваться как текущая инструкция**.
 
 ### Overview без старого текстового вывода
 

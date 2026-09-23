@@ -69,8 +69,9 @@ UDP/STUN/game filter: отложены
 PYTHONPATH=gui python -m zap2_gui.app \
   --select-strategy reference-linux-general-multisplit-like
 
-sudo env PYTHONPATH=gui python -m zap2_gui.app \
+PYTHONPATH=gui python -m zap2_gui.app \
   --runtime-discord-pretls-guided-probe
+# P02: owner-run diagnostic; broad-root project import is no longer supported.
 ```
 
 Результат является наблюдением текущей среды, а не общей оценкой стратегии.

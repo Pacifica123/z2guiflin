@@ -16,7 +16,7 @@
 - Runtime использует plan/hash/confirmation, owner-scoped `nftables` table + marker, детерминированную NFQUEUE, process identity (`boot_id`/starttime/exe/argv digest) и управляемый `nfqws2`.
 - Apply/revert используют checked nft batch, lifecycle lock и read-only reconciliation вместо слепого удаления одноимённой table.
 - Security IP blocklist живёт в отдельной owned nft table: outbound C2/malicious destinations UID-scoped, тяжёлый inbound opt-in, обновления используют validated immutable generations и last-known-good fallback.
-- GUI может запускать и останавливать привилегированный workflow через `sudo -A`, не сохраняя пароль.
+- P02: GUI остаётся unprivileged; `sudo -A` запускает только root-owned finite executor, который revalidate PlanHash и не импортирует writable workspace Python.
 - Есть отдельная экспериментальная ветка SOCKS5/VLESS с внешним core, redacted-хранилищем профиля и probes.
 - В целевой среде владельца существуют стратегии, которые помогают YouTube и основному desktop Discord: запуску и сообщениям.
 
@@ -26,7 +26,7 @@
 - Конструктор не гарантирует, что набор отдельных рабочих профилей образует рабочий пресет.
 - Discord Voice/UDP не доведён до стабильного результата.
 - Tunnel lane не является прозрачным системным VPN и зависит от внешнего core/upstream.
-- `systemd` service mode существует на уровне планов и адаптеров, но не оформлен как готовая установка/автозапуск.
+- P02: `systemd` service mode truth=`plan-only`; privileged service execution staged до отдельного finite executor action.
 - Нет AUR-пакета и общего updater vendored core/hostlist/ipset. Security-IP blocklist имеет отдельный явный updater/timer и не подменяет этот будущий механизм.
 - Реальные сетевые результаты нельзя проверить автономными тестами проекта.
 

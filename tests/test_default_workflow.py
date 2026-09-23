@@ -151,6 +151,11 @@ def test_default_start_executes_apply_then_session_with_fake_runner(tmp_path):
         assert state["usesServiceMode"] is False
         assert state["containsRemoteBootstrap"] is False
         assert state["containsUpstreamInstallerScript"] is False
+        assert state["runId"].startswith("run-")
+        owner_state = json.loads((project / ".zap2/runtime/sessions/default.owner-rules.json").read_text(encoding="utf-8"))
+        session_state = json.loads((project / ".zap2/runtime/sessions/default.session.json").read_text(encoding="utf-8"))
+        assert owner_state["runId"] == state["runId"]
+        assert session_state["runId"] == state["runId"]
         log_text = result.log_path.read_text(encoding="utf-8")
         assert "default-start-started" in log_text
         assert "owner-rules-apply-applied" in log_text
@@ -270,3 +275,34 @@ def test_default_start_rejects_missing_binary_before_apply(tmp_path):
             allow_without_root=True,
         )
     assert calls == []
+
+
+def test_p02_failure_after_session_start_compensates_session_and_owner_rules(tmp_path):
+    project = _copy_project(tmp_path)
+    _install_fake_nfqws2(project)
+    plan = prepare_default_workflow_plan(project, action="start", profile_id="default")
+    confirm_runtime_plan(project, plan.plan_id)
+    calls: list[tuple[str, ...]] = []
+    runner = _ok_runner(calls)
+
+    def failpoint(name: str) -> None:
+        if name == "after-session-start":
+            raise RuntimeError("P02_FAILPOINT:after-session-start")
+
+    result = execute_default_workflow(
+        project,
+        action="start",
+        profile_id="default",
+        confirm_plan_id=plan.plan_id,
+        apply_runner=runner,
+        allow_without_root=True,
+        failure_injector=failpoint,
+    )
+
+    assert result.state == "failed-rolled-back"
+    assert result.rollback_result is not None and result.rollback_result.state == "reverted"
+    assert result.session_status is not None and result.session_status.state == "stopped"
+    assert "P02_FAILPOINT:after-session-start" in result.message
+    assert "session compensation: stopped" in result.message
+    state = json.loads(result.workflow_state_path.read_text(encoding="utf-8"))
+    assert state["runId"].startswith("run-")

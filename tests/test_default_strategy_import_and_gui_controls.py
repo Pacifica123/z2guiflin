@@ -110,7 +110,7 @@ def test_gui_runtime_controls_are_confirmation_gate_wrappers(tmp_path: Path) -> 
 
     assert DEFAULT_START_PLAN_ID in start_text
     assert "GUI button: Включить через графический sudo-запрос" in commands
-    assert "sudo -A/SUDO_ASKPASS" in commands
+    assert "root-owned finite executor" in commands
     assert "терминале" in commands
     assert "Default workflow status:" in status
     assert "executes now: no" in status
@@ -123,14 +123,15 @@ def test_gui_privileged_command_uses_sudo_askpass_not_terminal_password(tmp_path
 
     assert command.argv[0] == "sudo"
     assert "-A" in command.argv
-    assert "env" in command.argv
-    assert "--default-start" in command.argv
-    assert DEFAULT_START_PLAN_ID in command.argv
+    assert "env" not in command.argv
+    assert str(project / "gui") not in " ".join(command.argv)
+    assert "/usr/local/libexec/zap2-runtime-executor" in command.argv
+    assert "--request-hash" in command.argv
     assert command.asks_password_in_terminal is False
     assert command.stores_password is False
     assert "asks password in terminal: no" in text
     assert "stores password: no" in text
-    assert "PYTHONPATH=" in " ".join(command.argv)
+    assert "PYTHONPATH=" not in " ".join(command.argv)
     assert "SUDO_ASKPASS" in command.env_overrides
     assert "uses sudo askpass: yes" in text
 
@@ -158,7 +159,7 @@ def test_gui_start_blocks_before_privileged_start_when_binary_missing(tmp_path: 
 
     assert "Default start заблокирован до privileged start" in text
     assert "nfqws2 binary отсутствует" in text
-    assert "sudo-askpass сейчас не запускался" in text
+    assert "bounded executor сейчас не запускался" in text
     assert "Статус после действия: start blocked" in text
 
 

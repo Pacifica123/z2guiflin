@@ -14,7 +14,9 @@ upstream installer scripts, не управляет service mode и не пря�
 
 from __future__ import annotations
 
+import fcntl
 import json
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +31,8 @@ from .runtime_apply import (
 from .runtime_session import (
     RuntimeSessionResult,
     RuntimeSessionStatus,
+    RuntimeSessionConfig,
+    RuntimeSessionLaunchReceipt,
     build_runtime_session_config,
     runtime_session_status,
     start_runtime_session,
@@ -39,6 +43,7 @@ from .runtime_state import (
     append_runtime_event,
     confirm_runtime_plan,
     ensure_runtime_store,
+    runtime_store_paths,
     plan_payload_hash,
     prepare_runtime_plan,
     atomic_write_json,
@@ -489,7 +494,7 @@ def default_workflow_status(root: Path | None = None, profile_id: str = "default
     """Возвращает read-only статус default workflow без nft/systemd/signal actions."""
 
     layout = discover_layout(root)
-    paths = ensure_runtime_store(layout.root)
+    paths = runtime_store_paths(layout.root)
     strategy_id = _load_strategy_id(paths.root, profile_id)
     workflow_state_path = paths.sessions_dir / f"{profile_id}.default-workflow.json"
     workflow_state = "not-started"
@@ -538,7 +543,7 @@ def default_workflow_status(root: Path | None = None, profile_id: str = "default
         message=message,
     )
 
-def execute_default_workflow(
+def _execute_default_workflow_once(
     root: Path | None = None,
     action: DefaultWorkflowAction = "start",
     profile_id: str = "default",
@@ -546,6 +551,8 @@ def execute_default_workflow(
     *,
     apply_runner: Callable[[tuple[str, ...]], RuntimeCommandResult] | None = None,
     allow_without_root: bool = False,
+    session_launcher: Callable[[RuntimeSessionConfig], RuntimeSessionLaunchReceipt] | None = None,
+    failure_injector: Callable[[str], None] | None = None,
 ) -> DefaultWorkflowResult:
     """Исполняет owner-confirmed default start/stop workflow."""
 
@@ -562,11 +569,24 @@ def execute_default_workflow(
     rollback_result: RuntimeApplyExecutionResult | None = None
     session_result: RuntimeSessionResult | None = None
     session_status: RuntimeSessionStatus | None = None
+    previous_state_path = paths.sessions_dir / f"{profile_id}.default-workflow.json"
+    previous_run_id: str | None = None
+    if previous_state_path.is_file():
+        try:
+            previous = _read_json(previous_state_path)
+            previous_run_id = str(previous.get("runId", "")) or None
+        except Exception:
+            previous_run_id = None
+    run_id = f"run-{uuid.uuid4().hex}" if action == "start" else (previous_run_id or f"recovery-{uuid.uuid4().hex}")
 
     if action == "start":
         # Preflight до firewall apply: бинарник должен существовать и быть executable.
         try:
-            preflight_config = build_runtime_session_config(paths.root, profile_id)
+            preflight_config = build_runtime_session_config(
+                paths.root,
+                profile_id,
+                prepare_public_inputs=session_launcher is None,
+            )
             ensure_nfqueue_available(preflight_config.nfqueue_num)
         except ValueError as exc:
             message = str(exc)
@@ -593,6 +613,7 @@ def execute_default_workflow(
             confirm_plan_id=apply_plan_id,
             runner=apply_runner,
             allow_without_root=allow_without_root,
+            run_id=run_id,
         )
         if apply_result.state != "applied":
             state = "failed"
@@ -603,11 +624,22 @@ def execute_default_workflow(
             # завершается, workflow обязан откатить уже применённые owner-rules.
             if session_plan_id:
                 try:
-                    session_result = start_runtime_session(paths.root, profile_id=profile_id)
+                    if failure_injector is not None:
+                        failure_injector("after-owner-rules-apply")
+                    session_result = start_runtime_session(paths.root, profile_id=profile_id, launcher=session_launcher, run_id=run_id)
+                    if failure_injector is not None:
+                        failure_injector("after-session-start")
                     session_status = runtime_session_status(paths.root, profile_id=profile_id)
                     state = "started" if session_result.state == "running" else session_result.state
                     message = "default start workflow applied owner-rules and started session"
                 except Exception as exc:
+                    compensation_message = ""
+                    if session_result is not None and session_result.state == "running":
+                        try:
+                            stopped_after_failure = stop_runtime_session(paths.root, profile_id=profile_id, run_id=run_id)
+                            compensation_message = f" session compensation: {stopped_after_failure.state}."
+                        except Exception as stop_exc:  # pragma: no cover - defensive diagnostic path
+                            compensation_message = f" session compensation failed: {stop_exc}."
                     session_status = runtime_session_status(paths.root, profile_id=profile_id)
                     rollback_message = ""
                     if revert_on_failure_plan_id:
@@ -619,16 +651,19 @@ def execute_default_workflow(
                                 confirm_plan_id=revert_on_failure_plan_id,
                                 runner=apply_runner,
                                 allow_without_root=allow_without_root,
+                                run_id=run_id,
                             )
                             rollback_message = f" owner-rules rollback: {rollback_result.state}."
                         except Exception as rollback_exc:  # pragma: no cover - defensive diagnostic path
                             rollback_message = f" owner-rules rollback failed: {rollback_exc}."
                     state = "failed-rolled-back" if rollback_result is not None and rollback_result.state == "reverted" else "failed"
-                    message = f"session start failed after owner-rules apply: {exc}.{rollback_message}"
+                    message = f"session start failed after owner-rules apply: {exc}.{compensation_message}{rollback_message}"
     else:
         # Stop сначала пытается остановить нашу session, но revert должен быть доступен и
         # когда session state отсутствует: цель stop — отключить default strategy.
-        session_result = stop_runtime_session(paths.root, profile_id=profile_id)
+        session_result = stop_runtime_session(paths.root, profile_id=profile_id, run_id=run_id)
+        if failure_injector is not None:
+            failure_injector("after-session-stop")
         revert_plan_id = next(str(child["planId"]) for child in saved["childPlans"] if child["role"] == "owner-rules-revert")
         apply_result = execute_runtime_owner_rules(
             paths.root,
@@ -637,6 +672,7 @@ def execute_default_workflow(
             confirm_plan_id=revert_plan_id,
             runner=apply_runner,
             allow_without_root=allow_without_root,
+            run_id=run_id,
         )
         session_status = runtime_session_status(paths.root, profile_id=profile_id)
         if apply_result.state != "reverted":
@@ -657,6 +693,7 @@ def execute_default_workflow(
         "strategyId": strategy_id,
         "planId": confirm_plan_id,
         "planHash": plan_hash,
+        "runId": run_id,
         "updatedAt": _utc_now(),
         "childPlans": saved.get("childPlans", []),
         "sessionResult": None if session_result is None else {"state": session_result.state, "pid": session_result.pid, "message": session_result.message},
@@ -680,7 +717,7 @@ def execute_default_workflow(
             "planHash": plan_hash,
             "message": message,
             "createdAt": _utc_now(),
-            "metadata": {"profileId": profile_id, "strategyId": strategy_id, "statePath": str(workflow_state_path.relative_to(paths.root))},
+            "metadata": {"profileId": profile_id, "strategyId": strategy_id, "runId": run_id, "statePath": str(workflow_state_path.relative_to(paths.root))},
             "executesNow": True,
             "mutatesFirewallOrServicesNow": True,
             "managesServiceNow": False,
@@ -702,3 +739,42 @@ def execute_default_workflow(
         session_result=session_result,
         session_status=session_status,
     )
+
+def execute_default_workflow(
+    root: Path | None = None,
+    action: DefaultWorkflowAction = "start",
+    profile_id: str = "default",
+    confirm_plan_id: str = "",
+    *,
+    apply_runner: Callable[[tuple[str, ...]], RuntimeCommandResult] | None = None,
+    allow_without_root: bool = False,
+    session_launcher: Callable[[RuntimeSessionConfig], RuntimeSessionLaunchReceipt] | None = None,
+    failure_injector: Callable[[str], None] | None = None,
+) -> DefaultWorkflowResult:
+    """Serialize the whole composite lifecycle for one workspace/profile.
+
+    nft already has its own owner lock, but that lock does not cover the gap
+    between firewall apply and session spawn.  P02 therefore serializes the
+    composite start/stop transaction as well, preventing duplicate concurrent
+    starts while preserving the existing child-resource locks.
+    """
+
+    layout = discover_layout(root)
+    paths = ensure_runtime_store(layout.root)
+    lock_path = paths.locks_dir / f"{profile_id}.default-workflow.lock"
+    with lock_path.open("a+", encoding="utf-8") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            return _execute_default_workflow_once(
+                paths.root,
+                action=action,
+                profile_id=profile_id,
+                confirm_plan_id=confirm_plan_id,
+                apply_runner=apply_runner,
+                allow_without_root=allow_without_root,
+                session_launcher=session_launcher,
+                failure_injector=failure_injector,
+            )
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+

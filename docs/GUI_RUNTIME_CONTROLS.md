@@ -14,8 +14,8 @@
 GUI не запускает `sudo` автоматически. Privileged команды остаются терминальными owner-confirmed действиями:
 
 ```bash
-sudo PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-default-manual-local-default-start-workflow-plan
-sudo PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-default-manual-local-default-stop-workflow-plan
+PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-default-manual-local-default-start-workflow-plan
+PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-default-manual-local-default-stop-workflow-plan
 ```
 
 Такой компромисс нужен, чтобы GUI уже был полезен для управления workflow, но не превращался в скрытый installer или privilege escalation wrapper.

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .runtime_plan_generator import GeneratedRuntimePlan, create_runtime_plan
+from .runtime_artifacts import runtime_artifact_inventory
 from ..models.runtime_plan import (
     RuntimePlanCommandPreview,
     RuntimePlanContract,
@@ -262,10 +263,10 @@ def runtime_plan_contract_to_dict(contract: RuntimePlanContract) -> dict[str, An
     }
 
 
-def generated_runtime_plan_to_payload(plan: GeneratedRuntimePlan) -> dict[str, Any]:
+def generated_runtime_plan_to_payload(plan: GeneratedRuntimePlan, root: Path | None = None) -> dict[str, Any]:
     """Создаёт hashable payload сгенерированного plan-only плана."""
 
-    return {
+    payload = {
         "schemaVersion": RUNTIME_STATE_SCHEMA_VERSION,
         "stage": RUNTIME_STATE_STAGE,
         "planId": plan.plan_id,
@@ -307,6 +308,12 @@ def generated_runtime_plan_to_payload(plan: GeneratedRuntimePlan) -> dict[str, A
             "automaticChecksMayExecute": False,
         },
     }
+    # P02: the start-plan hash must bind the bytes that privileged execution
+    # will consume.  A Lua/hostlist/binary edit after confirmation therefore
+    # invalidates the plan before any root action can occur.
+    if plan.action == "start":
+        payload["runtimeArtifacts"] = runtime_artifact_inventory(discover_layout(root).root, plan)
+    return payload
 
 
 def plan_payload_hash(payload: dict[str, Any]) -> str:
@@ -363,7 +370,7 @@ def prepare_runtime_plan(root: Path | None = None, action: str = "start", profil
 
     paths = ensure_runtime_store(root)
     plan = create_runtime_plan(paths.root, action=action, profile_id=profile_id)
-    payload = generated_runtime_plan_to_payload(plan)
+    payload = generated_runtime_plan_to_payload(plan, paths.root)
     plan_hash = plan_payload_hash(payload)
     record = {
         **payload,

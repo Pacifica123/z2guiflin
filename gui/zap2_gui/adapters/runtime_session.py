@@ -20,7 +20,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from .runtime_plan_generator import GeneratedRuntimePlan, create_runtime_plan
 from .runtime_queue import resolve_runtime_queue, find_nfqueue_processes, ensure_nfqueue_available
@@ -64,7 +64,7 @@ class RuntimeDropIdentity:
         return f"--uid={self.uid}:{self.gid}"
 
 
-SessionState = Literal["not-started", "running", "stopped", "stale", "failed", "unknown"]
+SessionState = Literal["not-started", "running", "stopped", "stale", "failed", "unknown", "migration-required"]
 
 
 @dataclass(frozen=True)
@@ -174,6 +174,31 @@ class RuntimeSessionResult:
 
 
 @dataclass(frozen=True)
+class RuntimeSessionLaunchReceipt:
+    """Receipt returned by a bounded external launcher.
+
+    P02 keeps lifecycle/state in the unprivileged application while the small
+    root-owned executor is responsible only for the privileged spawn.  The
+    executor returns the exact staged executable path and process identity so
+    later status/stop logic can keep its existing PID-reuse protections.
+    """
+
+    pid: int
+    runtime_executable_path: Path
+    stdout_log_path: Path
+    stderr_log_path: Path
+    debug_log_path: Path | None
+    helper_sha256: str
+    helper_version: str
+    helper_ruid: int | None
+    helper_euid: int | None
+    action_id: str
+    plan_hash: str
+    request_hash: str = ""
+    process_identity: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
 class RuntimeSessionStatus:
     """Read-only статус session state."""
 
@@ -248,7 +273,7 @@ def _event(event_type: str, level: str, plan_id: str, plan_hash: str, message: s
 
 def _current_start_plan_and_hash(root: Path, profile_id: str) -> tuple[GeneratedRuntimePlan, str]:
     plan = create_runtime_plan(root, action="start", profile_id=profile_id)
-    payload = generated_runtime_plan_to_payload(plan)
+    payload = generated_runtime_plan_to_payload(plan, root)
     return plan, plan_payload_hash(payload)
 
 
@@ -660,7 +685,12 @@ def _tail_text(path: Path, max_chars: int = 1200) -> str:
     return text[-max_chars:].strip()
 
 
-def build_runtime_session_config(root: Path | None = None, profile_id: str = "default") -> RuntimeSessionConfig:
+def build_runtime_session_config(
+    root: Path | None = None,
+    profile_id: str = "default",
+    *,
+    prepare_public_inputs: bool = True,
+) -> RuntimeSessionConfig:
     """Создаёт session config из default profile и confirmed start plan."""
 
     layout = discover_layout(root)
@@ -683,18 +713,28 @@ def build_runtime_session_config(root: Path | None = None, profile_id: str = "de
     stderr_log_path = paths.logs_dir / f"{profile_id}.nfqws2.stderr.log"
     debug_log_path = paths.logs_dir / f"{profile_id}.nfqws2.debug.log"
     drop_identity = _detect_drop_identity(paths.root)
-    public_session_inputs_dir = _public_session_inputs_dir(paths.root, profile_id, plan.plan_id, plan_hash)
+    public_session_inputs_dir = _public_session_inputs_dir(paths.root, profile_id, plan.plan_id, plan_hash) if prepare_public_inputs else None
     strategy_dependency_error = strategy_file_dependency_error_text(paths.root, tuple(plan.strategy.runtime_args))
     if strategy_dependency_error:
         raise ValueError(strategy_dependency_error)
-    hostlist_input_paths = _prepare_runtime_hostlist_inputs(paths.root, plan, profile_id, plan_hash, public_session_inputs_dir)
-    strategy_runtime_args, strategy_file_input_paths = _prepare_runtime_strategy_file_inputs(
-        paths.root, tuple(plan.strategy.runtime_args), public_session_inputs_dir
-    )
-    strategy_runtime_args, lua_input_paths = _prepare_runtime_lua_inputs(paths.root, strategy_runtime_args, public_session_inputs_dir)
-    strategy_runtime_args, blob_input_paths = _prepare_runtime_blob_inputs(paths.root, strategy_runtime_args, public_session_inputs_dir)
-    if not hostlist_input_paths and not strategy_file_input_paths and not lua_input_paths and not blob_input_paths:
-        public_session_inputs_dir = None
+    if prepare_public_inputs:
+        assert public_session_inputs_dir is not None
+        hostlist_input_paths = _prepare_runtime_hostlist_inputs(paths.root, plan, profile_id, plan_hash, public_session_inputs_dir)
+        strategy_runtime_args, strategy_file_input_paths = _prepare_runtime_strategy_file_inputs(
+            paths.root, tuple(plan.strategy.runtime_args), public_session_inputs_dir
+        )
+        strategy_runtime_args, lua_input_paths = _prepare_runtime_lua_inputs(paths.root, strategy_runtime_args, public_session_inputs_dir)
+        strategy_runtime_args, blob_input_paths = _prepare_runtime_blob_inputs(paths.root, strategy_runtime_args, public_session_inputs_dir)
+        if not hostlist_input_paths and not strategy_file_input_paths and not lua_input_paths and not blob_input_paths:
+            public_session_inputs_dir = None
+    else:
+        # Bounded P02 launcher stages the exact plan-bound bytes inside a
+        # root-owned /run bundle.  Do not create mutable /tmp copies first.
+        hostlist_input_paths = tuple((paths.root / item.path).resolve() for item in plan.hostlists)
+        strategy_runtime_args = tuple(plan.strategy.runtime_args)
+        strategy_file_input_paths = ()
+        lua_input_paths = ()
+        blob_input_paths = ()
     queue = resolve_runtime_queue(paths.root, profile_id)
     runtime_args = _runtime_args_for_plan(paths.root, plan, drop_identity, pidfile_path, debug_log_path, hostlist_input_paths, strategy_runtime_args, queue.qnum)
 
@@ -1000,14 +1040,27 @@ def runtime_session_status(root: Path | None = None, profile_id: str = "default"
             message="session record относится к другому workspace; stop из текущего workspace запрещён",
         )
 
+    try:
+        schema_version = int(record.get("schemaVersion", 1))
+    except (TypeError, ValueError):
+        schema_version = 0
     pid = int(record.get("pid", 0))
     recorded_state = str(record.get("state", "unknown"))
     alive = _pid_alive(pid)
-    if alive and not isinstance(record.get("processIdentity"), dict):
-        upgraded = _upgrade_legacy_session_identity(record, layout.root)
-        if upgraded is not None:
-            record = upgraded
-            _write_json(session_path, record)
+    if schema_version > SESSION_SCHEMA_VERSION:
+        return RuntimeSessionStatus(
+            "unknown", profile_id, session_path, pid=pid if pid > 0 else None,
+            plan_id=str(record.get("planId", "")) or None, plan_hash=str(record.get("planHash", "")) or None,
+            binary_path=str(record.get("binaryPath", "")) or None,
+            message=f"session schema {schema_version} новее поддерживаемой {SESSION_SCHEMA_VERSION}; mutation/stop запрещены",
+        )
+    if alive and (schema_version < SESSION_SCHEMA_VERSION or not isinstance(record.get("processIdentity"), dict)):
+        return RuntimeSessionStatus(
+            "migration-required", profile_id, session_path, pid=pid if pid > 0 else None,
+            plan_id=str(record.get("planId", "")) or None, plan_hash=str(record.get("planHash", "")) or None,
+            binary_path=str(record.get("binaryPath", "")) or None,
+            message="legacy live session requires explicit receipted MigrationTxn before status can claim ownership",
+        )
     matches = _record_matches_process(record) if alive else False
     if recorded_state == "stopped":
         state: SessionState = "stopped"
@@ -1033,7 +1086,13 @@ def runtime_session_status(root: Path | None = None, profile_id: str = "default"
     )
 
 
-def start_runtime_session(root: Path | None = None, profile_id: str = "default") -> RuntimeSessionResult:
+def start_runtime_session(
+    root: Path | None = None,
+    profile_id: str = "default",
+    *,
+    launcher: Callable[[RuntimeSessionConfig], RuntimeSessionLaunchReceipt] | None = None,
+    run_id: str | None = None,
+) -> RuntimeSessionResult:
     """Запускает nfqws2 как локальную session, привязанную к confirmed plan."""
 
     layout = discover_layout(root)
@@ -1052,56 +1111,66 @@ def start_runtime_session(root: Path | None = None, profile_id: str = "default")
             log_path=paths.logs_dir / f"{profile_id}.runtime.jsonl",
         )
 
-    config = build_runtime_session_config(paths.root, profile_id)
+    config = build_runtime_session_config(paths.root, profile_id, prepare_public_inputs=launcher is None)
     # Re-check immediately before Popen. A positive /proc match means this
     # queue is already owned elsewhere; fail closed instead of relying on
     # nfq_create_queue() to fail after firewall apply.
     ensure_nfqueue_available(config.nfqueue_num)
-    _write_args_file(config)
-    config.stdout_log_path.parent.mkdir(parents=True, exist_ok=True)
-    config.stderr_log_path.parent.mkdir(parents=True, exist_ok=True)
-    stdout_handle = config.stdout_log_path.open("ab")
-    stderr_handle = config.stderr_log_path.open("ab")
-    try:
-        process = subprocess.Popen(
-            list(config.argv),
-            cwd=str(config.cwd),
-            stdout=stdout_handle,
-            stderr=stderr_handle,
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,
-            close_fds=True,
-        )
-    finally:
-        stdout_handle.close()
-        stderr_handle.close()
+    launch_receipt: RuntimeSessionLaunchReceipt | None = None
+    if launcher is None:
+        _write_args_file(config)
+        config.stdout_log_path.parent.mkdir(parents=True, exist_ok=True)
+        config.stderr_log_path.parent.mkdir(parents=True, exist_ok=True)
+        stdout_handle = config.stdout_log_path.open("ab")
+        stderr_handle = config.stderr_log_path.open("ab")
+        try:
+            process = subprocess.Popen(
+                list(config.argv),
+                cwd=str(config.cwd),
+                stdout=stdout_handle,
+                stderr=stderr_handle,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+                close_fds=True,
+            )
+        finally:
+            stdout_handle.close()
+            stderr_handle.close()
 
-    time.sleep(PROCESS_START_GRACE_SECONDS)
-    exit_code = process.poll()
-    if exit_code is not None:
-        record = _base_session_record(config, process.pid, state="failed")
-        record["exitCode"] = exit_code
-        record["failedAt"] = _utc_now()
-        _write_json(config.session_path, record)
-        log_path = append_runtime_event(
-            paths,
-            _event(
-                "session-failed",
-                "error",
-                config.plan_id,
-                config.plan_hash,
-                f"nfqws2 process exited immediately with code {exit_code}; firewall/services were not changed.",
-                {"pid": process.pid, "exitCode": exit_code, "sessionPath": str(config.session_path.relative_to(paths.root))},
-            ),
-            profile_id=profile_id,
-        )
-        stderr_tail = _tail_text(config.stderr_log_path)
-        detail = f"nfqws2 завершился сразу после запуска, exit code: {exit_code}. См. {config.stderr_log_path}"
-        if stderr_tail:
-            detail += f"\nstderr tail: {stderr_tail}"
-        raise ValueError(detail)
+        time.sleep(PROCESS_START_GRACE_SECONDS)
+        exit_code = process.poll()
+        if exit_code is not None:
+            record = _base_session_record(config, process.pid, state="failed", run_id=run_id)
+            record["exitCode"] = exit_code
+            record["failedAt"] = _utc_now()
+            _write_json(config.session_path, record)
+            log_path = append_runtime_event(
+                paths,
+                _event(
+                    "session-failed",
+                    "error",
+                    config.plan_id,
+                    config.plan_hash,
+                    f"nfqws2 process exited immediately with code {exit_code}; firewall/services were not changed.",
+                    {"pid": process.pid, "exitCode": exit_code, "sessionPath": str(config.session_path.relative_to(paths.root))},
+                ),
+                profile_id=profile_id,
+            )
+            stderr_tail = _tail_text(config.stderr_log_path)
+            detail = f"nfqws2 завершился сразу после запуска, exit code: {exit_code}. См. {config.stderr_log_path}"
+            if stderr_tail:
+                detail += f"\nstderr tail: {stderr_tail}"
+            raise ValueError(detail)
+        pid = process.pid
+    else:
+        launch_receipt = launcher(config)
+        if launch_receipt.plan_hash != config.plan_hash:
+            raise ValueError("privileged launcher receipt planHash mismatch")
+        if launch_receipt.pid <= 1:
+            raise ValueError("privileged launcher returned invalid pid")
+        pid = launch_receipt.pid
 
-    record = _base_session_record(config, process.pid, state="running")
+    record = _base_session_record(config, pid, state="running", launch_receipt=launch_receipt, run_id=run_id)
     _write_json(config.session_path, record)
     log_path = append_runtime_event(
         paths,
@@ -1111,7 +1180,7 @@ def start_runtime_session(root: Path | None = None, profile_id: str = "default")
             config.plan_id,
             config.plan_hash,
             f"Started nfqws2 session for profile {profile_id}; firewall/services were not changed.",
-            {"pid": process.pid, "sessionPath": str(config.session_path.relative_to(paths.root))},
+            {"pid": pid, "sessionPath": str(config.session_path.relative_to(paths.root)), "privilegedLauncher": launch_receipt is not None},
         ),
         profile_id=profile_id,
     )
@@ -1121,20 +1190,33 @@ def start_runtime_session(root: Path | None = None, profile_id: str = "default")
         profile_id=profile_id,
         message="nfqws2 session запущена как локальный процесс",
         session_path=config.session_path,
-        pid=process.pid,
+        pid=pid,
         plan_id=config.plan_id,
         plan_hash=config.plan_hash,
         log_path=log_path,
     )
 
 
-def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> dict[str, Any]:
+def _base_session_record(
+    config: RuntimeSessionConfig,
+    pid: int,
+    state: str,
+    *,
+    launch_receipt: RuntimeSessionLaunchReceipt | None = None,
+    run_id: str | None = None,
+) -> dict[str, Any]:
     process_group_id: int | None
     try:
         process_group_id = os.getpgid(pid)
     except OSError:
         process_group_id = None
     provenance = verify_core_bundle(config.root_path, config.binary_path)
+    runtime_executable = launch_receipt.runtime_executable_path if launch_receipt is not None else config.binary_path
+    process_identity = (
+        launch_receipt.process_identity
+        if launch_receipt is not None and launch_receipt.process_identity is not None
+        else _capture_process_identity(pid, runtime_executable)
+    )
     return {
         "schemaVersion": SESSION_SCHEMA_VERSION,
         "stage": SESSION_STAGE,
@@ -1145,11 +1227,13 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "sessionPath": str(config.session_path),
         "planId": config.plan_id,
         "planHash": config.plan_hash,
+        "runId": run_id,
         "pid": pid,
         "processGroupId": process_group_id,
         "startedAt": _utc_now(),
-        "processIdentity": _capture_process_identity(pid, config.binary_path),
+        "processIdentity": process_identity,
         "binaryPath": str(config.binary_path),
+        "runtimeExecutablePath": str(runtime_executable),
         "cwd": str(config.cwd),
         "argv": list(config.argv),
         "runtimeArgs": list(config.runtime_args),
@@ -1170,9 +1254,18 @@ def _base_session_record(config: RuntimeSessionConfig, pid: int, state: str) -> 
         "dropIdentity": None if config.drop_identity is None else {"uid": config.drop_identity.uid, "gid": config.drop_identity.gid, "source": config.drop_identity.source},
         "argsPath": str(config.args_path),
         "pidfilePath": str(config.pidfile_path),
-        "stdoutLogPath": str(config.stdout_log_path),
-        "stderrLogPath": str(config.stderr_log_path),
-        "debugLogPath": str(config.debug_log_path),
+        "stdoutLogPath": str(launch_receipt.stdout_log_path if launch_receipt is not None else config.stdout_log_path),
+        "stderrLogPath": str(launch_receipt.stderr_log_path if launch_receipt is not None else config.stderr_log_path),
+        "debugLogPath": str(launch_receipt.debug_log_path if launch_receipt is not None and launch_receipt.debug_log_path else config.debug_log_path),
+        "privilegedExecutor": None if launch_receipt is None else {
+            "helperSha256": launch_receipt.helper_sha256,
+            "helperVersion": launch_receipt.helper_version,
+            "ruid": launch_receipt.helper_ruid,
+            "euid": launch_receipt.helper_euid,
+            "actionId": launch_receipt.action_id,
+            "planHash": launch_receipt.plan_hash,
+            "requestHash": launch_receipt.request_hash,
+        },
         "stopPolicy": {
             "stopsOnlyRecordedPid": True,
             "requiresOwnedMarker": True,
@@ -1210,7 +1303,7 @@ def _wait_until_dead(pid: int, timeout_seconds: float) -> bool:
     return not _pid_alive(pid)
 
 
-def stop_runtime_session(root: Path | None = None, profile_id: str = "default") -> RuntimeSessionResult:
+def stop_runtime_session(root: Path | None = None, profile_id: str = "default", *, run_id: str | None = None) -> RuntimeSessionResult:
     """Останавливает только PID, записанный нашим Stage 11 session record."""
 
     layout = discover_layout(root)
@@ -1255,15 +1348,20 @@ def stop_runtime_session(root: Path | None = None, profile_id: str = "default") 
             plan_hash=plan_hash,
             log_path=paths.logs_dir / f"{profile_id}.runtime.jsonl",
         )
-    if _pid_alive(pid) and not isinstance(record.get("processIdentity"), dict):
-        upgraded = _upgrade_legacy_session_identity(record, paths.root)
-        if upgraded is not None:
-            record = upgraded
-            _write_json(session_path, record)
+    try:
+        schema_version = int(record.get("schemaVersion", 1))
+    except (TypeError, ValueError):
+        schema_version = 0
+    if schema_version > SESSION_SCHEMA_VERSION:
+        raise ValueError(f"session schema {schema_version} новее поддерживаемой {SESSION_SCHEMA_VERSION}; stop запрещён")
+    if _pid_alive(pid) and (schema_version < SESSION_SCHEMA_VERSION or not isinstance(record.get("processIdentity"), dict)):
+        raise ValueError("legacy live session требует explicit MigrationTxn перед stop")
 
     if not _pid_alive(pid):
         updated = dict(record)
         updated["state"] = "stale"
+        if run_id is not None:
+            updated["runId"] = run_id
         updated["staleAt"] = _utc_now()
         _write_json(session_path, updated)
         log_path = append_runtime_event(
@@ -1284,10 +1382,12 @@ def stop_runtime_session(root: Path | None = None, profile_id: str = "default") 
 
     updated = dict(record)
     updated["state"] = "stopped" if terminated else "unknown"
+    if run_id is not None:
+        updated["runId"] = run_id
     updated["stoppedAt"] = _utc_now()
     updated["stopSignal"] = "SIGTERM" if terminated else "SIGKILL-attempted"
     _write_json(session_path, updated)
-    if terminated:
+    if terminated and record.get("publicSessionInputsDir"):
         _cleanup_public_session_inputs(
             tuple(Path(item) for item in record.get("hostlistInputPaths", []))
             + tuple(Path(item) for item in record.get("strategyFileInputPaths", []))

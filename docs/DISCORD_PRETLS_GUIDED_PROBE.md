@@ -1,13 +1,13 @@
 # Guided probe Discord до TLS
 
-Статус: справка по Stage 7n2/7n3.
+Статус: owner-run diagnostic. P02 broad-root GUI/project import отключён; privileged counter probe staged до отдельного bounded action.
 
 Guided probe объединяет состояние `nftables`, NFQUEUE, `nfqws2`, counters и ручное окно запуска Discord в один отчёт. Он предназначен для воспроизводимого наблюдения, а не для автоматической починки.
 
 ## Команда
 
 ```bash
-sudo PYTHONPATH=gui python -m zap2_gui.app \
+PYTHONPATH=gui python -m zap2_gui.app \
   --runtime-discord-pretls-guided-probe
 ```
 

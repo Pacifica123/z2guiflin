@@ -14,19 +14,20 @@ def test_gui_privileged_start_uses_sudo_askpass_not_pkexec() -> None:
     command = build_gui_privileged_command(action="start")
     assert "sudo" == command.argv[0]
     assert "-A" in command.argv
-    assert "ZAP2_GUI_PRIVILEGE_BRIDGE=sudo-askpass" in command.argv
-    assert not any(item.startswith("ZAP2_RUNTIME_DROP_IDENTITY=") for item in command.argv)
+    assert "env" not in command.argv
+    assert not any("PYTHONPATH=" in item for item in command.argv)
+    assert "/usr/local/libexec/zap2-runtime-executor" in command.argv
     assert command.uses_sudo_askpass is True
     assert "SUDO_ASKPASS" in command.env_overrides
-    assert "--default-start" in command.argv
+    assert "--request-hash" in command.argv
 
 
 def test_gui_privileged_stop_uses_sudo_askpass() -> None:
     command = build_gui_privileged_command(action="stop")
     assert command.argv[0] == "sudo"
     assert "-A" in command.argv
-    assert "--default-stop" in command.argv
-    assert not any(item.startswith("ZAP2_RUNTIME_DROP_IDENTITY=") for item in command.argv)
+    assert "--request-hash" in command.argv
+    assert not any("PYTHONPATH=" in item for item in command.argv)
 
 
 def test_runtime_session_sudo_owner_path_remains_default(monkeypatch) -> None:
@@ -77,19 +78,16 @@ def test_gui_toggle_label_is_stable() -> None:
     assert "Runtime logs" in gui_runtime_logs()
 
 
-def test_gui_privileged_discord_probe_uses_sudo_askpass() -> None:
+def test_gui_privileged_discord_probe_is_staged_not_broad_root() -> None:
     from zap2_gui.adapters.gui_privilege import build_gui_privileged_discord_probe_command
 
     command = build_gui_privileged_discord_probe_command(wait_seconds=30)
-    assert command.argv[0] == "sudo"
-    assert "-A" in command.argv
-    assert "--runtime-discord-pretls-guided-probe" in command.argv
-    assert "--pretls-probe-no-wait" in command.argv
-    assert "--pretls-probe-wait-seconds" in command.argv
-    assert "30" in command.argv
-    assert command.uses_sudo_askpass is True
+    assert command.argv[0] == "P02-STAGED"
+    assert "sudo" not in command.argv
+    assert "PYTHONPATH" not in " ".join(command.argv)
+    assert command.uses_sudo_askpass is False
     assert command.mutates_firewall_or_services is False
-    assert "SUDO_ASKPASS" in command.env_overrides
+    assert not command.env_overrides
 
 
 def test_overview_action_output_moves_verbose_text_to_logs(tmp_path: Path) -> None:

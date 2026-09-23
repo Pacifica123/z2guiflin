@@ -27,6 +27,9 @@ usage() {
   bash meta_tools/uts_prepare.sh --p01
       Подготовить окружение и запустить P01+tunnel regression без cache/bytecode.
 
+  bash meta_tools/uts_prepare.sh --p02
+      Подготовить окружение и запустить P02 lifecycle/privilege regression.
+
   bash meta_tools/uts_prepare.sh --full
       Подготовить окружение и запустить весь pytest-набор без cache/bytecode.
 
@@ -50,6 +53,10 @@ while (($#)); do
       ;;
     --p01)
       RUN_MODE="p01"
+      shift
+      ;;
+    --p02)
+      RUN_MODE="p02"
       shift
       ;;
     --full)
@@ -267,6 +274,7 @@ case "${RUN_MODE}" in
   "")
     printf '\nUTS test environment готов.\n'
     printf 'P01 regression: bash meta_tools/uts_prepare.sh --p01\n'
+    printf 'P02 regression: bash meta_tools/uts_prepare.sh --p02\n'
     printf 'Полный pytest : bash meta_tools/uts_prepare.sh --full\n'
     ;;
   p01)
@@ -277,6 +285,13 @@ case "${RUN_MODE}" in
       tests/test_stage7p5_discord_tunnel_guided.py \
       tests/test_tunnel_gui_layout_and_unified_toggle.py \
       tests/test_tunnel_xhttp_core_ux.py
+    ;;
+  p02)
+    run_pytest \
+      tests/test_p02_runtime_lifecycle_privilege.py \
+      tests/test_consolidated_runtime_security_patch.py \
+      tests/test_default_strategy_import_and_gui_controls.py \
+      tests/test_gui_toggle_and_runtime_logs.py
     ;;
   full)
     run_pytest tests

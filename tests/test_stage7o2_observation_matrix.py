@@ -256,6 +256,7 @@ def test_stage7o2d_auto_row_owner_phase_prepares_start(tmp_path: Path, monkeypat
     assert "auto-owner-phase-ready-for-sudo" in text
     assert "auto start plan prepared+confirmed" in text
     assert "--matrix-row-auto" in text
-    assert "sudo env PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row reference-kartavkun-multisplit" in text
+    assert "PYTHONPATH=gui python -m zap2_gui.app --discord-observation-matrix-run-row reference-kartavkun-multisplit" in text
+    assert "sudo env PYTHONPATH=gui" not in text
     selection = project / ".zap2" / "strategies" / "default.active-strategy.json"
     assert "reference-linux-general-multisplit-like" in selection.read_text(encoding="utf-8")

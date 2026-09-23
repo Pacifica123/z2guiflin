@@ -24,6 +24,8 @@
 ./run.sh --discord-tunnel-core-preflight --tunnel-core-binary /usr/bin/xray --tunnel-core-kind xray
 ./run.sh --discord-tunnel-status
 ./run.sh --discord-tunnel-evidence   # current-run EvidenceGraph / CapabilityVerdict
+./run.sh --privileged-executor-status # P02 helper provenance/readiness
+./run.sh --runtime-kernel-status       # P02 read-only owned-resource status
 ```
 
 Полный список CLI:
@@ -44,7 +46,7 @@
 - owner-confirmed runtime: workspace-scoped ownership, checked nft batch, reconciliation, plan/hash/confirmation, NFQUEUE и остановку только точно идентифицированного managed `nfqws2`;
 - отдельную экспериментальную ветку SOCKS5/VLESS с импортом профиля, внешним core, probes и безопасным запуском Discord через локальный SOCKS;
 - typed network truth для tunnel lane: local SOCKS не считается remote/app readiness; evidence привязан к run/config/receipt, а semantic-loss/bypass не могут дать ложный green verdict;
-- GUI `sudo -A` bridge без хранения пароля;
+- P02 privilege boundary: GUI остаётся unprivileged; `sudo -A` вызывает только root-owned bounded executor с finite action IDs и confirmed PlanHash; пароль не хранится;
 - светлую и тёмную тему с полной семантической привязкой настраиваемых цветов;
 - опциональную изолированную security IP blocklist policy с validated last-known-good cache и явным periodic systemd timer.
 

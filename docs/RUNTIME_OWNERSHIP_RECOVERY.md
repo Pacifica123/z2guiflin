@@ -34,7 +34,7 @@ Runtime-ресурсы `nftables` принадлежат не только profi
 ```bash
 ./run.sh --runtime-revert-plan --profile default
 ./run.sh --runtime-confirm <PLAN_ID>
-sudo -E ./run.sh --runtime-revert --profile default --confirm <PLAN_ID>
+./run.sh --runtime-revert --profile default --confirm <PLAN_ID>
 ```
 
 Никакого `flush ruleset` и массового удаления `zap2_*` recovery не выполняет.
@@ -42,3 +42,24 @@ sudo -E ./run.sh --runtime-revert --profile default --confirm <PLAN_ID>
 ## Core/Lua provenance
 
 После локальной сборки создаётся `.zap2/runtime/core-build-receipt.json`: digest исходников nfqws2, Lua bundle, binary hash, compat values и известные import metadata. Доказанный mismatch блокирует runtime start. Старый prebuilt без receipt остаётся `unknown`, а не ложно объявляется verified.
+
+## P02 canonical owner state
+
+Единая read-only проекция доступна через:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-kernel-status --profile default
+```
+
+Она сводит Plan/Run, nft evidence, session evidence и helper provenance в одно из состояний:
+`absent`, `owned-active`, `owned-stale`, `owned-partial`, `foreign-conflict`, `unknown`,
+`migration-required`. `foreign-conflict` и `unknown` никогда не вызывают automatic deletion.
+
+Legacy live session больше не мигрирует из read-only status. Используется явная транзакция:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-migrate-state --profile default
+```
+
+MigrationTxn делает backup -> exact ownership validation -> atomic replace -> receipt. Более новая
+неизвестная schema отвергается без записи.

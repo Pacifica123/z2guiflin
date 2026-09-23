@@ -1,49 +1,44 @@
-# Итог патча — P01 network truth / VLESS / Vesktop
+# Итог патча — P02 owned lifecycle/state + privilege boundary
 
-База: `post_z2flingui_20260923_143044_after_runtime-vless-vesktop-recovery-v2_a1bf6c8(1).zip`.
-План: `P01_NETWORK_TRUTH_VLESS_VESKTOP.md` из `TGN_z2flingui_v1_planning_NEURALESE_20260923.zip` с учётом RA-правила: план является проверяемой гипотезой, а противоречащие текущему коду и evidence предположения не считаются авторитетными.
+База: `post_z2flingui_20260923_223616_after_workspace-sync_d00f3e2.zip`, HEAD `d00f3e2` после принятого P01.
+План: `P02_RUNTIME_LIFECYCLE_KERNEL.md` из planning-архива с RA meta-invariant: после принятого P01 выполнена повторная форензика, противоречащие текущему HEAD предположения не переносились автоматически.
+
+## Re-forensics / shadow evidence
+
+- P01 принят на реальном UTS: focused P01 и полный regression завершились с exit code `0`.
+- Подтверждён P02 blocker: прежний стандартный GUI privilege path запускал writable project Python под root через `sudo -A ... PYTHONPATH=<workspace>/gui ... python -m zap2_gui.app`.
+- Выполнен `S-UPSTREAM` без merge. Присланный bol-van candidate archive имеет SHA-256 `769df14fa4463fbe9744a2aab97e7f1bfe1a2f77a669981f4e6372d7b86d71a9`; текущий vendored core заканчивается `0.9.5.3`/`LUA_COMPAT_VER=5`, candidate — `1.0.6`/`LUA_COMPAT_VER=6`. Это подтверждает отдельный P03 semantic-generation switch и не требует переносить migration ядра в P02.
 
 ## Что реализовано
 
-- Скалярное «ready» для tunnel lane больше не используется как доказательство работоспособности маршрута. Добавлены `ProbeSpan/v1`, `EvidenceGraph/v1` и `CapabilityVerdict/v1`.
-- Evidence текущего запуска жёстко связано с `runId`, `connectionId`, `connectionReceiptId`, `configHash` и `coreIdentityHash`. Несовпадение любой привязки не позволяет использовать старый PASS и оставляет capability в `UNKNOWN`.
-- В `ProbeSpan` добавлен типизированный `failureClass`: отдельно различаются ошибки process/listener/SOCKS, TLS EOF/reset, TLS timeout, TLS validation, HTTP и application/navigation.
-- Добавлен `ConnectionReceipt/v2`: хранится hash исходного URI, normalized hash, список известных и неизвестных query keys, redacted semantic summary, `sourceSemanticHash`, `generatedSemanticHash` и `semanticDiff`. Сам `vless://` URI и UUID в support receipt не записываются.
-- Поддержка генератора теперь имеет состояния `SUPPORTED/full`, `EXPERIMENTAL/partial` и `UNSUPPORTED/loss`. Для `SUPPORTED` каноническая семантика source и generated config должна совпасть; распознанная обязательная потеря блокирует запуск.
-- Повторяющиеся VLESS query keys отклоняются вместо тихого схлопывания в `dict`. Некорректные bool/int значения и известные, но не представимые значения (например неподдерживаемый `grpc mode`) не могут получить full-support.
-- Xray и V2Ray остаются разными capability lanes. `CoreCapability` фиксирует kind, binary hash, identity hash, config hash, config-test status и заявленную область transport/security/fields.
-- Сетевые проверки разделены на `socks_method`, `socks_connect`, `target_tls`, `target_http`. PASS локального listener/SOCKS не повышает remote HTTPS или Vesktop capability.
-- Любой явно проверенный HTTPS target, включая neutral/control host, получает собственный route verdict. Neutral PASS не засчитывается как Discord/Vesktop PASS.
-- Vesktop bootstrap является агрегатом обязательных HTTP routes, Gateway WebSocket и main-window navigation. Пока нет всех current-run predicates, итог остаётся `UNKNOWN` или `UNSUPPORTED`.
-- `--discord-launch-allow-failed-preflight` остаётся только owner override действия: `bypassChangesVerdict=false`; bypass не делает capability зелёным.
-- SOCKS containment записывается явно: loopback bind, `noauth`, UDP off, доступ приложения только через явные proxy env/Chromium flags; случайный порт не считается authentication.
-- Добавлены CLI `--discord-tunnel-evidence` и GUI-действие `Evidence / capability`, где показываются current-run spans, failed/missing predicates, failure classes и следующий полезный эксперимент.
-- Route diagnosis сохраняет прежние log-эвристики только как diagnostic hints и отдельно помечает typed EvidenceGraph как источник capability truth.
-- Документация P01 описывает границы доказательств, semantic fidelity, containment, neutral-vs-Discord эксперимент и условия, при которых Vesktop нельзя объявлять поддержанным.
+- Удалён standard broad-root import GUI package. GUI/CLI остаются unprivileged и делегируют только конечные действия root-owned helper `/usr/local/libexec/zap2-runtime-executor`.
+- Helper является standalone stdlib Python (`python3 -I`) и не импортирует `zap2_gui`. Он запрещает опасные env (`PYTHONPATH`, `PYTHONHOME`, `LD_PRELOAD`, `LD_LIBRARY_PATH`, `BASH_ENV`, `ENV`), произвольный shell/argv и произвольный executable.
+- Privilege protocol: canonical JSON bytes через stdin + `requestHash`; внутри boundary повторно проверяются exact `PlanHash` и owner confirmation. Поддерживаются только finite action IDs для owned nft observe/check/execute и confirmed `nfqws2` start.
+- Start Plan теперь связывает exact runtime bytes: `nfqws2`, Lua, hostlist/strategy/blob inputs, owner uid/gid и NFQUEUE selection. После confirmation mutation входного файла/identity меняет Plan и блокирует execution.
+- Helper читает workspace input через symlink-safe path walk, проверяет SHA-256, staging выполняется в root-owned `/run/zap2`; privileged effect строится из уже проверенных bytes.
+- Добавлен единый `runtime_kernel_status` с ownership states: `absent | owned-active | owned-stale | owned-partial | foreign-conflict | unknown | migration-required` и `next safe action`.
+- `Reconcile` остаётся только для owner-proven mutable resources. Foreign/unknown никогда не auto-delete/repair.
+- Composite default start/stop получает общий `runId`; child owner-rules/session receipts сохраняют lineage. Workflow lock сериализует composite action вокруг gap между nft и process lifecycle.
+- Legacy live-session schema больше не мигрирует при status-read. Добавлен explicit receipted `MigrationTxn`: detect -> backup -> validate exact process identity -> atomic replace -> receipt. Unknown newer schema fail-closed.
+- Read-only status/reconcile/privilege preview действительно не создают `.zap2` и не изменяют workspace. Askpass helper создаётся только непосредственно перед реальным owner-requested execution.
+- `service-apply` в P02 честно переведён в plan-only/staged; privileged Discord pre-TLS GUI bridge — staged/unsupported; blockcheck не расширяет standard executor.
+- CLI/GUI docs обновлены под bounded executor; старый `sudo ... PYTHONPATH ... zap2_gui.app` оставлен только как явно исторический/запрещённый контекст.
+- `meta_tools/uts_prepare.sh --p02` добавляет P02 regression в уже принятую UTS-модель; `devctl start` по-прежнему не зависит от pytest.
+- Добавлен dependency-free `tools/check_p02_runtime_lifecycle.py` для devctl: finite-helper contract + outside-checkout read-only lifecycle/privilege smoke без root/pytest/cache/bytecode.
 
-## Исправленный devctl / UserTestSpace контракт
+## Verification, выполненный до упаковки
 
-- `devctl start` больше не имеет обязательного check, импортирующего pytest. Его P01-gates — только dependency-free AST/smoke/shell-syntax проверки на базовом окружении devctl.
-- `pytest` перенесён туда, где он действительно нужен: в post-patch `UserTestSpace/<version>/project`.
-- Добавлен `meta_tools/uts_prepare.sh`. Он проверяет Python >= 3.10 и наличие pytest; на Arch-like системе при отсутствии pytest сначала пытается установить `python-pytest` через `pacman`, а если это невозможно — использует отдельный fallback `UserTestSpace/<version>/.uts-venv` и pip.
-- `--check` делает только preflight без установки; `--p01`, `--full` и `--pytest ...` запускают regression через подготовленный test runner.
-- Pytest всегда запускается с `PYTHONDONTWRITEBYTECODE=1` и `-p no:cacheprovider`; generated `__pycache__`, `.pytest_cache`, `*.pyc`, `*.pyo` внутри UTS project очищаются до/после тестового запуска.
-- Venv, если он понадобился, находится рядом с `project/`, а не внутри него, поэтому не загрязняет project diff/post archive.
+- P02 focused regression после финальных read-only исправлений: PASS.
+- Полный repository regression разбит на две группы из 80 test-файлов; обе группы завершены с exit code `0`.
+- Коллекция после P02: `474 tests collected`.
+- Dependency-free P02 smoke: PASS; не создаёт `.zap2`, pytest cache или bytecode в source tree.
+- `S-INSTALL/L3` disposable probe: source helper установлен как `/usr/local/libexec/zap2-runtime-executor`, `root:root`, mode `0755`; installed SHA-256 равен project helper SHA-256 `5cca5a0798c7e1880083f2a9a8c5762203a146d348e886e10052b2190115a697`.
+- Installed helper `--self-test`: PASS. Запуск с `PYTHONPATH=/tmp/attacker`: reject, rc=2.
+- Outside-checkout `--privileged-executor-status`: `ready`; privilege preview не содержит `zap2_gui.app`/`PYTHONPATH`; runtime-kernel status остаётся read-only и не создаёт `.zap2`.
+- В disposable container nft observation классифицирован как `unknown` из-за отсутствия OS network-admin capability; это не повышалось до PASS и не считается L3 firewall mutation evidence.
 
-## Проверки, которые действительно выполнены
+## Ограничения P02
 
-- Dependency-free P01 runtime/VLESS/Vesktop smoke: PASS, 5 групп.
-- AST parse изменённых Python-модулей: PASS.
-- `bash -n meta_tools/uts_prepare.sh`: PASS.
-- `meta_tools/uts_prepare.sh --p01`: PASS на pytest 9.0.2.
-- Полный repository regression после добавления metatools-скрипта разделён на две группы из 79 test-файлов; обе группы PASS.
-- Коллекция: 460 тестов в 79 test-файлах.
-- Отдельно проверен host Python без pytest: `--check` корректно сообщает `MISSING/NOT READY` и ничего не устанавливает.
-- В используемой среде не было доступного package index/pacman, поэтому ветка фактической сетевой установки `python-pytest`/pip не выдаётся за выполненную; проверены её условия, команды и fail-closed поведение.
-- Packaging hygiene: `.zap2/`, `.pytest_cache/`, `__pycache__/`, `*.pyc`, `*.pyo`, build/dist/coverage и локальное runtime state запрещены в patch/post archive.
-
-## Что намеренно не утверждается
-
-Offline fixtures уровня L0–L2 не доказывают, что конкретный пользовательский VLESS server/network сейчас пропускает Discord/Vesktop. В этой среде не было owner/live E1–E8 evidence уровня L4/L5, поэтому P01 не объявляет реальный Vesktop route поддержанным без current-run Gateway WebSocket и main-window evidence.
-
-Persistent Chromium netlog по умолчанию не включён: P01 не создаёт постоянный чувствительный debug trace. Если он понадобится для owner experiment, это должен быть отдельный временный сбор с redaction/cleanup, а не скрытый источник «зелёного» статуса.
+- P02 не переключает vendored zapret2 core; это P03.
+- Реальный nft/NFQUEUE start/stop на машине владельца требует owner L3 run после установки helper; deterministic/container evidence не повышается до live-network/app evidence.
+- systemd service execution и privileged Discord diagnostic не входят в standard finite executor этого патча.

@@ -42,7 +42,7 @@ PYTHONPATH=gui python -m zap2_gui.app --default-build --confirm runtime-default-
 ```bash
 PYTHONPATH=gui python -m zap2_gui.app --default-start-plan
 PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-default-start-workflow-plan
-sudo PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-default-manual-local-default-start-workflow-plan
+PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-default-manual-local-default-start-workflow-plan
 ```
 
 Отключение остаётся прежним:
@@ -50,7 +50,7 @@ sudo PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-def
 ```bash
 PYTHONPATH=gui python -m zap2_gui.app --default-stop-plan
 PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-default-stop-workflow-plan
-sudo PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-default-manual-local-default-stop-workflow-plan
+PYTHONPATH=gui python -m zap2_gui.app --default-stop --confirm runtime-default-manual-local-default-stop-workflow-plan
 ```
 
 ## Почему build не встроен внутрь sudo start

@@ -209,6 +209,7 @@ class RuntimeCommandResult:
     returncode: int
     stdout: str = ""
     stderr: str = ""
+    evidence: dict[str, Any] | None = None
 
     @property
     def ok(self) -> bool:
@@ -863,7 +864,9 @@ def reconcile_runtime_owner_rules(
     """
 
     layout = discover_layout(root)
-    paths = ensure_runtime_store(layout.root)
+    # Observation must be filesystem-read-only.  Creating .zap2/runtime here
+    # would make a status/reconcile query itself a state mutation.
+    paths = runtime_store_paths(layout.root)
     expected = create_runtime_apply_plan(paths.root, action="apply", profile_id=profile_id)
     state_path = paths.sessions_dir / f"{profile_id}.owner-rules.json"
     saved: dict[str, Any] | None = None
@@ -974,6 +977,7 @@ def execute_runtime_owner_rules(
     *,
     runner: CommandRunner | None = None,
     allow_without_root: bool = False,
+    run_id: str | None = None,
 ) -> RuntimeApplyExecutionResult:
     """Исполняет только подтверждённый owner-rules apply/revert plan."""
 
@@ -1087,6 +1091,7 @@ def execute_runtime_owner_rules(
         "strategyId": str(saved.get("strategyId", expected.strategy_id)),
         "planId": str(saved.get("planId", expected.plan_id)),
         "planHash": plan_hash,
+        "runId": run_id,
         "engine": "nftables",
         "nftTable": str(saved.get("nftTable", expected.nft_table)),
         "nfqueueNum": int(saved.get("nfqueueNum", expected.nfqueue_num)),
@@ -1106,7 +1111,7 @@ def execute_runtime_owner_rules(
         "desyncMark": str(saved.get("desyncMark", expected.desync_mark)),
         "updatedAt": _utc_now(),
         "commands": [
-            {"argv": list(item.argv), "returncode": item.returncode, "stdout": item.stdout, "stderr": item.stderr}
+            {"argv": list(item.argv), "returncode": item.returncode, "stdout": item.stdout, "stderr": item.stderr, "privilegedEvidence": item.evidence}
             for item in results
         ],
         "managesServiceNow": False,

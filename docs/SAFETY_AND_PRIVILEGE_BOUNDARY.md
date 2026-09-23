@@ -69,3 +69,29 @@ plan -> owner confirmation -> execution -> log -> rollback/revert
 Threat-IP blocking живёт в отдельной workspace-owned nft table и не переиспользует zapret NFQUEUE ownership. Списки являются внешними данными, не вендорятся и обновляются только через HTTPS с полной валидацией до atomic cache replacement. Network failure не очищает last-known-good cache. Inbound policy по умолчанию выключена; outbound policy ограничивается UID владельца.
 
 Periodic systemd timer устанавливается только явной root-командой после того, как owner создал локальный config. Автоматические devctl tests не выполняют download, `nft` или `systemctl`; они используют fake fetcher/runner.
+
+## P02: bounded privileged executor
+
+P02 запрещает стандартный путь вида `sudo ... PYTHONPATH=<workspace> python -m zap2_gui.app`.
+GUI/CLI остаются процессом владельца. Root получает только отдельно установленный файл
+`/usr/local/libexec/zap2-runtime-executor`, который:
+
+- принадлежит root и не writable для group/world;
+- совпадает SHA-256 с source текущего HEAD;
+- запускается как `/usr/bin/python3 -I` и не импортирует `zap2_gui`;
+- принимает canonical JSON bytes через stdin и конечный `actionId`;
+- повторно проверяет `PlanHash` и confirmation внутри privilege boundary;
+- не принимает shell, произвольный executable/path/argv или `PYTHONPATH`;
+- для `nfqws2` копирует подтверждённые bytes в root-owned `/run/zap2/...` и повторно сверяет digest перед spawn;
+- для nft принимает только plan-derived transaction bytes и fixed system `nft` binary.
+
+Установка helper — отдельное действие владельца и не выполняется `devctl start`:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --privileged-executor-install-plan
+PYTHONPATH=gui python -m zap2_gui.app --privileged-executor-status
+```
+
+`service-apply` в P02 имеет truth=`plan-only`; старый privileged Discord GUI probe имеет
+truth=`staged/unsupported`. Они не расширяют стандартную root surface до появления отдельного
+bounded action.

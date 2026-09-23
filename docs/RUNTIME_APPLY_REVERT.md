@@ -27,8 +27,8 @@ PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-l
 После подтверждения владелец может локально исполнить plan:
 
 ```bash
-sudo PYTHONPATH=gui python -m zap2_gui.app --runtime-apply --profile default --confirm runtime-default-manual-local-apply-owner-rules-plan
-sudo PYTHONPATH=gui python -m zap2_gui.app --runtime-revert --profile default --confirm runtime-default-manual-local-revert-owner-rules-plan
+PYTHONPATH=gui python -m zap2_gui.app --runtime-apply --profile default --confirm runtime-default-manual-local-apply-owner-rules-plan
+PYTHONPATH=gui python -m zap2_gui.app --runtime-revert --profile default --confirm runtime-default-manual-local-revert-owner-rules-plan
 ```
 
 ## Что именно делает apply

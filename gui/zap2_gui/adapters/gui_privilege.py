@@ -1,10 +1,8 @@
 """GUI-side privileged execution helpers for default workflow.
 
-Stage 12 switches the GUI privileged bridge from ``pkexec`` to graphical
-``sudo -A`` askpass. On the target system, pkexec successfully authenticated but
-started ``nfqws2`` without the capabilities needed for ``nfq_create_queue()``.
-The normal terminal ``sudo`` path had already worked, so GUI uses the same sudo
-execution semantics while still asking the password in a graphical window.
+P02 removes the historical ``sudo -A env PYTHONPATH=<workspace> python -m
+zap2_gui.app`` bridge.  The GUI remains unprivileged and delegates only finite,
+plan-bound effects to a separately installed root-owned executor.
 """
 
 from __future__ import annotations
@@ -17,6 +15,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .workspace_profiles import load_workspace_catalog
+from .privileged_executor import (
+    DEFAULT_PRIVILEGED_EXECUTOR,
+    bounded_privilege_preview,
+    execute_bounded_default_workflow,
+    privileged_executor_status,
+)
 from ..project_paths import discover_layout
 
 DEFAULT_START_PLAN_ID = "runtime-default-manual-local-default-start-workflow-plan"
@@ -44,7 +48,7 @@ class GuiPrivilegedCommand:
 
     @property
     def uses_sudo_askpass(self) -> bool:
-        return self.backend == "sudo-askpass"
+        return self.backend.startswith("sudo-askpass")
 
     def to_text(self) -> str:
         command = " ".join(self.argv)
@@ -61,7 +65,9 @@ class GuiPrivilegedCommand:
                 "stores password: no",
                 "password handled by: SUDO_ASKPASS helper",
                 f"askpass helper: {self.env_overrides.get('SUDO_ASKPASS', 'auto')}",
-                f"runtime drop identity: {'sudo-owner via SUDO_UID/SUDO_GID' if self.action == 'start' else 'not changed'}",
+                "root imports writable project Python: no",
+                "privileged argv surface: fixed helper + finite action request hash",
+                "request body transport: canonical JSON bytes over stdin",
                 "requires saved runtime confirmation: yes",
                 "bootstrap mixed in: no",
                 "contains remote bootstrap: no",
@@ -132,7 +138,7 @@ class GuiPrivilegedProbeCommand:
 
     @property
     def uses_sudo_askpass(self) -> bool:
-        return self.backend == "sudo-askpass"
+        return self.backend.startswith("sudo-askpass")
 
     def to_text(self) -> str:
         return "\n".join(
@@ -256,31 +262,16 @@ def build_gui_privileged_command(
     profile_id: str = "default",
     confirm_plan_id: str | None = None,
 ) -> GuiPrivilegedCommand:
-    """Build a graphical sudo-askpass command without executing it."""
+    """Build a read-only preview of the P02 bounded privilege shape."""
 
     if action not in SUPPORTED_GUI_PRIVILEGED_ACTIONS:
         raise ValueError(f"Неподдерживаемое GUI privileged action: {action}")
     layout = discover_layout(root)
     plan_id = confirm_plan_id or default_plan_id_for_action(layout.root, action=action, profile_id=profile_id)
-    pythonpath = str(layout.root / "gui")
-    executable = str(Path(sys.executable))
-    askpass = ensure_sudo_askpass_helper(layout.root)
-    bridge_env = ("ZAP2_GUI_PRIVILEGE_BRIDGE=sudo-askpass",)
-    argv = (
-        "sudo",
-        "-A",
-        "env",
-        f"PYTHONPATH={pythonpath}",
-        *bridge_env,
-        executable,
-        "-m",
-        "zap2_gui.app",
-        f"--default-{action}",
-        "--profile",
-        profile_id,
-        "--confirm",
-        plan_id,
-    )
+    # Preview must stay read-only.  The path is deterministic, but the helper
+    # file itself is created only when execution is actually requested.
+    askpass = _askpass_script_path(layout.root)
+    argv = bounded_privilege_preview(layout.root, askpass=True)
     return GuiPrivilegedCommand(
         action=action,
         profile_id=profile_id,
@@ -288,6 +279,7 @@ def build_gui_privileged_command(
         argv=argv,
         cwd=layout.root,
         env_overrides={"SUDO_ASKPASS": str(askpass)},
+        backend="sudo-askpass-bounded-executor",
     )
 
 
@@ -312,36 +304,23 @@ def build_gui_privileged_discord_probe_command(
     profile_id: str = "default",
     wait_seconds: int = 30,
 ) -> GuiPrivilegedProbeCommand:
-    """Build a read-only Discord guided probe command for GUI sudo askpass."""
+    """Report the P02 truth for the old privileged Discord diagnostic lane.
+
+    P02 deliberately does not widen the finite root executor for a diagnostic
+    probe.  The owner-run/non-privileged diagnostic remains available; this GUI
+    root bridge is staged until a dedicated bounded action is justified.
+    """
 
     layout = discover_layout(root)
     wait_seconds = max(0, min(int(wait_seconds), 600))
-    pythonpath = str(layout.root / "gui")
-    executable = str(Path(sys.executable))
-    askpass = ensure_sudo_askpass_helper(layout.root)
-    argv = (
-        "sudo",
-        "-A",
-        "env",
-        f"PYTHONPATH={pythonpath}",
-        "ZAP2_GUI_PRIVILEGE_BRIDGE=sudo-askpass",
-        executable,
-        "-m",
-        "zap2_gui.app",
-        "--runtime-discord-pretls-guided-probe",
-        "--profile",
-        profile_id,
-        "--pretls-probe-no-wait",
-        "--pretls-probe-wait-seconds",
-        str(wait_seconds),
-    )
     return GuiPrivilegedProbeCommand(
         probe="discord-pretls-guided-probe",
         profile_id=profile_id,
         wait_seconds=wait_seconds,
-        argv=argv,
+        argv=("P02-STAGED", "discord-pretls-guided-probe", "no-root-execution"),
         cwd=layout.root,
-        env_overrides={"SUDO_ASKPASS": str(askpass)},
+        env_overrides={},
+        backend="staged-no-root",
     )
 
 
@@ -352,50 +331,23 @@ def execute_gui_privileged_discord_probe(
     wait_seconds: int = 30,
     timeout_seconds: int = 420,
 ) -> GuiPrivilegedProbeResult:
-    """Run the read-only Discord probe through graphical sudo askpass."""
+    """Refuse the historical broad-root diagnostic bridge under P02."""
 
+    del timeout_seconds
     command = build_gui_privileged_discord_probe_command(root=root, profile_id=profile_id, wait_seconds=wait_seconds)
-    if not is_sudo_available():
-        return GuiPrivilegedProbeResult(
-            probe=command.probe,
-            profile_id=profile_id,
-            wait_seconds=command.wait_seconds,
-            returncode=127,
-            stdout="",
-            stderr="",
-            command=command,
-            skipped_reason=(
-                "sudo не найден. Для privileged read-only probe нужен sudo -A/SUDO_ASKPASS; "
-                "терминальный ввод пароля намеренно не используется."
-            ),
-        )
-
-    completed = subprocess.run(
-        list(command.argv),
-        cwd=command.cwd,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-        timeout=timeout_seconds,
-        env=_desktop_env_for_askpass(command),
-    )
-    stderr = completed.stderr
-    if completed.returncode != 0 and "no askpass program" in stderr.lower():
-        stderr += (
-            "\n\nПодсказка: sudo не смог запустить SUDO_ASKPASS helper. "
-            "Проверьте, что GUI запущен в desktop-сессии с DISPLAY/WAYLAND_DISPLAY."
-        )
     return GuiPrivilegedProbeResult(
         probe=command.probe,
         profile_id=profile_id,
         wait_seconds=command.wait_seconds,
-        returncode=completed.returncode,
-        stdout=completed.stdout,
-        stderr=stderr,
+        returncode=2,
+        stdout="",
+        stderr="",
         command=command,
+        skipped_reason=(
+            "P02: privileged Discord probe staged/unsupported. "
+            "Broad root import of writable GUI code removed; use the owner-run read-only diagnostic lane."
+        ),
     )
-
 
 
 def _desktop_env_for_askpass(command: GuiPrivilegedCommand) -> dict[str, str]:
@@ -416,57 +368,52 @@ def execute_gui_privileged_workflow(
     confirm_plan_id: str | None = None,
     timeout_seconds: int = 300,
 ) -> GuiPrivilegedResult:
-    """Execute default start/stop through graphical sudo askpass.
+    """Execute default start/stop while the GUI process remains unprivileged."""
 
-    This function is meant for a local PyQt button. It never asks for a password
-    in the terminal and never logs/stores the password. ``sudo -A`` delegates
-    password input to ``SUDO_ASKPASS`` and then runs the same root path as a
-    successful manual ``sudo PYTHONPATH=gui python -m zap2_gui.app ...``.
-    """
-
+    del timeout_seconds
     command = build_gui_privileged_command(
         root=root,
         action=action,
         profile_id=profile_id,
         confirm_plan_id=confirm_plan_id,
     )
-    if not is_sudo_available():
+    status = privileged_executor_status(command.cwd)
+    if not status.ready:
         return GuiPrivilegedResult(
             action=action,
             profile_id=profile_id,
             confirm_plan_id=command.confirm_plan_id,
-            returncode=127,
+            returncode=126,
             stdout="",
             stderr="",
             command=command,
-            skipped_reason=(
-                "sudo не найден. Для GUI privileged workflow нужен sudo с поддержкой -A/SUDO_ASKPASS. "
-                "Терминальный ввод пароля намеренно не используется."
-            ),
+            skipped_reason=status.message,
+        )
+    if not is_sudo_available():
+        return GuiPrivilegedResult(
+            action=action, profile_id=profile_id, confirm_plan_id=command.confirm_plan_id,
+            returncode=127, stdout="", stderr="", command=command,
+            skipped_reason="sudo не найден; bounded privileged executor недоступен",
+        )
+    try:
+        askpass = ensure_sudo_askpass_helper(command.cwd)
+        result = execute_bounded_default_workflow(
+            command.cwd,
+            action=action,
+            profile_id=profile_id,
+            confirm_plan_id=command.confirm_plan_id,
+            askpass=askpass,
+            installed_path=DEFAULT_PRIVILEGED_EXECUTOR,
+        )
+        ok_states = {"started", "stopped"}
+        return GuiPrivilegedResult(
+            action=action, profile_id=profile_id, confirm_plan_id=command.confirm_plan_id,
+            returncode=0 if result.state in ok_states else 1,
+            stdout=result.to_text(), stderr="", command=command,
+        )
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        return GuiPrivilegedResult(
+            action=action, profile_id=profile_id, confirm_plan_id=command.confirm_plan_id,
+            returncode=2, stdout="", stderr=str(exc), command=command,
         )
 
-    completed = subprocess.run(
-        list(command.argv),
-        cwd=command.cwd,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-        timeout=timeout_seconds,
-        env=_desktop_env_for_askpass(command),
-    )
-    stderr = completed.stderr
-    if completed.returncode != 0 and "no askpass program" in stderr.lower():
-        stderr += (
-            "\n\nПодсказка: sudo не смог запустить SUDO_ASKPASS helper. "
-            "Проверьте, что GUI запущен в desktop-сессии с DISPLAY/WAYLAND_DISPLAY."
-        )
-    return GuiPrivilegedResult(
-        action=action,
-        profile_id=profile_id,
-        confirm_plan_id=command.confirm_plan_id,
-        returncode=completed.returncode,
-        stdout=completed.stdout,
-        stderr=stderr,
-        command=command,
-    )

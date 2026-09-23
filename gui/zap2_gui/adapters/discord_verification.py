@@ -108,7 +108,7 @@ def create_discord_non_voice_verification_loop() -> DiscordVerificationLoop:
             "PYTHONPATH=gui python -m zap2_gui.app --select-strategy <blockcheck-discord-desktop-...>",
             "PYTHONPATH=gui python -m zap2_gui.app --default-start-plan",
             "PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-<strategy>-default-start-workflow-plan",
-            "sudo PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-default-<strategy>-default-start-workflow-plan",
+            "PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-default-<strategy>-default-start-workflow-plan",
             "Полностью перезапустить desktop Discord и заполнить owner report template.",
         ),
         success_checks=(

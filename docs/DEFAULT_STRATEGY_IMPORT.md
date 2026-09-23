@@ -50,7 +50,7 @@ src/presets/builtin/winws2/Default v1 (game filter).txt
 Предыдущие runtime-тесты показали, что `--debug=@...` быстро создаёт десятки мегабайт per-packet логов. Поэтому с этого stage debug выключен по умолчанию. Для локальной диагностики можно включить его через переменную окружения:
 
 ```bash
-ZAP2_RUNTIME_DEBUG=1 sudo PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-default-manual-local-default-start-workflow-plan
+ZAP2_RUNTIME_DEBUG=1 PYTHONPATH=gui python -m zap2_gui.app --default-start --confirm runtime-default-manual-local-default-start-workflow-plan
 ```
 
 Это не меняет plan/confirmation модель, но делает логирование явно выбранным действием владельца.

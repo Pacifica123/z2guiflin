@@ -16,6 +16,7 @@ from pathlib import Path
 from .runtime_default import default_workflow_status, prepare_default_workflow_plan
 from .runtime_default_build import execute_default_build, prepare_default_build_plan
 from .runtime_logs import runtime_log_snapshot_to_text
+from .runtime_kernel import runtime_kernel_status
 from .build_dependencies import run_build_dependency_preflight
 from .runtime_state import confirm_runtime_plan, ensure_runtime_store
 from .gui_first_overview import gui_first_runtime_overview_to_text
@@ -232,7 +233,7 @@ class GuiRuntimeCommandSet:
                 f"PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm {self.stop_plan_id}",
                 f"GUI button: Отключить через графический sudo-запрос -> --default-stop --confirm {self.stop_plan_id}",
                 "",
-                "GUI не просит пароль в терминале: privileged start/stop идут через sudo -A/SUDO_ASKPASS и требуют заранее сохранённый confirmation.",
+                "GUI не просит пароль в терминале: P02 оставляет GUI unprivileged; sudo -A вызывает только root-owned finite executor с confirmed PlanHash.",
             ]
         )
 
@@ -296,7 +297,12 @@ def gui_confirm_plan(root: Path | None = None, plan_id: str = "") -> str:
 
 
 def gui_default_status(root: Path | None = None, profile_id: str = "default") -> str:
-    return default_workflow_status(root=root, profile_id=profile_id).to_text()
+    # GUI and CLI project the same P02 ownership evidence; retain the legacy
+    # workflow summary below it for user-facing continuity.
+    return "\n\n".join([
+        runtime_kernel_status(root=root, profile_id=profile_id).to_text(),
+        default_workflow_status(root=root, profile_id=profile_id).to_text(),
+    ])
 
 
 def _with_status_after_action(root: Path | None, profile_id: str, action_text: str, body: str) -> str:
@@ -331,7 +337,7 @@ def _default_binary_guidance(root: Path | None) -> str | None:
             "6) Подтвердить запуск",
             "7) Включить через графический запрос прав",
             "",
-            "sudo-askpass сейчас не запускался; firewall/session не менялись.",
+            "bounded executor сейчас не запускался; firewall/session не менялись.",
         ]
     )
 

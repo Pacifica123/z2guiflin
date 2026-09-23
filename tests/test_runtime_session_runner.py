@@ -132,13 +132,15 @@ def test_session_stop_refuses_foreign_session_marker(tmp_path):
 def test_session_config_adds_sudo_owner_uid_for_root_run(tmp_path, monkeypatch):
     project = _copy_project(tmp_path)
     _install_fake_nfqws2(project)
+    # P02 binds owner identity into the immutable start plan.  A legacy/root
+    # adapter test therefore has to prepare and execute under the same owner
+    # evidence; changing SUDO_UID after confirmation is intentionally stale.
+    monkeypatch.setenv("SUDO_UID", "1000")
+    monkeypatch.setenv("SUDO_GID", "1000")
     prepared = prepare_runtime_plan(project, action="start", profile_id="default")
     confirm_runtime_plan(project, prepared.plan_id)
 
     monkeypatch.setattr(runtime_session_module, "_running_as_root", lambda: True)
-    monkeypatch.setenv("SUDO_UID", "1000")
-    monkeypatch.setenv("SUDO_GID", "1000")
-
     config = build_runtime_session_config(project, profile_id="default")
 
     assert "--uid=1000:1000" in config.runtime_args

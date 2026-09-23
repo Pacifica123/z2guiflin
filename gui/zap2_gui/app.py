@@ -86,6 +86,15 @@ from .adapters.gui_privilege import (
     SUPPORTED_GUI_PRIVILEGED_ACTIONS,
     gui_privileged_command_to_text,
 )
+from .adapters.privileged_executor import (
+    execute_bounded_default_workflow,
+    execute_bounded_owner_rules,
+    execute_bounded_session_start,
+    privileged_executor_install_command,
+    privileged_executor_status,
+)
+from .adapters.runtime_kernel import runtime_kernel_status
+from .adapters.runtime_migration import migrate_runtime_session_state
 from .adapters.launch_composer import (
     KNOWN_LAUNCH_COMPONENTS,
     launch_composer_plan_to_text,
@@ -645,7 +654,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--service-apply",
         choices=SUPPORTED_SERVICE_EXECUTION_ACTIONS,
         metavar="ACTION",
-        help="исполнить подтверждённый service install/remove plan; требует sudo для /etc/systemd/system",
+        help="P02 plan-only: privileged service execution staged/unsupported; используйте --service-plan для review",
     )
 
 
@@ -689,6 +698,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--default-status",
         action="store_true",
         help="показать read-only статус default workflow/session для GUI и CLI",
+    )
+    parser.add_argument(
+        "--runtime-kernel-status", action="store_true",
+        help="P02: единый read-only status Plan/Run/owned resources для GUI/CLI",
+    )
+    parser.add_argument(
+        "--runtime-migrate-state", action="store_true",
+        help="P02: explicit receipted MigrationTxn legacy runtime session state",
+    )
+    parser.add_argument(
+        "--privileged-executor-status", action="store_true",
+        help="P02: проверить root-owned bounded executor и provenance hash; read-only",
+    )
+    parser.add_argument(
+        "--privileged-executor-install-plan", action="store_true",
+        help="P02: показать явную install-команду bounded executor; ничего не устанавливает",
     )
     parser.add_argument(
         "--gui-first-overview",
@@ -1513,7 +1538,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.runtime_apply:
         try:
-            print(execute_runtime_owner_rules(action="apply", profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
+            print(execute_bounded_owner_rules(action="apply", profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
@@ -1521,7 +1546,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.runtime_revert:
         try:
-            print(execute_runtime_owner_rules(action="revert", profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
+            print(execute_bounded_owner_rules(action="revert", profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
@@ -1537,7 +1562,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.runtime_session_start:
         try:
-            print(start_runtime_session(profile_id=args.profile).to_text())
+            print(execute_bounded_session_start(profile_id=args.profile).to_text())
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
@@ -1637,12 +1662,12 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     if args.service_apply:
-        try:
-            print(execute_service_plan(action=args.service_apply, profile_id=args.profile, confirm_plan_id=args.confirm or "").to_text())
-            return 0
-        except ValueError as exc:
-            print(str(exc), file=sys.stderr)
-            return 2
+        print(
+            "P02 service truth: plan-only. Privileged systemd install/remove is not part of the finite standard executor; "
+            "use --service-plan for review. Execution is intentionally staged/unsupported in P02.",
+            file=sys.stderr,
+        )
+        return 2
 
 
     if args.default_build_deps:
@@ -1683,9 +1708,33 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.default_start:
         try:
-            result = execute_default_workflow(action="start", profile_id=args.profile, confirm_plan_id=args.confirm or "")
+            result = execute_bounded_default_workflow(action="start", profile_id=args.profile, confirm_plan_id=args.confirm or "")
             print(result.to_text())
             return 0 if result.state == "started" else 1
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.privileged_executor_status:
+        print(privileged_executor_status().to_text())
+        return 0
+
+    if args.privileged_executor_install_plan:
+        print(privileged_executor_install_command())
+        return 0
+
+    if args.runtime_migrate_state:
+        try:
+            print(migrate_runtime_session_state(profile_id=args.profile).to_text())
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+    if args.runtime_kernel_status:
+        try:
+            print(runtime_kernel_status(profile_id=args.profile).to_text())
+            return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2
@@ -1716,7 +1765,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.default_stop:
         try:
-            result = execute_default_workflow(action="stop", profile_id=args.profile, confirm_plan_id=args.confirm or "")
+            result = execute_bounded_default_workflow(action="stop", profile_id=args.profile, confirm_plan_id=args.confirm or "")
             print(result.to_text())
             return 0 if result.state == "stopped" else 1
         except ValueError as exc:
