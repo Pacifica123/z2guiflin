@@ -217,11 +217,21 @@ def _call_helper(
         receipt = json.loads(stdout) if stdout.strip() else {}
     except json.JSONDecodeError as exc:
         raise ValueError(f"privileged executor returned invalid JSON (rc={completed.returncode}): {stdout}\n{stderr}") from exc
-    if completed.returncode != 0:
-        message = receipt.get("message") if isinstance(receipt, dict) else None
-        raise ValueError(f"privileged executor failed rc={completed.returncode}: {message or stderr or stdout}")
     if not isinstance(receipt, dict) or receipt.get("requestHash") != request_hash:
         raise ValueError("privileged executor receipt requestHash mismatch")
+    if receipt.get("ok") is not True or receipt.get("actionId") != action_id:
+        message = receipt.get("message") if isinstance(receipt, dict) else None
+        raise ValueError(f"privileged executor rejected {action_id}: {message or stderr or stdout}")
+    if completed.returncode != 0:
+        command = receipt.get("command") if isinstance(receipt.get("command"), dict) else None
+        observed_nonzero = (
+            action_id == "nft.observe-table"
+            and command is not None
+            and int(command.get("returncode", 0)) == completed.returncode
+        )
+        if not observed_nonzero:
+            message = receipt.get("message") if isinstance(receipt, dict) else None
+            raise ValueError(f"privileged executor failed rc={completed.returncode}: {message or stderr or stdout}")
     return receipt
 
 

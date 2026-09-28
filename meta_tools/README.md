@@ -41,3 +41,36 @@ bash meta_tools/uts_prepare.sh --pytest tests/test_file.py -k case
 
 `pytest` тем самым является зависимостью **UTS regression**, но никогда не
 скрытым prerequisite для `devctl start`.
+
+## Hyperpatch owner-host acceptance
+
+После `devctl start` и перехода в созданный UserTestSpace текущий P03 можно
+проверить одной командой вместо ручного выполнения build/start/status/stop
+цепочки:
+
+```bash
+bash meta_tools/hyperpatch_acceptance.sh --p03
+```
+
+P03 acceptance намеренно является **исполняемым owner-host gate**, а не только
+pytest-обёрткой. Он последовательно проверяет generation/inventory, P03 regression,
+PyQt6, native build dependencies, staged native `nfqws2` build, build receipt v2,
+реальный parser dry-run, provenance bounded privileged executor, затем временно
+применяет owned nft/NFQUEUE rules, запускает `nfqws2`, проверяет живую session и
+штатно выполняет stop/revert.
+
+Если ошибка возникает после попытки runtime start, EXIT trap делает best-effort
+подтверждённый stop/revert. Evidence каждого шага сохраняется в
+`.zap2/runtime/acceptance/p03-<UTC timestamp>/`.
+
+Финальные строки успешного прогона:
+
+```text
+HYPERPATCH ACCEPTANCE: PASS
+readiness: READY_FOR_USE_WITHIN_P03
+```
+
+Такой PASS означает, что runnable-контур программы/GUI для P03 готов к
+использованию **на данном owner-host**. Он не является доказательством того, что
+конкретная стратегия уже обходит конкретный DPI/провайдера: внешняя
+censorship-resistance проверяется отдельными traffic/strategy probes.

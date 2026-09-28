@@ -4,7 +4,9 @@ import json
 import os
 import runpy
 import shutil
+import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -14,6 +16,7 @@ from zap2_gui.adapters.gui_privilege import (
     build_gui_privileged_discord_probe_command,
 )
 from zap2_gui.adapters.privileged_executor import BoundedNftRunner
+import zap2_gui.adapters.privileged_executor as privileged_executor_module
 from zap2_gui.adapters.runtime_kernel import runtime_kernel_status
 from zap2_gui.adapters.runtime_migration import migrate_runtime_session_state
 from zap2_gui.adapters.runtime_session import SESSION_MARKER, build_runtime_session_config, runtime_session_status
@@ -69,6 +72,77 @@ def test_bounded_nft_runner_rejects_arbitrary_argv_before_sudo(tmp_path: Path) -
         runner(("sh", "-c", "id"))
     with pytest.raises(ValueError, match="rejected argv"):
         runner(("nft", "delete", "table", "inet", "foreign"))
+
+
+def test_bounded_nft_observation_preserves_expected_missing_table_result(tmp_path: Path, monkeypatch) -> None:
+    project = _copy_project(tmp_path)
+    installed = tmp_path / "zap2-runtime-executor"
+
+    monkeypatch.setattr(
+        privileged_executor_module,
+        "privileged_executor_status",
+        lambda *args, **kwargs: SimpleNamespace(ready=True),
+    )
+    monkeypatch.setattr(privileged_executor_module.shutil, "which", lambda name: "/usr/bin/sudo" if name == "sudo" else None)
+
+    def fake_run(argv, *, input, stdout, stderr, cwd, env, check, timeout):
+        request = json.loads(input.decode("utf-8"))
+        receipt = {
+            "ok": True,
+            "schemaVersion": 1,
+            "protocol": "zap2-privilege-plan/v1",
+            "actionId": "nft.observe-table",
+            "requestHash": request["requestHash"],
+            "helper": {"version": "p02-v1", "sha256": "a" * 64, "ruid": 0, "euid": 0},
+            "planHash": None,
+            "command": {
+                "argv": ["/usr/bin/nft", "list", "table", "inet", "zap2_test"],
+                "returncode": 1,
+                "stdout": "",
+                "stderr": "Error: No such file or directory\n",
+            },
+        }
+        return subprocess.CompletedProcess(argv, 1, stdout=json.dumps(receipt).encode("utf-8"), stderr=b"")
+
+    monkeypatch.setattr(privileged_executor_module.subprocess, "run", fake_run)
+    result = BoundedNftRunner(project, installed_path=installed)(("nft", "list", "table", "inet", "zap2_test"))
+    assert result.returncode == 1
+    assert "No such file" in result.stderr
+
+
+def test_privileged_non_observation_command_failure_remains_fatal(tmp_path: Path, monkeypatch) -> None:
+    project = _copy_project(tmp_path)
+    installed = tmp_path / "zap2-runtime-executor"
+    monkeypatch.setattr(
+        privileged_executor_module,
+        "privileged_executor_status",
+        lambda *args, **kwargs: SimpleNamespace(ready=True),
+    )
+    monkeypatch.setattr(privileged_executor_module.shutil, "which", lambda name: "/usr/bin/sudo" if name == "sudo" else None)
+
+    def fake_run(argv, *, input, stdout, stderr, cwd, env, check, timeout):
+        request = json.loads(input.decode("utf-8"))
+        receipt = {
+            "ok": True,
+            "schemaVersion": 1,
+            "protocol": "zap2-privilege-plan/v1",
+            "actionId": "nft.execute-confirmed-plan",
+            "requestHash": request["requestHash"],
+            "helper": {"version": "p02-v1", "sha256": "a" * 64, "ruid": 0, "euid": 0},
+            "planHash": "b" * 64,
+            "command": {"argv": ["/usr/bin/nft", "-f", "-"], "returncode": 1, "stdout": "", "stderr": "syntax error"},
+        }
+        return subprocess.CompletedProcess(argv, 1, stdout=json.dumps(receipt).encode("utf-8"), stderr=b"")
+
+    monkeypatch.setattr(privileged_executor_module.subprocess, "run", fake_run)
+    with pytest.raises(ValueError, match="privileged executor failed rc=1"):
+        privileged_executor_module._call_helper(
+            project,
+            "nft.execute-confirmed-plan",
+            {},
+            askpass=None,
+            installed_path=installed,
+        )
 
 
 def test_helper_finite_action_and_request_hash_contract() -> None:

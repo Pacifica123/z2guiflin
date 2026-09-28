@@ -308,7 +308,10 @@ case "${RUN_MODE}" in
       tests/test_core_inventory_and_build_map.py \
       tests/test_default_build_workflow.py \
       tests/test_default_workflow.py \
-      tests/test_consolidated_runtime_security_patch.py
+      tests/test_consolidated_runtime_security_patch.py \
+      tests/test_p02_runtime_lifecycle_privilege.py \
+      tests/test_gui_toggle_and_runtime_logs.py \
+      tests/test_hyperpatch_acceptance_meta_tool.py
     ;;
   full)
     run_pytest tests

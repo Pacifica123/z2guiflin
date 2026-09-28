@@ -61,3 +61,24 @@ Checker подтверждает exact candidate identity, overlay/transform has
 Поколение откатывается только целиком. Неделимая единица P03: `upstream receipt + overlays/source transforms + LuaCompat + build receipt + binary + shipping manifest + preset compatibility receipt`. Частичная комбинация поколений не является rollback и должна завершаться `MIXED_GENERATION` до nft mutation.
 
 P03 не вводит отдельный updater, хранящий старый upstream внутри рабочего дерева. Поэтому clean whole-generation rollback — это возврат к принятому post-P02 project snapshot целиком и использование его собственного build/runtime evidence. Неудачная пересборка внутри P03 безопаснее: staged build не публикует новый artifact до успешного `make`, поэтому предыдущий canonical binary не заменяется частично.
+
+## Owner-host acceptance одной командой
+
+После применения P03/P03a/P03b в UserTestSpace ручную последовательность
+`generation -> build deps -> build plan/confirm/build -> parser -> executor ->
+start plan/confirm/start -> status -> stop plan/confirm/stop` выполняет:
+
+```bash
+bash meta_tools/hyperpatch_acceptance.sh --p03
+```
+
+Gate считается успешным только после реального native build и полного локального
+lifecycle canary с owned nft/NFQUEUE state. Состояние `nft list table` с
+`ENOENT/No such table` перед первым apply трактуется как нормальное наблюдение
+`ABSENT`, а не как transport failure bounded helper. Любая другая неуспешная
+privileged action остаётся fatal.
+
+При ошибке после попытки start скрипт выполняет best-effort confirmed stop/revert.
+`READY_FOR_USE_WITHIN_P03` относится к runnable readiness локальной программы и
+не заменяет отдельное доказательство эффективности стратегии против конкретного
+DPI/провайдера.
