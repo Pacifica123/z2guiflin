@@ -43,6 +43,8 @@ Build adapter проверяет P03 generation identity, создаёт fresh s
 
 Статическая классификация не заменяет native parser/runtime evidence. После clean build на owner/UTS host нужно повторить `nfqws2 --dry-run` и L3 canary, особенно NFQUEUE privilege-order сценарий.
 
+Для Linux parser-preflight служебный `--qnum` добавляет project runtime-обвязка, а не shipping strategy. В zapret2 1.0.6 `--dry-run` при включённом interception всё равно требует номер очереди, хотя до `nfq_main()` и создания NFQUEUE не доходит. Поэтому `--strategy-parser-preflight` использует тот же owner/workspace queue selection, что и реальный runtime, и остаётся read-only.
+
 ## Детерминированная проверка P03
 
 Без сборки, sudo, nft или сети:

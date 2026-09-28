@@ -66,14 +66,17 @@ def test_strategy_parser_preflight_runs_nfqws2_dry_run_only(tmp_path: Path) -> N
     fake_nfqws2 = _executable(
         tmp_path / "nfqws2",
         "#!/bin/sh\n"
-        "found=0\n"
+        "found_dry=0\n"
+        "found_qnum=0\n"
         "for arg in \"$@\"; do\n"
-        "  [ \"$arg\" = --dry-run ] && found=1\n"
+        "  [ \"$arg\" = --dry-run ] && found_dry=1\n"
+        "  case \"$arg\" in --qnum=*) found_qnum=1 ;; esac\n"
         "done\n"
-        "if [ \"$found\" = 1 ]; then\n"
+        "if [ \"$found_dry\" = 1 ] && [ \"$found_qnum\" = 1 ]; then\n"
         "  echo 'command line parameters verified'\n"
         "  exit 0\n"
         "fi\n"
+        "echo 'missing --dry-run or --qnum' >&2\n"
         "exit 8\n",
     )
 
@@ -81,6 +84,8 @@ def test_strategy_parser_preflight_runs_nfqws2_dry_run_only(tmp_path: Path) -> N
 
     assert "Strategy parser preflight" in text
     assert "mode: nfqws2 --dry-run" in text
+    assert "nfqueue qnum:" in text
+    assert "nfqueue source:" in text
     assert "verdict: PASS" in text
     assert "command line parameters verified" in text
     assert "requires sudo: no" in text

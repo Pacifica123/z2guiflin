@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 from .workspace_profiles import load_workspace_catalog
+from .runtime_queue import resolve_runtime_queue
 from .strategy_file_inputs import strategy_file_dependency_blockers
 from ..project_paths import discover_layout
 
@@ -59,6 +60,7 @@ def strategy_parser_preflight_to_text(
     if profile.strategy_id not in strategies:
         raise ValueError(f"Для profile {profile_id} не найдена strategy {profile.strategy_id}")
     strategy = strategies[profile.strategy_id]
+    queue = resolve_runtime_queue(root=layout.root, profile_id=profile_id)
 
     binary = Path(nfqws2_binary).expanduser() if nfqws2_binary else _default_nfqws2_binary(layout.root)
     binary_ready = binary.is_file() and os.access(binary, os.X_OK)
@@ -74,6 +76,8 @@ def strategy_parser_preflight_to_text(
         f"stage: {STRATEGY_PREFLIGHT_STAGE}",
         f"profile: {profile_id}",
         f"strategy: {strategy.strategy_id}",
+        f"nfqueue qnum: {queue.qnum}",
+        f"nfqueue source: {queue.source}",
         f"binary: {binary}",
         f"binary exists/executable: {'yes' if binary_ready else 'no'}",
         f"runtime args: {len(strategy.runtime_args)}",
@@ -107,7 +111,7 @@ def strategy_parser_preflight_to_text(
         )
         return "\n".join(lines)
 
-    argv = (str(binary), "--dry-run", *strategy.runtime_args)
+    argv = (str(binary), "--dry-run", f"--qnum={queue.qnum}", *strategy.runtime_args)
     try:
         result = subprocess.run(
             argv,
