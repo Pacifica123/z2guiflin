@@ -1,20 +1,9 @@
 # Область исходников ядра
 
-`core/zapret2/` содержит vendored-снимок upstream-дерева `zapret2` из архива, переданного для перезапуска v0.3-alpha.
+`core/zapret2/` — byte-exact filtered snapshot `bol-van/zapret2` candidate `1.0.6@00f5aaa36de500971faf6db440dd7d8b25672281` для P03. Project-local Lua и C source transforms не должны добавляться внутрь этого дерева.
 
-Правила для этой директории:
+Project metadata внутри директории: `UPSTREAM_IMPORT.json`, `UPSTREAM_IMPORT.md`, `CORE_INVENTORY.json`, `BUILD_MAP.json`. Они исключены из upstream tree digest. Build artifacts также не являются частью pinned source digest и отдельно связываются build receipt.
 
-1. Держать upstream-исходники механически отделёнными от нашего GUI-кода.
-2. Не запускать upstream installer scripts из проверок, сгенерированных ассистентом.
-3. Будущие обновления upstream оформлять как явные source-import patches с манифестом и заметками для ревью.
-4. Не добавлять скомпилированные бинарные артефакты в Git, пока владелец явно не примет другое решение.
+Project-local generation bytes находятся в `core/overlays/zapret2/` и описываются `OVERLAY_MANIFEST.json`. Сборка выполняется через `python tools/core_generation_build.py`: exact upstream staging copy → verified source transforms → upstream make → atomic artifact publish. Прямой project build через `make` внутри canonical tree не используется, потому что он обошёл бы P03 source-transform contract.
 
-Лицензия upstream сохранена в `core/zapret2/docs/LICENSE.txt`.
-
-Служебные файлы Stage 4 внутри `core/zapret2/`:
-
-- `UPSTREAM_IMPORT.json` и `UPSTREAM_IMPORT.md` — исходный манифест импорта;
-- `CORE_INVENTORY.json` — read-only снимок состава ядра;
-- `BUILD_MAP.json` — карта Makefile, targets и будущих build units.
-
-`CORE_INVENTORY.json` и `BUILD_MAP.json` относятся к нашему слою метаданных. Они не являются upstream-кодом и не запускают сборку.
+Upstream license сохранена в `core/zapret2/docs/LICENSE.txt`. Подробнее: `docs/P03_ZAPRET2_GENERATION.md`.

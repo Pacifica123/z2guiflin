@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "marker": "zap2-p03-shipping-strategy-corpus-v1",
+  "meaning": "Immutable P03 shipping corpus only. User/imported workspace strategies may extend strategies/catalog.json without changing core generation identity.",
+  "strategyFiles": [
+    "strategies/manual-local.json",
+    "strategies/read-only-diagnostics.json",
+    "strategies/community-discord-youtube-edge-flow.json",
+    "strategies/community-discord-syndata-edge-flow-v2.json",
+    "strategies/community-discord-syndata-edge-flow-v2b.json",
+    "strategies/community-discord-syndata-edge-flow-v2c-send-only.json",
+    "strategies/community-discord-syndata-edge-flow-v2c-fixed-sni.json",
+    "strategies/community-discord-syndata-edge-flow-v2c-no-md5.json",
+    "strategies/community-discord-syndata-edge-flow-v2c-host-first.json",
+    "strategies/community-discord-hostfakesplit-5222-minimal.json",
+    "strategies/community-discord-pretls-diagnostic-pktdebug.json",
+    "strategies/reference-zapret2-generic-tls-fake.json",
+    "strategies/reference-linux-general-multisplit-like.json",
+    "strategies/reference-flowseal-simple-fake-like.json",
+    "strategies/windows-all-tcp-udp-v3-2-linux-bridge.json",
+    "strategies/discord-voice-upstream-conservative.json",
+    "strategies/discord-voice-flowseal-narrow.json",
+    "strategies/discord-voice-guiwin-wide.json"
+  ]
+}

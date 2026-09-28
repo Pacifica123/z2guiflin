@@ -77,7 +77,7 @@
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
     "--lua-init=@core/zapret2/lua/zapret-auto.lua",
-    "--lua-init=@core/zapret2/lua/custom_funcs.lua",
+    "--lua-init=@core/overlays/zapret2/lua/custom_funcs.lua",
     "--ctrack-disable=0",
     "--ipcache-lifetime=8400",
     "--ipcache-hostname=1",

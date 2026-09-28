@@ -16,7 +16,7 @@
   "notes": [
     "WinDivert --wf-* switches are not passed to Linux nfqws2; nftables owner-confirmed apply still decides what reaches NFQUEUE.",
     "Discord Cloudflare edge IPs come from Stage 7h/7i diagnostics and are used only as an experimental ipset-ip pre-TLS profile.",
-    "hostfakesplit_multi is provided by core/zapret2/lua/custom_funcs.lua as a conservative compatibility shim over built-in hostfakesplit.",
+    "hostfakesplit_multi is provided by core/overlays/zapret2/lua/custom_funcs.lua as a conservative compatibility shim over built-in hostfakesplit.",
     "Voice/UDP STUN profile from the Windows preset is intentionally not ported here; Stage 8 remains reserved for voice.",
     "Stage 7m adds the community-observed TCP 5222 port to Discord hostfakesplit profiles; this is a diagnostic port hint, not a claim that it fixes the updater SYN-SENT blocker."
   ],
@@ -26,7 +26,7 @@
     "--lua-init=@core/zapret2/lua/zapret-lib.lua",
     "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
     "--lua-init=@core/zapret2/lua/zapret-auto.lua",
-    "--lua-init=@core/zapret2/lua/custom_funcs.lua",
+    "--lua-init=@core/overlays/zapret2/lua/custom_funcs.lua",
     "--ctrack-disable=0",
     "--ipcache-lifetime=8400",
     "--ipcache-hostname=1",

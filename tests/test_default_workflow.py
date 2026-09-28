@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from zap2_gui.adapters.runtime_apply import RuntimeCommandResult
+from zap2_gui.adapters.core_provenance import write_core_build_receipt
 from zap2_gui.adapters.runtime_default import (
     DEFAULT_WORKFLOW_MARKER,
     execute_default_workflow,
@@ -51,6 +52,7 @@ exit 1
 """
     binary.write_text(body, encoding="utf-8")
     binary.chmod(binary.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    write_core_build_receipt(project, [binary], "nfqws2")
     return binary
 
 

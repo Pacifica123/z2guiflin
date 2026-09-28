@@ -22,7 +22,7 @@ dl_zapret1()
 	fi
 	(
 	cd "$ZBASE"
-	curl -Lo /tmp/zapret.zip "$ZURL"
+	curl $CURL_OPT -Lo /tmp/zapret.zip "$ZURL"
 	unzip /tmp/zapret.zip
 	rm /tmp/zapret.zip
 	mv zapret-${BRANCH} $ZDIR

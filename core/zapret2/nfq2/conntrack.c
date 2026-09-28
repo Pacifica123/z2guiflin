@@ -106,7 +106,7 @@ static void ConntrackInitTrack(t_ctrack *t)
 	t->l7proto = L7_UNKNOWN;
 	t->reasm_client_payload = L7P_UNKNOWN;
 	t->pos.client.scale = t->pos.server.scale = 0;
-	rawpacket_queue_init(&t->delayed);
+	rawpacket_queue_init(&t->delayed, RAW_PACKET_QUEUE_DELAYED_MAX);
 	lua_newtable(params.L);
 	t->lua_state = luaL_ref(params.L, LUA_REGISTRYINDEX);
 	lua_newtable(params.L);
@@ -393,15 +393,6 @@ bool ReasmInit(t_reassemble *reasm, size_t size_requested, uint32_t seq_start)
 	reasm->size = size_requested;
 	reasm->size_present = 0;
 	reasm->seq = seq_start;
-	return true;
-}
-bool ReasmResize(t_reassemble *reasm, size_t new_size)
-{
-	uint8_t *p = realloc(reasm->packet, new_size);
-	if (!p) return false;
-	reasm->packet = p;
-	reasm->size = new_size;
-	if (reasm->size_present > new_size) reasm->size_present = new_size;
 	return true;
 }
 #define REASM_MAX_NEG 0x100000

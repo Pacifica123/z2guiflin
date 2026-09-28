@@ -4,6 +4,7 @@ import json
 import shutil
 from pathlib import Path
 
+from zap2_gui.adapters.core_provenance import write_core_build_receipt
 from zap2_gui.adapters.runtime_session import build_runtime_session_config
 from zap2_gui.adapters.runtime_state import confirm_runtime_plan, prepare_runtime_plan
 from zap2_gui.adapters.workspace_profiles import (
@@ -32,6 +33,7 @@ def _copy_project(tmp_path: Path) -> Path:
     binary.parent.mkdir(parents=True, exist_ok=True)
     binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     binary.chmod(0o755)
+    write_core_build_receipt(project, [binary], "nfqws2")
     return project
 
 

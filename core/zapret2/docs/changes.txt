@@ -293,7 +293,59 @@ v0.9.4.3
 
 * nfqws2: rewrite time counting algorithm, remove --timer-res
 
-0.9.5.3
+1.0
 
 * zapret-lib,zapret-antidpi: delay parameter in "send" desync function
 * zapret-lib: fix oob urp=b case in rawsend_dissect_segmented
+* nfqws2, zapret-lib: (LUA_COMPAT_VER=6) fix wrong spelling : WRITEABLE -> WRITABLE
+
+1.0.1
+
+* install_easy: do not use apk in openwrt if it doesn't have db in /lib/apk/db
+* nfqws2: fix UAF if a timer is deleted in timer function
+
+1.0.2
+
+* nfqws2: fix 60 msec lua-gc default to 60 sec
+
+1.0.3
+
+* nfqws2: accept string or function in timer_set(). remember function as a function, not as a string.
+* nfqws2: limit delayed packet queue to 64 packets (anti-ddos)
+* init.d: add udp ports range 19294-19344 to discord media
+* blockcheck2: use cygstart in windows to avoid fork problems (without cygwin rebase)
+
+1.0.4
+
+* blockcheck2: revert cygstart method as it brings more problems than profit
+* nfqws2: stop execution plan in C code if a blob is unavailable
+* nfqws2: desync_timer_name includes now instance name
+* builder_linux: optional build with zlib-ng : set ZLIB_NG=1 variable
+* github: remove high_entropy_va patch for windivert.dll, but leave dynamic_base
+
+1.0.5
+
+* blockcheck2: use --wf-raw-filter in Windows instead of --ipset to limit target IP addresses
+* github, builder_linux: lua 5.5.1
+* nfqws2: negate SSID/NLM filters
+* nfqws2: desync function can explicitly return nil as a synonym of VERDICT_PASS
+* nfqws2: pad tcp options with 0x00 in reconstruct. strip 0x00 ending options in dissect.
+* nfqws2: --filter-mark
+* zapret-lib: luaexec now passes returned verdict code
+* blockcheck2: fix script crash on bad strategies from the file in custom/10-list.sh
+
+1.0.5.1
+
+* nfqws2: optimize profile search. fast checks first
+
+1.0.5.2
+
+* nfqws2: more profile search optimizations
+
+1.0.6
+
+* zapret-lib: dissect quic tvb values that can't fit into 52-bit mantissa into raw strings
+* zapret-lib, nfqws2: treat ? and # characters as domain end in URL
+* blockcheck2: in 10-list.sh try space separated logic as fallback if eval fails (useful for copy-paste from blockcheck2)
+* blockcheck2: CURL_PAD - add junk headers to increase request size and trigger 16-kb block without large downloaded data
+* blockcheck2: in addition to COMMON print COVERAGE section with how many domains worked for each strategy

@@ -110,10 +110,10 @@ def test_core_provenance_receipt_and_compat_mismatch(tmp_path: Path) -> None:
     write_core_build_receipt(project, [binary], "nfqws2")
     assert verify_core_bundle(project, binary).state == "verified"
     header = project / "core/zapret2/nfq2/nfqws.h"
-    header.write_text(header.read_text(encoding="utf-8").replace("#define LUA_COMPAT_VER\t5", "#define LUA_COMPAT_VER\t999"), encoding="utf-8")
+    header.write_text(header.read_text(encoding="utf-8").replace("#define LUA_COMPAT_VER\t6", "#define LUA_COMPAT_VER\t999"), encoding="utf-8")
     status = verify_core_bundle(project, binary)
     assert status.state == "mismatch"
-    assert "compatibility mismatch" in status.message
+    assert "compatibility generation mismatch" in status.message
 
 
 def test_theme_semantic_colors_are_all_wired_into_custom_stylesheet() -> None:

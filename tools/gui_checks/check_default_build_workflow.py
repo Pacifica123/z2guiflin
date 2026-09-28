@@ -80,8 +80,9 @@ def main() -> int:
         if result.state != "built":
             print("Fake default build должен завершиться built")
             return 1
-        if calls != [(project / "core" / "zapret2" / "nfq2", ("make", "nfqws2"))]:
-            print("Default build должен запускать только make nfqws2 в nfq2")
+        expected = [(project, (sys.executable, str(project / "tools" / "core_generation_build.py"), "nfqws2"))]
+        if calls != expected:
+            print("Default build должен запускать только P03 staged generation build adapter для nfqws2")
             return 1
         state = json.loads(result.state_path.read_text(encoding="utf-8"))
         if state.get("requiresSudo") is not False or state.get("mutatesFirewallOrServicesNow") is not False:

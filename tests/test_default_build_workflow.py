@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import stat
+import sys
 from pathlib import Path
 
 from zap2_gui.adapters.build_dependencies import make_success_report, run_build_dependency_preflight
@@ -70,7 +71,7 @@ def test_default_build_execution_uses_fake_runner_and_writes_artifact_state(tmp_
     )
 
     assert result.state == "built"
-    assert calls == [(project / "core" / "zapret2" / "nfq2", ("make", "nfqws2"))]
+    assert calls == [(project, (sys.executable, str(project / "tools" / "core_generation_build.py"), "nfqws2"))]
     state = json.loads(result.state_path.read_text(encoding="utf-8"))
     assert state["marker"] == DEFAULT_BUILD_MARKER
     assert state["requiresSudo"] is False

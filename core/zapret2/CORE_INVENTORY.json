@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "snapshotFor": "v0.3-alpha_stage_4",
+  "snapshotFor": "v0.4_p03_zapret2_1.0.6",
   "generatedBy": "tools/gui_checks/inventory_core.py",
   "coreRoot": "core/zapret2",
   "policy": {
@@ -12,15 +12,15 @@
   },
   "upstream": {
     "name": "bol-van/zapret2",
-    "sourceArchive": "zapret2-core-from_bolvan.zip",
-    "importedAt": "2026-06-06T00:00:00Z",
+    "sourceArchive": "zapret2-bol-van_originalcore_by2026sep23.zip",
+    "importedAt": "2026-09-28T05:05:00Z",
     "licensePath": "docs/LICENSE.txt",
-    "contentDigestSha256": "9d57e8fdee29938d560a390f976def49d4692f8dfda7e59c7df4a48fffe773d5"
+    "contentDigestSha256": "fd472f723743909d3f4b281ed8be3a8f9327f5bb091be677bc5f9e5f174e7d22"
   },
   "counts": {
-    "vendorFileCount": 246,
-    "upstreamImportedFileCount": 245,
-    "projectLocalCoreFileCount": 1,
+    "vendorFileCount": 244,
+    "upstreamImportedFileCount": 244,
+    "projectLocalCoreFileCount": 0,
     "extensionCounts": {
       ".bin": 46,
       ".c": 32,
@@ -28,14 +28,14 @@
       ".h": 35,
       ".helper": 1,
       ".inc": 2,
-      ".lua": 7,
+      ".lua": 6,
       ".manifest": 1,
       ".md": 3,
       ".rc": 1,
       ".service": 3,
       ".sh": 55,
       ".timer": 1,
-      ".txt": 22,
+      ".txt": 21,
       ".zapret2": 1,
       "<none>": 34
     },
@@ -44,18 +44,18 @@
       "binaries": 1,
       "blockcheck2.d": 20,
       "common": 13,
-      "docs": 20,
+      "docs": 19,
       "files": 46,
       "init.d": 36,
       "ip2net": 4,
       "ipset": 20,
-      "lua": 7,
+      "lua": 6,
       "mdig": 2,
       "nfq2": 68
     },
     "sourceDirectoryCounts": {
       "ip2net": 3,
-      "lua": 7,
+      "lua": 6,
       "mdig": 1,
       "nfq2": 41,
       "nfq2/andr": 4,
@@ -65,12 +65,7 @@
       "nfq2/windows/windivert": 1
     }
   },
-  "projectLocalCoreFiles": [
-    {
-      "path": "lua/custom_funcs.lua",
-      "reason": "project-local compatibility shim for community Windows preset helpers"
-    }
-  ],
+  "projectLocalCoreFiles": [],
   "notablePaths": {
     "primaryMakefiles": [
       "Makefile",
@@ -100,7 +95,6 @@
       "ipset/zapret-hosts-user-exclude.txt.default"
     ],
     "luaScripts": [
-      "lua/custom_funcs.lua",
       "lua/zapret-antidpi.lua",
       "lua/zapret-auto.lua",
       "lua/zapret-lib.lua",

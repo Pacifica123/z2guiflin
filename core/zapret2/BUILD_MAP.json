@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "snapshotFor": "v0.3-alpha_stage_4",
+  "snapshotFor": "v0.4_p03_zapret2_1.0.6",
   "generatedBy": "tools/gui_checks/inventory_core.py",
   "coreRoot": "core/zapret2",
   "source": "parsed from vendored Makefiles without executing make",

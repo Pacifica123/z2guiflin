@@ -310,7 +310,7 @@ static struct ipset_file *RegisterIpset_(struct ipset_files_head *ipsets, struct
 }
 struct ipset_file *RegisterIpset(struct desync_profile *dp, bool bExclude, const char *filename)
 {
-	if (filename && !file_mod_time(filename))
+	if (filename && !file_size(filename,NULL))
 	{
 		DLOG_ERR("cannot access ipset file '%s'\n",filename);
 		return NULL;

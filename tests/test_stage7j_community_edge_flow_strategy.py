@@ -19,7 +19,7 @@ def test_stage7j_community_edge_flow_strategy_is_catalogued() -> None:
     args = "\n".join(strategy.runtime_args)
 
     assert strategy.is_plan_only is True
-    assert "--lua-init=@core/zapret2/lua/custom_funcs.lua" in strategy.runtime_args
+    assert "--lua-init=@core/overlays/zapret2/lua/custom_funcs.lua" in strategy.runtime_args
     assert "--ipcache-hostname=1" in strategy.runtime_args
     assert "--ipset-ip=162.159.128.233" in args
     assert "--lua-desync=wssize:wsize=1:scale=6" in strategy.runtime_args
@@ -30,7 +30,7 @@ def test_stage7j_community_edge_flow_strategy_is_catalogued() -> None:
 
 
 def test_stage7j_custom_funcs_shim_defines_hostfakesplit_multi() -> None:
-    source = (ROOT / "core" / "zapret2" / "lua" / "custom_funcs.lua").read_text(encoding="utf-8")
+    source = (ROOT / "core" / "overlays" / "zapret2" / "lua" / "custom_funcs.lua").read_text(encoding="utf-8")
 
     assert "function hostfakesplit_multi" in source
     assert "hostfakesplit(ctx, desync)" in source

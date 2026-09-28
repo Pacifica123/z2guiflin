@@ -1036,7 +1036,8 @@ static int luacall_execution_plan(lua_State *L)
 			lua_pushinteger(L, n - ctx->func_n);
 			lua_createtable(L, 0, 7);
 
-			lua_pushf_args(L,&func->args, -1, false);
+			lua_pushf_args(L,&func->args, -1, false); // cannot return false if subst_prefix=false
+
 			lua_pushf_str(L,"func", func->func);
 			lua_pushf_int(L,"func_n", n);
 			lua_pushf_str(L,"func_instance", instance);
@@ -1240,21 +1241,33 @@ void lua_pushf_global(lua_State *L, const char *field, const char *global)
 	lua_rawset(L,-3);
 }
 
-void lua_push_blob(lua_State *L, int idx_desync, const char *blob)
+bool lua_push_blob(lua_State *L, int idx_desync, const char *blob)
 {
 	lua_getfield(L, idx_desync, blob);
 	if (lua_type(L,-1)==LUA_TNIL)
 	{
 		lua_pop(L,1);
 		lua_getglobal(L, blob);
+		if (lua_type(L,-1)==LUA_TNIL)
+		{
+			lua_pop(L,1);
+			DLOG_ERR("blob '%s' unavailable\n", blob);
+			return false;
+		}
 	}
 	lua_tostring(L,-1);
+	return true;
 }
-void lua_pushf_blob(lua_State *L, int idx_desync, const char *field, const char *blob)
+bool lua_pushf_blob(lua_State *L, int idx_desync, const char *field, const char *blob)
 {
 	lua_pushstring(L, field);
-	lua_push_blob(L, idx_desync, blob);
+	if (!lua_push_blob(L, idx_desync, blob))
+	{
+		lua_pop(L,1);
+		return false;
+	}
 	lua_rawset(L,-3);
+	return true;
 }
 
 void lua_push_ipaddr(lua_State *L, const struct sockaddr *sa)
@@ -1293,8 +1306,34 @@ void lua_pushf_tcphdr_options(lua_State *L, const struct tcphdr *tcp, size_t len
 
 	uint8_t *t = (uint8_t*)(tcp+1);
 	uint8_t *end = (uint8_t*)tcp + (tcp->th_off<<2);
-	uint8_t opt;
+	uint8_t opt, *ee;
 	if ((end-(uint8_t*)tcp) > len) end=(uint8_t*)tcp + len;
+
+	// strip ending 0x00 options (padding)
+	ee = end;
+	while(t<end)
+	{
+		opt = *t;
+		if (opt==TCP_KIND_END)
+		{
+			// set end marker only once
+			if (ee==end) ee=t;
+		}
+		else
+			// not 0x00 (END) ? clear end marker. ENDs inside other options must be dissected
+			ee=end;
+		// skip to the next option
+		if (opt==TCP_KIND_NOOP || opt==TCP_KIND_END)
+			t++;
+		else
+		{
+			if ((t+1)>=end || t[1]<2 || (t+t[1])>end) break;
+			t+=t[1];
+		}
+	}
+	end = ee;
+	t = (uint8_t*)(tcp+1);
+
 	lua_Integer idx=1;
 	while(t<end)
 	{
@@ -1316,7 +1355,6 @@ void lua_pushf_tcphdr_options(lua_State *L, const struct tcphdr *tcp, size_t len
 			t+=t[1];
 		}
 		lua_rawset(L,-3);
-		if (opt==TCP_KIND_END) break;
 		idx++;
 	}
 
@@ -1747,7 +1785,7 @@ void lua_pushf_ctrack(lua_State *L, const t_ctrack *ctrack, const t_ctrack_posit
 	LUA_STACK_GUARD_LEAVE(L, 0)
 }
 
-void lua_pushf_args(lua_State *L, const struct str2_list_head *args, int idx_desync, bool subst_prefix)
+bool lua_pushf_args(lua_State *L, const struct str2_list_head *args, int idx_desync, bool subst_prefix)
 {
 	// var=val - pass val string
 	// var=%val - subst 'val' blob
@@ -1774,10 +1812,20 @@ void lua_pushf_args(lua_State *L, const struct str2_list_head *args, int idx_des
 				// escape char
 				lua_pushf_str(L, var, val+1);
 			else if (val[0]=='%')
-				lua_pushf_blob(L, idx_desync, var, val+1);
+			{
+				if (!lua_pushf_blob(L, idx_desync, var, val+1))
+				{
+					lua_pop(L,2);
+					goto err;
+				}
+			}
 			else if (val[0]=='#')
 			{
-				lua_push_blob(L, idx_desync, val+1);
+				if (!lua_push_blob(L, idx_desync, val+1))
+				{
+					lua_pop(L,2);
+					goto err;
+				}
 				lua_Integer len = lua_rawlen(L, -1);
 				lua_pop(L,1);
 				lua_pushstring(L, var);
@@ -1794,6 +1842,10 @@ void lua_pushf_args(lua_State *L, const struct str2_list_head *args, int idx_des
 	lua_rawset(L,-3);
 
 	LUA_STACK_GUARD_LEAVE(L, 0)
+	return true;
+err:
+	LUA_STACK_GUARD_LEAVE(L, 0)
+	return false;
 }
 void lua_pushf_pos(lua_State *L, const char *name, const struct packet_pos *pos)
 {
@@ -2130,7 +2182,7 @@ static bool lua_reconstruct_tcphdr_options(lua_State *L, int idx, struct tcphdr 
 		lua_Integer idx=0;
 		uint8_t *p, *data = (uint8_t*)(tcp+1);
 		size_t l, left;
-		uint8_t kind;
+		uint8_t kind, pad;
 
 	 	left = *len - filled;
 		if (left>40) left=40; // max size of tcp options
@@ -2158,9 +2210,6 @@ static bool lua_reconstruct_tcphdr_options(lua_State *L, int idx, struct tcphdr 
 				switch(kind)
 				{
 					case TCP_KIND_END:
-						*data = kind; data++; left--; filled++;
-						lua_pop(L, 1);
-						goto end;
 					case TCP_KIND_NOOP:
 						*data = kind; data++; left--; filled++;
 						break;
@@ -2181,12 +2230,10 @@ static bool lua_reconstruct_tcphdr_options(lua_State *L, int idx, struct tcphdr 
 				lua_pop(L, 1);
 			}
 		}
-end:
-		while(filled & 3)
-		{
-			if (!left) goto err;
-			*data = TCP_KIND_NOOP; data++; left--; filled++;
-		}
+		pad = (4-(filled & 3)) & 3;
+		if (left<pad) goto err;
+		memset(data,0,pad);
+		filled+=pad;
 	}
 
 	tcp->th_off = filled>>2;
@@ -2498,6 +2545,11 @@ bool lua_reconstruct_dissect(lua_State *L, int idx, uint8_t *buf, size_t *len, b
 			if (lua_type(L,-1)==LUA_TTABLE)
 			{
 				l = sizeof(struct udphdr);
+				if (left<l)
+				{
+					DLOG_ERR("reconstruct_dissect: no space for udp header\n");
+					goto err;
+				}
 				udp = (struct udphdr*)data;
 				if (!lua_reconstruct_udphdr(L, -1, udp))
 				{
@@ -2512,6 +2564,11 @@ bool lua_reconstruct_dissect(lua_State *L, int idx, uint8_t *buf, size_t *len, b
 				if (lua_type(L,-1)==LUA_TTABLE)
 				{
 					l = sizeof(struct icmp46);
+					if (left<l)
+					{
+						DLOG_ERR("reconstruct_dissect: no space for icmp header\n");
+						goto err;
+					}
 					icmp = (struct icmp46*)data;
 					if (!lua_reconstruct_icmphdr(L, -1, icmp))
 					{
@@ -2976,7 +3033,7 @@ static int luacall_rawsend_dissect(lua_State *L)
 static int luacall_conntrack_feed(lua_State *L)
 {
 	// conntrack_feed(dissect/raw_packet[, reconstruct_opts]) return track,bOutgoing
-	lua_check_argc_range(L,"conntrack_feed",1,3);
+	lua_check_argc_range(L,"conntrack_feed",1,2);
 
 	LUA_STACK_GUARD_ENTER(L)
 
@@ -3795,37 +3852,58 @@ static int luacall_timer_set(lua_State *L)
 	LUA_STACK_GUARD_ENTER(L)
 
 	int argc=lua_gettop(L);
+
 	const char *name =  luaL_checkstring(L,1);
-	const char *func =  luaL_checkstring(L,2);
 	lua_Integer period = luaL_checkinteger(L,3);
 	if (period<10) luaL_error(L,"invalid timer period. must be >=10 ms");
+
 	bool oneshot = argc>=4 && lua_toboolean(L,4);
 
-	lua_getglobal(L, func);
-	bool is_f = lua_isfunction(L, -1);
-	lua_pop(L, 1);
-	if (!is_f) luaL_error(L, "timer function '%s' does not exist", func);
+	const char *func;
+	switch(lua_type(L,2))
+	{
+		case LUA_TSTRING:
+			func = lua_tostring(L,2);
+			lua_getglobal(L, func);
+			if (!lua_isfunction(L, -1))
+			{
+				lua_pop(L, 1);
+				luaL_error(L, "timer function '%s' does not exist", func);
+			}
+			break;
+		case LUA_TFUNCTION:
+			lua_pushvalue(L, 2);
+			break;
+		default:
+			luaL_error(L,"invalid timer function type");
+	}
 
 	const char *action;
 	timer_pool *timer = TimerPoolSearch(params.timers, name);
 	if (timer)
 	{
 		TimerPoolDel(&params.timers, timer);
+		params.timers_dirty = true;
 		action = "replaced";
 	}
 	else
 		action = "created";
 
-	timer = TimerPoolAdd(&params.timers, name, func, period, oneshot);
-	if (!timer) luaL_error(L,"could not create timer");
+	timer = TimerPoolAdd(&params.timers, name, period, oneshot);
+	if (!timer)
+	{
+		lua_pop(L, 1);
+		luaL_error(L,"could not create timer");
+	}
+	params.timers_dirty = true;
+	timer->func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
 	if (argc>=5)
 	{
 		lua_pushvalue(L, 5);
 		timer->lua_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 	}
-	DLOG("timer: '%s' %s. function '%s' period %llu oneshot %u\n", timer->str, action, timer->func, timer->period, timer->oneshot);
-	params.timers_dirty = true;
+	DLOG("timer: '%s' %s. period %llu oneshot %u\n", timer->str, action, timer->period, timer->oneshot);
 
 	LUA_STACK_GUARD_RETURN(L,0)
 }
@@ -3853,7 +3931,12 @@ static void lua_push_timer_info(lua_State *L, const timer_pool *timer)
 {
 	lua_newtable(L);
 	if (timer->str) lua_pushf_str(L, "name", timer->str);
-	if (timer->func) lua_pushf_str(L, "func", timer->func);
+	if (timer->func_ref!=LUA_NOREF)
+	{
+		lua_pushliteral(L, "func");
+		lua_rawgeti(L, LUA_REGISTRYINDEX, timer->func_ref);
+		lua_rawset(L,-3);
+	}
 	lua_pushf_lint(L, "period", timer->period);
 	lua_pushf_bool(L, "oneshot", timer->oneshot);
 	lua_pushf_lint(L, "fires", timer->fires);
@@ -4612,12 +4695,12 @@ void lua_dlog_error(void)
 }
 
 
-static time_t gc_time=0;
+static uint64_t gc_time=0;
 void lua_do_gc(void)
 {
 	if (params.lua_gc)
 	{
-		time_t now = time(NULL);
+		uint64_t now = boottime_ms();
 		if ((now - gc_time) >= params.lua_gc)
 		{
 			int kb1 = lua_gc(params.L, LUA_GCCOUNT, 0);

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 2,
+  "overlayId": "zap2-p03-generation-overlays-v1",
+  "classification": "GENERATION_OVERLAY_SET",
+  "targetUpstreamCommit": "00f5aaa36de500971faf6db440dd7d8b25672281",
+  "targetUpstreamVersion": "1.0.6",
+  "luaCompat": 6,
+  "files": [
+    {
+      "path": "core/overlays/zapret2/lua/custom_funcs.lua",
+      "sha256": "326eaf8d36c29f1a3f7e2e7aa7216607b07f59c27b53404558c95f1988ba6002",
+      "classification": "LOCAL_OVERLAY",
+      "provides": [
+        "hostfakesplit_multi"
+      ],
+      "requires": [
+        "hostfakesplit"
+      ],
+      "behavior": "hostfakesplit_multi maps hosts=a,b to candidate built-in hostfakesplit using the first host, then restores desync.arg.host."
+    }
+  ],
+  "sourceTransforms": [
+    {
+      "id": "nfqueue-open-before-droproot-v1",
+      "classification": "SOURCE_TRANSFORM_OVERLAY",
+      "targetPath": "nfq2/nfqws.c",
+      "overlayPath": "core/overlays/zapret2/source/nfq2/nfqws.c",
+      "baseSha256": "0d26c5321292e617d710ff3a9eb01ad0b0b869618790a8e7a687816b813081f2",
+      "effectiveSha256": "08d01e374c46584908b12872be029da4f2d7de93e41926abfd19b88f2953367b",
+      "purpose": "Preserve the Stage-13 NFQUEUE privilege-order contract: create/bind NFQUEUE while P02 executor child is still root, then droproot/dropcaps before hostlist/Lua validation and packet handling.",
+      "falsifier": "If candidate upstream can create the configured NFQUEUE after its pre-nfq_init droproot/dropcaps on all supported owner hosts, this transform can be retired after owner evidence."
+    }
+  ],
+  "ownership": "project-local; overlay and source-transform bytes stay outside core/zapret2; the pinned upstream tree remains byte-exact at rest"
+}

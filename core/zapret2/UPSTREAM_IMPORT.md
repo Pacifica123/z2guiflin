@@ -1,19 +1,14 @@
-# Заметки об upstream-импорте
+# Импорт upstream — поколение P03
 
-Эта директория содержит vendored-снимок исходников, импортированный из `zapret2-core-from_bolvan.zip` для перезапуска `v0.3-alpha`.
+`core/zapret2` содержит filtered source generation **bol-van/zapret2 1.0.6** на commit `00f5aaa36de500971faf6db440dd7d8b25672281`.
 
-- Upstream: `bol-van/zapret2`
-- Импортировано файлов: `245`
-- Исключено файлов: `9`
-- Лицензия сохранена: `docs/LICENSE.txt`
-- Content digest по импортированным файлам: `9d57e8fdee29938d560a390f976def49d4692f8dfda7e59c7df4a48fffe773d5`
+- SHA-256 исходного архива: `769df14fa4463fbe9744a2aab97e7f1bfe1a2f77a669981f4e6372d7b86d71a9`;
+- файлов в архиве: `253`;
+- исключено policy `zap2-p03-filter-v1`: `9`;
+- импортировано upstream-файлов: `244`;
+- SHA-256 filtered tree: `fd472f723743909d3f4b281ed8be3a8f9327f5bb091be677bc5f9e5f174e7d22`;
+- поколение Lua compatibility: `6`.
 
-Исключённые файлы — это CI metadata или compiled/binary artifacts из переданного upstream-архива. Они перечислены в `UPSTREAM_IMPORT.json`, чтобы будущий патч мог осознанно пересмотреть это решение.
+Точный commit старого legacy upstream остаётся **исторически невосстановимым**; P03 не придумывает его.
 
-GUI-слой должен считать эту директорию source input. Он не должен небрежно переписывать её и не должен выполнять installer scripts в рамках автоматической валидации.
-
-
-Примечание: `lua/custom_funcs.lua` является project-local compatibility helper,
-добавленным после upstream-импорта для поддержки community preset args. Поэтому
-он отображается в `CORE_INVENTORY.json` как core-файл, но не входит в
-`importedFileCount` и не меняет upstream content digest.
+Project-local Lua compatibility и C source transforms больше не скрываются внутри upstream tree. Они находятся в `core/overlays/zapret2/`, имеют собственные hashes/classification и входят в whole-generation receipt отдельно. Canonical `core/zapret2` остаётся byte-exact filtered candidate at rest.

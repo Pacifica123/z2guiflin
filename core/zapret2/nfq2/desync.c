@@ -201,60 +201,80 @@ static void packet_debug(bool replay, const struct dissect *dis)
 	}
 }
 
+
 // ipr,ipr6 - reverse ip - ip of the other side of communication
+struct dp_match_data
+{
+	const struct in_addr *ip;
+	const struct in6_addr *ip6;
+	const struct in_addr *ipr;
+	const struct in6_addr *ipr6;
+	const char *hostname;
+	const char *ssid;
+	bool *bCheckDone, *bCheckResult, *bExcluded;
+	t_l7proto l7proto;
+	uint32_t fwmark;
+	uint16_t port;
+	uint8_t icmp_type, icmp_code;
+	bool bNoSubdom;
+	uint8_t l3proto;
+};
 static bool dp_match(
 	struct desync_profile *dp,
-	uint8_t l3proto,
-	const struct in_addr *ip, const struct in6_addr *ip6,
-	const struct in_addr *ipr, const struct in6_addr *ipr6,
-	uint16_t port, uint8_t icmp_type, uint8_t icmp_code,
-	const char *hostname, bool bNoSubdom, t_l7proto l7proto, const char *ssid,
-	bool *bCheckDone, bool *bCheckResult, bool *bExcluded)
+	const struct dp_match_data *match)
 {
 	bool bHostlistsEmpty;
 
-	if (bCheckDone) *bCheckDone = false;
+	if (match->bCheckDone) *match->bCheckDone = false;
 
-	if (!HostlistsReloadCheckForProfile(dp)) return false;
+	// fast checks first
 
-	if ((ip && !dp->filter_ipv4) || (ip6 && !dp->filter_ipv6))
-		// L3 filter does not match
-		return false;
-
-	switch(l3proto)
-	{
-		case IPPROTO_TCP:
-			if (!port_filters_match(&dp->pf_tcp, port)) return false;
-			break;
-		case IPPROTO_UDP:
-			if (!port_filters_match(&dp->pf_udp, port)) return false;
-			break;
-		case IPPROTO_ICMP:
-		case IPPROTO_ICMPV6:
-			if (!icmp_filters_match(&dp->icf, icmp_type, icmp_code)) return false;
-			break;
-		default:
-			if (!ipp_filters_match(&dp->ipf, l3proto)) return false;
-	}
-
-	if (!l7_proto_match(l7proto, dp->filter_l7))
-		// L7 filter does not match
-		return false;
-#ifdef HAS_FILTER_SSID
-	if (!LIST_EMPTY(&dp->filter_ssid) && !strlist_search(&dp->filter_ssid, ssid))
+#ifdef __linux__
+	if ((match->fwmark & dp->filter_mark_mask)!=dp->filter_mark)
 		return false;
 #endif
 
+	if ((match->ip && !dp->filter_ipv4) || (match->ip6 && !dp->filter_ipv6))
+		// L3 filter does not match
+		return false;
+
+	if (!l7_proto_match(match->l7proto, dp->filter_l7))
+		// L7 filter does not match
+		return false;
+
+	switch(match->l3proto)
+	{
+		case IPPROTO_TCP:
+			if (!port_filters_match(&dp->pf_tcp, match->port)) return false;
+			break;
+		case IPPROTO_UDP:
+			if (!port_filters_match(&dp->pf_udp, match->port)) return false;
+			break;
+		case IPPROTO_ICMP:
+		case IPPROTO_ICMPV6:
+			if (!icmp_filters_match(&dp->icf, match->icmp_type, match->icmp_code)) return false;
+			break;
+		default:
+			if (!ipp_filters_match(&dp->ipf, match->l3proto)) return false;
+	}
+
+#ifdef HAS_FILTER_SSID
+	if (!LIST_EMPTY(&dp->filter_ssid) && (!strlist_search(&dp->filter_ssid, match->ssid) ^ dp->filter_ssid_neg))
+		return false;
+#endif
+
+	if (!HostlistsReloadCheckForProfile(dp)) return false;
+
 	bHostlistsEmpty = PROFILE_HOSTLISTS_EMPTY(dp);
-	if (!dp->hostlist_auto && !hostname && !bHostlistsEmpty)
+	if (!dp->hostlist_auto && !match->hostname && !bHostlistsEmpty)
 		// avoid cpu consuming ipset check. profile cannot win if regular hostlists are present without auto hostlist and hostname is unknown.
 		return false;
-	if (!IpsetCheck(dp, ip, ip6, ipr, ipr6))
+	if (!IpsetCheck(dp, match->ip, match->ip6, match->ipr, match->ipr6))
 		// target ip does not match
 		return false;
 
 	// autohostlist profile matching l3/l4/l7 filter always win if we have a hostname. no matter it matches or not.
-	if (dp->hostlist_auto && hostname)
+	if (dp->hostlist_auto && match->hostname)
 	{
 		DLOG("autohostlist profile %u (%s) wins because hostname is known\n",dp->n,dp->name);
 		return true;
@@ -266,12 +286,12 @@ static bool dp_match(
 	else
 	{
 		// if hostlists are present profile matches only if hostname is known and satisfy profile hostlists
-		if (hostname)
+		if (match->hostname)
 		{
-			if (bCheckDone) *bCheckDone = true;
+			if (match->bCheckDone) *match->bCheckDone = true;
 			bool b;
-			b = HostlistCheck(dp, hostname, bNoSubdom, bExcluded, true);
-			if (bCheckResult) *bCheckResult = b;
+			b = HostlistCheck(dp, match->hostname, match->bNoSubdom, match->bExcluded, true);
+			if (match->bCheckResult) *match->bCheckResult = b;
 			return b;
 		}
 	}
@@ -283,10 +303,19 @@ static struct desync_profile *dp_find(
 	const struct in_addr *ip, const struct in6_addr *ip6,
 	const struct in_addr *ipr, const struct in6_addr *ipr6,
 	uint16_t port, uint8_t icmp_type, uint8_t icmp_code,
-	const char *hostname, bool bNoSubdom, t_l7proto l7proto, const char *ssid,
+	const char *hostname, bool bNoSubdom, t_l7proto l7proto,
+	const char *ssid, uint32_t fwmark,
 	bool *bCheckDone, bool *bCheckResult, bool *bExcluded)
 {
 	struct desync_profile_list *dpl;
+	struct dp_match_data match = {
+		.l3proto=l3proto,
+		.ip=ip, .ip6=ip6, .ipr=ipr, .ipr6=ipr6,
+		.port=port, .icmp_type=icmp_type, .icmp_code=icmp_code,
+		.hostname=hostname, .bNoSubdom=bNoSubdom, .l7proto=l7proto,
+		.ssid=ssid, .fwmark=fwmark,
+		.bCheckDone=bCheckDone, .bCheckResult=bCheckResult, .bExcluded=bExcluded
+	};
 	if (params.debug)
 	{
 		char s[INET6_ADDRSTRLEN];
@@ -295,17 +324,17 @@ static struct desync_profile *dp_find(
 		{
 			char sr[INET6_ADDRSTRLEN];
 			ntopa46(ipr, ipr6, sr, sizeof(sr));
-			DLOG("desync profile search for %s ip1=%s ip2=%s port=%u icmp=%u:%u l7proto=%s ssid='%s' hostname='%s'\n",
-				proto_name(l3proto), s, sr, port, icmp_type, icmp_code, l7proto_str(l7proto), ssid ? ssid : "", hostname ? hostname : "");
+			DLOG("desync profile search for %s ip1=%s ip2=%s port=%u icmp=%u:%u l7proto=%s ssid='%s' mark=0x%08X hostname='%s'\n",
+				proto_name(l3proto), s, sr, port, icmp_type, icmp_code, l7proto_str(l7proto), ssid ? ssid : "", fwmark, hostname ? hostname : "");
 		}
 		else
-			DLOG("desync profile search for %s ip=%s port=%u icmp=%u:%u l7proto=%s ssid='%s' hostname='%s'\n",
-				proto_name(l3proto), s, port, icmp_type, icmp_code, l7proto_str(l7proto), ssid ? ssid : "", hostname ? hostname : "");
+			DLOG("desync profile search for %s ip=%s port=%u icmp=%u:%u l7proto=%s ssid='%s' mark=0x%08X hostname='%s'\n",
+				proto_name(l3proto), s, port, icmp_type, icmp_code, l7proto_str(l7proto), ssid ? ssid : "", fwmark, hostname ? hostname : "");
 	}
 	if (bCheckDone) *bCheckDone = false;
 	LIST_FOREACH(dpl, head, next)
 	{
-		if (dp_match(&dpl->dp, l3proto, ip, ip6, ipr, ipr6, port, icmp_type, icmp_code, hostname, bNoSubdom, l7proto, ssid, bCheckDone, bCheckResult, bExcluded))
+		if (dp_match(&dpl->dp, &match))
 		{
 			DLOG("desync profile %u (%s) matches\n", dpl->dp.n, PROFILE_NAME(&dpl->dp));
 			return &dpl->dp;
@@ -614,8 +643,8 @@ static uint8_t ct_new_postnat_fix(const t_ctrack *ctrack, const struct dissect *
 	// if used in postnat chain, dropping initial packet will cause conntrack connection teardown
 	// so we need to workaround this.
 	// SYN and SYN,ACK checks are for conntrack-less mode
-	if (ctrack && (params.server ? ctrack->pos.server.pcounter : ctrack->pos.client.pcounter) == 1 ||
-		!ctrack && dis->tcp && (tcp_syn_segment(dis->tcp) || tcp_synack_segment(dis->tcp)))
+	if ((ctrack && (params.server ? ctrack->pos.server.pcounter : ctrack->pos.client.pcounter) == 1) ||
+		(!ctrack && dis->tcp && (tcp_syn_segment(dis->tcp) || tcp_synack_segment(dis->tcp))))
 	{
 		if (dis->len_pkt > *len_mod_pkt)
 			DLOG_ERR("linux postnat conntrack workaround cannot be applied\n");
@@ -687,7 +716,7 @@ static bool check_pos_to(const t_ctrack_position *pos, const struct packet_range
 		if (pos)
 		{
 			ps = pos_get(pos, range->to.mode);
-			return (ps < range->to.pos) || !range->upper_cutoff && (ps == range->to.pos);
+			return (ps < range->to.pos) || (!range->upper_cutoff && (ps == range->to.pos));
 		}
 		else
 			return false;
@@ -705,7 +734,7 @@ static bool check_pos_range(const t_ctrack_position *pos, const struct packet_ra
 }
 
 
-static bool replay_queue(struct rawpacket_tailhead *q);
+static bool replay_queue(struct rawpacket_queue *q);
 
 static bool ipcache_put_hostname(const struct in_addr *a4, const struct in6_addr *a6, const char *hostname, bool hostname_is_ip)
 {
@@ -814,20 +843,26 @@ static bool desync_get_result(uint8_t *verdict)
 		DLOG_ERR("desync function returned more than one result : %d\n", rescount);
 		goto err;
 	}
+	// absence of the return value or nil mean VERDICT_PASS
 	if (rescount)
 	{
-		if (!lua_isinteger(params.L, -1))
+		if (lua_isnil(params.L, -1))
+			*verdict = VERDICT_PASS;
+		else
 		{
-			DLOG_ERR("desync function returned non-int result\n");
-			goto err;
+			if (!lua_isinteger(params.L, -1))
+			{
+				DLOG_ERR("desync function returned non-int result\n");
+				goto err;
+			}
+			lua_Integer lv = lua_tointeger(params.L, -1);
+			if (lv & ~VERDICT_MASK_VALID_LUA)
+			{
+				DLOG_ERR("desync function returned bad int result\n");
+				goto err;
+			}
+			*verdict = (uint8_t)lv;
 		}
-		lua_Integer lv = lua_tointeger(params.L, -1);
-		if (lv & ~VERDICT_MASK_VALID_LUA)
-		{
-			DLOG_ERR("desync function returned bad int result\n");
-			goto err;
-		}
-		*verdict = (uint8_t)lv;
 	}
 	else
 		*verdict = VERDICT_PASS; // default result if function returns nothing
@@ -994,7 +1029,6 @@ static uint8_t desync(
 					lua_pushf_global(params.L, "tcp_mss", "DEFAULT_MSS");
 			}
 			ref_arg = luaL_ref(params.L, LUA_REGISTRYINDEX);
-
 			ctx->func_n = 1;
 			LIST_FOREACH(func, &dp->lua_desync, next)
 			{
@@ -1027,7 +1061,12 @@ static uint8_t desync(
 							}
 							lua_rawgeti(params.L, LUA_REGISTRYINDEX, params.ref_desync_ctx);
 							lua_rawgeti(params.L, LUA_REGISTRYINDEX, ref_arg);
-							lua_pushf_args(params.L, &func->args, -1, true);
+							if (!lua_pushf_args(params.L, &func->args, -1, true))
+							{
+								// some % or # blobs cannot be resolved
+								lua_pop(params.L, 3);
+								goto err;
+							}
 							lua_pushf_str(params.L, "func", func->func);
 							lua_pushf_int(params.L, "func_n", ctx->func_n);
 							lua_pushf_str(params.L, "func_instance", instance);
@@ -1178,6 +1217,7 @@ struct play_state
 	t_l7proto l7proto;
 	t_l7payload l7payload;
 	const char *ssid;
+	uint32_t fwmark;
 	bool bReverse, bReverseFixed, bHaveHost;
 };
 static bool play_prolog(
@@ -1185,7 +1225,8 @@ static bool play_prolog(
 	const struct dissect *dis,
 	const t_ctrack_positions *tpos,
 	bool bReplay,
-	const char *ifin, const char *ifout)
+	const char *ifin, const char *ifout,
+	uint32_t fwmark)
 {
 	ps->verdict = VERDICT_PASS;
 
@@ -1200,6 +1241,7 @@ static bool play_prolog(
 	ps->l7proto = L7_UNKNOWN;
 	ps->l7payload = dis->len_payload ? L7P_UNKNOWN : L7P_EMPTY;
 	ps->ssid = NULL;
+	ps->fwmark = fwmark;
 
 	const char *ifname;
 
@@ -1223,7 +1265,7 @@ static bool play_prolog(
 			DLOG("using cached desync profile %u (%s)\n", ps->dp->n, PROFILE_NAME(ps->dp));
 		else if (!ps->ctrack_replay->dp_search_complete)
 		{
-			ps->dp = ps->ctrack_replay->dp = dp_find(&params.desync_profiles, dis->proto, ps->sdip4, ps->sdip6, NULL, NULL, ps->sdport, 0xFF, 0xFF, ps->ctrack_replay->hostname, ps->ctrack_replay->hostname_is_ip, ps->l7proto, ps->ssid, NULL, NULL, NULL);
+			ps->dp = ps->ctrack_replay->dp = dp_find(&params.desync_profiles, dis->proto, ps->sdip4, ps->sdip6, NULL, NULL, ps->sdport, 0xFF, 0xFF, ps->ctrack_replay->hostname, ps->ctrack_replay->hostname_is_ip, ps->l7proto, ps->ssid, ps->fwmark, NULL, NULL, NULL);
 			ps->ctrack_replay->dp_search_complete = true;
 		}
 		if (!ps->dp)
@@ -1271,7 +1313,7 @@ static bool play_prolog(
 							DLOG_ERR("strdup(host): out of memory\n");
 				}
 			}
-			ps->dp = dp_find(&params.desync_profiles, dis->proto, ps->sdip4, ps->sdip6, NULL, NULL, ps->sdport, 0xFF, 0xFF, hostname, hostname_is_ip, ps->l7proto, ps->ssid, NULL, NULL, NULL);
+			ps->dp = dp_find(&params.desync_profiles, dis->proto, ps->sdip4, ps->sdip6, NULL, NULL, ps->sdport, 0xFF, 0xFF, hostname, hostname_is_ip, ps->l7proto, ps->ssid, ps->fwmark, NULL, NULL, NULL);
 			if (ps->ctrack)
 			{
 				ps->ctrack->dp = ps->dp;
@@ -1359,7 +1401,7 @@ static bool dp_rediscovery(struct play_state *ps)
 		ps->dp = dp_find(&params.desync_profiles, ps->dis->proto, ps->sdip4, ps->sdip6, NULL, NULL, ps->sdport, 0xFF, 0xFF,
 			ps->ctrack_replay ? ps->ctrack_replay->hostname : ps->bHaveHost ? ps->host : NULL,
 			ps->ctrack_replay ? ps->ctrack_replay->hostname_is_ip : bHostIsIp,
-			ps->l7proto, ps->ssid,
+			ps->l7proto, ps->ssid, ps->fwmark,
 			&bCheckDone, &bCheckResult, &bCheckExcluded);
 		if (ps->ctrack_replay)
 		{
@@ -1437,7 +1479,7 @@ static uint8_t dpi_desync_tcp_packet_play(
 {
 	struct play_state ps;
 
-	if (!play_prolog(&ps, dis, tpos, !!replay_piece_count, ifin, ifout))
+	if (!play_prolog(&ps, dis, tpos, !!replay_piece_count, ifin, ifout, fwmark))
 		return ps.verdict;
 
 	uint32_t desync_fwmark = fwmark | params.desync_fwmark;
@@ -1583,7 +1625,10 @@ static uint8_t dpi_desync_tcp_packet_play(
 					}
 					else
 					{
+						// likely exceeded packet limit or unlikely out of memory
 						DLOG_ERR("rawpacket_queue failed !\n");
+						reasm_client_cancel(ps.ctrack);
+						ps.l7payload = L7P_UNKNOWN; // middle packet may be not L7P_TLS_CLIENT_HELLO
 						goto rediscover;
 					}
 					if (ReasmIsFull(&ps.ctrack->reasm_client))
@@ -1793,7 +1838,7 @@ static uint8_t dpi_desync_udp_packet_play(
 {
 	struct play_state ps;
 
-	if (!play_prolog(&ps, dis, tpos, !!replay_piece_count, ifin, ifout))
+	if (!play_prolog(&ps, dis, tpos, !!replay_piece_count, ifin, ifout, fwmark))
 		return ps.verdict;
 
 	uint32_t desync_fwmark = fwmark | params.desync_fwmark;
@@ -2055,7 +2100,7 @@ static uint8_t dpi_desync_icmp_packet(
 			dis->ip ? &dis->ip->ip_src : NULL, dis->ip6 ? &dis->ip6->ip6_src : NULL,
 			0, dis->icmp->icmp_type, dis->icmp->icmp_code,
 			hostname, hostname_is_ip,
-			L7_UNKNOWN, ssid, NULL, NULL, NULL);
+			L7_UNKNOWN, ssid, fwmark, NULL, NULL, NULL);
 		if (!dp)
 		{
 			DLOG("matching desync profile not found\n");
@@ -2121,7 +2166,7 @@ static uint8_t dpi_desync_ip_packet(
 		dis->ip ? &dis->ip->ip_src : NULL, dis->ip6 ? &dis->ip6->ip6_src : NULL,
 		0, 0xFF, 0xFF,
 		hostname, hostname_is_ip,
-		L7_UNKNOWN, ssid, NULL, NULL, NULL);
+		L7_UNKNOWN, ssid, fwmark, NULL, NULL, NULL);
 	if (!dp)
 	{
 		DLOG("matching desync profile not found\n");
@@ -2194,7 +2239,7 @@ uint8_t dpi_desync_packet(uint32_t fwmark, const char *ifin, const char *ifout, 
 
 
 
-static bool replay_queue(struct rawpacket_tailhead *q)
+static bool replay_queue(struct rawpacket_queue *q)
 {
 	struct rawpacket *rp;
 	size_t offset;

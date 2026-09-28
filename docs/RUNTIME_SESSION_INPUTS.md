@@ -62,4 +62,4 @@ lua files:   0644
 
 ## Связь с NFQUEUE privilege order
 
-Public runtime inputs решают доступ к hostlist/Lua после `dropcaps()`, но не решают создание NFQUEUE. Для этого `v0.3-beta_stage_13` добавляет отдельный vendored-core patch: очередь NFQUEUE создаётся до сброса прав, а runtime inputs всё равно проверяются и используются после сброса прав. Подробности см. в `docs/NFQUEUE_PRIVILEGE_ORDER.md`.
+Public runtime inputs решают доступ к hostlist/Lua после `dropcaps()`, но не решают создание NFQUEUE. Для этого Stage 13 зафиксировал порядок «NFQUEUE до privilege drop». В P03 он представлен явным `SOURCE_TRANSFORM_OVERLAY` вне pinned upstream tree и применяется только staged build adapter-ом; runtime inputs всё равно проверяются и используются после сброса прав. Подробности см. в `docs/NFQUEUE_PRIVILEGE_ORDER.md`.

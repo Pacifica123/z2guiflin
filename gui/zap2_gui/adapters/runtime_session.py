@@ -703,8 +703,8 @@ def build_runtime_session_config(
             f"{binary_path}. Сначала соберите build target {plan.profile.build_target}."
         )
     provenance = verify_core_bundle(paths.root, binary_path)
-    if provenance.hard_error:
-        raise ValueError(f"core provenance gate: {provenance.message}")
+    if not provenance.runtime_ready:
+        raise ValueError(f"core generation gate: {provenance.message}")
 
     session_path = paths.sessions_dir / f"{profile_id}.session.json"
     args_path = paths.sessions_dir / f"{profile_id}.nfqws2.args"

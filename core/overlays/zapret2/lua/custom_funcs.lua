@@ -1,4 +1,5 @@
 -- Zap2 project-local compatibility helpers for community Windows presets.
+-- P03 generation: LOCAL_OVERLAY for zapret2 1.0.6 / LUA_COMPAT_VER=6.
 --
 -- The community preset that unblocked Discord on Windows uses
 -- `hostfakesplit_multi:hosts=a,b`. The vendored bol-van zapret2 core ships

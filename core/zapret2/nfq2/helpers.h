@@ -88,7 +88,6 @@ typedef struct
 #define FILE_MOD_COMPARE(ms1,ms2) (((ms1)->mod_time==(ms2)->mod_time) && ((ms1)->size==(ms2)->size))
 #define FILE_MOD_RESET(ms) memset(ms,0,sizeof(file_mod_sig))
 bool file_mod_signature(const char *filename, file_mod_sig *ms);
-time_t file_mod_time(const char *filename);
 bool file_size(const char *filename, off_t *size);
 bool file_open_test(const char *filename, int flags);
 

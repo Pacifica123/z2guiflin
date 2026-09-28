@@ -29,6 +29,8 @@
 
 #define RETRANS_COUNTER_STOP ((uint8_t)-1)
 
+#define RAW_PACKET_QUEUE_DELAYED_MAX	64
+
 typedef union {
 	struct in_addr ip;
 	struct in6_addr ip6;
@@ -82,7 +84,7 @@ typedef struct
 
 	t_l7payload reasm_client_payload;	// payload type being reassembled
 	t_reassemble reasm_client;
-	struct rawpacket_tailhead delayed;
+	struct rawpacket_queue delayed;
 } t_ctrack;
 
 typedef struct

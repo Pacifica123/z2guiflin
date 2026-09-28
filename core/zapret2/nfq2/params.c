@@ -588,7 +588,7 @@ void init_params(struct params_s *params)
 	params->ctrack_t_fin = CTRACK_T_FIN;
 	params->ctrack_t_udp = CTRACK_T_UDP;
 	params->ipcache_lifetime = IPCACHE_LIFETIME;
-	params->lua_gc = LUA_GC_INTERVAL;
+	params->lua_gc = LUA_GC_INTERVAL*1000;
 
 	LIST_INIT(&params->hostlists);
 	LIST_INIT(&params->ipsets);

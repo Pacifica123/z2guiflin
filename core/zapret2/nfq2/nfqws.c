@@ -242,8 +242,8 @@ static int write_pidfile(FILE **Fpid)
 
 void NoInterceptLoop(void)
 {
-	uint64_t bt, bt_next;
-	useconds_t usec;
+	uint64_t bt, bt_next, bt_delta;
+	struct timespec ts;
 
 	if (params.timers)
 	{
@@ -256,8 +256,10 @@ void NoInterceptLoop(void)
 			bt = boottime_ms();
 			if (bt_next>bt)
 			{
-				usec = (useconds_t)(bt_next-bt)*1000U;
-				usleep(usec);
+				bt_delta = bt_next - bt;
+				ts.tv_sec = (time_t)(bt_delta/1000U);
+				ts.tv_nsec = bt_delta%1000U*1000000U;
+				nanosleep(&ts,NULL);
 				if (bQuit) goto quit;
 			}
 			ReloadCheck();
@@ -458,33 +460,6 @@ static int nfq_main(void)
 		return 1;
 	}
 
-	/*
-	 * Zap2 Linux runtime note (v0.3-beta): open the NFQUEUE handle before
-	 * droproot/dropcaps.  In the GUI sudo-askpass workflow nfqws2 is started
-	 * by root, then intentionally drops to the owner identity for hostlist/Lua
-	 * safety.  On some desktops the post-drop capability set is sufficient for
-	 * raw sockets, but nfq_create_queue() still returns EPERM.  Creating the
-	 * queue handle first keeps the privileged operation explicit and early; the
-	 * process still drops privileges before Lua init and before packet handling.
-	 */
-	if (params.intercept)
-	{
-		if (!(buf = malloc(NFQ_MAX_RECV_SIZE)) || !(cbdata.mod = malloc(RECONSTRUCT_MAX_SIZE)))
-		{
-			DLOG_ERR("out of memory\n");
-			goto err;
-		}
-
-		if ((cbdata.sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-		{
-			DLOG_PERROR("socket");
-			goto err;
-		}
-
-		if (!nfq_init(&h, &qh, &cbdata))
-			goto err;
-	}
-
 	if (params.droproot && !droproot(params.uid, params.user, params.gid, params.gid_count) || !dropcaps())
 		goto err;
 	print_id();
@@ -520,6 +495,21 @@ static int nfq_main(void)
 		goto exok;
 	}
 
+	if (!(buf = malloc(NFQ_MAX_RECV_SIZE)) || !(cbdata.mod = malloc(RECONSTRUCT_MAX_SIZE)))
+	{
+		DLOG_ERR("out of memory\n");
+		goto err;
+	}
+
+	if ((cbdata.sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	{
+		DLOG_PERROR("socket");
+		goto err;
+	}
+
+	if (!nfq_init(&h, &qh, &cbdata))
+		goto err;
+
 #ifdef HAS_FILTER_SSID
 	if (params.filter_ssid_present)
 	{
@@ -539,7 +529,7 @@ static int nfq_main(void)
 
 	fd = nfq_fd(h);
 	bt_next = bt = 0;
-	do
+	for(;;)
 	{
 		if (bQuit) goto quit;
 		for(;;)
@@ -604,9 +594,8 @@ static int nfq_main(void)
 		DLOG_ERR("recv: recv=%zd errno %d\n", rd, e);
 		errno = e;
 		DLOG_PERROR("recv");
-		// do not fail on ENOBUFS
-	} while (e == ENOBUFS);
-
+		if (e!=ENOBUFS) break;
+	}
 err:
 	res=1;
 	goto ex;
@@ -886,7 +875,7 @@ static int win_main(void)
 		return ERROR_TOO_MANY_OPEN_FILES; // code 4 = The system cannot open the file
 	}
 
-	if (!win_dark_init(&params.ssid_filter, &params.nlm_filter))
+	if (!win_dark_init(&params.ssid_filter, params.ssid_filter_neg, &params.nlm_filter, params.nlm_filter_neg))
 	{
 		DLOG_ERR("win_dark_init failed. win32 error %u (0x%08X)\n", w_win32_error, w_win32_error);
 		res=w_win32_error; goto ex;
@@ -1127,7 +1116,7 @@ static char* item_name(char **str)
 
 static struct blob_item *load_blob_to_collection(const char *filename, struct blob_collection_head *blobs, size_t max_size, size_t size_reserve)
 {
-	struct blob_item *blob = blob_collection_add(blobs);
+	struct blob_item *blob;
 	uint8_t *p;
 	char *name;
 
@@ -1169,6 +1158,7 @@ static struct blob_item *load_blob_to_collection(const char *filename, struct bl
 		free(name);
 		exit_clean(1);
 	}
+	blob = blob_collection_add(blobs);
 	if (!blob || (!(blob->data = malloc(max_size + size_reserve))))
 	{
 		free(name);
@@ -1874,11 +1864,13 @@ static void exithelp(void)
 		" --wf-save=<filename>\t\t\t\t\t; save windivert filter string to a file and exit\n"
 		"\nLOGICAL NETWORK FILTER:\n"
 		" --ssid-filter=ssid1[,ssid2,ssid3,...]\t\t\t; enable winws2 only if any of specified wifi SSIDs connected\n"
+		" --ssid-filter-neg=[0|1]\t\t\t\t; invert SSID filter\n"
 		" --nlm-filter=net1[,net2,net3,...]\t\t\t; enable winws2 only if any of specified NLM network is connected. names and GUIDs are accepted.\n"
+		" --nlm-filter-neg=[0|1]\t\t\t\t\t; invert NLM filter\n"
 		" --nlm-list[=all]\t\t\t\t\t; list Network List Manager (NLM) networks. connected only or all.\n"
 #endif
 		"\nDESYNC ENGINE INIT:\n"
-		" --writeable[=<dir_name>]\t\t\t\t; create writeable dir for LUA scripts and pass it in WRITEABLE env variable (only one dir possible)\n"
+		" --writable[=<dir_name>]\t\t\t\t; create writable dir for LUA scripts and pass it in WRITABLE env variable (only one dir possible)\n"
 		" --blob=<item_name>:[+ofs]@<filename>|0xHEX\t\t; load blob to LUA var <item_name>\n"
 		" --lua-init=@<filename>|<lua_text>\t\t\t; load LUA program from a file or string. if multiple parameters present order of execution is preserved. gzipped files are supported.\n"
 		" --lua-gc=<int>\t\t\t\t\t\t; forced garbage collection every N sec. default %u sec. triggers only when a packet arrives. 0 = disable.\n"
@@ -1897,6 +1889,10 @@ static void exithelp(void)
 		" --filter-l7=proto[,proto]\t\t\t\t; L6-L7 protocol filter : %s\n"
 #ifdef HAS_FILTER_SSID
 		" --filter-ssid=ssid1[,ssid2,ssid3,...]\t\t\t; per profile wifi SSID filter\n"
+		" --filter-ssid-neg=[0|1]\t\t\t\t; invert SSID filter\n"
+#endif
+#ifdef __linux__
+		" --filter-mark=mark[/mask]\t\t\t\t; filter by fwmark. mark and mask can be decimal or 0xHEX\n"
 #endif
 		" --ipset=<filename>\t\t\t\t\t; ipset include filter (one ip/CIDR per line, ipv4 and ipv6 accepted, gzip supported, multiple ipsets allowed)\n"
 		" --ipset-ip=<ip_list>\t\t\t\t\t; comma separated fixed subnet list\n"
@@ -2015,7 +2011,7 @@ enum opt_indices {
 	IDX_SOCKARG,
 #endif
 
-	IDX_WRITEABLE,
+	IDX_WRITABLE,
 
 	IDX_BLOB,
 	IDX_LUA_INIT,
@@ -2049,6 +2045,10 @@ enum opt_indices {
 	IDX_FILTER_L7,
 #ifdef HAS_FILTER_SSID
 	IDX_FILTER_SSID,
+	IDX_FILTER_SSID_NEG,
+#endif
+#ifdef __linux__
+	IDX_FILTER_MARK,
 #endif
 	IDX_IPSET,
 	IDX_IPSET_IP,
@@ -2080,7 +2080,9 @@ enum opt_indices {
 	IDX_WF_DUP_CHECK,
 	IDX_WF_SAVE,
 	IDX_SSID_FILTER,
+	IDX_SSID_FILTER_NEG,
 	IDX_NLM_FILTER,
+	IDX_NLM_FILTER_NEG,
 	IDX_NLM_LIST,
 #endif
 	IDX_LAST
@@ -2119,7 +2121,7 @@ static const struct option long_options[] = {
 #elif defined(SO_USER_COOKIE)
 	[IDX_SOCKARG] = {"sockarg", required_argument, 0, 0},
 #endif
-	[IDX_WRITEABLE] = {"writeable", optional_argument, 0, 0},
+	[IDX_WRITABLE] = {"writable", optional_argument, 0, 0},
 	[IDX_BLOB] = {"blob", required_argument, 0, 0},
 	[IDX_LUA_INIT] = {"lua-init", required_argument, 0, 0},
 	[IDX_LUA_GC] = {"lua-gc", required_argument, 0, 0},
@@ -2151,6 +2153,10 @@ static const struct option long_options[] = {
 	[IDX_FILTER_L7] = {"filter-l7", required_argument, 0, 0},
 #ifdef HAS_FILTER_SSID
 	[IDX_FILTER_SSID] = {"filter-ssid", required_argument, 0, 0},
+	[IDX_FILTER_SSID_NEG] = {"filter-ssid-neg", optional_argument, 0, 0},
+#endif
+#ifdef __linux__
+	[IDX_FILTER_MARK] = {"filter-mark", required_argument, 0, 0},
 #endif
 	[IDX_IPSET] = {"ipset", required_argument, 0, 0},
 	[IDX_IPSET_IP] = {"ipset-ip", required_argument, 0, 0},
@@ -2182,7 +2188,9 @@ static const struct option long_options[] = {
 	[IDX_WF_SAVE] = {"wf-save", required_argument, 0, 0},
 	[IDX_WF_DUP_CHECK] = {"wf-dup-check", optional_argument, 0, 0},
 	[IDX_SSID_FILTER] = {"ssid-filter", required_argument, 0, 0},
+	[IDX_SSID_FILTER_NEG] = {"ssid-filter-neg", optional_argument, 0, 0},
 	[IDX_NLM_FILTER] = {"nlm-filter", required_argument, 0, 0},
+	[IDX_NLM_FILTER_NEG] = {"nlm-filter-neg", optional_argument, 0, 0},
 	[IDX_NLM_LIST] = {"nlm-list", optional_argument, 0, 0},
 #endif
 	[IDX_LAST] = {NULL, 0, NULL, 0},
@@ -2228,7 +2236,7 @@ static void WinSetIcon(void)
 #endif
 #endif
 
-enum {WF_TCP_IN, WF_UDP_IN, WF_TCP_OUT, WF_UDP_OUT, WF_ICMP_IN, WF_ICMP_OUT, WF_IPP_IN, WF_IPP_OUT, WF_RAW, WF_RAWF_PART, WF_RAWF_FILTER, GLOBAL_SSID_FILTER, GLOBAL_NLM_FILTER, WF_RAWF, WF_COUNT} t_wf_index;
+enum {WF_TCP_IN, WF_UDP_IN, WF_TCP_OUT, WF_UDP_OUT, WF_ICMP_IN, WF_ICMP_OUT, WF_IPP_IN, WF_IPP_OUT, WF_RAW, WF_RAWF_PART, WF_RAWF_FILTER, GLOBAL_SSID_FILTER, GLOBAL_SSID_FILTER_NEG, GLOBAL_NLM_FILTER, GLOBAL_NLM_FILTER_NEG, WF_RAWF, WF_COUNT} t_wf_index;
 int main(int argc, char **argv)
 {
 #ifdef __CYGWIN__
@@ -2523,7 +2531,7 @@ int main(int argc, char **argv)
 #endif
 #if defined(__linux__) || defined(SO_USER_COOKIE)
 			params.desync_fwmark = 0;
-			if (sscanf(optarg, "0x%X", &params.desync_fwmark) <= 0) sscanf(optarg, "%u", &params.desync_fwmark);
+			if (sscanf(optarg, "0x%X", &params.desync_fwmark)!=1) sscanf(optarg, "%u", &params.desync_fwmark);
 			if (!params.desync_fwmark)
 			{
 				DLOG_ERR("fwmark/sockarg should be decimal or 0xHEX and should not be zero\n");
@@ -2531,18 +2539,18 @@ int main(int argc, char **argv)
 			}
 			break;
 #endif
-		case IDX_WRITEABLE:
-			params.writeable_dir_enable = true;
+		case IDX_WRITABLE:
+			params.writable_dir_enable = true;
 			if (optarg)
 			{
-				if (!realpath_any(optarg, params.writeable_dir))
+				if (!realpath_any(optarg, params.writable_dir))
 				{
 					DLOG_ERR("bad file '%s'\n",optarg);
 					exit_clean(1);
 				}
 			}
 			else
-				*params.writeable_dir = 0;
+				*params.writable_dir = 0;
 			break;
 
 		case IDX_BLOB:
@@ -2569,11 +2577,14 @@ int main(int argc, char **argv)
 			}
 			break;
 		case IDX_LUA_GC:
-			params.lua_gc = atoi(optarg);
-			if (params.lua_gc<0)
 			{
-				DLOG_ERR("lua-gc must be >=0\n");
-				exit_clean(1);
+				int i = atoi(optarg);
+				if (i<0)
+				{
+					DLOG_ERR("lua-gc must be >=0\n");
+					exit_clean(1);
+				}
+				params.lua_gc = i*1000; // in msec
 			}
 			break;
 		case IDX_HOSTLIST:
@@ -2849,7 +2860,30 @@ int main(int argc, char **argv)
 			}
 			params.filter_ssid_present = true;
 			break;
+		case IDX_FILTER_SSID_NEG:
+			dp->filter_ssid_neg = !optarg || atoi(optarg);
+			break;
 #endif
+#ifdef __linux__
+		case IDX_FILTER_MARK:
+			{
+			char *smask = strchr(optarg,'/');
+			if (smask) *smask++=0;
+			if (sscanf(optarg, "0x%X", &dp->filter_mark)!=1 && sscanf(optarg, "%u", &dp->filter_mark)!=1) goto fmark_err;
+			if (smask)
+			{
+				if (sscanf(smask, "0x%X", &dp->filter_mark_mask)!=1 && sscanf(smask, "%u", &dp->filter_mark_mask)!=1) goto fmark_err;
+			}
+			else
+				// no mask - use the whole 32-bit value
+				dp->filter_mark_mask=0xFFFFFFFF;
+			break;
+fmark_err:
+			DLOG_ERR("filter mark or mask format error\n");
+			exit_clean(1);
+			}
+#endif
+
 		case IDX_IPSET:
 			if (bSkip) break;
 			if (!RegisterIpset(dp, false, optarg))
@@ -3086,6 +3120,9 @@ int main(int argc, char **argv)
 				exit_clean(1);
 			}
 			break;
+		case IDX_SSID_FILTER_NEG:
+			hash_wf[GLOBAL_SSID_FILTER_NEG] = params.ssid_filter_neg = !optarg || atoi(optarg);
+			break;
 		case IDX_NLM_FILTER:
 			hash_wf[GLOBAL_NLM_FILTER] = hash_jen(optarg, strlen(optarg));
 			if (!parse_strlist(optarg, &params.nlm_filter))
@@ -3093,6 +3130,9 @@ int main(int argc, char **argv)
 				DLOG_ERR("strlist_add failed\n");
 				exit_clean(1);
 			}
+			break;
+		case IDX_NLM_FILTER_NEG:
+			hash_wf[GLOBAL_NLM_FILTER_NEG] = params.nlm_filter_neg = !optarg || atoi(optarg);
 			break;
 		case IDX_NLM_LIST:
 			if (!nlm_list(optarg && !strcmp(optarg, "all")))
@@ -3160,14 +3200,14 @@ int main(int argc, char **argv)
 	DLOG_CONDUP("we have %u user defined desync profile(s) and default low priority profile 0\n", desync_profile_count);
 	DLOG_CONDUP("we have %u user defined desync template(s)\n", desync_template_count);
 
-	if (params.writeable_dir_enable)
+	if (params.writable_dir_enable)
 	{
-		if (!make_writeable_dir())
+		if (!make_writable_dir())
 		{
-			DLOG_ERR("could not make writeable dir for LUA\n");
+			DLOG_ERR("could not make writable dir for LUA\n");
 			exit_clean(1);
 		}
-		DLOG("LUA writeable dir : %s\n", getenv("WRITEABLE"));
+		DLOG("LUA writable dir : %s\n", getenv("WRITABLE"));
 	}
 #ifndef __CYGWIN__
 	if (params.droproot)

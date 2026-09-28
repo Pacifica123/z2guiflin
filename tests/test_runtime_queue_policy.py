@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from zap2_gui.adapters.core_provenance import write_core_build_receipt
 from zap2_gui.adapters.runtime_apply import create_runtime_apply_plan
 from zap2_gui.adapters.runtime_queue import find_nfqueue_processes, resolve_nfqueue_num, resolve_runtime_queue
 from zap2_gui.adapters.runtime_state import confirm_runtime_plan
@@ -50,6 +51,7 @@ def test_apply_and_session_use_same_workspace_queue(tmp_path: Path) -> None:
     binary = project / "core" / "zapret2" / "nfq2" / "nfqws2"
     binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     binary.chmod(0o755)
+    write_core_build_receipt(project, [binary], "nfqws2")
     prepared = prepare_runtime_plan(project, action="start", profile_id="default")
     confirm_runtime_plan(project, prepared.plan_id)
     config = build_runtime_session_config(project, profile_id="default")

@@ -20,7 +20,7 @@ Stage 7j adds `community-discord-youtube-edge-flow` as an explicitly experimenta
 Linux bridge decisions:
 
 - WinDivert `--wf-*` capture options are not passed to `nfqws2`; owner-confirmed nftables apply still controls which local traffic reaches NFQUEUE.
-- `hostfakesplit_multi` is provided by `core/zapret2/lua/custom_funcs.lua` as a small compatibility shim over built-in `hostfakesplit`.
+- `hostfakesplit_multi` is provided by `core/overlays/zapret2/lua/custom_funcs.lua` as a small compatibility shim over built-in `hostfakesplit`.
 - The strategy includes a Discord Cloudflare edge `--ipset-ip` profile with `wssize` + `syndata` because Stage 7h/7i observed Discord stuck in `SYN-SENT` before TLS.
 - The Windows preset voice/STUN block is intentionally not ported in this strategy; Stage 8 remains the voice/UDP investigation.
 

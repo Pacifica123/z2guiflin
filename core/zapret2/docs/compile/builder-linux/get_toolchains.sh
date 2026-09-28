@@ -17,6 +17,6 @@ ask_target 1
 cd "$TOOLCHAINS"
 for t in $TGT; do
 	[ -d "$t" ] && rm -r "$t"
-	curl -Lo - "${BASEURL}/${t}.tar.xz" | tar -Jx
+	curl $CURL_OPT -Lo - "${BASEURL}/${t}.tar.xz" | tar -Jx
 done
 )

@@ -38,9 +38,9 @@ def test_gui_shell_state_is_read_only_and_inventory_backed() -> None:
     state = load_gui_shell_state(ROOT)
 
     assert len(state.sections) == 7
-    assert state.core_snapshot.vendor_file_count == 246
-    assert state.core_snapshot.upstream_imported_file_count == 245
-    assert state.core_snapshot.project_local_core_file_count == 1
+    assert state.core_snapshot.vendor_file_count == 244
+    assert state.core_snapshot.upstream_imported_file_count == 244
+    assert state.core_snapshot.project_local_core_file_count == 0
     assert [unit.name for unit in state.build_map.units] == ["nfqws2", "ip2net", "mdig"]
     assert state.build_map.automatic_checks_may_run_make is False
 

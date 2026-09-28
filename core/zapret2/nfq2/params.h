@@ -72,6 +72,10 @@ struct desync_profile
 	// annot use global filter because it's not possible to bind multiple instances to a single queue
 	// it's possible to run multiple winws2 instances on the same windivert filter, but it's not the case for linux
 	struct str_list_head filter_ssid;
+	bool filter_ssid_neg;
+#endif
+#ifdef __linux__
+	uint32_t filter_mark,filter_mark_mask;
 #endif
 
 	// list of pointers to ipsets
@@ -96,7 +100,6 @@ struct desync_profile
 	bool b_hostlist_auto_retrans_maxseq, b_hostlist_auto_incoming_maxseq, b_hostlist_auto_retrans_reset;
 	bool b_hostlist_auto_udp_out, b_hostlist_auto_udp_in;
 	bool b_filter_l3, b_filter_l7;
-
 };
 #define PROFILE_NAME(dp) ((dp)->name ? (dp)->name : "noname")
 
@@ -149,6 +152,7 @@ struct params_s
 	
 #ifdef __CYGWIN__
 	struct str_list_head ssid_filter,nlm_filter;
+	bool ssid_filter_neg, nlm_filter_neg;
 	struct str_list_head wf_raw_part;
 
 	char *windivert_filter;
@@ -190,13 +194,13 @@ struct params_s
 	uint64_t payload_disable;
 
 	struct str_list_head lua_init_scripts;
-	bool writeable_dir_enable;
-	char writeable_dir[PATH_MAX];
+	bool writable_dir_enable;
+	char writable_dir[PATH_MAX];
 
 	timer_pool *timers;
 	bool timers_dirty; // changed something in timers
 
-	int lua_gc;
+	uint64_t lua_gc;
 	int ref_desync_ctx; // desync ctx userdata registry ref
 	lua_State *L;
 };

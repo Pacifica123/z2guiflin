@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from zap2_gui.adapters import runtime_session as runtime_session_module
+from zap2_gui.adapters.core_provenance import write_core_build_receipt
 from zap2_gui.adapters.runtime_session import (
     build_runtime_session_config,
     runtime_session_status,
@@ -49,6 +50,7 @@ while running:
         encoding="utf-8",
     )
     binary.chmod(binary.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    write_core_build_receipt(project, [binary], "nfqws2")
     return binary
 
 

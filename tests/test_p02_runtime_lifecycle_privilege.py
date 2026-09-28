@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from zap2_gui.adapters.core_provenance import write_core_build_receipt
 from zap2_gui.adapters.gui_privilege import (
     build_gui_privileged_command,
     build_gui_privileged_discord_probe_command,
@@ -36,6 +37,7 @@ def _fake_binary(project: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"#!/bin/sh\nsleep 30\n")
     path.chmod(0o755)
+    write_core_build_receipt(project, [path], "nfqws2")
     return path
 
 

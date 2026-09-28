@@ -1,11 +1,17 @@
 {
+  "schemaVersion": 2,
   "upstreamName": "bol-van/zapret2",
-  "sourceArchive": "zapret2-core-from_bolvan.zip",
-  "importedAt": "2026-06-06T00:00:00Z",
-  "importedForProductLabel": "v0.3-alpha",
-  "importedFileCount": 245,
+  "upstreamCommit": "00f5aaa36de500971faf6db440dd7d8b25672281",
+  "upstreamVersion": "1.0.6",
+  "sourceArchive": "zapret2-bol-van_originalcore_by2026sep23.zip",
+  "sourceArchiveSha256": "769df14fa4463fbe9744a2aab97e7f1bfe1a2f77a669981f4e6372d7b86d71a9",
+  "importedAt": "2026-09-28T05:05:00Z",
+  "importedForPatch": "P03 zapret2 semantic generation migration",
+  "archiveFileCount": 253,
+  "importedFileCount": 244,
   "excludedFileCount": 9,
-  "excludedPolicy": "Excluded CI metadata and compiled/binary artifacts; source/docs/scripts/configs were preserved as vendored source.",
+  "filterPolicyVersion": "zap2-p03-filter-v1",
+  "excludedPolicy": "Exclude GitHub CI metadata and prebuilt/compiled Windows artifacts; preserve source/docs/scripts/configs.",
   "excludedFiles": [
     ".github/ISSUE_TEMPLATE/config.yml",
     ".github/ISSUE_TEMPLATE/issue-warning.md",
@@ -18,5 +24,13 @@
     "nfq2/windows/windivert/libwindivert64.a"
   ],
   "licensePath": "docs/LICENSE.txt",
-  "contentDigestSha256": "9d57e8fdee29938d560a390f976def49d4692f8dfda7e59c7df4a48fffe773d5"
+  "treeDigestAlgorithm": "sha256(path-len||path||blob-len||blob)-v1",
+  "filteredTreeSha256": "fd472f723743909d3f4b281ed8be3a8f9327f5bb091be677bc5f9e5f174e7d22",
+  "contentDigestSha256": "fd472f723743909d3f4b281ed8be3a8f9327f5bb091be677bc5f9e5f174e7d22",
+  "legacyGeneration": {
+    "contentApproxVersion": "0.9.5.3",
+    "upstreamRevision": "historically_unrecoverable",
+    "filteredTreeSha256": "39ffba3acc527e47f87030b1068fd14550b8101cc0e08ee3a203a505a21daeb6"
+  },
+  "overlayPolicy": "Project-local runtime overlays MUST live outside core/zapret2 and are bound through core/overlays/zapret2/OVERLAY_MANIFEST.json."
 }

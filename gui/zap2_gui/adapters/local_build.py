@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import shlex
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from ..core_inventory import CoreBuildMap, CoreBuildUnit, load_core_build_map
@@ -133,41 +134,28 @@ def create_local_build_plan(root: Path | None = None, target: str = "all") -> Lo
     if target not in supported:
         raise ValueError(f"Неизвестная цель сборки: {target}. Доступно: {', '.join(supported)}")
 
-    if target == "all":
-        commands = (
-            BuildCommand(
-                label="build-all",
-                cwd=core_root,
-                argv=("make", "all"),
-                description="Собрать все основные Linux build units из корневого Makefile.",
-                mutates_worktree=True,
+    build_adapter = layout.root / "tools" / "core_generation_build.py"
+    if not build_adapter.is_file():
+        raise ValueError(f"P03 generation build adapter не найден: {build_adapter}")
+
+    command_target = target
+    commands = (
+        BuildCommand(
+            label=("clean-core-build-artifacts" if target == "clean" else f"build-{target}"),
+            cwd=layout.root,
+            argv=(sys.executable, str(build_adapter), command_target),
+            description=(
+                "Удалить canonical build artifacts и staged generation build state."
+                if target == "clean"
+                else "Собрать exact pinned upstream в fresh staging tree после verified P03 source transforms; canonical source tree не изменяется."
             ),
-        )
-        selected_units = tuple(build_map.units)
-    elif target == "clean":
-        commands = (
-            BuildCommand(
-                label="clean-core-build-artifacts",
-                cwd=core_root,
-                argv=("make", "clean"),
-                description="Удалить локальные build artifacts через upstream Makefile.",
-                mutates_worktree=True,
-            ),
-        )
+            mutates_worktree=True,
+        ),
+    )
+    if target in {"all", "clean"}:
         selected_units = tuple(build_map.units)
     else:
-        unit = units_by_name[target]
-        unit_dir = _unit_directory(unit)
-        commands = (
-            BuildCommand(
-                label=f"build-{unit.name}",
-                cwd=core_root / unit_dir,
-                argv=("make", unit.name),
-                description=f"Собрать build unit {unit.name} через его Makefile.",
-                mutates_worktree=True,
-            ),
-        )
-        selected_units = (unit,)
+        selected_units = (units_by_name[target],)
 
     artifacts = tuple(
         artifact

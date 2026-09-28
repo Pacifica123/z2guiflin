@@ -4,6 +4,7 @@ import json
 import shutil
 from pathlib import Path
 
+from zap2_gui.adapters.core_provenance import write_core_build_receipt
 from zap2_gui.adapters.runtime_apply import create_runtime_apply_plan
 from zap2_gui.adapters.runtime_session import build_runtime_session_config
 from zap2_gui.adapters.runtime_state import confirm_runtime_plan, prepare_runtime_plan
@@ -24,6 +25,7 @@ def _make_fake_binary(project: Path) -> None:
     binary.parent.mkdir(parents=True, exist_ok=True)
     binary.write_text("#!/usr/bin/env sh\nsleep 30\n", encoding="utf-8")
     binary.chmod(0o755)
+    write_core_build_receipt(project, [binary], "nfqws2")
 
 
 def test_windows_all_tcp_udp_v3_2_bridge_registered() -> None:

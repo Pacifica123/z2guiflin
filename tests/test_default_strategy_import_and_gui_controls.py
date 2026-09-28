@@ -5,6 +5,7 @@ import os
 import shutil
 from pathlib import Path
 
+from zap2_gui.adapters.core_provenance import write_core_build_receipt
 from zap2_gui.adapters.gui_runtime_controls import (
     DEFAULT_BUILD_PLAN_ID,
     DEFAULT_START_PLAN_ID,
@@ -37,6 +38,7 @@ def _make_fake_binary(project: Path) -> None:
     binary.parent.mkdir(parents=True, exist_ok=True)
     binary.write_text("#!/usr/bin/env sh\nsleep 30\n", encoding="utf-8")
     binary.chmod(0o755)
+    write_core_build_receipt(project, [binary], "nfqws2")
 
 
 def test_windows_default_preset_is_imported_as_reference() -> None:
@@ -177,7 +179,7 @@ def test_gui_build_execute_reports_status_with_confirmed_fake_build(tmp_path: Pa
     fake_make.write_text(
         "#!/usr/bin/env python3\n"
         "import pathlib, stat\n"
-        f"p = pathlib.Path({str(nfq)!r})\n"
+        "p = pathlib.Path.cwd() / 'nfqws2'\n"
         "p.parent.mkdir(parents=True, exist_ok=True)\n"
         "p.write_text('#!/bin/sh\\nsleep 30\\n')\n"
         "p.chmod(p.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)\n",

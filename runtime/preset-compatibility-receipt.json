@@ -1,0 +1,557 @@
+{
+  "schemaVersion": 1,
+  "marker": "zap2-p03-preset-compatibility-v1",
+  "targetUpstreamCommit": "00f5aaa36de500971faf6db440dd7d8b25672281",
+  "targetUpstreamVersion": "1.0.6",
+  "legacyUpstreamRevision": "historically_unrecoverable",
+  "legacyContentApproxVersion": "0.9.5.3",
+  "legacyCorpusSha256": "6664dadee380d6ccac2da764f25980bbb3b28a684905988aa03335e543ffa3e5",
+  "candidateCorpusSha256": "a90c879e4076cacab7d9087bda9985b4e895a4b4990cbd973c79a93ea0b62b2a",
+  "legacyNormalizedSemanticCorpusSha256": "3b99185effd179990de91a620f373fb292a6080e6f2bb9ddc0791d9c6fa86b06",
+  "candidateNormalizedSemanticCorpusSha256": "3b99185effd179990de91a620f373fb292a6080e6f2bb9ddc0791d9c6fa86b06",
+  "shippingStrategyCount": 18,
+  "classificationCounts": {
+    "equivalent": 9,
+    "equivalent-local-overlay-relocation": 9,
+    "changed-transformable": 0,
+    "changed-unsupported": 0,
+    "unknown": 0
+  },
+  "evidenceMethod": {
+    "normalizedCorpus": "exact ordered runtime argv + option names + Lua init/de-sync function/arg keys; local overlay path canonicalized by overlay identity",
+    "candidateOptionResolution": "exact candidate nfqws.c/params.c/manual source symbols",
+    "candidateLuaResolution": "exact candidate Lua function definitions + explicit LOCAL_OVERLAY manifest",
+    "nativeOldNewNfqwsDryRun": "not-executed-in-patch-container: build preflight reports missing libnetfilter_queue/libnfnetlink/libmnl/Lua development headers; must be repeated on UTS/owner host after clean build"
+  },
+  "targetedFixtures": {
+    "luaCompat5To6": {
+      "result": "PASS-static",
+      "observedCandidateC": 6,
+      "observedCandidateLuaRequired": 6
+    },
+    "writableSpelling": {
+      "result": "NOT_EXERCISED",
+      "reason": "shipping corpus contains neither --writeable/--writable nor WRITEABLE/WRITABLE-dependent Lua args"
+    },
+    "sendDelay": {
+      "result": "NOT_EXERCISED",
+      "sendInvocationCount": 13,
+      "delayArgumentCount": 0,
+      "reason": "candidate send delay semantic exists but shipping corpus does not use delay="
+    },
+    "hostfakesplitMulti": {
+      "result": "PASS-static",
+      "classification": "LOCAL_OVERLAY",
+      "dependentShippingStrategies": [
+        "community-discord-hostfakesplit-5222-minimal",
+        "community-discord-syndata-edge-flow-v2",
+        "community-discord-syndata-edge-flow-v2b",
+        "community-discord-syndata-edge-flow-v2c-fixed-sni",
+        "community-discord-syndata-edge-flow-v2c-host-first",
+        "community-discord-syndata-edge-flow-v2c-no-md5",
+        "community-discord-syndata-edge-flow-v2c-send-only",
+        "community-discord-youtube-edge-flow",
+        "windows-all-tcp-udp-v3-2-linux-bridge"
+      ],
+      "upstreamPrimitive": "hostfakesplit",
+      "overlayProvider": "core/overlays/zapret2/lua/custom_funcs.lua"
+    },
+    "nfqueuePrivilegeOrder": {
+      "result": "PASS-static",
+      "classification": "SOURCE_TRANSFORM_OVERLAY",
+      "transformId": "nfqueue-open-before-droproot-v1",
+      "basePath": "core/zapret2/nfq2/nfqws.c",
+      "baseSha256": "0d26c5321292e617d710ff3a9eb01ad0b0b869618790a8e7a687816b813081f2",
+      "effectivePath": "core/overlays/zapret2/source/nfq2/nfqws.c",
+      "effectiveSha256": "08d01e374c46584908b12872be029da4f2d7de93e41926abfd19b88f2953367b",
+      "baseObservedOrder": "droproot/dropcaps -> nfq_init/nfq_create_queue",
+      "effectiveRequiredOrder": "nfq_init/nfq_create_queue -> droproot/dropcaps -> Lua init/packet handling",
+      "reason": "P02 bounded executor still launches nfqws2 as root with --uid=<owner>; owner evidence previously observed EPERM when NFQUEUE was created after privilege drop."
+    }
+  },
+  "candidateCapabilityFingerprint": {
+    "optionsUsed": [
+      "--bind-fix4",
+      "--bind-fix6",
+      "--blob",
+      "--ctrack-disable",
+      "--filter-l7",
+      "--filter-tcp",
+      "--filter-udp",
+      "--hostlist",
+      "--hostlist-domains",
+      "--ipcache-hostname",
+      "--ipcache-lifetime",
+      "--ipset-ip",
+      "--lua-desync",
+      "--lua-init",
+      "--new",
+      "--out-range",
+      "--payload"
+    ],
+    "luaFunctionsUsed": {
+      "fake": "UPSTREAM_NATIVE",
+      "hostfakesplit_multi": "LOCAL_OVERLAY",
+      "http_methodeol": "UPSTREAM_NATIVE",
+      "multidisorder": "UPSTREAM_NATIVE",
+      "multisplit": "UPSTREAM_NATIVE",
+      "pktdebug": "UPSTREAM_NATIVE",
+      "send": "UPSTREAM_NATIVE",
+      "syndata": "UPSTREAM_NATIVE",
+      "wssize": "UPSTREAM_NATIVE"
+    },
+    "luaCompat": 6
+  },
+  "strategies": [
+    {
+      "id": "manual-local",
+      "classification": "equivalent",
+      "legacyRawArgsSha256": "63c2acf4fae4234532f8420950eb3b877e6a275377516d381058d9535630a82b",
+      "candidateRawArgsSha256": "63c2acf4fae4234532f8420950eb3b877e6a275377516d381058d9535630a82b",
+      "normalizedSemanticSha256": "06573ec9e26986c4c70822635695879606ed9b4b78e142f4abaa6df7c7f2c11a",
+      "candidateOptions": [
+        "--filter-l7",
+        "--filter-tcp",
+        "--lua-desync",
+        "--lua-init",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE",
+        "multisplit": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": false,
+      "reason": "Raw argv and normalized function/filter intent unchanged; every used option/function resolves in candidate generation."
+    },
+    {
+      "id": "read-only-diagnostics",
+      "classification": "equivalent",
+      "legacyRawArgsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "candidateRawArgsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "normalizedSemanticSha256": "2b8cf22c829d4f4a35a04abb6831195339f5d52a59d2e012261150ab39527acb",
+      "candidateOptions": [],
+      "candidateLuaFunctions": {},
+      "localOverlayLoaded": false,
+      "reason": "Raw argv and normalized function/filter intent unchanged; every used option/function resolves in candidate generation."
+    },
+    {
+      "id": "community-discord-youtube-edge-flow",
+      "classification": "equivalent-local-overlay-relocation",
+      "legacyRawArgsSha256": "4b2932d5375eb88f8e783b45513a1b44b42152386bb970cc4c36462dd7a5982c",
+      "candidateRawArgsSha256": "7d6e345274d341b6ac7239c72545a06bb2f30155ccf54e7f8f4a8ecc36b306a8",
+      "normalizedSemanticSha256": "11143d83b6d9f50d2f0c27ece9bd5b8788c1527ee9f56638fd07d8003f8f4acb",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-tcp",
+        "--filter-udp",
+        "--hostlist-domains",
+        "--ipcache-hostname",
+        "--ipcache-lifetime",
+        "--ipset-ip",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE",
+        "hostfakesplit_multi": "LOCAL_OVERLAY",
+        "multidisorder": "UPSTREAM_NATIVE",
+        "syndata": "UPSTREAM_NATIVE",
+        "wssize": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": true,
+      "reason": "Only project-local custom_funcs.lua init path moved outside upstream tree; normalized argv/function intent unchanged."
+    },
+    {
+      "id": "community-discord-syndata-edge-flow-v2",
+      "classification": "equivalent-local-overlay-relocation",
+      "legacyRawArgsSha256": "13cf69359e4c97eae6096e9669f821c2cfdf69322d46be7c893335509a7287e5",
+      "candidateRawArgsSha256": "3facf0e701b7644dc3c7673f7c3ee8b84a29e66c493e16bc690b067f0571cce3",
+      "normalizedSemanticSha256": "c6460172769edce4d7582b8a655ddca585c4bc419a9c5d84cce50b4920cd00cd",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-tcp",
+        "--filter-udp",
+        "--hostlist-domains",
+        "--ipcache-hostname",
+        "--ipcache-lifetime",
+        "--ipset-ip",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE",
+        "hostfakesplit_multi": "LOCAL_OVERLAY",
+        "multidisorder": "UPSTREAM_NATIVE",
+        "send": "UPSTREAM_NATIVE",
+        "syndata": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": true,
+      "reason": "Only project-local custom_funcs.lua init path moved outside upstream tree; normalized argv/function intent unchanged."
+    },
+    {
+      "id": "community-discord-syndata-edge-flow-v2b",
+      "classification": "equivalent-local-overlay-relocation",
+      "legacyRawArgsSha256": "a0e815f824cd38f00110391ea8c187011d1f6b23a56a3f0ebac87ab200aec8ea",
+      "candidateRawArgsSha256": "51721f28dd2d165e8348921683bd85132a4e874ea5c5afbe5b2880298f21c699",
+      "normalizedSemanticSha256": "449556fc23036ff1f5074c93033cd8449c74cbefb41db19e787fee55de37be3b",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-tcp",
+        "--filter-udp",
+        "--hostlist-domains",
+        "--ipcache-hostname",
+        "--ipcache-lifetime",
+        "--ipset-ip",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE",
+        "hostfakesplit_multi": "LOCAL_OVERLAY",
+        "multidisorder": "UPSTREAM_NATIVE",
+        "send": "UPSTREAM_NATIVE",
+        "syndata": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": true,
+      "reason": "Only project-local custom_funcs.lua init path moved outside upstream tree; normalized argv/function intent unchanged."
+    },
+    {
+      "id": "community-discord-syndata-edge-flow-v2c-send-only",
+      "classification": "equivalent-local-overlay-relocation",
+      "legacyRawArgsSha256": "2dc4f68159464a1a85b743193f4e1159794e25e7a353913e7529f1f62907b8e8",
+      "candidateRawArgsSha256": "62ad481c8f5e6917bcd89c2867a4ff37456efbc6ccd6fb15d5c48ff507e3e561",
+      "normalizedSemanticSha256": "eba48d057bb2b39e3fa3b76728ebe2a90f35bc613118e7db6c7d880aeb5e0548",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-tcp",
+        "--filter-udp",
+        "--hostlist-domains",
+        "--ipcache-hostname",
+        "--ipcache-lifetime",
+        "--ipset-ip",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE",
+        "hostfakesplit_multi": "LOCAL_OVERLAY",
+        "multidisorder": "UPSTREAM_NATIVE",
+        "send": "UPSTREAM_NATIVE",
+        "syndata": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": true,
+      "reason": "Only project-local custom_funcs.lua init path moved outside upstream tree; normalized argv/function intent unchanged."
+    },
+    {
+      "id": "community-discord-syndata-edge-flow-v2c-fixed-sni",
+      "classification": "equivalent-local-overlay-relocation",
+      "legacyRawArgsSha256": "06c43da79a02fc36c1fc12522b36d093f33015be2c7f480223aca95b0c16ab47",
+      "candidateRawArgsSha256": "f51900bb9a3e364faa85a00e4c22b88358cc0c02cf2063d0d859817be72e7535",
+      "normalizedSemanticSha256": "5578a242f36a4184cda72c5b3c5bf5f0cce67ed0232fc2e31a810a631ebd9fe0",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-tcp",
+        "--filter-udp",
+        "--hostlist-domains",
+        "--ipcache-hostname",
+        "--ipcache-lifetime",
+        "--ipset-ip",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE",
+        "hostfakesplit_multi": "LOCAL_OVERLAY",
+        "multidisorder": "UPSTREAM_NATIVE",
+        "send": "UPSTREAM_NATIVE",
+        "syndata": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": true,
+      "reason": "Only project-local custom_funcs.lua init path moved outside upstream tree; normalized argv/function intent unchanged."
+    },
+    {
+      "id": "community-discord-syndata-edge-flow-v2c-no-md5",
+      "classification": "equivalent-local-overlay-relocation",
+      "legacyRawArgsSha256": "bd17ab087ec0ab795894c6f685870a36baf26341f8e0e5d519420f2d977336e5",
+      "candidateRawArgsSha256": "8223d868ff518490224c0f43d1b70365b365c642e8c247c43c2ff98b6df20d02",
+      "normalizedSemanticSha256": "cbb28a85655ff332bd92933124ff57b3cd6252e2a7c680d4118b67095c86ceab",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-tcp",
+        "--filter-udp",
+        "--hostlist-domains",
+        "--ipcache-hostname",
+        "--ipcache-lifetime",
+        "--ipset-ip",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE",
+        "hostfakesplit_multi": "LOCAL_OVERLAY",
+        "multidisorder": "UPSTREAM_NATIVE",
+        "send": "UPSTREAM_NATIVE",
+        "syndata": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": true,
+      "reason": "Only project-local custom_funcs.lua init path moved outside upstream tree; normalized argv/function intent unchanged."
+    },
+    {
+      "id": "community-discord-syndata-edge-flow-v2c-host-first",
+      "classification": "equivalent-local-overlay-relocation",
+      "legacyRawArgsSha256": "15f6cac46e32105b96d395c49507498f5594e0bdc501d21ab3edcc8007c65aac",
+      "candidateRawArgsSha256": "ac25c1b3d6b84b0092b852c512dcf3d9b2f2f77aa210cd57aa4da3d167ee8569",
+      "normalizedSemanticSha256": "0d5e6d6b73e20cd95a88ff394639cebb167cd8f87b9738d26c5915b0bc8bb12e",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-tcp",
+        "--filter-udp",
+        "--hostlist-domains",
+        "--ipcache-hostname",
+        "--ipcache-lifetime",
+        "--ipset-ip",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE",
+        "hostfakesplit_multi": "LOCAL_OVERLAY",
+        "multidisorder": "UPSTREAM_NATIVE",
+        "send": "UPSTREAM_NATIVE",
+        "syndata": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": true,
+      "reason": "Only project-local custom_funcs.lua init path moved outside upstream tree; normalized argv/function intent unchanged."
+    },
+    {
+      "id": "community-discord-hostfakesplit-5222-minimal",
+      "classification": "equivalent-local-overlay-relocation",
+      "legacyRawArgsSha256": "0d0a8d30f7d1c10d2be9be411fdb99765a668e3eb4d5d497a2298b8e2b371269",
+      "candidateRawArgsSha256": "5668afaa3cf47bb033024fb2f14515f09321c944eafa73af0e9b9c3a3dcf2ad2",
+      "normalizedSemanticSha256": "aac7bca50993527ff240150e38275f7d1a7eb7bef3c291db21be376b8791d2e9",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-tcp",
+        "--hostlist-domains",
+        "--ipcache-hostname",
+        "--ipcache-lifetime",
+        "--ipset-ip",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--out-range"
+      ],
+      "candidateLuaFunctions": {
+        "hostfakesplit_multi": "LOCAL_OVERLAY"
+      },
+      "localOverlayLoaded": true,
+      "reason": "Only project-local custom_funcs.lua init path moved outside upstream tree; normalized argv/function intent unchanged."
+    },
+    {
+      "id": "community-discord-pretls-diagnostic-pktdebug",
+      "classification": "equivalent",
+      "legacyRawArgsSha256": "d73fd6187d0f62a002ba70dc3f597d57120f3f3fc7d886b183c9eaf84ca645be",
+      "candidateRawArgsSha256": "d73fd6187d0f62a002ba70dc3f597d57120f3f3fc7d886b183c9eaf84ca645be",
+      "normalizedSemanticSha256": "e08987ffa021bf996cb62709ef2a11b9b98ac6c20e0f32517ea59d9c3777ab8a",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-tcp",
+        "--ipset-ip",
+        "--lua-desync",
+        "--lua-init",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "pktdebug": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": false,
+      "reason": "Raw argv and normalized function/filter intent unchanged; every used option/function resolves in candidate generation."
+    },
+    {
+      "id": "reference-zapret2-generic-tls-fake",
+      "classification": "equivalent",
+      "legacyRawArgsSha256": "904b2bd4ea545a8daef530687447fcc2aff8b5394d859e4a9101c2fadedb4d95",
+      "candidateRawArgsSha256": "904b2bd4ea545a8daef530687447fcc2aff8b5394d859e4a9101c2fadedb4d95",
+      "normalizedSemanticSha256": "24ef01f6513aacb597a55b3c1a20687269c22355db0a70389e2135bbf3a9058d",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-l7",
+        "--filter-tcp",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE",
+        "http_methodeol": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": false,
+      "reason": "Raw argv and normalized function/filter intent unchanged; every used option/function resolves in candidate generation."
+    },
+    {
+      "id": "reference-linux-general-multisplit-like",
+      "classification": "equivalent",
+      "legacyRawArgsSha256": "b0e00a0066a805fdd6284c1388d5c47d479da2898628e497c5b8d0ac32c7a465",
+      "candidateRawArgsSha256": "b0e00a0066a805fdd6284c1388d5c47d479da2898628e497c5b8d0ac32c7a465",
+      "normalizedSemanticSha256": "c7f9a934a96688cfb68d7d12e09fd5cd8368c9d7110b64541379e6fff058dc93",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-l7",
+        "--filter-tcp",
+        "--hostlist",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE",
+        "multidisorder": "UPSTREAM_NATIVE",
+        "multisplit": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": false,
+      "reason": "Raw argv and normalized function/filter intent unchanged; every used option/function resolves in candidate generation."
+    },
+    {
+      "id": "reference-flowseal-simple-fake-like",
+      "classification": "equivalent",
+      "legacyRawArgsSha256": "8d20b445bbf48bf5d35f4734cf0202f970440a03353b4f15ec973d1cd90ed69d",
+      "candidateRawArgsSha256": "8d20b445bbf48bf5d35f4734cf0202f970440a03353b4f15ec973d1cd90ed69d",
+      "normalizedSemanticSha256": "aebdee2b1a16da8e10896d15d4173b0f34a315170087728e50abbce35f295ac5",
+      "candidateOptions": [
+        "--ctrack-disable",
+        "--filter-l7",
+        "--filter-tcp",
+        "--hostlist",
+        "--hostlist-domains",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": false,
+      "reason": "Raw argv and normalized function/filter intent unchanged; every used option/function resolves in candidate generation."
+    },
+    {
+      "id": "windows-all-tcp-udp-v3-2-linux-bridge",
+      "classification": "equivalent-local-overlay-relocation",
+      "legacyRawArgsSha256": "f120c60fb62a6d7d571a67a8e83d9af56630a44bc88131d4201faecd735d2ec1",
+      "candidateRawArgsSha256": "be8b76be7115ae540fb41d5c825c98704eab42ac99bb49d254d0c03407538894",
+      "normalizedSemanticSha256": "88f45d5d58acb38670f0d131dc02d0ae9470fe565091b4a3b5489fe3f666c53a",
+      "candidateOptions": [
+        "--bind-fix4",
+        "--bind-fix6",
+        "--blob",
+        "--ctrack-disable",
+        "--filter-tcp",
+        "--filter-udp",
+        "--ipcache-hostname",
+        "--ipcache-lifetime",
+        "--lua-desync",
+        "--lua-init",
+        "--new",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE",
+        "send": "UPSTREAM_NATIVE",
+        "syndata": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": true,
+      "reason": "Only project-local custom_funcs.lua init path moved outside upstream tree; normalized argv/function intent unchanged."
+    },
+    {
+      "id": "discord-voice-upstream-conservative",
+      "classification": "equivalent",
+      "legacyRawArgsSha256": "03f8f7b73493dea1724af77f504df94d534d5974fa4a97b786fa306a75e2378e",
+      "candidateRawArgsSha256": "03f8f7b73493dea1724af77f504df94d534d5974fa4a97b786fa306a75e2378e",
+      "normalizedSemanticSha256": "5a648bb2ca091bcbf9f8779db37af363a223be10517f8f82cd1b47613e46d868",
+      "candidateOptions": [
+        "--filter-l7",
+        "--filter-udp",
+        "--lua-desync",
+        "--lua-init",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": false,
+      "reason": "Raw argv and normalized function/filter intent unchanged; every used option/function resolves in candidate generation."
+    },
+    {
+      "id": "discord-voice-flowseal-narrow",
+      "classification": "equivalent",
+      "legacyRawArgsSha256": "02a3e505ab49a1bc66286d6be2b891a435221e383601a2fa96032cea241dc8d4",
+      "candidateRawArgsSha256": "02a3e505ab49a1bc66286d6be2b891a435221e383601a2fa96032cea241dc8d4",
+      "normalizedSemanticSha256": "be978f93cc905bd7966b790e49cdba318fcf0f421e35a98881c4f6f3e18ee691",
+      "candidateOptions": [
+        "--filter-l7",
+        "--filter-udp",
+        "--lua-desync",
+        "--lua-init",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": false,
+      "reason": "Raw argv and normalized function/filter intent unchanged; every used option/function resolves in candidate generation."
+    },
+    {
+      "id": "discord-voice-guiwin-wide",
+      "classification": "equivalent",
+      "legacyRawArgsSha256": "1949a24a2ab37297b4b2e8852b5e70b7221d9cb5f9662b6416a40eb2e8bd47af",
+      "candidateRawArgsSha256": "1949a24a2ab37297b4b2e8852b5e70b7221d9cb5f9662b6416a40eb2e8bd47af",
+      "normalizedSemanticSha256": "21d9038460e667b525b19b704789cee64d5d233dba4bdbc72163cac3fe8d1d09",
+      "candidateOptions": [
+        "--filter-l7",
+        "--filter-udp",
+        "--lua-desync",
+        "--lua-init",
+        "--out-range",
+        "--payload"
+      ],
+      "candidateLuaFunctions": {
+        "fake": "UPSTREAM_NATIVE"
+      },
+      "localOverlayLoaded": false,
+      "reason": "Raw argv and normalized function/filter intent unchanged; every used option/function resolves in candidate generation."
+    }
+  ],
+  "acceptanceNote": "Every shipping strategy is classified; no strategy is UNKNOWN/unsupported. Native candidate --dry-run remains an owner/UTS gate because this patch container lacks required build development libraries.",
+  "shippingCorpusManifest": {
+    "path": "runtime/shipping-strategy-manifest.json",
+    "sha256": "977652a2b6189bb02cbccd86121c7f01f5ea48d8cb342888a087165d8027401e",
+    "strategyCount": 18
+  }
+}

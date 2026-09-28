@@ -212,7 +212,8 @@ check_system()
 			OPENWRT_PACKAGER=opkg
 			OPENWRT_PACKAGER_INSTALL="opkg install"
 			OPENWRT_PACKAGER_UPDATE="opkg update"
-			exists apk && {
+			# do not use apk if it does not have database
+			[ -d /lib/apk/db ] && exists apk && {
 				OPENWRT_PACKAGER=apk
 				OPENWRT_PACKAGER_INSTALL="apk add"
 				OPENWRT_PACKAGER_UPDATE=

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from zap2_gui.adapters.core_provenance import write_core_build_receipt
 from zap2_gui.adapters.preset_txt_import import import_txt_preset
 from zap2_gui.adapters.presets import select_preset
 from zap2_gui.adapters.runtime_session import build_runtime_session_config
@@ -32,6 +33,7 @@ def _install_fake_nfqws2(project: Path) -> None:
     binary.parent.mkdir(parents=True, exist_ok=True)
     binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     binary.chmod(0o755)
+    write_core_build_receipt(project, [binary], "nfqws2")
 
 
 def _preset_text() -> str:

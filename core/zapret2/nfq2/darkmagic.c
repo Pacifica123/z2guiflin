@@ -377,8 +377,9 @@ bool proto_check_ipv4(const uint8_t *data, size_t len)
 {
 	if (len < sizeof(struct ip)) return false;
 	if (((struct ip*)data)->ip_v!=4) return false;
+	uint16_t iplen = ntohs(((struct ip*)data)->ip_len);
 	uint8_t off = ((struct ip*)data)->ip_hl << 2;
-	return off>=sizeof(struct ip) && len>=off;
+	return off>=sizeof(struct ip) && iplen>=off && len>=off;
 }
 bool proto_check_ipv4_payload(const uint8_t *data, size_t len)
 {
@@ -559,7 +560,7 @@ void proto_dissect_l3l4(const uint8_t *data, size_t len, struct dissect *dis, bo
 	dis->data_pkt = data;
 	dis->len_pkt = len;
 
-	uint16_t iplen;
+	size_t iplen;
 
 	if (proto_check_ipv4(data, len) && (no_payload_check || proto_check_ipv4_payload(data, len)))
 	{
@@ -1111,6 +1112,7 @@ bool win_sandbox(void)
 static HANDLE w_filter = NULL;
 static OVERLAPPED ovl = { .hEvent = NULL };
 static const struct str_list_head *wlan_filter_ssid = NULL, *nlm_filter_net = NULL;
+static bool wlan_filter_ssid_neg = false, nlm_filter_net_neg = false;
 static DWORD logical_net_filter_tick=0;
 INetworkListManager* pNetworkListManager=NULL;
 
@@ -1230,11 +1232,14 @@ t_WlanQueryInterface f_WlanQueryInterface = NULL;
 t_WlanFreeMemory f_WlanFreeMemory = NULL;
 HMODULE hdll_wlanapi = NULL;
 
-bool win_dark_init(const struct str_list_head *ssid_filter, const struct str_list_head *nlm_filter)
+bool win_dark_init(const struct str_list_head *ssid_filter, bool ssid_filter_neg, const struct str_list_head *nlm_filter, bool nlm_filter_neg)
 {
 	win_dark_deinit();
 	if (LIST_EMPTY(ssid_filter)) ssid_filter=NULL;
 	if (LIST_EMPTY(nlm_filter)) nlm_filter=NULL;
+
+	wlan_filter_ssid_neg = ssid_filter_neg;
+	nlm_filter_net_neg = nlm_filter_neg;
 
 	if (nlm_filter)
 	{
@@ -1288,6 +1293,7 @@ void win_dark_deinit(void)
 	}
 	if (nlm_filter_net) CoUninitialize();
 	wlan_filter_ssid = nlm_filter_net = NULL;
+	wlan_filter_ssid_neg = nlm_filter_net_neg = false;
 	if (hdll_wlanapi)
 	{
 		FreeLibrary(hdll_wlanapi);
@@ -1525,15 +1531,17 @@ found:
 	goto ex;
 }
 
-bool logical_net_filter_match(void)
-{
-	return wlan_filter_match(wlan_filter_ssid) && nlm_filter_match(nlm_filter_net);
-}
-
 bool logical_net_filter_present(void)
 {
 	return (wlan_filter_ssid && !LIST_EMPTY(wlan_filter_ssid)) || (nlm_filter_net && !LIST_EMPTY(nlm_filter_net));
 }
+
+bool logical_net_filter_match(void)
+{
+	return	(wlan_filter_match(wlan_filter_ssid) ^ wlan_filter_ssid_neg) &&
+		(nlm_filter_match(nlm_filter_net) ^ nlm_filter_net_neg);
+}
+
 
 
 
@@ -1633,7 +1641,8 @@ static bool windivert_recv_exit(void)
 static bool windivert_recv_filter(HANDLE hFilter, uint8_t *packet, size_t *len, WINDIVERT_ADDRESS *wa, unsigned int *wa_count, uint64_t *bt_next)
 {
 	UINT recv_len;
-	DWORD rd,twait,tmax;
+	DWORD rd,twait;
+	uint64_t tmax;
 	unsigned int wac;
 	uint64_t bt;
 
@@ -1642,14 +1651,14 @@ static bool windivert_recv_filter(HANDLE hFilter, uint8_t *packet, size_t *len, 
 
 	if (params.timers)
 	{
-		if (!*bt_next) *bt_next = TimerPoolNext(params.timers, &params.timers_dirty);
+		if (!*bt_next || params.timers_dirty) *bt_next = TimerPoolNext(params.timers, &params.timers_dirty);
 		bt = boottime_ms();
-		tmax = *bt_next>bt ? (DWORD)(*bt_next-bt) : 0;
-		if (!tmax || params.timers_dirty)
+		tmax = *bt_next>bt ? *bt_next-bt : 0;
+		if (!tmax)
 		{
 			*bt_next = TimerPoolRun(&params.timers, &params.timers_dirty, bt);
 			bt = boottime_ms();
-			tmax = *bt_next>bt ? (DWORD)(*bt_next-bt) : 0;
+			tmax = *bt_next>bt ? *bt_next-bt : 0;
 		}
 	}
 	else
@@ -1675,7 +1684,7 @@ static bool windivert_recv_filter(HANDLE hFilter, uint8_t *packet, size_t *len, 
 			{
 				if (params.timers)
 				{
-					twait = tmax>50 ? 50 : tmax;
+					twait = tmax>50 ? 50 : (DWORD)tmax;
 					tmax -= twait;
 				}
 				else
@@ -1689,7 +1698,7 @@ static bool windivert_recv_filter(HANDLE hFilter, uint8_t *packet, size_t *len, 
 					bt = boottime_ms();
 					*bt_next = TimerPoolRun(&params.timers, &params.timers_dirty, bt);
 					bt = boottime_ms();
-					tmax = *bt_next>bt ? (DWORD)(*bt_next-bt) : 0;
+					tmax = *bt_next>bt ? *bt_next-bt : 0;
 				}
 			}
 			if (!GetOverlappedResult(hFilter,&ovl,&rd,FALSE))
@@ -1977,7 +1986,9 @@ bool rawsend(const struct sockaddr* dst,uint32_t fwmark,const char *ifout,const 
 	ssize_t bytes;
 	int sock=rawsend_socket(dst->sa_family);
 	if (sock==-1) return false;
+#if defined(BSD) || defined(__linux__)
 	if (!set_socket_fwmark(sock,fwmark)) return false;
+#endif
 	int salen = dst->sa_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
 	struct sockaddr_storage dst2;
 	memcpy(&dst2,dst,salen);
@@ -2045,7 +2056,7 @@ bool rawsend_rp(const struct rawpacket *rp)
 {
 	return rawsend((struct sockaddr*)&rp->dst,rp->fwmark,rp->ifout,rp->packet,rp->len);
 }
-bool rawsend_queue(struct rawpacket_tailhead *q)
+bool rawsend_queue(struct rawpacket_queue *q)
 {
 	struct rawpacket *rp;
 	bool b;
@@ -2478,11 +2489,11 @@ bool set_socket_buffers(int fd, int rcvbuf, int sndbuf)
 	return true;
 }
 
-bool make_writeable_dir()
+bool make_writable_dir()
 {
 	char wdir[PATH_MAX], *wrdir;
-	if (*params.writeable_dir)
-		wrdir = params.writeable_dir;
+	if (*params.writable_dir)
+		wrdir = params.writable_dir;
 	else
 	{
 #ifdef __CYGWIN__
@@ -2516,6 +2527,6 @@ bool make_writeable_dir()
 		}
 	}
 #endif
-	if (b) setenv("WRITEABLE",wrdir,1);
+	if (b) setenv("WRITABLE",wrdir,1);
 	return b;
 }

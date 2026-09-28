@@ -84,6 +84,7 @@
       - [standard rawsend](#standard-rawsend)
     - [Dissection and reconstruction](#dissection-and-reconstruction)
       - [dissect](#dissect)
+      - [dissect_hdr](#dissect_hdr)
       - [reconstruct_dissect](#reconstruct_dissect)
       - [reconstruct_hdr](#reconstruct_hdr)
       - [csum_fix](#csum_fix)
@@ -656,7 +657,7 @@ General parameters for all versions - nfqws2, dvtws2, winws2.
  --reasm-disable=[type[,type]]                          ; disable fragment reassembly for a list of payloads: tls_client_hello quic_initial. without arguments - disable reasm for everything.
 
 DESYNC ENGINE INIT:
- --writeable[=<dir_name>]                               ; create a directory for Lua with write permissions and store its path in the "WRITEABLE" env variable (only one directory)
+ --writable[=<dir_name>]                                ; create a directory for Lua with write permissions and store its path in the "WRITABLE" env variable (only one directory)
  --blob=<item_name>:[+ofs]@<filename>|0xHEX             ; load a binary file or hex string into the Lua variable <item_name>. +ofs specifies the offset from the start of the file
  --lua-init=@<filename>|<lua_text>                      ; execute Lua code from a string or file once at startup. supports gzipped files. automatically checks for "<filename>.gz"
  --lua-gc=<int>                                         ; Lua garbage collector invocation interval in seconds. 0 disables periodic calls.
@@ -711,7 +712,9 @@ Specific parameters for nfqws2:
  --bind-fix4                            ; fix for the issue where generated packets on Linux exit from the wrong interface when using PBR (IPv4)
  --bind-fix6                            ; same as above for IPv6
  --fwmark=<int|0xHEX>                   ; mark bit to prevent looping. default = 0x40000000
+ --filter-mark=mark[/mask]              ; profile filter: filter by packet mark. mark and mask can be decimal or 0xHEX
  --filter-ssid=ssid1[,ssid2,ssid3,...]  ; profile filter: WiFi network name (SSID)
+ --filter-ssid-neg=[0|1]                ; profile filter: negate SSID filter
 ```
 
 Specific parameters for dvtws2:
@@ -744,7 +747,9 @@ Specific parameters for winws2:
  --wf-save=<filename>                   ; save the final complete WinDivert filter to a file
 LOGICAL NETWORK FILTER:
  --ssid-filter=ssid1[,ssid2,ssid3,...]  ; list of WiFi networks; interception is enabled only when connected to these, otherwise it is disabled.
+ --ssid-filter-neg=[0|1]                ; negate WiFi network filter
  --nlm-filter=net1[,net2,net3,...]      ; list of Network List Manager networks; interception is enabled only when connected to these, otherwise it is disabled.
+ --nlm-filter-neg=[0|1]                 ; negate NLM filter
  --nlm-list[=all]                       ; display a list of connected NLM networks. "all" shows all NLM networks.
 ```
 
@@ -915,6 +920,8 @@ Another way to address this-and not just for Wi-Fi-is by using the Network List 
 
 An NLM network is the result of the system detecting a connection to a specific network. You might connect to a router via Wi-Fi or Ethernet, but it will be recognized as the same network. To distinguish between networks, the system typically looks at the gateway's MAC address. NLM technology is interesting and useful, but unfortunately, adequate management tools were only available in Windows 7. In newer systems, you have to dig into PowerShell or the Registry to manually assign connections to the correct GUIDs if the system categorizes them incorrectly. Alternatively, you can simply use the list of GUIDs automatically assigned by the system.
 
+SSID/NLM filters can be negated in both systems.
+
 ## Server mode
 
 Certain types of manipulations can be performed not only from the client side but also from the server side. `nfqws2` was designed to fully support both inbound and outbound traffic, on both the client and server sides.
@@ -1018,13 +1025,13 @@ Windows:
 - All `Se*` privileges are irrevocably removed from the token, except for `SeChangeNotifyPrivilege`.
 - A Job object is used to prohibit the creation of child processes and restrict desktop interaction - clipboard access, changing desktop settings, changing display settings, etc.
 
-There is a simple way to pass a writable directory to the Lua code using the `--writeable[=<dirname>]` parameter. `nfqws2` creates the directory and assigns permissions so that the Lua code can write files there, then passes the directory name in the `WRITEABLE` environment variable. If `dirname` is not specified, a directory is created within `%USERPROFILE%/AppData/LocalLow` on Windows.
+There is a simple way to pass a writable directory to the Lua code using the `--writable[=<dirname>]` parameter. `nfqws2` creates the directory and assigns permissions so that the Lua code can write files there, then passes the directory name in the `WRITABLE` environment variable. If `dirname` is not specified, a directory is created within `%USERPROFILE%/AppData/LocalLow` on Windows.
 
 On the Lua side, dangerous functions are removed: `os.execute`, `io.popen`, `package.loadlib`, and the `debug` module. On GitHub, `nfqws2` executables are built with a version of LuaJIT that excludes FFI.
 
 ## Calling Lua code
 
-Lua code is invoked in two stages:
+Lua code is invoked in 3 stages:
 
 1. Once at program startup via `--lua-init=code|@file`. If the parameter value starts with `@`, a file is executed; otherwise, the value is treated as Lua code. Gzip file compression is supported. The program first checks for "file", then "file.gz".
 2. During profile processing via `--lua-desync=function_name:arg1[=val1]:arg2[=val2]:argN[=valN]`.
@@ -1033,6 +1040,7 @@ Two types of automatic substitutions are implemented on the C side:
 `%var` substitutes the value of the variable `desync.var` or `var` if the former is missing.
 `#var` substitutes the length of the variable `desync.var` or `var` if the former is missing.
 Colons and the `%`, `#` symbols at the beginning can be escaped with a backslash `\`.
+3. During [timer](#timers) processing.
 
 Both `--lua-init` and `--lua-desync` can be used multiple times. Execution follows the exact order in which they are specified.
 
@@ -1047,6 +1055,10 @@ A blob is a binary data block of any size that can be loaded into a Lua variable
 - `0xHEX` – loading from a HEX string.
 
 Direct file operations from Lua code are not recommended unless absolutely necessary. Lua code runs with restricted privileges; intended operations might fail or behave inconsistently across different operating systems and environments. Blob loading occurs before entering the sandbox, providing a higher chance of success.
+
+Since a blob's name is a Lua variable name, you cannot name it arbitrarily. You must follow Lua naming conventions.
+For example, a variable name cannot start with a digit, contain non-alphanumeric characters (other than `_`), or use reserved words.
+Names are case-sensitive.
 
 ### In-profile filters
 
@@ -1697,8 +1709,8 @@ Before executing `--lua-init`, the C code sets up base constants, blobs, and C f
 
 | env       | Purpose |
 | :-------- |:---------- |
-| WRITEABLE | A directory writable by Lua. Corresponds to the `--writeable` option. |
-| APPDATALOW | (Windows only) The AppData location for the low mandatory level. This is also writable, but using `--writeable` is preferred for cross-platform compatibility. |
+| WRITABLE | A directory writable by Lua. Corresponds to the `--writable` option. |
+| APPDATALOW | (Windows only) The AppData location for the low mandatory level. This is also writable, but using `--writable` is preferred for cross-platform compatibility. |
 
 ## C functions
 
@@ -2144,6 +2156,20 @@ Returns a table representing the dissection of the `raw_ip` packet.
 This is the same operation that occurs automatically before desync functions are called based on the profile.
 Those functions receive an already prepared dissect.
 
+#### dissect_hdr
+
+```
+function dissect_tcphdr(tcp)
+function dissect_udphdr(udp)
+function dissect_icmphdr(icmp)
+function dissect_iphdr(ip)
+function dissect_ip6hdr(ip6)
+```
+
+Dissection of individual raw headers.
+Returns a table representing the dissected header.
+For TCP options, all 0x00 options (padding) at the end are trimmed.
+
 #### reconstruct_dissect
 
 ```
@@ -2181,6 +2207,7 @@ Reconstructs the corresponding raw headers from the dissect tables. Returns the 
 - IPv6 reconstruction utilizes `reconstruct_opts`, specifically `ip6_preserve_next` and `ip6_last_proto`.
 - The IP header checksum is calculated automatically since it does not depend on any other components.
 - TCP, UDP and ICMP checksums are not calculated automatically because they depend on other components.
+- TCP options are padded with 0x00 to a multiple of 4 bytes.
 
 #### csum_fix
 
@@ -2223,7 +2250,7 @@ If conntrack is disabled or the packet is not valid tcp or udp, nil is returned.
 function get_source_ip(target)
 ```
 
-Get source IP (raw string) that would be used for connection the the target IP.
+Get source IP (raw string) that would be used for connection to the target IP.
 Returns nil if destination is unreachable.
 
 ```
@@ -2424,7 +2451,7 @@ function timer_set(name, func, period, oneshot, data)
 ```
 
 * name - a unique timer name. If a timer with this name already exists, it is deleted and replaced with a new one. When replaced, the countdown restarts.
-* func - the timer function name (string)
+* func - the timer function. string or function. if it's a string function is resolved during timer_set call and remembered as a function, not as a string.
 * period - the timer call frequency in milliseconds
 * oneshot - a bool indicating whether the timer is single-shot (true) or periodic (false)
 * data - an arbitrary variable passed to the [timer-function](#timer-function-prototype)
@@ -2451,7 +2478,7 @@ Returns table in case of success, nil otherwise.
 | Field   | Type   | Description  |
 | :------ | :----- | :------------------ |
 | name    | string | unique timer name |
-| func    | string | timer function name |
+| func    | function | timer function |
 | oneshot | bool   | true = single shot timer, false = periodic timer |
 | period  | number | timer period in msec |
 | fires   | number | number of timer calls made |
@@ -2486,6 +2513,8 @@ Executes arbitrary Lua code specified in the "code" argument.
 The code can address the `desync` table-it is temporarily assigned to a global variable named `desync`, which is cleared once the code finishes executing.
 
 Example: `--lua-desync=luaexec:code="desync.rnd=brandom(math.random(5,10))"`
+
+Verdict can be returned using "return" statement.
 
 ### pass
 
@@ -3295,12 +3324,12 @@ function host_or_ip(desync)
 ```
 function is_absolute_path(path)
 function append_path(path, file)
-function writeable_file_name(filename)
+function writeble_file_name(filename)
 ```
 
 - `is_absolute_path` returns true if the path starts from the root. It accounts for CYGWIN path specifics.
 - `append_path` appends a file or directory name `file` to `path`, using '/' as a separator.
-- `writeable_file_name` returns `filename` if it contains an absolute path or if the `WRITEABLE` environment variable is not set. Otherwise, it retrieves the path from the `WRITEABLE` environment variable and appends the `filename` using `append_path`.
+- `writeble_file_name` returns `filename` if it contains an absolute path or if the `WRITABLE` environment variable is not set. Otherwise, it retrieves the path from the `WRITABLE` environment variable and appends the `filename` using `append_path`.
 
 ## Reading and writing Files
 
@@ -3617,9 +3646,9 @@ May not be unique.
 function desync_timer_name(desync)
 ```
 
-Construct timer name that includes dis_timer_name result + conntrack packet number.
+Construct timer name that includes instance name, dis_timer_name result, conntrack packet number.
 If track is absent random characters are added to the end.
-This name can be considered unique per desync and can be used as an oneshot timer name.
+This name can be considered unique per desync+instance and can be used as an oneshot timer name.
 
 ## Orchestration
 
@@ -3789,7 +3818,9 @@ function send(ctx, desync)
 - Default `ip_id` mode is `none`.
 
 Sends the current dissect with optional modifications applied.
-If delay is specified function returns VERDICT_DROP. Packet data and send options are remembered. After specified time packet is sent out.
+If delay is specified packet data and send options are remembered. After specified time packet is sent out.
+
+The function returns VERDICT_PASS - the sending of the current dissect is not canceled. If you want to cancel, use the [drop](#drop) instance.
 
 
 ### pktmod
@@ -4598,7 +4629,7 @@ This is a basic signature detector. If the C code does not recognize the protoco
 #### cond_tcp_has_ts
 
 ```
-function cond_tcp_ts(desync)
+function cond_tcp_has_ts(desync)
 ```
 
 Returns `true` if the dissect is tcp and has tcp timestamp option.
@@ -4922,53 +4953,54 @@ NOTEST_QUIC=1 - disable 90-quic.sh tests
 
 A simple tester that uses strategy lists from files. Strategies must be on separate lines; line breaks within a single strategy are not allowed. Separate lists are used for different protocols: `list_http.txt`, `list_https_tls12.txt`, `list_https_tls13.txt`, and `list_quic.sh`. These files support comments starting with `#`.
 
-When defining parameters, keep in mind that they will be interpreted as shell arguments. Special characters must be escaped according to shell rules.
-For example, leaving `<` unquoted across the entire parameter or incorrectly quoting the `--luaexec=code=print("abc")` parameter will result in an error. If your Lua code uses strings, it is best to enclose them in single quotes and wrap the entire parameter in double quotes.
+When defining parameters, keep in mind that they will first be tried as shell arguments. Special characters (`<`, `(`, `'`, and similar) are shell syntax and would normally need escaping - for example, leaving `<` unquoted across the entire parameter, or incorrectly quoting the `--luaexec=code=print("abc")` parameter, would previously result in an error. If a line fails this way now, it's automatically retried as a plain, unparsed argument list instead (split only on whitespace, nothing re-interpreted), so strategies containing these characters work whether or not you escape them yourself - copy one straight from `blockcheck2`'s own output and it will just work. Escaping by hand (single quotes around Lua strings, the whole parameter wrapped in double quotes) is still supported and still takes priority when it succeeds, for anyone who wants shell-side expansion inside a list line.
 Note that `blockcheck2` will output strategy parameters without escaping.
 
 The recommended way to use this is to copy it into its own subdirectory within `blockcheck2.d` and populate the `.txt` files with your tests. Then, select your custom test name from the dialog.
 
 ## Summary
 
-At the end of the test, all successful strategies are displayed for each domain and each IP protocol version. If more than one domain was tested, the intersection of successful strategies (those that worked for all) is also provided. However, this intersection can only be fully relied upon when using `SCANLEVEL=force`. Otherwise, strategies that might have worked for subsequent domains might not have been tested for the first one.
+At the end of the test, all successful strategies are displayed for each domain and each IP protocol version. If more than one domain was tested, the intersection of successful strategies (those that worked for all, labeled COMMON) is also provided, together with a COVERAGE listing of every successful strategy and how many of the domains it worked for, most-covered first - useful when testing a set of largely independent targets where no single strategy is expected to satisfy all of them. However, COMMON and the COVERAGE counts can only be fully relied upon when using `SCANLEVEL=force`. Otherwise, strategies that might have worked for subsequent domains might not have been tested for the first one.
 
 ## Shell variables
 
-```
-CURL - path to the curl executable
-CURL_MAX_TIME - curl timeout in seconds
-CURL_MAX_TIME_QUIC - curl timeout for QUIC. If not set, CURL_MAX_TIME is used
-CURL_MAX_TIME_DOH - curl timeout for DoH servers
-CURL_CMD=1 - display curl commands
-CURL_OPT - additional curl options. `-k` to ignore certificates, `-v` for verbose protocol output
-CURL_HTTPS_GET=1 - use the GET method instead of HEAD for HTTPS
-DOMAINS - space-separated list of domains or domains with URIs to test
-TEST - name of the test
-IPVS=4|6|46 - IP protocol versions to test
-ENABLE_HTTP=0|1 - enable plain HTTP test
-ENABLE_HTTPS_TLS12=0|1 - enable HTTPS TLS 1.2 test
-ENABLE_HTTPS_TLS13=0|1 - enable HTTPS TLS 1.3 test
-ENABLE_HTTP3=0|1 - enable QUIC test
-REPEATS - number of test attempts
-PARALLEL=0|1 - enable parallel attempts. May overwhelm the site due to aggressive requests and lead to incorrect results
-SCANLEVEL=quick|standard|force - scanning level
-BATCH=1 - batch mode (no prompts or waiting for console input)
-HTTP_PORT, HTTPS_PORT, QUIC_PORT - port numbers for the respective protocols
-SKIP_DNSCHECK=1 - skip DNS check
-SKIP_IPBLOCK=1 - skip port or IP blocking tests
-PKTWS_EXTRA_POST - additional nfqws/dvtws/winws parameters added after the main strategy
-PKTWS_EXTRA_POST_1 .. PKTWS_EXTRA_POST_9 - separate additional parameters that contain spaces
-PKTWS_EXTRA_PRE - additional nfqws/dvtws/winws parameters added before the main strategy
-PKTWS_EXTRA_PRE_1 .. PKTWS_EXTRA_PRE_9 - separate additional parameters that contain spaces
-DNSCHECK_DNS - space-separated list of third-party DNS servers for DNS spoofing tests
-DNSCHECK_DOM - space-separated list of domains for DNS spoofing tests
-SECURE_DNS=0|1 - force enable or disable DoH
-DOH_SERVERS - space-separated list of DoH URLs for automatic selection of a working server
-DOH_SERVER - specific DoH URL (disables auto-selection)
-UNBLOCKED_DOM - an unblocked domain used for IP block tests
-SIMULATE=1 - enable simulation mode for debugging script logic. Disables real curl requests and replaces them with random results.
-SIM_SUCCESS_RATE=<percent> - simulation success probability as a percentage
-```
+| Variable | Description |
+| :------- | :---------- |
+| CURL | path to the curl executable |
+| CURL_MAX_TIME | curl timeout in seconds |
+| CURL_MAX_TIME_QUIC | curl timeout for QUIC. If not set, CURL_MAX_TIME is used |
+| CURL_MAX_TIME_DOH | curl timeout for DoH servers |
+| CURL_CMD=1 | display curl commands |
+| CURL_OPT | additional curl options. `-k` to ignore certificates, `-v` for verbose protocol output |
+| CURL_HTTPS_GET=1 | use the GET method instead of HEAD for HTTPS |
+| CURL_PAD | pad every curl request with a junk headers of this many bytes. Full length taken into account along with header name, data field and EOL. Useful for testing a "16 KB"-style whitelist block against a target with no large page of its own to download, since that block triggers on total bytes transferred rather than on how much of it was a real response. Independent of CURL_HTTPS_GET; use whichever fits the target |
+| PAD_MAX_HEADER | maximum length in bytes of the data field of one header for CURL_PAD padding. the length can be exceeded by no more than 14 characters for the last header, if the last header together with the name and EOL could be less than 14 characters |
+| DOMAINS | space-separated list of domains or domains with URIs to test |
+| TEST | name of the test |
+| IPVS=4\|6\|46 | IP protocol versions to test |
+| ENABLE_HTTP=0\|1 | enable plain HTTP test |
+| ENABLE_HTTPS_TLS12=0\|1 | enable HTTPS TLS 1.2 test |
+| ENABLE_HTTPS_TLS13=0\|1 | enable HTTPS TLS 1.3 test |
+| ENABLE_HTTP3=0\|1 | enable QUIC test |
+| REPEATS | number of test attempts |
+| PARALLEL=0|1 | enable\ parallel\ attempts. May overwhelm the site due to aggressive requests and lead to incorrect results |
+| SCANLEVEL=quick\|standard\|force | scanning level |
+| BATCH=1 | batch mode (no prompts or waiting for console input) |
+| HTTP_PORT, HTTPS_PORT, QUIC_PORT | port numbers for the respective protocols |
+| SKIP_DNSCHECK=1 | skip DNS check |
+| SKIP_IPBLOCK=1 | skip port or IP blocking tests |
+| PKTWS_EXTRA_POST | additional nfqws/dvtws/winws parameters added after the main strategy |
+| PKTWS_EXTRA_POST_1 .. PKTWS_EXTRA_POST_9 | separate additional parameters that contain spaces |
+| PKTWS_EXTRA_PRE | additional nfqws/dvtws/winws parameters added before the main strategy |
+| PKTWS_EXTRA_PRE_1 .. PKTWS_EXTRA_PRE_9 | separate additional parameters that contain spaces |
+| DNSCHECK_DNS | space-separated list of third-party DNS servers for DNS spoofing tests |
+| DNSCHECK_DOM | space-separated list of domains for DNS spoofing tests |
+| SECURE_DNS=0\|1 | force enable or disable DoH |
+| DOH_SERVERS | space-separated list of DoH URLs for automatic selection of a working server |
+| DOH_SERVER | specific DoH URL (disables auto-selection) |
+| UNBLOCKED_DOM | an unblocked domain used for IP block tests |
+| SIMULATE=1 | enable simulation mode for debugging script logic. Disables real curl requests and replaces them with random results. |
+| SIM_SUCCESS_RATE=\<percent\> | simulation success probability as a percentage |
 
 ## Why it won't open
 

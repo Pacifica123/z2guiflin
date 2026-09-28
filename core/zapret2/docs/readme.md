@@ -9,8 +9,8 @@
 VPN. Может использоваться для частичной прозрачной обфускации протоколов.
 
 Проект нацелен прежде всего на маломощные embedded устройства - роутеры, работающие под OpenWrt. Поддерживаются
-традиционные Linux-системы, FreeBSD, OpenBSD, Windows. В некоторых случаях возможна самостоятельная прикрутка
-решения к различным прошивкам.
+традиционные Linux-системы, FreeBSD, OpenBSD, Windows. MacOS не поддерживается и вряд ли будет по техническим причинам.
+В некоторых случаях возможна самостоятельная прикрутка решения к различным прошивкам.
 
 [Полный мануал](manual.md)
 
@@ -52,10 +52,15 @@ Lua код получает от C кода структурированное �
 Имеется библиотека хелперов, написанных на Lua, а так же готовая библиотека программ атаки на DPI (стратегий), реализующая функции *nfqws1* в расширенном варианте
 и с большей гибкостью.
 
-Вы всегда сможете взять и дописать что-то свое. В этом и есть смысл, чтобы борьбой с DPI смог заняться любой, кто разбирается в пакетах.
+Вы всегда сможете взять и дописать что-то свое. От мелкой частной кустомизации, которую бессмысленно зашивать намертво в C код, до полноценной desync функции.
+В этом и есть смысл, чтобы борьбой с DPI смог заняться любой, кто разбирается в пакетах.
 Мог "потыкать" его, проверить свои идеи. А потом поделиться с друзьями своим решением "одного клика".
 zapret2 - инструмент для таких энтузиастов. Но это не готовое решение для чайников. Проект не ставит себе целью сделать все простым для всех.
 Автор считает, что это невозможно в принципе по обьективным причинам.
+
+Борьбой с DPI возможности zapret2 не ограничиваются. По сути это мультиплатформенный пакетный программируемый манипулятор.
+Вы можете использовать его для генерации произвольного IPv4/IPv6 трафика, обфускации или шифрования имеющегося, построения нестандартных протоколов обмена через IP сети,
+реализации собственных firewall или DPI систем.
 
 
 ## С чего начать
@@ -102,7 +107,7 @@ windivert вообще не отслеживает соединения. Поэ�
 Дальше под рутом нужно запустить *nfqws2* с параметрами командной строки. Они строятся примерно следующим образом :
 
 ```
-nfqws2 --qnum 200 --debug --lua-init=@zapret-lib.lua --lua-init=@zapret-antidpi.lua \
+nfqws2 --qnum=200 --debug --lua-init=@zapret-lib.lua --lua-init=@zapret-antidpi.lua \
   --filter-tcp=80,443 --filter-l7=tls,http \
   --payload=tls_client_hello --lua-desync=fake:blob=fake_default_tls:tcp_md5:tls_mod=rnd,rndsni,dupsid \
   --payload=http_req --lua-desync=fake:blob=fake_default_http:tcp_md5 \
@@ -117,7 +122,7 @@ nfqws2 --qnum 200 --debug --lua-init=@zapret-lib.lua --lua-init=@zapret-antidpi.
 После двоеточия и через двоеточия следуют параметры для данной функции в формате `param[=value]`. В примере реализована стратегия
 
 ```
-nfqws --qnum 200 --debug \
+nfqws --qnum=200 --debug \
 --filter-tcp=80,443 --filter-l7=tls,http \
  --dpi-desync=fake,multisplit --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1,midsld \
  --dpi-desync-split-seqovl=5 --dpi-desync-split-seqovl-pattern=0x1603030000 \
@@ -150,7 +155,7 @@ nfqws --qnum 200 --debug \
 В *nfqws1* они падали на профиль с автолистом.
 
 ```
-nfqws2 --qnum 200 --debug --lua-init=@zapret-lib.lua --lua-init=@zapret-antidpi.lua \
+nfqws2 --qnum=200 --debug --lua-init=@zapret-lib.lua --lua-init=@zapret-antidpi.lua \
 --filter-tcp=80 --filter-l7=http --hostlist=mylist1.txt --lua-desync=multisplit --new \
 --filter-tcp=80 --filter-l7=http --hostlist-exclude=mylist2.txt --lua-desync=fake:blob=0x00000000:ip_ttl=5:ip6_ttl=3 --lua-desync=multidisorder:pos=5,endhost-1 --new \
 --filter-tcp=443 --filter-l7=tls --hostlist=mylist1.txt --lua-desync=multidisorder
@@ -167,7 +172,7 @@ range задается как `mX-mY`, `mX<mY`, `-mY`, `<mY`, `mX-`.
 Есть и режимы, не требущие числа - `a` - всегда, `x` - никогда.
 Если разделителем указан знак '-' - конечная позиция включительна, а если '<' - не включительна.
 
-Установка по умолчанию `--in-range=x --out-range=a --payload all`. То есть отсекаются все входящие пакеты и берутся все исходящие.
+Установка по умолчанию `--in-range=x --out-range=a --payload=all`. То есть отсекаются все входящие пакеты и берутся все исходящие.
 
 `--in-range`, `--out-range` и `--payload` фильтры могут присутствовать множественно в одном профиле.
 Их действие распространяется на все последующие `--lua-desync` функции до следующего фильтра того же типа или до конца профиля.
@@ -248,7 +253,7 @@ nfqws \
 nfqws2 \
  --blob=tls_google:@tls_clienthello_google_com.bin \
  --filter-l7=tls \
- --payload tls_client_hello,http_req \
+ --payload=tls_client_hello,http_req \
  --lua-desync=fakedsplit:pattern=tls_google:pos=method+2:nofake1:ip_ttl=1:ip6_ttl=1:ip_autottl=-1,3-20:ip6_autottl=-1,3-20
 ```
 
@@ -269,19 +274,19 @@ nfqws2 --lua-desync=wssize:wsize=1:scale=6 --lua-desync=syndata --lua-desync=mul
 
 ```
 nfqws1 \
- --filter-l7 tls \
+ --filter-l7=tls \
  --dpi-desync=fake --dpi-desync-fooling=datanoack --dpi-desync-fake-tls=! \
  --dpi-desync-fake-tls-mod=rnd,rndsni,dupsid
 
 nfqws2
- --filter-l7 tls \
+ --filter-l7=tls \
  --payload=tls_client_hello --lua-desync=fake:blob=fake_default_tls:tcp_flags_unset=ack:tls_mod=rnd,rndsni,dupsid,padencap \
  --payload=empty --out-range="s1<d1" --lua-desync=pktmod:ip_ttl=1:ip6_ttl=1
 
 
 nfqws2 \
  --lua-init="fake_default_tls=tls_mod(fake_default_tls,'rnd,rndsni')" \
- --filter-l7 tls \
+ --filter-l7=tls \
  --payload=tls_client_hello --lua-desync=fake:blob=fake_default_tls:tcp_flags_unset=ack:tls_mod=dupsid,padencap \
  --payload=empty --out-range="s1<d1" --lua-desync=pktmod:ip_ttl=1:ip6_ttl=1
 ```
@@ -468,7 +473,7 @@ table ip ztest {
 ```
 
 ```
-nfqws2 --qnum 200 --server
+nfqws2 --qnum=200 --server
  --lua-init=@/opt/zapret2/lua/zapret-lib.lua
  --lua-init=@/opt/zapret2/lua/zapret-obfs.lua
  --in-range=a

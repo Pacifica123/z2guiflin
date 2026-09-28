@@ -82,8 +82,8 @@ void lua_pushf_lud(lua_State *L, const char *field, void *p);
 void lua_pushf_table(lua_State *L, const char *field);
 void lua_pushi_table(lua_State *L, lua_Integer idx);
 
-void lua_push_blob(lua_State *L, int idx_desync, const char *blob);
-void lua_pushf_blob(lua_State *L, int idx_desync, const char *field, const char *blob);
+bool lua_push_blob(lua_State *L, int idx_desync, const char *blob);
+bool lua_pushf_blob(lua_State *L, int idx_desync, const char *field, const char *blob);
 
 void lua_push_ipaddr(lua_State *L, const struct sockaddr *sa);
 void lua_pushf_ipaddr(lua_State *L, const char *field, const struct sockaddr *sa);
@@ -103,7 +103,7 @@ void lua_push_dissect(lua_State *L, const struct dissect *dis);
 void lua_pushf_dissect(lua_State *L, const struct dissect *dis);
 void lua_push_ctrack(lua_State *L, const t_ctrack *ctrack, const t_ctrack_positions *tpos, bool bIncoming);
 void lua_pushf_ctrack(lua_State *L, const t_ctrack *ctrack, const t_ctrack_positions *tpos, bool bIncoming);
-void lua_pushf_args(lua_State *L, const struct str2_list_head *args, int idx_desync, bool subst_prefix);
+bool lua_pushf_args(lua_State *L, const struct str2_list_head *args, int idx_desync, bool subst_prefix);
 void lua_pushf_pos(lua_State *L, const char *name, const struct packet_pos *pos);
 void lua_pushf_range(lua_State *L, const char *name, const struct packet_range *range);
 void lua_pushf_global(lua_State *L, const char *field, const char *global);

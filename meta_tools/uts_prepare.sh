@@ -30,6 +30,9 @@ usage() {
   bash meta_tools/uts_prepare.sh --p02
       Подготовить окружение и запустить P02 lifecycle/privilege regression.
 
+  bash meta_tools/uts_prepare.sh --p03
+      Подготовить окружение и запустить P03 generation/upstream regression.
+
   bash meta_tools/uts_prepare.sh --full
       Подготовить окружение и запустить весь pytest-набор без cache/bytecode.
 
@@ -57,6 +60,10 @@ while (($#)); do
       ;;
     --p02)
       RUN_MODE="p02"
+      shift
+      ;;
+    --p03)
+      RUN_MODE="p03"
       shift
       ;;
     --full)
@@ -275,6 +282,7 @@ case "${RUN_MODE}" in
     printf '\nUTS test environment готов.\n'
     printf 'P01 regression: bash meta_tools/uts_prepare.sh --p01\n'
     printf 'P02 regression: bash meta_tools/uts_prepare.sh --p02\n'
+    printf 'P03 regression: bash meta_tools/uts_prepare.sh --p03\n'
     printf 'Полный pytest : bash meta_tools/uts_prepare.sh --full\n'
     ;;
   p01)
@@ -292,6 +300,15 @@ case "${RUN_MODE}" in
       tests/test_consolidated_runtime_security_patch.py \
       tests/test_default_strategy_import_and_gui_controls.py \
       tests/test_gui_toggle_and_runtime_logs.py
+    ;;
+  p03)
+    run_pytest \
+      tests/test_p03_core_generation.py \
+      tests/test_p03_generation_build_adapter.py \
+      tests/test_core_inventory_and_build_map.py \
+      tests/test_default_build_workflow.py \
+      tests/test_default_workflow.py \
+      tests/test_consolidated_runtime_security_patch.py
     ;;
   full)
     run_pytest tests

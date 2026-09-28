@@ -121,7 +121,7 @@ bool tcp_synack_segment(const struct tcphdr *tcphdr);
 bool tcp_syn_segment(const struct tcphdr *tcphdr);
 
 
-bool make_writeable_dir();
+bool make_writable_dir();
 bool ensure_file_access(const char *filename);
 #ifdef __CYGWIN__
 extern uint32_t w_win32_error;
@@ -129,7 +129,7 @@ extern uint32_t w_win32_error;
 bool ensure_dir_access(const char *filename);
 bool prepare_low_appdata();
 bool win_sandbox(void);
-bool win_dark_init(const struct str_list_head *ssid_filter, const struct str_list_head *nlm_filter);
+bool win_dark_init(const struct str_list_head *ssid_filter, bool ssid_filter_neg, const struct str_list_head *nlm_filter, bool nlm_filter_neg);
 void win_dark_deinit(void);
 bool logical_net_filter_present(void);
 bool logical_net_filter_match(void);
@@ -147,7 +147,7 @@ bool rawsend_preinit(bool bind_fix4, bool bind_fix6);
 bool rawsend(const struct sockaddr* dst,uint32_t fwmark,const char *ifout,const void *data,size_t len);
 bool rawsend_rp(const struct rawpacket *rp);
 // return trues if all packets were send successfully
-bool rawsend_queue(struct rawpacket_tailhead *q);
+bool rawsend_queue(struct rawpacket_queue *q);
 // cleans up socket autocreated by rawsend
 void rawsend_cleanup(void);
 bool rawsend_rep(int repeats, const struct sockaddr* dst, uint32_t fwmark, const char *ifout, const void *data, size_t len);

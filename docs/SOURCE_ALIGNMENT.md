@@ -125,7 +125,7 @@ Default build workflow не меняет upstream-исходники и не д�
 
 ## v0.3-beta Stage 2 и preflight зависимостей
 
-Build dependency preflight не меняет upstream-исходники и не оборачивает upstream installer scripts. Он читает требования, вытекающие из `BUILD_MAP.json` и Makefile `nfq2`, а затем проверяет локальную систему на наличие toolchain и dev-заголовков перед `make nfqws2`.
+Build dependency preflight не меняет upstream-исходники и не оборачивает upstream installer scripts. Он читает требования, вытекающие из `BUILD_MAP.json` и Makefile `nfq2`, а затем проверяет локальную систему на наличие toolchain и dev-заголовков перед P03 staged build target `nfqws2`.
 
 Если отсутствует `libnetfilter_queue/libnetfilter_queue.h` или другой обязательный header, workflow теперь останавливается со статусом `blocked` до запуска компилятора. Установка пакетов остаётся owner action вне проекта; наш слой только показывает подсказки и сохраняет state/log.
 

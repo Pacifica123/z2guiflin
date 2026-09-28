@@ -75,7 +75,7 @@ sudo, но падал на upstream preflight, потому что в workspace 
 
 Теперь `Blockcheck lab` умеет:
 
-- показать отдельный план сборки prerequisites: `make all` внутри
+- показать отдельный план сборки prerequisites через P03 staged generation build adapter (`all`), сохраняя exact upstream tree; ранее это был прямой `make all` внутри
   `core/zapret2`;
 - запустить эту сборку явной кнопкой владельца без sudo;
 - не вызывать `install_bin.sh`, `install_easy.sh`, `install_prereq.sh` или другие
@@ -92,7 +92,7 @@ PYTHONPATH=gui python -m zap2_gui.app --blockcheck-build
 ```
 
 `--blockcheck-build-plan` только печатает план. `--blockcheck-build` запускает
-локальный `make all` без sudo и без изменений firewall/services. Если системные
+локальную staged generation сборку `all` без sudo и без изменений firewall/services. Если системные
 заголовки или build tools отсутствуют, команда блокируется на dependency
 preflight и печатает подсказки пакетов для Debian/Ubuntu, Fedora/RHEL-like,
 Arch/Manjaro и openSUSE.

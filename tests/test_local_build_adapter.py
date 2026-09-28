@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -23,7 +24,8 @@ def test_local_build_plan_for_all_is_plan_only_and_unprivileged() -> None:
     assert plan.may_require_sudo is False
     assert plan.may_mutate_services_or_firewall is False
     assert len(plan.commands) == 1
-    assert plan.commands[0].argv == ("make", "all")
+    assert plan.commands[0].cwd == ROOT
+    assert plan.commands[0].argv == (sys.executable, str(ROOT / "tools/core_generation_build.py"), "all")
     assert plan.commands[0].requires_sudo is False
     assert {artifact.relative_path for artifact in plan.expected_artifacts} == {
         "nfq2/nfqws2",
@@ -36,8 +38,8 @@ def test_local_build_plan_for_all_is_plan_only_and_unprivileged() -> None:
 def test_local_build_plan_for_single_unit_uses_unit_makefile_directory() -> None:
     plan = create_local_build_plan(ROOT, target="ip2net")
 
-    assert plan.commands[0].cwd == ROOT / "core/zapret2/ip2net"
-    assert plan.commands[0].argv == ("make", "ip2net")
+    assert plan.commands[0].cwd == ROOT
+    assert plan.commands[0].argv == (sys.executable, str(ROOT / "tools/core_generation_build.py"), "ip2net")
     assert [artifact.relative_path for artifact in plan.expected_artifacts] == ["ip2net/ip2net"]
     assert "sudo" not in " ".join(plan.commands[0].argv)
 

@@ -19,8 +19,8 @@ static unsigned int timer_n=0;
 static void TimerPoolDestroyItem(timer_pool *elem)
 {
 	free(elem->str);
-	free(elem->func);
 	luaL_unref(params.L, LUA_REGISTRYINDEX, elem->lua_ref);
+	luaL_unref(params.L, LUA_REGISTRYINDEX, elem->func_ref);
 }
 void TimerPoolDel(timer_pool **pp, timer_pool *p)
 {
@@ -39,15 +39,11 @@ struct timer_pool *TimerPoolSearch(timer_pool *p, const char *str)
 	HASH_FIND_STR(p, str, elem_find);
 	return elem_find;
 }
-struct timer_pool *TimerPoolAdd(timer_pool **pp, const char *str, const char *func, uint64_t period, bool oneshot)
+struct timer_pool *TimerPoolAdd(timer_pool **pp, const char *str, uint64_t period, bool oneshot)
 {
 	ADD_STR_POOL(timer_pool, pp, str, strlen(str))
 	elem->lua_ref = LUA_NOREF;
-	if (!(elem->func = strdup(func)))
-	{
-		TimerPoolDel(pp,elem);
-		return NULL;
-	}
+	elem->func_ref = LUA_NOREF;
 	elem->period = period;
 	elem->oneshot = oneshot;
 	elem->bt_next = boottime_ms() + elem->period;
@@ -58,17 +54,11 @@ struct timer_pool *TimerPoolAdd(timer_pool **pp, const char *str, const char *fu
 
 static bool TimerPoolRunTimer(timer_pool *p)
 {
-	lua_getglobal(params.L, p->func);
-	if (!lua_isfunction(params.L, -1))
-	{
-		lua_pop(params.L, 1);
-		DLOG_ERR("timer: '%s' function '%s' does not exist\n",p->str,p->func);
-		return false;
-	}
+	lua_rawgeti(params.L, LUA_REGISTRYINDEX, p->func_ref);
 	lua_pushstring(params.L, p->str);
 	lua_rawgeti(params.L, LUA_REGISTRYINDEX, p->lua_ref);
 	p->fires++;
-	DLOG("\ntimer: '%s' function '%s' period %llu oneshot %u fires=%u\n",p->str,p->func,p->period,p->oneshot,p->fires);
+	DLOG("\ntimer: '%s' period %llu oneshot %u fires=%u\n",p->str,p->period,p->oneshot,p->fires);
 	int status = lua_pcall(params.L, 2, 0, 0);
 	if (status)
 	{
@@ -79,75 +69,96 @@ static bool TimerPoolRunTimer(timer_pool *p)
 }
 uint64_t TimerPoolNext(const timer_pool *p, bool *dirty)
 {
+	*dirty = false;
+	if (!p) return 0;
+
 	const timer_pool *elem, *tmp;
 	uint64_t mintime=0x7FFFFFFFFFFFFFFF;
-
-	if (!p) return 0;
 
 	HASH_ITER(hh, p, elem, tmp)
 	{
 		if (elem->bt_next < mintime) mintime = elem->bt_next;
 	}
-	*dirty = false;
 	return mintime;
 }
 uint64_t TimerPoolRun(timer_pool **pp, bool *dirty, uint64_t bt)
 {
-	*dirty = false;
-	if (!*pp) return 0; // no timers
+	if (!*pp)
+	{
+		*dirty = false;
+		return 0; // no timers
+	}
 
 	timer_pool *elem, *tmp, *p;
 	char *name;
 	const char *del;
 	unsigned int n;
-	uint64_t mintime=0x7FFFFFFFFFFFFFFF;
+	uint64_t mintime;
 
 	if (!bt) bt = boottime_ms();
+again:
+	mintime=0x7FFFFFFFFFFFFFFF;
+	*dirty = false;
 	HASH_ITER(hh, *pp, elem, tmp)
 	{
 		if (bt >= elem->bt_next)
 		{
-			if (!(name = strdup(elem->str)))
-				return 0;
-			n = elem->n;
-
-			del = NULL;
-			if (!TimerPoolRunTimer(elem))
-				del = "timer: '%s' deleted because of error\n";
-
-			// timer function could delete the timer or recreate with the same name
-			p = TimerPoolSearch(*pp, name);
-			if (p==elem && p->n==n)
+			if ((name = strdup(elem->str)))
 			{
-				if (!del && elem->oneshot)
-					del = "timer: '%s' deleted because of oneshot\n";
-				// elem is valid, not deleted and not recreated
-				if (del)
+				n = elem->n;
+
+				del = NULL;
+				if (!TimerPoolRunTimer(elem))
+					del = "timer: '%s' deleted because of error\n";
+
+				if (*dirty)
 				{
-					DLOG(del,name);
+					// timer function could delete the timer or recreate with the same name
+					p = TimerPoolSearch(*pp, name);
+					if (p!=elem || p->n!=n) elem = NULL; // timer deleted or recreated with the same name (but another 'n')
+				}
+				if (elem)
+				{
+					if (!del && elem->oneshot)
+						del = "timer: '%s' deleted because of oneshot\n";
+					// elem is valid, not deleted and not recreated
+					if (del)
+					{
+						DLOG(del,name);
+						TimerPoolDel(pp, elem);
+						elem = NULL;
+					}
+					else
+					{
+						// in case process was freezed (--ssid-filter/nlm-filter stop in winws for example)
+						// do not use previous activation time or timer can hit multiple times
+						// use current time instead to prevent bulk activation
+						elem->bt_next = bt + elem->period;
+					}
+				}
+
+				free(name);
+
+				if (*dirty)
+					goto again; // they may have deleted or created any number of timers, HASH_ITER may fail or access invalid pointers - restart
+			}
+			else // unlikely
+			{
+				if (elem->oneshot)
+				{
+					DLOG_ERR("timer: '%s' deleted because of out of memory\n", elem->str);
 					TimerPoolDel(pp, elem);
 					elem = NULL;
 				}
 				else
 				{
-					// in case process was freezed (--ssid-filter/nlm-filter stop in winws for example)
-					// do not use previous activation time or timer can hit multiple times
-					// use current time instead to prevent bulk activation
+					DLOG_ERR("timer: '%s' skipped because of out of memory\n", elem->str);
 					elem->bt_next = bt + elem->period;
 				}
 			}
-
-			free(name);
 		}
-		if (elem)
-		{
-			if (elem->bt_next < mintime) mintime = elem->bt_next;
-		}
+		if (elem && (elem->bt_next < mintime)) mintime = elem->bt_next;
 	}
 	if (!*pp) return 0; // no timers
-	if (*dirty)
-		// something changed in the timer pool (deleted or added in the lua timer code)
-		// rescan all timers for mintime
-		mintime = TimerPoolNext(*pp, dirty);
 	return mintime;
 }

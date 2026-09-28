@@ -24,11 +24,10 @@ SNAPSHOT_METADATA_FILES = {
     "BUILD_MAP.json",
 }
 
-# Files intentionally kept under core/zapret2 because nfqws2 loads them as
-# local runtime inputs, but not imported from the upstream source archive.
-PROJECT_LOCAL_CORE_FILES = {
-    "lua/custom_funcs.lua": "project-local compatibility shim for community Windows preset helpers",
-}
+# P03 keeps project-local runtime overlays outside the vendored upstream tree.
+# This mapping is intentionally empty: any future entry is a generation-boundary
+# regression and must be reviewed rather than silently treated as upstream.
+PROJECT_LOCAL_CORE_FILES: dict[str, str] = {}
 
 PRIMARY_MAKEFILES = [
     "Makefile",
@@ -179,7 +178,7 @@ def compute_core_inventory() -> dict[str, Any]:
     ]
     return {
         "schemaVersion": 1,
-        "snapshotFor": "v0.3-alpha_stage_4",
+        "snapshotFor": "v0.4_p03_zapret2_1.0.6",
         "generatedBy": "tools/gui_checks/inventory_core.py",
         "coreRoot": "core/zapret2",
         "policy": {
@@ -234,7 +233,7 @@ def compute_build_map() -> dict[str, Any]:
     makefile_targets = {rel_path: _targets_from_makefile(rel_path) for rel_path in PRIMARY_MAKEFILES}
     return {
         "schemaVersion": 1,
-        "snapshotFor": "v0.3-alpha_stage_4",
+        "snapshotFor": "v0.4_p03_zapret2_1.0.6",
         "generatedBy": "tools/gui_checks/inventory_core.py",
         "coreRoot": "core/zapret2",
         "source": "parsed from vendored Makefiles without executing make",

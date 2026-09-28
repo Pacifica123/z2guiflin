@@ -19,7 +19,7 @@ def test_stage7m_discord_5222_minimal_strategy_is_registered() -> None:
     args = "\n".join(strategy.runtime_args)
 
     assert strategy.is_plan_only is True
-    assert "--lua-init=@core/zapret2/lua/custom_funcs.lua" in strategy.runtime_args
+    assert "--lua-init=@core/overlays/zapret2/lua/custom_funcs.lua" in strategy.runtime_args
     assert "--ipcache-hostname=1" in strategy.runtime_args
     assert "--filter-tcp=80,443,1080,2053,2083,2087,2096,5222,8443" in strategy.runtime_args
     assert "hostfakesplit_multi:hosts=google.com,vimeo.com" in args
