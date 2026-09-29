@@ -4,7 +4,7 @@
 
 ## Сначала читать
 
-1. `PROJECT_STATUS.md` — что реально работает в v0.4 и где проходит граница проекта.
+1. `PROJECT_STATUS.md` — что реально работает в текущей v0.6/P03 линии и где проходит граница проекта.
 2. `V04_RELEASE.md` — почему состояние поднято до v0.4 без обещания универсальной стратегии.
 3. `KNOWN_GAPS_CHECKLISTS.md` — текущие недостатки по горизонтальным категориям.
 4. `SAFETY_AND_PRIVILEGE_BOUNDARY.md` — границы `sudo`, `nftables`, процессов и секретов.
@@ -13,7 +13,7 @@
 ## Архитектура и правила
 
 - `DEVELOPMENT_STRATEGY.md` — порядок развития и принятия решений.
-- `VERSIONING.md` — правила версий и статус v0.4.
+- `VERSIONING.md` — правила версий, принятый v0.6 baseline и P03 candidate.
 - `DOCUMENTATION_LANGUAGE.md` — язык и границы перевода.
 - `SOURCE_ALIGNMENT.md` — связь с bol-van, loop-uh, Flowseal и другими reference-снимками.
 - `PRESET_PROFILE_ARCHITECTURE.md` — модель `пресет -> профили`.

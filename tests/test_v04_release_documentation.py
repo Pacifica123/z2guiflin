@@ -8,12 +8,12 @@ from zap2_gui import PRODUCT_LABEL, __version__
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_product_version_is_v04_release() -> None:
-    assert PRODUCT_LABEL == "v0.4"
-    assert __version__ == "0.4.0"
+def test_product_version_tracks_accepted_v06_baseline() -> None:
+    assert PRODUCT_LABEL == "v0.6"
+    assert __version__ == "0.6.0"
 
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "0.4.0"' in pyproject
+    assert 'version = "0.6.0"' in pyproject
     assert 'version = "0.4.0a0"' not in pyproject
 
 
@@ -22,12 +22,13 @@ def test_current_docs_define_environment_dependent_release_boundary() -> None:
     release = (ROOT / "docs" / "V04_RELEASE.md").read_text(encoding="utf-8")
     status = (ROOT / "docs" / "PROJECT_STATUS.md").read_text(encoding="utf-8")
 
-    assert "Zap2 GUI Linux — v0.4" in readme
+    assert "Zap2 GUI Linux — v0.6 + P03 candidate toward v0.7" in readme
     assert "не универсальную стратегию" in readme
     assert "не обещает" in readme
     assert "рабочая платформа" in release
     assert "зависит не только от проекта" in release
-    assert "0.4.0" in status
+    assert "0.6.0" in status
+    assert "P03 candidate" in status
 
 
 def test_horizontal_gap_checklists_cover_reference_projects() -> None:

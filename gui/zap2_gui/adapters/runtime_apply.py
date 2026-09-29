@@ -14,9 +14,11 @@ firewall. Тесты используют fake runner.
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import ipaddress
 import json
 import os
+import re
 import shutil
 import subprocess
 from contextlib import contextmanager
@@ -50,6 +52,9 @@ DEFAULT_TCP_PORTS = ("80", "443")
 DEFAULT_DESYNC_MARK = "0x40000000"
 DEFAULT_TCP_ORIGINAL_PACKET_RANGE = "1-8"
 DEFAULT_UDP_ORIGINAL_PACKET_RANGE = "1-4"
+LEGACY_V04_MIGRATION_MARKER = "zap2-legacy-v04-migration-consent-v1"
+LEGACY_V04_COMMENT_RE = re.compile(r'comment\s+"zap2:zap2_[A-Za-z0-9_]+:(?:tcp-out|udp-out|tcp-in-synack|tcp-in-fin-rst)"')
+LEGACY_V04_QUEUE_RE = re.compile(r"\bqueue\s+num\s+(\d+)\b")
 
 RuntimeApplyAction = Literal["apply", "revert"]
 CommandRunner = Callable[[tuple[str, ...]], "RuntimeCommandResult"]
@@ -949,23 +954,137 @@ def _saved_owner_rules_state(paths: Any, profile_id: str) -> dict[str, Any] | No
         return None
 
 
-def _legacy_table_is_proven_owned(paths: Any, profile_id: str, expected: RuntimeApplyPlan, legacy_table: str) -> bool:
-    """Return True only for an applied legacy state owned by this workspace user/profile.
+def _legacy_v04_consent_path(paths: Any, profile_id: str) -> Path:
+    return paths.runtime_root / "migrations" / f"{profile_id}.legacy-v04-consent.json"
 
-    Old builds had no workspace digest in the table name, so the table itself is
-    not enough proof.  We require the old state file, marker, profile, owner UID
-    and exact legacy table name before a migration is allowed to delete it.
+
+def _legacy_v04_table_digest(text: str) -> str:
+    normalized = "\n".join(line.rstrip() for line in text.replace("\r\n", "\n").splitlines()).strip() + "\n"
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _legacy_v04_queue_numbers(text: str) -> tuple[int, ...]:
+    return tuple(sorted({int(item) for item in LEGACY_V04_QUEUE_RE.findall(text)}))
+
+
+def _legacy_v04_fingerprint_matches(text: str, legacy_table: str, owner_uid: int) -> bool:
+    if f"table inet {legacy_table}" not in text:
+        return False
+    if f"meta skuid {owner_uid}" not in text:
+        return False
+    queue_lines = [line for line in text.splitlines() if "queue num" in line]
+    if not queue_lines:
+        return False
+    if any(LEGACY_V04_COMMENT_RE.search(line) is None for line in queue_lines):
+        return False
+    comments = re.findall(r'comment\s+"([^"]+)"', text)
+    if any(not comment.startswith(f"zap2:{legacy_table}:") for comment in comments):
+        return False
+    return True
+
+
+def _live_nfqueue_numbers(path: Path = Path("/proc/net/netfilter/nfnetlink_queue")) -> set[int] | None:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except FileNotFoundError:
+        # Without the nfnetlink_queue proc endpoint there cannot be a registered
+        # userspace NFQUEUE listener on this host at this moment.
+        return set()
+    except OSError:
+        return None
+    result: set[int] = set()
+    for line in text.splitlines():
+        fields = line.split()
+        if not fields:
+            continue
+        try:
+            result.add(int(fields[0], 10))
+        except ValueError:
+            continue
+    return result
+
+
+def authorize_stale_legacy_v04_table(
+    root: Path | None = None,
+    profile_id: str = "default",
+    *,
+    runner: CommandRunner | None = None,
+    live_queue_numbers: set[int] | None = None,
+) -> dict[str, Any]:
+    """Create an auditable one-time consent receipt for a stale known-v0.4 table.
+
+    The receipt is only written when the legacy table has the known Zap2 rule
+    fingerprint and none of its NFQUEUE numbers has a live listener.  Unknown
+    or active tables remain fail-closed.  Actual deletion still happens later
+    inside the normal confirmed atomic owner-rules apply transaction.
     """
 
+    layout = discover_layout(root)
+    paths = ensure_runtime_store(layout.root)
+    expected = create_runtime_apply_plan(paths.root, action="apply", profile_id=profile_id)
+    legacy_table = _legacy_nft_table_name(profile_id)
+    if runner is None:
+        if shutil.which("nft") is None:
+            return {"state": "unknown", "message": "nft command is unavailable", "nftTable": legacy_table}
+        runner = _default_runner
+    probe = _table_probe(runner, legacy_table)
+    if _table_probe_missing(probe):
+        return {"state": "absent", "message": "legacy v0.4 nft table is absent", "nftTable": legacy_table}
+    if not probe.ok:
+        return {"state": "unknown", "message": "legacy v0.4 nft table could not be inspected", "nftTable": legacy_table}
+    if not _legacy_v04_fingerprint_matches(probe.stdout, legacy_table, expected.owner_uid):
+        return {"state": "conflict", "message": "legacy table exists but does not match the strict known-v0.4 Zap2 fingerprint", "nftTable": legacy_table}
+    queues = _legacy_v04_queue_numbers(probe.stdout)
+    live = _live_nfqueue_numbers() if live_queue_numbers is None else set(live_queue_numbers)
+    if live is None:
+        return {"state": "unknown", "message": "cannot inspect live NFQUEUE listeners; cleanup authorization refused", "nftTable": legacy_table, "queueNums": list(queues)}
+    active = sorted(set(queues) & live)
+    if active:
+        return {"state": "active", "message": "legacy v0.4 table still has live NFQUEUE listener(s); stop the old runtime first", "nftTable": legacy_table, "queueNums": list(queues), "activeQueueNums": active}
+    receipt = {
+        "schemaVersion": 1,
+        "marker": LEGACY_V04_MIGRATION_MARKER,
+        "state": "authorized",
+        "profileId": profile_id,
+        "nftTable": legacy_table,
+        "ownerUid": expected.owner_uid,
+        "observedTableSha256": _legacy_v04_table_digest(probe.stdout),
+        "queueNums": list(queues),
+        "explicitOwnerConsent": True,
+        "createdAt": _utc_now(),
+    }
+    path = _legacy_v04_consent_path(paths, profile_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _write_json(path, receipt)
+    return {**receipt, "path": str(path), "message": "stale known-v0.4 table authorized for atomic migration on next confirmed apply"}
+
+
+def _legacy_table_is_proven_owned(paths: Any, profile_id: str, expected: RuntimeApplyPlan, legacy_table: str, probe: RuntimeCommandResult) -> bool:
+    """Accept historical proof or an exact, explicit stale-v0.4 migration consent."""
+
     state = _saved_owner_rules_state(paths, profile_id)
-    if state is None:
-        return False
-    return bool(
+    if state is not None and bool(
         state.get("marker") == APPLY_MARKER
         and state.get("state") == "applied"
         and state.get("profileId") == profile_id
         and state.get("nftTable") == legacy_table
         and int(state.get("ownerUid", -1)) == int(expected.owner_uid)
+    ):
+        return True
+    consent_path = _legacy_v04_consent_path(paths, profile_id)
+    try:
+        consent = _read_json(consent_path)
+    except Exception:
+        return False
+    return bool(
+        consent.get("marker") == LEGACY_V04_MIGRATION_MARKER
+        and consent.get("state") == "authorized"
+        and consent.get("profileId") == profile_id
+        and consent.get("nftTable") == legacy_table
+        and int(consent.get("ownerUid", -1)) == int(expected.owner_uid)
+        and consent.get("explicitOwnerConsent") is True
+        and consent.get("observedTableSha256") == _legacy_v04_table_digest(probe.stdout)
+        and _legacy_v04_fingerprint_matches(probe.stdout, legacy_table, expected.owner_uid)
     )
 
 
@@ -1030,7 +1149,7 @@ def execute_runtime_owner_rules(
                         state = "failed"
                         message = "could not inspect legacy nft table before apply"
                     elif legacy_probe.ok:
-                        if _legacy_table_is_proven_owned(paths, profile_id, expected, legacy_table):
+                        if _legacy_table_is_proven_owned(paths, profile_id, expected, legacy_table, legacy_probe):
                             legacy_delete = legacy_table
                         else:
                             state = "conflict"
@@ -1055,6 +1174,17 @@ def execute_runtime_owner_rules(
                         elif legacy_delete:
                             legacy_table_migrated = legacy_delete
                             message = f"owner-confirmed apply completed; migrated legacy nft table inet {legacy_delete}"
+                            consent_path = _legacy_v04_consent_path(paths, profile_id)
+                            if consent_path.is_file():
+                                try:
+                                    consent = _read_json(consent_path)
+                                    if consent.get("marker") == LEGACY_V04_MIGRATION_MARKER:
+                                        consent["state"] = "consumed"
+                                        consent["consumedAt"] = _utc_now()
+                                        consent["consumedByPlanHash"] = plan_hash
+                                        _write_json(consent_path, consent)
+                                except Exception:
+                                    pass
         else:
             if table_missing:
                 state = "reverted"

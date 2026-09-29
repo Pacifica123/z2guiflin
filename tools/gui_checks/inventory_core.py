@@ -24,6 +24,21 @@ SNAPSHOT_METADATA_FILES = {
     "BUILD_MAP.json",
 }
 
+# Declared build artifacts are runtime products, not vendored source generation.
+# A successful owner build intentionally publishes these paths inside core/zapret2;
+# inventory must remain idempotent across repeated acceptance runs.
+GENERATED_BUILD_OUTPUTS = {
+    "nfq2/nfqws2",
+    "nfq2/dvtws2",
+    "nfq2/winws2.exe",
+    "ip2net/ip2net",
+    "ip2net/ip2neta",
+    "ip2net/ip2netx",
+    "mdig/mdig",
+    "mdig/mdiga",
+    "mdig/mdigx",
+}
+
 # P03 keeps project-local runtime overlays outside the vendored upstream tree.
 # This mapping is intentionally empty: any future entry is a generation-boundary
 # regression and must be reviewed rather than silently treated as upstream.
@@ -97,7 +112,9 @@ def _core_files() -> list[Path]:
     return sorted(
         path
         for path in CORE_ROOT.rglob("*")
-        if path.is_file() and path.name not in SNAPSHOT_METADATA_FILES
+        if path.is_file()
+        and path.name not in SNAPSHOT_METADATA_FILES
+        and path.relative_to(CORE_ROOT).as_posix() not in GENERATED_BUILD_OUTPUTS
     )
 
 

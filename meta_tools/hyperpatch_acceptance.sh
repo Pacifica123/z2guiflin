@@ -32,6 +32,7 @@ usage() {
   - native nfqws2 собран штатным staged build path;
   - strategy parser preflight прошёл на реальном binary;
   - bounded root executor совпадает с source проекта;
+  - stale legacy v0.4 nft table либо отсутствует, либо строго распознана и авторизована для атомарной миграции;
   - реальный default start применил owned nft/NFQUEUE rules и поднял nfqws2;
   - session остаётся running после canary window;
   - default stop остановил session и reverted owned nft rules.
@@ -368,6 +369,14 @@ if [[ -z "${INSTALLED_SHA}" || "${INSTALLED_SHA}" != "${PROJECT_SHA}" ]]; then
   say "[FAIL] installed/project privileged helper SHA mismatch"
   exit 1
 fi
+
+# P03e: safely converge a stale pre-P02/v0.4 generic nft table.  The guard
+# only authorizes migration when the exact historical Zap2 fingerprint is
+# observed and none of its queue numbers has a live NFQUEUE listener.  The
+# table is not deleted here: deletion remains part of the normal confirmed
+# atomic owner-rules apply transaction.
+run_step "Legacy v0.4 nft collision guard" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" meta_tools/prepare_legacy_v04_migration.py --root "${PROJECT_ROOT}" --profile "${PROFILE}"
+require_last '^Legacy v0\.4 nft migration: (absent|authorized)$' "legacy v0.4 nft state не удалось безопасно классифицировать/авторизовать"
 
 # Refuse to hijack an already-running default workflow.
 run_step "Initial default runtime status" env ZAP2_PYTHON="${PYTHON_BIN}" bash ./run.sh --cli --profile "${PROFILE}" --default-status

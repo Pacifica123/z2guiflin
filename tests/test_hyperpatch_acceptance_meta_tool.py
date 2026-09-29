@@ -30,6 +30,8 @@ def test_p03_acceptance_covers_generation_build_parser_privilege_runtime_and_cle
         "core-build-receipt.json",
         "--strategy-parser-preflight",
         "--privileged-executor-status",
+        "prepare_legacy_v04_migration.py",
+        "Legacy v0.4 nft collision guard",
         "--default-start-plan",
         "--default-start --confirm",
         "--runtime-session-status",
@@ -131,3 +133,12 @@ def test_python_selector_ignores_path_shim_when_distro_python_is_available(tmp_p
     result = subprocess.run(["bash", "-c", command], text=True, capture_output=True, check=False, env=env)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == str(distro)
+
+
+def test_p03e_acceptance_guards_stale_legacy_v04_table_before_start() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert text.index("Legacy v0.4 nft collision guard") < text.index("Default start plan")
+    assert "legacy v0.4 nft state не удалось безопасно классифицировать/авторизовать" in text
+    helper = (ROOT / "meta_tools/prepare_legacy_v04_migration.py").read_text(encoding="utf-8")
+    assert "authorize_stale_legacy_v04_table" in helper
+    assert "BoundedNftRunner" in helper

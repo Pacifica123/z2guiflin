@@ -82,3 +82,17 @@ def test_gui_layer_can_read_inventory_and_build_map() -> None:
     assert build_map.automatic_checks_may_run_make is False
     assert build_map.delegated_directories == ("nfq2", "ip2net", "mdig")
     assert [unit.name for unit in build_map.units] == ["nfqws2", "ip2net", "mdig"]
+
+
+def test_inventory_ignores_declared_generated_core_outputs(tmp_path: Path) -> None:
+    tool = _load_inventory_tool()
+    output = ROOT / "core/zapret2/nfq2/nfqws2"
+    original = output.read_bytes() if output.exists() else None
+    try:
+        output.write_bytes(b"synthetic-local-build-artifact")
+        assert tool.compute_core_inventory() == _load_json("core/zapret2/CORE_INVENTORY.json")
+    finally:
+        if original is None:
+            output.unlink(missing_ok=True)
+        else:
+            output.write_bytes(original)

@@ -91,3 +91,16 @@ privileged action остаётся fatal.
 `READY_FOR_USE_WITHIN_P03` относится к runnable readiness локальной программы и
 не заменяет отдельное доказательство эффективности стратегии против конкретного
 DPI/провайдера.
+
+## P03e: coexistence/migration со старой v0.4
+
+До P02 runtime использовал generic nft table `inet zap2_default`. Она могла остаться в kernel state после закрытия старого GUI/процесса. P03 owner-scoped table имеет другое имя, но одновременное существование legacy rules опасно: один поток мог бы попасть в две независимые NFQUEUE capture-схемы.
+
+P03e не удаляет `zap2_default` по одному имени. Owner-host acceptance сначала наблюдает legacy table через bounded helper и разрешает миграцию только если одновременно выполняются условия:
+
+- table имеет строгий известный Zap2-v0.4 fingerprint: owner UID scope, NFQUEUE rules и `zap2:zap2_default:*` comments;
+- все queue numbers извлекаются из наблюдённого table text;
+- ни один из этих queue numbers не имеет живого listener в `nfnetlink_queue`;
+- создаётся отдельный consent receipt с SHA-256 именно наблюдённой таблицы.
+
+После этого обычный confirmed owner-rules apply повторно наблюдает таблицу, сверяет digest/fingerprint и только затем удаляет legacy table первой операцией той же checked atomic nft transaction, которая создаёт новую owner/workspace-scoped table. Если старая v0.4 ещё работает, fingerprint неоднозначен или live NFQUEUE state нельзя надёжно определить, migration остаётся fail-closed.

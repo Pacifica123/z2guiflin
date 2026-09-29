@@ -103,3 +103,7 @@ censorship-resistance проверяется отдельными traffic/strate
 Для запрета любой автоматической host-подготовки используйте `--no-host-setup`.
 Явный Python можно закрепить через `ZAP2_PYTHON=/path/to/python`; `run.sh`, UTS bootstrap и acceptance
 используют общий selector `meta_tools/python_runtime.sh`.
+
+### Legacy v0.4 nft collision during P03 acceptance
+
+`hyperpatch_acceptance.sh --p03` также проверяет старую generic table `inet zap2_default`. Если она осталась после старой v0.4, скрипт не делает blind delete: `prepare_legacy_v04_migration.py` через bounded helper проверяет известный Zap2 fingerprint и отсутствие живого NFQUEUE listener, после чего пишет одноразовый consent receipt. Фактическое удаление происходит только внутри следующего confirmed atomic owner-rules apply. Active/foreign/unknown legacy state даёт FAIL без удаления.

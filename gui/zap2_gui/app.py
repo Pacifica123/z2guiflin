@@ -250,15 +250,15 @@ def describe_project() -> str:
             f"runtime session runner: Stage 11 ({runtime_state_summary})",
             "runtime apply/revert: Stage 12 owner-confirmed nftables plans",
             "runtime service plans: Stage 13 systemd service mode (not default)",
-            "default build workflow: v0.4 owner-confirmed local make over the v0.3-stable baseline",
+            "default build workflow: v0.6/P03 owner-confirmed staged generation build",
             "default workflow: Stage 14 owner-confirmed start/stop",
-            "GUI privileged start/stop: v0.4 via graphical sudo askpass",
-            "blockcheck lab: v0.4 universal HAR workbench, service targets and separate Discord Voice profiles",
+            "GUI privileged start/stop: v0.6 bounded executor via graphical sudo askpass",
+            "blockcheck lab: retained v0.4 HAR/service-target capability on the v0.6 product baseline",
             "discord tunnel lane: Stage 7y SOCKS/VLESS guided experiment with GUI clipboard import",
             "launch composer: Stage 7z GUI panel for combining Zapret and tunnel components",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
-            "status: v0.4 working diagnostic/runtime platform; strategy results remain environment-dependent",
+            "status: v0.6 accepted baseline + P03 candidate toward v0.7; strategy results remain environment-dependent",
         ]
     )
 

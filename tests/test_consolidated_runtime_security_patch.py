@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 from zap2_gui.adapters.core_provenance import verify_core_bundle, write_core_build_receipt
-from zap2_gui.adapters.runtime_apply import RuntimeCommandResult, create_runtime_apply_plan, execute_runtime_owner_rules, prepare_runtime_owner_rules_plan, reconcile_runtime_owner_rules
+from zap2_gui.adapters.runtime_apply import RuntimeCommandResult, authorize_stale_legacy_v04_table, create_runtime_apply_plan, execute_runtime_owner_rules, prepare_runtime_owner_rules_plan, reconcile_runtime_owner_rules
 from zap2_gui.adapters import runtime_session as runtime_session_module
 from zap2_gui.adapters.runtime_session import _capture_process_identity, _record_matches_process
 from zap2_gui.adapters.runtime_state import confirm_runtime_plan
@@ -386,3 +386,81 @@ def test_apply_refuses_unproven_legacy_table(tmp_path: Path) -> None:
     assert result.state == "conflict"
     assert "ownership cannot be proven" in result.message
     assert executed_batch is False
+
+
+def _known_legacy_v04_table(owner_uid: int, qnum: int = 506) -> str:
+    return (
+        "table inet zap2_default {\n"
+        "  chain local_out {\n"
+        "    type filter hook output priority filter; policy accept;\n"
+        f"    meta skuid {owner_uid} meta mark & 0x40000000 == 0 tcp dport {{ 80, 443 }} ct original packets 1-8 counter queue num {qnum} bypass comment \"zap2:zap2_default:tcp-out\"\n"
+        "  }\n"
+        "}\n"
+    )
+
+
+def test_stale_known_v04_table_can_be_explicitly_authorized_and_atomically_migrated(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    expected = create_runtime_apply_plan(project, "apply", "default")
+    table_text = _known_legacy_v04_table(expected.owner_uid)
+
+    def authorize_runner(argv: tuple[str, ...]) -> RuntimeCommandResult:
+        assert argv == ("nft", "list", "table", "inet", "zap2_default")
+        return RuntimeCommandResult(argv, 0, stdout=table_text)
+
+    receipt = authorize_stale_legacy_v04_table(project, "default", runner=authorize_runner, live_queue_numbers=set())
+    assert receipt["state"] == "authorized"
+    assert receipt["explicitOwnerConsent"] is True
+
+    prepared = prepare_runtime_owner_rules_plan(project, "apply", "default")
+    confirm_runtime_plan(project, prepared.plan_id)
+
+    def apply_runner(argv: tuple[str, ...]) -> RuntimeCommandResult:
+        if argv[:4] == ("nft", "list", "table", "inet"):
+            if argv[4] == "zap2_default":
+                return RuntimeCommandResult(argv, 0, stdout=table_text)
+            return RuntimeCommandResult(argv, 1, stderr="No such table")
+        return RuntimeCommandResult(argv, 0)
+
+    result = execute_runtime_owner_rules(project, "apply", "default", prepared.plan_id, runner=apply_runner, allow_without_root=True)
+    assert result.state == "applied"
+    state = json.loads(result.state_path.read_text(encoding="utf-8"))
+    assert state["legacyNftTableMigrated"] == "zap2_default"
+    transaction = Path(project / state["transactionPath"]).read_text(encoding="utf-8")
+    assert transaction.splitlines()[0] == "delete table inet zap2_default"
+    consent_path = project / ".zap2/runtime/migrations/default.legacy-v04-consent.json"
+    consent = json.loads(consent_path.read_text(encoding="utf-8"))
+    assert consent["state"] == "consumed"
+
+
+def test_v04_migration_authorization_refuses_live_nfqueue_listener(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    expected = create_runtime_apply_plan(project, "apply", "default")
+    table_text = _known_legacy_v04_table(expected.owner_uid, qnum=593)
+
+    def runner(argv: tuple[str, ...]) -> RuntimeCommandResult:
+        return RuntimeCommandResult(argv, 0, stdout=table_text)
+
+    receipt = authorize_stale_legacy_v04_table(project, "default", runner=runner, live_queue_numbers={593})
+    assert receipt["state"] == "active"
+    assert receipt["activeQueueNums"] == [593]
+    assert not (project / ".zap2/runtime/migrations/default.legacy-v04-consent.json").exists()
+
+
+def test_v04_migration_authorization_refuses_foreign_shape(tmp_path: Path) -> None:
+    project = _copy_project(tmp_path)
+    expected = create_runtime_apply_plan(project, "apply", "default")
+    foreign = (
+        "table inet zap2_default {\n"
+        "  chain local_out {\n"
+        f"    meta skuid {expected.owner_uid} tcp dport 443 queue num 506 bypass comment \"foreign-rule\"\n"
+        "  }\n"
+        "}\n"
+    )
+
+    def runner(argv: tuple[str, ...]) -> RuntimeCommandResult:
+        return RuntimeCommandResult(argv, 0, stdout=foreign)
+
+    receipt = authorize_stale_legacy_v04_table(project, "default", runner=runner, live_queue_numbers=set())
+    assert receipt["state"] == "conflict"
+    assert not (project / ".zap2/runtime/migrations/default.legacy-v04-consent.json").exists()

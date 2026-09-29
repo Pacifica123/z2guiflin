@@ -3,11 +3,12 @@
 ## Текущая версия
 
 ```text
-v0.4
-Python package: 0.4.0
+v0.6
+Python package: 0.6.0
+Development line: P03 candidate toward v0.7
 ```
 
-`v0.4` является рабочим персональным релизом. Она фиксирует готовность диагностического, GUI и runtime-контура, но не обещает универсальную сетевую стратегию.
+`v0.6` — последняя принятая продуктовая версия: P01 закрепил typed network truth/evidence, P02 — owned lifecycle и bounded privilege boundary. Текущий HEAD содержит P03-кандидат перехода `0.6 -> 0.7`; финальный bump до `v0.7` разрешён только после owner-host acceptance P03. Универсальная сетeвая стратегия по-прежнему не является обещанием версии.
 
 ## Формат
 
@@ -48,6 +49,19 @@ Blockcheck -> AVAILABLE -> generated strategy -> selection -> Default workflow -
 - обновлённый GUI shell и темы.
 
 Релиз принят без требования универсального пресета. Подробности: `V04_RELEASE.md`.
+
+
+### v0.5
+
+Принят P01: network truth / VLESS / Vesktop переведены от scalar readiness к typed EvidenceGraph/CapabilityVerdict.
+
+### v0.6
+
+Принят P02: lifecycle/state ownership и привилегии сведены к bounded root-owned executor, immutable PlanHash/confirmation и fail-closed reconciliation.
+
+### P03 candidate -> v0.7
+
+Pinned zapret2 `1.0.6@00f5aaa`, LuaCompat 6, explicit overlays/source transform и whole-generation receipt уже реализованы. Версия `v0.7` не считается присвоенной, пока `hyperpatch_acceptance.sh --p03` не завершится `READY_FOR_USE_WITHIN_P03` на owner-host.
 
 ## Исторические stage ID
 
