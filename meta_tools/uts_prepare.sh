@@ -11,6 +11,9 @@ UTS_ROOT="$(dirname -- "${PROJECT_ROOT}")"
 VENV_DIR="${ZAP2_UTS_VENV:-${UTS_ROOT}/.uts-venv}"
 PYTEST_SPEC="${ZAP2_UTS_PYTEST_SPEC:-pytest>=8}"
 
+# shellcheck source=python_runtime.sh
+source "${SCRIPT_DIR}/python_runtime.sh"
+
 MODE="prepare"
 RUN_MODE=""
 RUN_ARGS=()
@@ -95,23 +98,10 @@ fi
 
 pick_host_python() {
   if [[ -n "${ZAP2_UTS_PYTHON:-}" ]]; then
-    if command -v -- "${ZAP2_UTS_PYTHON}" >/dev/null 2>&1; then
-      command -v -- "${ZAP2_UTS_PYTHON}"
-      return 0
-    fi
-    printf 'Ошибка: ZAP2_UTS_PYTHON=%s не найден.\n' "${ZAP2_UTS_PYTHON}" >&2
-    return 1
+    ZAP2_PYTHON="${ZAP2_UTS_PYTHON}" zap2_pick_python "${PROJECT_ROOT}"
+    return $?
   fi
-  if command -v python3 >/dev/null 2>&1; then
-    command -v python3
-    return 0
-  fi
-  if command -v python >/dev/null 2>&1; then
-    command -v python
-    return 0
-  fi
-  printf 'Ошибка: не найден python3/python. devctl уже требует Python; проверь PATH.\n' >&2
-  return 1
+  zap2_pick_python "${PROJECT_ROOT}"
 }
 
 HOST_PYTHON="$(pick_host_python)"

@@ -78,3 +78,56 @@ def test_p03_acceptance_supports_explicit_previous_workspace_recovery() -> None:
     assert "os.kill(" not in recovery
     result = subprocess.run(["python", "-m", "py_compile", str(RECOVERY)], text=True, capture_output=True, check=False)
     assert result.returncode == 0, result.stderr
+
+
+def test_p03d_acceptance_is_arch_portable_and_recovery_is_host_local() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "--no-host-setup" in text
+    assert "python-pyqt6" in text
+    assert "base-devel pkgconf zlib libnetfilter_queue libnfnetlink libmnl luajit" in text
+    assert "Install/update bounded privileged executor" in text
+    assert '[[ "${HELPER_STATE}" == "missing" || "${HELPER_STATE}" == "mismatch" ]]' in text
+    assert "untrusted/unknown helper не исправляется автоматически" in text
+    assert "путь отсутствует на этом host" in text
+    assert "ZAP2_UTS_PYTHON=\"${PYTHON_BIN}\"" in text
+    assert "ZAP2_PYTHON=\"${PYTHON_BIN}\"" in text
+
+
+def test_shared_python_selector_prefers_distro_python_before_path_shims() -> None:
+    selector = (ROOT / "meta_tools/python_runtime.sh").read_text(encoding="utf-8")
+    assert 'candidates+=("${project_root}/.venv/bin/python")' in selector
+    assert 'candidates+=("/usr/bin/python3" "/usr/bin/python")' in selector
+    assert 'command -v python3' in selector
+    assert selector.index('"/usr/bin/python3"') < selector.index('command -v python3')
+    assert "ZAP2_PYTHON" in selector
+    result = subprocess.run(["bash", "-n", str(ROOT / "meta_tools/python_runtime.sh")], text=True, capture_output=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+
+def test_run_sh_uses_shared_python_selector_for_gui_and_cli() -> None:
+    text = (ROOT / "run.sh").read_text(encoding="utf-8")
+    assert 'source "$ROOT_DIR/meta_tools/python_runtime.sh"' in text
+    assert 'zap2_pick_python "$ROOT_DIR" PyQt6' in text
+    assert 'zap2_pick_python "$ROOT_DIR"' in text
+    assert "ZAP2_PYTHON=/path/to/python" in text
+
+
+def test_python_selector_ignores_path_shim_when_distro_python_is_available(tmp_path: Path) -> None:
+    distro = Path("/usr/bin/python3")
+    if not distro.is_file():
+        return
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake = fake_bin / "python3"
+    fake.write_text("#!/bin/sh\nexit 91\n", encoding="utf-8")
+    fake.chmod(0o755)
+    project = tmp_path / "project"
+    project.mkdir()
+    selector = ROOT / "meta_tools/python_runtime.sh"
+    command = f'source "{selector}"; zap2_pick_python "{project}"'
+    import os
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}:{env.get('PATH','')}"
+    result = subprocess.run(["bash", "-c", command], text=True, capture_output=True, check=False, env=env)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == str(distro)

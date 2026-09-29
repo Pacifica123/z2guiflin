@@ -60,3 +60,12 @@
 6. отдельное завершение Discord Voice и tunnel routing.
 
 Полный список: `KNOWN_GAPS_CHECKLISTS.md`.
+
+### P03d portability contract (Arch-family)
+
+Owner-host acceptance больше не считает `python3` из `PATH` системным Python: общий selector предпочитает
+явный `ZAP2_PYTHON`, затем project venv, затем `/usr/bin/python3`, и только потом PATH fallback. Это устраняет
+случай Manjaro/EndeavourOS с pyenv shim, когда pacman-модули (`pytest`, `PyQt6`) установлены для distro Python,
+но невидимы shim-интерпретатору. Отсутствующий `--recover-root` после переезда host является `SKIP`, а не FAIL.
+Acceptance может подготовить Arch host-local prerequisites и bounded helper; `untrusted/unknown` helper остаётся
+fail-closed. Финальный PASS по-прежнему требует native build, parser, real nft/NFQUEUE canary и clean stop/revert.

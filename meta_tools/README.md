@@ -87,3 +87,19 @@ readiness: READY_FOR_USE_WITHIN_P03
 использованию **на данном owner-host**. Он не является доказательством того, что
 конкретная стратегия уже обходит конкретный DPI/провайдера: внешняя
 censorship-resistance проверяется отдельными traffic/strategy probes.
+
+## P03d: переносимый owner-host acceptance для Arch-family
+
+`hyperpatch_acceptance.sh --p03` теперь отделяет переносимое состояние проекта от host-local prerequisites.
+На Manjaro/EndeavourOS/Arch при включённом по умолчанию host setup он предпочитает distro Python
+`/usr/bin/python3` перед pyenv/asdf shim из `PATH`, при необходимости устанавливает `python-pyqt6`,
+штатные native build-зависимости и missing/mismatch bounded executor, а затем повторно проверяет их.
+Автоисправление не применяется к `untrusted`/`unknown` privileged helper: такой случай остаётся fail-closed.
+
+Старый `--recover-root` является host-local операцией. Если путь к старому UTS отсутствует после переезда
+на другую машину, acceptance выводит `SKIP` и продолжает текущий host test. Если путь существует, recovery
+остаётся строгим и обязан дойти до `PREVIOUS WORKSPACE RECOVERY: PASS`.
+
+Для запрета любой автоматической host-подготовки используйте `--no-host-setup`.
+Явный Python можно закрепить через `ZAP2_PYTHON=/path/to/python`; `run.sh`, UTS bootstrap и acceptance
+используют общий selector `meta_tools/python_runtime.sh`.

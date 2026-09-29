@@ -18,9 +18,11 @@ def test_run_sh_defaults_to_gui_and_keeps_cli_passthrough() -> None:
 
 def test_run_sh_prefers_project_virtual_environment() -> None:
     source = (ROOT / "run.sh").read_text(encoding="utf-8")
-    assert '.venv/bin/python' in source
-    assert 'command -v python3' in source
-    assert 'sudo pacman -S python-pyqt6' in source
+    selector = (ROOT / "meta_tools/python_runtime.sh").read_text(encoding="utf-8")
+    assert 'python_runtime.sh' in source
+    assert 'zap2_pick_python' in source
+    assert '${project_root}/.venv/bin/python' in selector
+    assert 'sudo pacman -S --needed python python-pyqt6' in source
 
 
 def test_soft_theme_has_navigation_cards_and_focus_state() -> None:
