@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -8,6 +9,7 @@ from pathlib import Path
 
 from zap2_gui.adapters.core_provenance import verify_core_bundle, write_core_build_receipt
 from zap2_gui.adapters.runtime_apply import RuntimeCommandResult, create_runtime_apply_plan, execute_runtime_owner_rules, prepare_runtime_owner_rules_plan, reconcile_runtime_owner_rules
+from zap2_gui.adapters import runtime_session as runtime_session_module
 from zap2_gui.adapters.runtime_session import _capture_process_identity, _record_matches_process
 from zap2_gui.adapters.runtime_state import confirm_runtime_plan
 from zap2_gui.adapters.security_blocklist import (
@@ -98,6 +100,47 @@ def test_session_identity_fails_closed_for_legacy_and_wrong_starttime(tmp_path: 
         wrong = dict(record)
         wrong["processIdentity"] = dict(identity, procStartTime=str(int(identity["procStartTime"]) + 1))
         assert not _record_matches_process(wrong)
+    finally:
+        proc.terminate(); proc.wait(timeout=5)
+
+
+def test_session_identity_accepts_kernel_hidden_exe_only_for_expected_drop_identity(tmp_path: Path, monkeypatch) -> None:
+    binary = tmp_path / "sleep"
+    shutil.copyfile("/bin/sleep", binary)
+    binary.chmod(0o755)
+    proc = subprocess.Popen([str(binary), "30"])
+    try:
+        identity = None
+        for _ in range(20):
+            identity = _capture_process_identity(proc.pid, binary)
+            if identity:
+                break
+            time.sleep(0.01)
+        assert identity
+        record = {
+            "pid": proc.pid,
+            "binaryPath": str(binary),
+            "processIdentity": identity,
+            "dropIdentity": {"uid": os.getuid(), "gid": os.getgid(), "source": "test"},
+        }
+
+        # Linux may hide /proc/<pid>/exe after setuid makes a task non-dumpable.
+        # The task anchor and cmdline must still match, and the live credentials
+        # must equal the explicitly recorded dropIdentity.
+        monkeypatch.setattr(runtime_session_module, "_proc_executable", lambda _pid: None)
+        assert _record_matches_process(record)
+
+        wrong_uid = dict(record)
+        wrong_uid["dropIdentity"] = {"uid": os.getuid() + 1, "gid": os.getgid(), "source": "test"}
+        assert not _record_matches_process(wrong_uid)
+
+        no_drop = dict(record)
+        no_drop.pop("dropIdentity")
+        assert not _record_matches_process(no_drop)
+
+        wrong_cmdline = dict(record)
+        wrong_cmdline["processIdentity"] = dict(identity, cmdlineSha256="0" * 64)
+        assert not _record_matches_process(wrong_cmdline)
     finally:
         proc.terminate(); proc.wait(timeout=5)
 

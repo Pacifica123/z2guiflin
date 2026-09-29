@@ -13,6 +13,7 @@ cd "${PROJECT_ROOT}"
 HYPERPATCH="p03"
 PROFILE="default"
 CANARY_SECONDS=2
+RECOVER_ROOT=""
 
 usage() {
   cat <<'USAGE'
@@ -21,6 +22,7 @@ usage() {
   bash meta_tools/hyperpatch_acceptance.sh --p03
   bash meta_tools/hyperpatch_acceptance.sh --profile default
   bash meta_tools/hyperpatch_acceptance.sh --canary-seconds 3
+  bash meta_tools/hyperpatch_acceptance.sh --p03 --recover-root /path/to/previous/UTS/project
 
 Смысл PASS для --p03:
   - P03 generation/inventory + focused regression прошли;
@@ -32,9 +34,11 @@ usage() {
   - session остаётся running после canary window;
   - default stop остановил session и reverted owned nft rules.
 
+Опциональный --recover-root сначала выполняет exact-identity stop/revert только для явно указанного старого workspace.
 Скрипт реально меняет локальный nftables/NFQUEUE state на время canary.
 При ошибке после попытки start выполняется best-effort confirmed stop/revert.
 PASS означает runnable readiness текущего P03 hyperpatch на этом owner-host.
+В конце автоматически создаётся ZIP с step logs и runtime state snapshot.
 PASS НЕ доказывает эффективность конкретной DPI/ISP strategy на внешнем сайте.
 USAGE
 }
@@ -53,6 +57,11 @@ while (($#)); do
     --canary-seconds)
       CANARY_SECONDS="${2:-}"
       [[ "${CANARY_SECONDS}" =~ ^[0-9]+$ ]] || { echo "--canary-seconds должен быть целым >= 0" >&2; exit 2; }
+      shift 2
+      ;;
+    --recover-root)
+      RECOVER_ROOT="${2:-}"
+      [[ -n "${RECOVER_ROOT}" ]] || { echo "--recover-root требует путь" >&2; exit 2; }
       shift 2
       ;;
     -h|--help)
@@ -93,6 +102,7 @@ fi
 
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 LOG_DIR="${PROJECT_ROOT}/.zap2/runtime/acceptance/${HYPERPATCH}-${STAMP}"
+EVIDENCE_ARCHIVE="${LOG_DIR}.zip"
 mkdir -p "${LOG_DIR}"
 SUMMARY_FILE="${LOG_DIR}/summary.txt"
 STEP_INDEX=0
@@ -146,6 +156,47 @@ field_from_last() {
   awk -v prefix="${key}" 'index($0,prefix)==1 {sub(prefix,"",$0); sub(/^[[:space:]]+/,"",$0); print; exit}' "${LAST_OUTPUT_FILE}"
 }
 
+collect_runtime_evidence() {
+  local snapshot_dir="${LOG_DIR}/runtime-snapshot"
+  mkdir -p "${snapshot_dir}"
+  local candidates=(
+    ".zap2/runtime/sessions/${PROFILE}.session.json"
+    ".zap2/runtime/sessions/${PROFILE}.default-workflow.json"
+    ".zap2/runtime/core-build-receipt.json"
+    ".zap2/runtime/logs/${PROFILE}.runtime.jsonl"
+  )
+  local rel
+  for rel in "${candidates[@]}"; do
+    if [[ -f "${PROJECT_ROOT}/${rel}" ]]; then
+      cp -- "${PROJECT_ROOT}/${rel}" "${snapshot_dir}/$(basename -- "${rel}")" || true
+    fi
+  done
+}
+
+pack_evidence() {
+  collect_runtime_evidence
+  set +e
+  env LOG_DIR="${LOG_DIR}" EVIDENCE_ARCHIVE="${EVIDENCE_ARCHIVE}" "${PYTHON_BIN}" - <<'PYZIP'
+import os
+from pathlib import Path
+import zipfile
+root = Path(os.environ["LOG_DIR"])
+out = Path(os.environ["EVIDENCE_ARCHIVE"])
+with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+    for path in sorted(root.rglob("*")):
+        if path.is_file():
+            zf.write(path, path.relative_to(root.parent))
+print(out)
+PYZIP
+  local rc=$?
+  set -e
+  if (( rc != 0 )); then
+    say "[EVIDENCE-WARN] не удалось упаковать ${EVIDENCE_ARCHIVE}"
+    return "${rc}"
+  fi
+  return 0
+}
+
 best_effort_stop() {
   local stop_plan_id="runtime-${PROFILE}-manual-local-default-stop-workflow-plan"
   say "[CLEANUP] Пытаюсь штатно остановить session и revert owned nft rules..."
@@ -178,11 +229,14 @@ on_exit() {
   if (( RUNTIME_CLEANUP_NEEDED != 0 )); then
     best_effort_stop || cleanup_rc=$?
   fi
+  local evidence_rc=0
+  pack_evidence || evidence_rc=$?
   if (( FINAL_PASS != 0 && rc == 0 && cleanup_rc == 0 )); then
     say ""
     say "HYPERPATCH ACCEPTANCE: PASS"
     say "readiness: READY_FOR_USE_WITHIN_P03"
     say "evidence: ${LOG_DIR}"
+    if (( evidence_rc == 0 )); then say "evidence archive: ${EVIDENCE_ARCHIVE}"; fi
     exit 0
   fi
   if (( rc == 0 )); then rc=1; fi
@@ -190,6 +244,7 @@ on_exit() {
   say ""
   say "HYPERPATCH ACCEPTANCE: FAIL"
   say "evidence: ${LOG_DIR}"
+  if (( evidence_rc == 0 )); then say "evidence archive: ${EVIDENCE_ARCHIVE}"; fi
   exit "${rc}"
 }
 trap on_exit EXIT
@@ -202,6 +257,11 @@ say "profile: ${PROFILE}"
 say "python: ${PYTHON_BIN}"
 say "canary seconds: ${CANARY_SECONDS}"
 say "evidence dir: ${LOG_DIR}"
+if [[ -n "${RECOVER_ROOT}" ]]; then
+  say "recover root: ${RECOVER_ROOT}"
+  run_step "Recover previous workspace runtime" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" meta_tools/recover_runtime_workspace.py --root "${RECOVER_ROOT}" --profile "${PROFILE}"
+  require_last '^PREVIOUS WORKSPACE RECOVERY: PASS$' "previous workspace recovery не PASS"
+fi
 
 # 1. Deterministic hyperpatch evidence.
 run_step "P03 generation identity" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p03_core_generation.py

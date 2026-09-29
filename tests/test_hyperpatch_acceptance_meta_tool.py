@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "meta_tools/hyperpatch_acceptance.sh"
+RECOVERY = ROOT / "meta_tools/recover_runtime_workspace.py"
 
 
 def test_hyperpatch_acceptance_script_is_valid_bash_and_owner_only() -> None:
@@ -43,6 +44,9 @@ def test_p03_acceptance_covers_generation_build_parser_privilege_runtime_and_cle
         assert fragment in text, fragment
     assert "RUNTIME_CLEANUP_NEEDED=1" in text
     assert "best_effort_stop" in text
+    assert "collect_runtime_evidence" in text
+    assert "pack_evidence" in text
+    assert "evidence archive:" in text
     assert "trap on_exit EXIT" in text
 
 
@@ -60,3 +64,17 @@ def test_p03_acceptance_requires_running_and_post_stop_evidence() -> None:
         "^nfqws2 session state: stopped$",
     ):
         assert evidence in text
+
+
+def test_p03_acceptance_supports_explicit_previous_workspace_recovery() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "--recover-root" in text
+    assert "recover_runtime_workspace.py" in text
+    recovery = RECOVERY.read_text(encoding="utf-8")
+    assert "prepare_default_workflow_plan" in recovery
+    assert "confirm_runtime_plan" in recovery
+    assert "execute_bounded_default_workflow" in recovery
+    assert "privileged_executor_status" in recovery
+    assert "os.kill(" not in recovery
+    result = subprocess.run(["python", "-m", "py_compile", str(RECOVERY)], text=True, capture_output=True, check=False)
+    assert result.returncode == 0, result.stderr

@@ -845,6 +845,42 @@ def _proc_executable(pid: int) -> str | None:
         return None
 
 
+def _proc_credentials(pid: int) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]] | None:
+    """Return Linux real/effective/saved/fs uid+gid tuples from /proc/<pid>/status.
+
+    After a privileged process calls setuid/setgid Linux normally makes the task
+    non-dumpable.  In that state an unprivileged owner can still read stat,
+    cmdline and status but /proc/<pid>/exe may intentionally be denied.  The
+    credential tuple is therefore a useful secondary proof that the live task
+    reached the exact dropIdentity requested by the confirmed runtime plan.
+    """
+
+    try:
+        text = (Path("/proc") / str(pid) / "status").read_text(encoding="utf-8", errors="replace")
+    except (FileNotFoundError, ProcessLookupError, PermissionError, OSError):
+        return None
+    uid_values: tuple[int, int, int, int] | None = None
+    gid_values: tuple[int, int, int, int] | None = None
+    for line in text.splitlines():
+        if line.startswith("Uid:"):
+            parts = line.split()[1:5]
+            if len(parts) == 4:
+                try:
+                    uid_values = tuple(int(item, 10) for item in parts)  # type: ignore[assignment]
+                except ValueError:
+                    return None
+        elif line.startswith("Gid:"):
+            parts = line.split()[1:5]
+            if len(parts) == 4:
+                try:
+                    gid_values = tuple(int(item, 10) for item in parts)  # type: ignore[assignment]
+                except ValueError:
+                    return None
+    if uid_values is None or gid_values is None:
+        return None
+    return uid_values, gid_values
+
+
 def _cmdline_digest(cmdline: tuple[str, ...] | None) -> str | None:
     if not cmdline:
         return None
@@ -951,6 +987,67 @@ def _upgrade_legacy_session_identity(record: dict[str, Any], root: Path) -> dict
     return updated
 
 
+def _record_process_identity_mode(record: dict[str, Any]) -> str | None:
+    """Return the verified live-task identity mode, or ``None`` on doubt.
+
+    Linux resets the dumpable flag when a privileged process drops uid/gid.
+    Consequently ``/proc/<pid>/exe`` can become unreadable to the owner even
+    though ``stat``, ``cmdline`` and ``status`` still describe the same task.
+
+    The anti-PID-reuse anchor therefore remains boot-id + PID + proc starttime.
+    The saved cmdline digest must also remain identical.  When ``exe`` is
+    readable it must match exactly.  The only accepted fallback for an
+    unreadable ``exe`` is an explicit recorded dropIdentity whose live real,
+    effective, saved and fs uid/gid all match the confirmed owner identity.
+    """
+
+    try:
+        pid = int(record.get("pid", 0))
+    except (TypeError, ValueError):
+        return None
+    identity = record.get("processIdentity")
+    if pid <= 1 or not isinstance(identity, dict):
+        return None
+
+    current_boot = _boot_id()
+    current_start = _proc_starttime(pid)
+    current_cmdline = _cmdline_digest(_proc_cmdline(pid))
+    if not current_boot or not current_start or not current_cmdline:
+        return None
+    if str(identity.get("bootId", "")) != current_boot:
+        return None
+    if str(identity.get("procStartTime", "")) != current_start:
+        return None
+    if str(identity.get("cmdlineSha256", "")) != current_cmdline:
+        return None
+
+    expected_exe_raw = str(identity.get("procExecutable", ""))
+    if not expected_exe_raw:
+        return None
+    expected_exe = os.path.realpath(expected_exe_raw)
+    current_exe = _proc_executable(pid)
+    if current_exe is not None:
+        return "exact-executable" if expected_exe == current_exe else None
+
+    drop_identity = record.get("dropIdentity")
+    if not isinstance(drop_identity, dict):
+        return None
+    try:
+        expected_uid = int(drop_identity.get("uid"))
+        expected_gid = int(drop_identity.get("gid"))
+    except (TypeError, ValueError):
+        return None
+    credentials = _proc_credentials(pid)
+    if credentials is None:
+        return None
+    uid_values, gid_values = credentials
+    if uid_values != (expected_uid, expected_uid, expected_uid, expected_uid):
+        return None
+    if gid_values != (expected_gid, expected_gid, expected_gid, expected_gid):
+        return None
+    return "drop-identity-anchored"
+
+
 def _record_matches_process(record: dict[str, Any]) -> bool:
     """Verify that PID is the exact Linux task created for this session.
 
@@ -958,25 +1055,7 @@ def _record_matches_process(record: dict[str, Any]) -> bool:
     text is not enough to safely send signals after reboot/PID reuse.
     """
 
-    try:
-        pid = int(record.get("pid", 0))
-    except (TypeError, ValueError):
-        return False
-    identity = record.get("processIdentity")
-    if pid <= 1 or not isinstance(identity, dict):
-        return False
-    current_boot = _boot_id()
-    current_start = _proc_starttime(pid)
-    current_exe = _proc_executable(pid)
-    current_cmdline = _cmdline_digest(_proc_cmdline(pid))
-    if not all((current_boot, current_start, current_exe, current_cmdline)):
-        return False
-    return (
-        str(identity.get("bootId", "")) == current_boot
-        and str(identity.get("procStartTime", "")) == current_start
-        and os.path.realpath(str(identity.get("procExecutable", ""))) == current_exe
-        and str(identity.get("cmdlineSha256", "")) == current_cmdline
-    )
+    return _record_process_identity_mode(record) is not None
 
 
 def _signal_verified_process(record: dict[str, Any], sig: int) -> None:
@@ -1061,13 +1140,17 @@ def runtime_session_status(root: Path | None = None, profile_id: str = "default"
             binary_path=str(record.get("binaryPath", "")) or None,
             message="legacy live session requires explicit receipted MigrationTxn before status can claim ownership",
         )
-    matches = _record_matches_process(record) if alive else False
+    identity_mode = _record_process_identity_mode(record) if alive else None
+    matches = identity_mode is not None
     if recorded_state == "stopped":
         state: SessionState = "stopped"
         message = "session ранее остановлена runner-ом"
     elif alive and matches:
         state = "running"
-        message = "recorded process alive and exact process identity matches"
+        if identity_mode == "drop-identity-anchored":
+            message = "recorded process alive; task identity + cmdline + expected dropped uid/gid match (proc exe hidden by kernel)"
+        else:
+            message = "recorded process alive and exact process identity matches"
     elif alive and not matches:
         state = "unknown"
         message = "PID жив, но точная process identity не совпадает/неизвестна; stop запрещён"

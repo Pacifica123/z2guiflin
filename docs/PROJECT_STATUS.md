@@ -13,7 +13,7 @@
 - Пресеты состоят из упорядоченных профилей с фильтром, диапазоном, направлением и стратегией.
 - Blockcheck Lab умеет работать с сервисными целями, сохранять результаты и экспортировать стратегии.
 - HAR workbench разбирает HAR любого ресурса, группирует проблемные hosts и предлагает кандидатов для покрытия.
-- Runtime использует plan/hash/confirmation, owner-scoped `nftables` table + marker, детерминированную NFQUEUE, process identity (`boot_id`/starttime/exe/argv digest) и управляемый `nfqws2`.
+- Runtime использует plan/hash/confirmation, owner-scoped `nftables` table + marker, детерминированную NFQUEUE, process identity (`boot_id`/starttime/cmdline digest + strict `exe` when observable; expected dropped UID/GID fallback when Linux hides `/proc/<pid>/exe`) и управляемый `nfqws2`.
 - Apply/revert используют checked nft batch, lifecycle lock и read-only reconciliation вместо слепого удаления одноимённой table.
 - Security IP blocklist живёт в отдельной owned nft table: outbound C2/malicious destinations UID-scoped, тяжёлый inbound opt-in, обновления используют validated immutable generations и last-known-good fallback.
 - P02: GUI остаётся unprivileged; `sudo -A` запускает только root-owned finite executor, который revalidate PlanHash и не импортирует writable workspace Python.

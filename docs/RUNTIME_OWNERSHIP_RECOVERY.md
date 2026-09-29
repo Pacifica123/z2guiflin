@@ -12,7 +12,7 @@ Runtime-ресурсы `nftables` принадлежат не только profi
 - один owner lifecycle сериализуется file lock внутри `.zap2/runtime/locks/`;
 - точный batch сохраняется в `.zap2/runtime/transactions/` для диагностики;
 - JSON state записывается через temporary file + `os.replace`;
-- session record хранит boot id, `/proc` starttime, executable и digest argv. Старый record без такой identity считается unknown и PID не получает signal.
+- session record хранит boot id, `/proc` starttime, executable и digest argv. PID reuse блокируется связкой boot id + PID + starttime, а cmdline должен совпадать с launch receipt. Если после ожидаемого `--uid` Linux скрывает `/proc/<pid>/exe` из-за non-dumpable privilege drop, runner принимает только дополнительное точное совпадение real/effective/saved/fs UID/GID с записанным `dropIdentity`; при доступном `exe` путь по-прежнему обязан совпасть. Старый record без такой identity считается unknown и PID не получает signal.
 
 ## Read-only reconciliation
 

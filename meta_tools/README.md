@@ -61,7 +61,20 @@ PyQt6, native build dependencies, staged native `nfqws2` build, build receipt v2
 
 Если ошибка возникает после попытки runtime start, EXIT trap делает best-effort
 подтверждённый stop/revert. Evidence каждого шага сохраняется в
-`.zap2/runtime/acceptance/p03-<UTC timestamp>/`.
+`.zap2/runtime/acceptance/p03-<UTC timestamp>/`, а в конце автоматически
+упаковывается рядом в `p03-<UTC timestamp>.zip` вместе с snapshot session/workflow/build receipt/runtime log.
+
+Если предыдущий acceptance успел запустить runtime, но старый код не смог его
+остановить, новый runner умеет безопасно восстановить **только явно указанный**
+workspace перед новым canary:
+
+```bash
+bash meta_tools/hyperpatch_acceptance.sh --p03 --recover-root /absolute/path/to/old/UTS/project
+```
+
+Recovery использует текущую identity-проверку, генерирует обычный confirmed
+stop/revert plan для указанного root и не сканирует/не убивает процессы других
+workspace.
 
 Финальные строки успешного прогона:
 

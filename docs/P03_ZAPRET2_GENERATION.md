@@ -78,6 +78,15 @@ lifecycle canary с owned nft/NFQUEUE state. Состояние `nft list table`
 `ABSENT`, а не как transport failure bounded helper. Любая другая неуспешная
 privileged action остаётся fatal.
 
+После root-owned spawn `nfqws2` штатно сбрасывает uid/gid на owner. На Linux такой
+`setuid` может сделать процесс non-dumpable: owner продолжает видеть PID, starttime
+и cmdline, но `readlink /proc/<pid>/exe` возвращает `EACCES`. Session ownership не
+ослабляется до проверки одного PID: неизменяемый task anchor остаётся
+`boot_id + PID + proc starttime`, cmdline digest обязан совпасть, а fallback при
+скрытом `exe` разрешён только если все live real/effective/saved/fs UID/GID точно
+совпадают с подтверждённым `dropIdentity`. Если `exe` читается, он обязан совпасть
+с launch receipt.
+
 При ошибке после попытки start скрипт выполняет best-effort confirmed stop/revert.
 `READY_FOR_USE_WITHIN_P03` относится к runnable readiness локальной программы и
 не заменяет отдельное доказательство эффективности стратегии против конкретного
