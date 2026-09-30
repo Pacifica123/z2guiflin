@@ -9,9 +9,9 @@ resource root now has an explicit provenance:
 * ``source-checkout`` -- the package is demonstrably running from this checkout.
 
 A normal site-packages install without an external/bundled resource root fails
-closed instead of silently inventing an installation prefix.  P04b does not yet
-claim full S-INSTALL readiness: packaging and writable-state separation remain
-later work.
+closed instead of silently inventing an installation prefix.  P06 adds the supported Arch bootstrap in distribution.py: immutable
+package code/resources seed a separate receipted user workspace. Generic pip
+without resources remains unsupported; full native VM acceptance is separate.
 """
 
 from __future__ import annotations

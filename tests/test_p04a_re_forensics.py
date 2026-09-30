@@ -18,9 +18,9 @@ BASELINE = ROOT / "runtime/p04/p04a-frozen-evidence.json"
 
 
 def test_current_product_metadata_reflects_accepted_p04_transition() -> None:
-    assert PRODUCT_LABEL == "v0.9 RC5"
-    assert __version__ == "0.9.0rc5"
-    assert DEVELOPMENT_LINE == "P05 discoverability/help/unified health UX RC5 candidate"
+    assert PRODUCT_LABEL == "v0.10 RC6"
+    assert __version__ == "0.10.0rc6"
+    assert DEVELOPMENT_LINE == "P06 docs and reproducible distribution RC6 candidate"
     status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
     versioning = (ROOT / "docs/VERSIONING.md").read_text(encoding="utf-8")
     assert "READY_FOR_USE_WITHIN_P03" in status
@@ -111,7 +111,7 @@ def test_p04_recompiled_dag_keeps_p05_waiting() -> None:
 
 
 def test_p04_docs_preserve_historical_rc4_and_append_accepted_v08_closure() -> None:
-    text = (ROOT / "docs/P04_REFORENSICS.md").read_text(encoding="utf-8")
+    text = (ROOT / "docs/history/stages/P04_REFORENSICS.md").read_text(encoding="utf-8")
     assert "P04a" in text
     assert "READY_FOR_USE_WITHIN_P04A" in text
     assert "P04b" in text and "P04c" in text and "P04d" in text

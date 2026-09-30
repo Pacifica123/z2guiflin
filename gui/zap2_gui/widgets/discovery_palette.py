@@ -73,7 +73,9 @@ def make_discovery_palette(parent, root: Path, focus_page):
         if process.state() != QtCore.QProcess.ProcessState.NotRunning: return
         invoke_button.setEnabled(False)
         details.setPlainText('Выполняется просмотр / проверка…')
-        process.start(sys.executable,['-m','zap2_gui.app','--action',e.semantic_id])
+        from ..distribution import python_module_command
+        command=python_module_command('zap2_gui.app',['--action',e.semantic_id])
+        process.start(command[0],command[1:])
         timer.start(30000)
 
     def finished(code,_status):

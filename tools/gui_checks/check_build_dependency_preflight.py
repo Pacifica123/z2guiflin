@@ -75,7 +75,7 @@ def main() -> int:
         return 1
 
     cli = shutil.which("python") or sys.executable
-    if not (ROOT / "docs/BUILD_DEPENDENCY_PREFLIGHT.md").exists():
+    if not (ROOT / "docs/history/stages/BUILD_DEPENDENCY_PREFLIGHT.md").exists():
         print("Документация build dependency preflight отсутствует")
         return 1
     print(f"Build dependency preflight v0.3-beta Stage 2 OK; python={cli}; пакеты не устанавливаются")

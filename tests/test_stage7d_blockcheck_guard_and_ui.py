@@ -40,7 +40,7 @@ def test_blockcheck_lab_ui_exposes_guard_and_compact_action_groups() -> None:
 
 
 def test_flowseal_windows_reference_notes_document_non_executable_boundary() -> None:
-    doc = (ROOT / "docs" / "DISCORD_FLOWSEAL_WINDOWS_REFERENCE.md").read_text(encoding="utf-8")
+    doc = (ROOT / "docs" / "history" / "stages" / "DISCORD_FLOWSEAL_WINDOWS_REFERENCE.md").read_text(encoding="utf-8")
 
     assert "Flowseal" in doc
     assert "stable.dl2.discordapp.net" in doc

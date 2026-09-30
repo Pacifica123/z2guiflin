@@ -57,7 +57,7 @@ def test_stage7j_runtime_apply_plan_queues_community_strategy_ports(tmp_path: Pa
 def test_stage7j_imported_reference_documents_windows_boundary() -> None:
     metadata = json.loads((ROOT / "strategies" / "imported" / "community-discord-youtube-edge-flow.json").read_text(encoding="utf-8"))
     source = (ROOT / "strategies" / "imported" / "community-discord-youtube-edge-flow.txt").read_text(encoding="utf-8")
-    docs = (ROOT / "docs" / "WINDOWS_COMMUNITY_PRESET_PORTING.md").read_text(encoding="utf-8")
+    docs = (ROOT / "docs" / "history" / "stages" / "WINDOWS_COMMUNITY_PRESET_PORTING.md").read_text(encoding="utf-8")
 
     assert metadata["windowsOptionsExecuted"] is False
     assert "--wf-tcp-out=80,443-65535" in source

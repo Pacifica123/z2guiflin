@@ -11,10 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_v08_is_final_accepted_product_marker_and_p05_is_next() -> None:
-    assert PRODUCT_LABEL == "v0.9 RC5"
-    assert __version__ == "0.9.0rc5"
-    assert DEVELOPMENT_LINE == "P05 discoverability/help/unified health UX RC5 candidate"
-    assert 'version = "0.9.0rc5"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert PRODUCT_LABEL == "v0.10 RC6"
+    assert __version__ == "0.10.0rc6"
+    assert DEVELOPMENT_LINE == "P06 docs and reproducible distribution RC6 candidate"
+    assert 'version = "0.10.0rc6"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
 
 def test_owner_p04d_receipt_closes_rc4_without_rewriting_frozen_evidence() -> None:
@@ -31,8 +31,8 @@ def test_owner_p04d_receipt_closes_rc4_without_rewriting_frozen_evidence() -> No
 
 
 def test_p05_handoff_uses_action_contract_projection_not_third_registry() -> None:
-    handoff = (ROOT / "docs/V08_RELEASE_P05_HANDOFF.md").read_text(encoding="utf-8")
-    prep = (ROOT / "docs/P05_REFORENSICS.md").read_text(encoding="utf-8")
+    handoff = (ROOT / "docs/history/stages/V08_RELEASE_P05_HANDOFF.md").read_text(encoding="utf-8")
+    prep = (ROOT / "docs/history/stages/P05_REFORENSICS.md").read_text(encoding="utf-8")
     assert len(ACTION_CONTRACTS) == 119
     assert len(action_projection_rows()) == 119
     assert "не становится третьим registry" in handoff

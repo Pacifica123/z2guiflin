@@ -79,7 +79,7 @@ def test_stage7n_cli_exposes_runtime_nft_state_without_execution(capsys) -> None
 
 
 def test_stage7n_docs_explain_pretls_diagnostic_branch() -> None:
-    docs = (ROOT / "docs" / "DISCORD_PRETLS_OBSERVABILITY.md").read_text(encoding="utf-8")
+    docs = (ROOT / "docs" / "history" / "stages" / "DISCORD_PRETLS_OBSERVABILITY.md").read_text(encoding="utf-8")
     strategy = json.loads((ROOT / "strategies" / "community-discord-pretls-diagnostic-pktdebug.json").read_text(encoding="utf-8"))
 
     assert "SYN-SENT" in docs

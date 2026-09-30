@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "patch": "P06",
+  "version": "0.10.0rc6",
+  "baseSnapshot": "ca6b4fb",
+  "baseArchive": "post_z2guiflin_20260930_223814_after_p05-discovery-help-health-rc5_ca6b4fb.zip",
+  "authorities": {
+    "gui/zap2_gui/models/action_catalog.py": "901da3ffd47073334bbebac29c2de17b031a42123266c7a90aff4950157590bd",
+    "gui/zap2_gui/models/action_bindings_generated.py": "1b22bf6f06f8dfebe10b2f45042bd20c058b31f1c6ea0191c9f1a4dfb9c7bc34",
+    "gui/zap2_gui/adapters/action_dispatcher.py": "1e49ba135934e7cd5fd7bb3ec957609ec8257a58daa12c2368d986368d9896e2",
+    "gui/zap2_gui/adapters/legacy_cli.py": "5f4e318db8233cf0586fa1a0c91ceae1847ffdca1c9d1f6a896bf4e5130e9297",
+    "gui/zap2_gui/app.py": "2d11274035d2bb87aafe102db5d30f06c43d22eae3abaf611a71b2c39b52fd93",
+    "core/zapret2/UPSTREAM_IMPORT.json": "8e31eb82e3c06f5803d60e95eb27f2c80b513b98530443927c33770447a7f8c1"
+  },
+  "preservedActionContracts": 119,
+  "preservedLegacySelectors": 117,
+  "ownerP05Receipt": "NOT_ATTACHED",
+  "nativeVmAcceptance": "NOT_RUN",
+  "service": "plan-only",
+  "intentionalDelta": [
+    "distribution launcher and user workspace lifecycle",
+    "helper package-owned resolution",
+    "immutable GUI subprocess imports",
+    "independent identity and redacted support",
+    "docs IA, history relocation, generated reference",
+    "version candidate and structural tests current/history paths"
+  ]
+}

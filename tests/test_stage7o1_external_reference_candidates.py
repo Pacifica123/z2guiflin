@@ -69,7 +69,7 @@ def test_stage7o1_capture_policy_broadens_tcp_without_edge_ip_scope(tmp_path: Pa
 
 def test_stage7o1_candidate_texts_explain_reference_lane() -> None:
     text = workspace_strategy_to_text("reference-flowseal-simple-fake-like", ROOT)
-    docs = (ROOT / "docs" / "EXTERNAL_REFERENCE_CANDIDATE_STRATEGIES.md").read_text(encoding="utf-8")
+    docs = (ROOT / "docs" / "history" / "stages" / "EXTERNAL_REFERENCE_CANDIDATE_STRATEGIES.md").read_text(encoding="utf-8")
     audit = json.loads((ROOT / "references" / "external" / "stage7o0_external_reference_audit.json").read_text(encoding="utf-8"))
 
     assert "reference-flowseal-simple-fake-like" in text

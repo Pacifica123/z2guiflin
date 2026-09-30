@@ -126,6 +126,10 @@ def create_main_window(root: object | None = None) -> Any:
             discovery_button.clicked.connect(self.open_discovery)
             self.discovery_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
             self.discovery_shortcut.activated.connect(self.open_discovery)
+            about_button=QtWidgets.QPushButton("О программе / идентификаторы")
+            about_button.setObjectName("productIdentityButton")
+            about_button.clicked.connect(self.show_product_identity)
+            navigation_layout.addWidget(about_button)
             navigation_layout.addWidget(discovery_button)
             navigation_layout.addWidget(brand)
             navigation_layout.addWidget(brand_subtitle)
@@ -164,6 +168,18 @@ def create_main_window(root: object | None = None) -> Any:
                     self.restoreGeometry(geometry)
                 except Exception:
                     pass
+
+        def show_product_identity(self):
+            from ..product_identity import identity_snapshot
+            import json
+            dialog=QtWidgets.QDialog(self);dialog.setWindowTitle("О программе: независимые версии и ID")
+            dialog.resize(720,520);layout=QtWidgets.QVBoxLayout(dialog)
+            hint=QtWidgets.QLabel("Версия продукта, upstream, external core, схемы и evidence имеют разный смысл. Они не доказывают доступность сети.")
+            hint.setWordWrap(True);layout.addWidget(hint)
+            text=QtWidgets.QPlainTextEdit();text.setReadOnly(True)
+            text.setPlainText(json.dumps(identity_snapshot(root),ensure_ascii=False,indent=2));layout.addWidget(text)
+            close=QtWidgets.QPushButton("Закрыть");close.clicked.connect(dialog.accept);layout.addWidget(close)
+            dialog.exec()
 
         def eventFilter(self, watched, event):
             if watched.objectName() == "launchIssueMessage" and event.type() == QtCore.QEvent.Type.ToolTip:

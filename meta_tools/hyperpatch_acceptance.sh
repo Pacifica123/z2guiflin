@@ -25,6 +25,7 @@ usage() {
   bash meta_tools/hyperpatch_acceptance.sh --p04c
   bash meta_tools/hyperpatch_acceptance.sh --p04d
   bash meta_tools/hyperpatch_acceptance.sh --v08-release
+  bash meta_tools/hyperpatch_acceptance.sh --p06
   bash meta_tools/hyperpatch_acceptance.sh --p05
   bash meta_tools/hyperpatch_acceptance.sh --profile default
   bash meta_tools/hyperpatch_acceptance.sh --canary-seconds 3
@@ -126,6 +127,10 @@ while (($#)); do
       HYPERPATCH="p04d"
       shift
       ;;
+    --p06)
+      HYPERPATCH="p06"
+      shift
+      ;;
     --p05)
       HYPERPATCH="p05"
       shift
@@ -165,8 +170,8 @@ while (($#)); do
   esac
 done
 
-if [[ "${HYPERPATCH}" != "p03" && "${HYPERPATCH}" != "p04a" && "${HYPERPATCH}" != "p04b" && "${HYPERPATCH}" != "p04c" && "${HYPERPATCH}" != "p04d" && "${HYPERPATCH}" != "v08-release" && "${HYPERPATCH}" != "p05" ]]; then
-  echo "Поддерживаются P03, P04a, P04b, P04c, P04d, v08-release и P05 acceptance profiles." >&2
+if [[ "${HYPERPATCH}" != "p03" && "${HYPERPATCH}" != "p04a" && "${HYPERPATCH}" != "p04b" && "${HYPERPATCH}" != "p04c" && "${HYPERPATCH}" != "p04d" && "${HYPERPATCH}" != "v08-release" && "${HYPERPATCH}" != "p05" && "${HYPERPATCH}" != "p06" ]]; then
+  echo "Поддерживаются P03, P04a, P04b, P04c, P04d, v08-release P05 и P06 acceptance profiles." >&2
   exit 2
 fi
 if [[ "${HYPERPATCH}" != "p03" && -n "${RECOVER_ROOT}" ]]; then
@@ -225,6 +230,10 @@ else
     exit 2
   fi
   HOST_SETUP=0
+fi
+
+if [[ "${HYPERPATCH}" == "p06" ]]; then
+  exec "${PYTHON_BIN}" tools/gui_checks/check_p06_acceptance.py
 fi
 
 # P05 uses exactly the same composite pipeline as devctl; it archives every

@@ -62,7 +62,7 @@ def test_pyqt_availability_probe_is_boolean() -> None:
 
 
 def test_gui_shell_documentation_lists_navigation_sections() -> None:
-    doc = (ROOT / "docs/GUI_SHELL.md").read_text(encoding="utf-8")
+    doc = (ROOT / "docs/history/stages/GUI_SHELL.md").read_text(encoding="utf-8")
 
     for title in ("Обзор", "Ядро", "Стратегии", "Диагностика", "Туннель", "Настройки", "Логи"):
         assert title in doc

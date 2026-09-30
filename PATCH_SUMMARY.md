@@ -1,19 +1,9 @@
-# P05 RC5 — глобальный поиск, справка и состояние
+# P06 — документация и воспроизводимая дистрибуция, RC6
 
-База: приложенный post-v0.8 archive, lineage `1addd90`. Product candidate: `0.9.0rc5` / `v0.9 RC5`; последний owner-accepted release — v0.8. Final 0.9.0 пока не назначен.
+Текущий продукт: 0.10.0rc6, кандидат P06 по плану 0.9→0.10. Финальное принятие требует полного подтверждения чистого Arch lifecycle; последняя независимая финальная опора — 0.8.0. Входной post-P05 snapshot ca6b4fb сохранён в PRE; новый owner receipt не выдуман.
 
-- Ctrl+K ищет 119 действий, canonical concepts и реальные настройки по RU/EN/technical terms, с ограниченными опечатками и детерминированным ranking.
-- Exact action/concept help фокусируется в общем инспекторе; настройки — в реальном control. CLI-only действия получают справку и маршрут в раздел.
-- Явный direct invoke ограничен safe read/validate contracts, идёт через прежний canonical dispatcher; mutation/probe/prepare/import/export не запускаются из palette.
-- Contextual help содержит смысл, условия и эффект; ID и CLI раскрываются отдельно.
-- Structured error envelope добавляет cause/evidence/semantic nextAction к прежнему classifier и banner tooltip/full text.
-- Health разделяет runtime, local SOCKS, remote HTTPS/TLS и app mandatory predicates; использует P01 binding/requirements и P02 next_safe_action. Не сохраняет graph и не запускает network probes.
-- Stop/dead/mismatched/unbound state не получает зелёный network/app health. Снимок требует явного refresh после изменений.
-- Catalog/dispatcher/legacy CLI и исходные frozen receipts не переписываются; PRE зафиксирован в `runtime/p05/pre-forensics.json`.
-- Текущие entry-point документы, версия и regression version assertions согласованы с RC5 candidate. Исторические stages явно помечены.
+Текущая документация отделена от побайтно сохранённой истории. Генерируемый справочник берёт действия, CLI, operand bindings, понятия, схемы, capability predicates и provenance из исполняемых источников. Системный package-owned код и helper работают с отдельным пользовательским compatibility workspace. Receipt, conflict gate и backups сохраняют пользовательские данные; uninstall удаляет только системные package-owned файлы. Service unit остаётся plan-only. About разделяет идентификаторы; support экспортирует только разрешённые поля и хеши чувствительных идентификаторов.
 
-Единый профиль: `bash meta_tools/hyperpatch_acceptance.sh --p05`. Тот же pipeline включён в devctl manifest. Focused GUI tests и полный regression выполняются в временных копиях с изолированными настройками; все step/full pytest logs сохраняются в evidence ZIP.
+Release строится из явного списка файлов, с одинаковыми tar/gzip metadata и закреплённым SHA256 в PKGBUILD. Единый профиль devctl и shell: `bash meta_tools/hyperpatch_acceptance.sh --p06`, с полными логами и ZIP результата. Дополнительный VM recorder выполняет установленный launcher вне checkout и записывает ручные фактические проверки runtime/GUI/диагностики, настоящий upgrade и сохранение данных при удалении.
 
-Фактический результат проверок этой среды записан в `runtime/p05/container-validation.json`. Детерминированные P05 проверки могут пройти, пока full regression остаётся BLOCKED: контейнер не предоставляет корректный `/proc/<child-pid>`. Эти проверки не исключаются из owner acceptance.
-
-Следующий DAG: RC5 owner acceptance → new HEAD re-forensics → решение о final SemVer → P06 productization → P07 qualification. Этот patch не создаёт owner receipt и не утверждает внешнюю доступность Discord.
+Канонические 119 ActionContract, 117 legacy selectors, dispatcher, P03 generation и замороженные исторические receipts сохранены. Подробная контейнерная проверка находится в отдельном evidence приложении devctl-патча; она не подменяет owner host acceptance.

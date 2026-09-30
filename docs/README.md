@@ -1,72 +1,13 @@
-# Документация z2guiflin
+# Текущая документация
 
-Текущий кандидат: **0.9.0rc5 / P05 RC5**, последний принятый релиз — v0.8. P05 добавляет глобальный поиск/справку по ActionContracts и ontology, structured error envelopes и отдельные health projections. В GUI: Ctrl+K; приёмка: `bash meta_tools/hyperpatch_acceptance.sh --p05`. Документ: `docs/P05_DISCOVERABILITY.md` (из `docs/`: `P05_DISCOVERABILITY.md`).
+Сначала читать [установку и первое безопасное действие](user/getting-started.md). Этот раздел описывает действующий кандидат продукта; хронология не является инструкцией по текущей установке. Старые адреса сохранены как явно подписанные переходы к оригинальным документам.
 
-Runtime executor и plan/confirm уже реализованы в P02–P04 (`gui/zap2_gui/adapters/`); `runtime/` содержит схемы и evidence. P05 не меняет authority исполнения. Полный S-INSTALL и физическая реорганизация документации остаются для P06.
+- [Понятия и границы действий](concepts/README.md)
+- [Диагностика и восстановление](operations/troubleshooting.md)
+- [Обновление и удаление](operations/lifecycle.md)
+- [Архитектура и сборка пакета](developer/architecture.md)
+- [Генерируемые контракты, CLI, схемы и возможности](generated/reference.md)
+- [Статус проекта](PROJECT_STATUS.md), [версионирование](VERSIONING.md)
+- [Upstream](upstream/README.md), [история](history/README.md)
 
-## Исторический контекст и указатель предыдущих этапов
-
-Этот файл является основной точкой входа. Документы разделены по назначению, а не по номеру старого stage.
-
-## Сначала читать
-
-1. `PROJECT_STATUS.md` — что реально работает в принятой v0.8 и где проходит граница проекта.
-2. `V04_RELEASE.md` — почему состояние поднято до v0.4 без обещания универсальной стратегии.
-3. `KNOWN_GAPS_CHECKLISTS.md` — текущие недостатки по горизонтальным категориям.
-4. `SAFETY_AND_PRIVILEGE_BOUNDARY.md` — границы `sudo`, `nftables`, процессов и секретов.
-5. `PROJECT_STRUCTURE.md` — карта каталогов и ответственность слоёв.
-
-## Архитектура и правила
-
-- `DEVELOPMENT_STRATEGY.md` — порядок развития и принятия решений.
-- `P04B_EXECUTION_PLAN.md` — resource-location contract, immutable execution Plan и compatibility aliases.
-- `P04C_ACTION_DISPATCHER.md` — canonical ActionContract dispatcher, legacy CLI translator и contradiction gate.
-- `VERSIONING.md` — правила версий и принятый product transition v0.8.
-- `V08_RELEASE_P05_HANDOFF.md` — доказательство promotion после P04d owner acceptance и recompiled DAG.
-- `P05_REFORENSICS.md` — подготовленный, но ещё не реализованный P05 discoverability/help/health контракт.
-- `DOCUMENTATION_LANGUAGE.md` — язык и границы перевода.
-- `SOURCE_ALIGNMENT.md` — связь с bol-van, loop-uh, Flowseal и другими reference-снимками.
-- `ADR_P04_DOMAIN_ONTOLOGY.md` — canonical nouns, legacy aliases и ActionContract boundary.
-- `P04_REFORENSICS.md`
-- `P04D_ACTION_CONTRACT_CLOSURE.md` — финальное закрытие ActionContract coverage/roundtrip/lint для RC4 — post-P03f assumptions delta, REP/CLI/S-INSTALL evidence и recompiled DAG.
-- `PRESET_PROFILE_ARCHITECTURE.md` — модель `пресет -> профили`.
-- `RUNTIME_LIFECYCLE.md` — общий lifecycle runtime.
-- `SAFETY_AND_PRIVILEGE_BOUNDARY.md` — правила безопасности.
-
-## Пользовательские компоненты
-
-- `BLOCKCHECK_GUI.md` — Blockcheck Lab и подбор стратегий.
-- `PRESET_CONSTRUCTOR.md` — конструктор пресетов и его ограничения.
-- `UNIVERSAL_HAR_WORKBENCH.md` — универсальный разбор HAR.
-- `GUI_SHELL.md` — устройство GUI.
-- `GUI_RUNTIME_CONTROLS.md` — runtime controls.
-- `TUNNEL_GUI_PROFILE_TABLE_AND_UNIFIED_TOGGLE.md` — управление туннелем в GUI.
-- `TUNNEL_GUI_CORE_START_AND_XHTTP.md` — внешний tunnel core и XHTTP-related параметры.
-
-## Runtime и сборка
-
-- `CORE_INVENTORY.md`, `CORE_BUILD_MAP.md`, `LOCAL_BUILD_ADAPTER.md` — ядро и сборка.
-- `DEFAULT_WORKFLOW.md`, `DEFAULT_BUILD_WORKFLOW.md` — основной запуск.
-- `RUNTIME_STATE_AND_CONFIRMATION.md` — plan/hash/confirmation.
-- `RUNTIME_APPLY_REVERT.md` — owned-правила `nftables`.
-- `RUNTIME_SESSION_RUNNER.md` — управляемая сессия `nfqws2`.
-- `RUNTIME_OWNERSHIP_RECOVERY.md` — workspace owner identity, checked nft transaction, process identity и reconciliation/recovery.
-- `SECURITY_IPBLOCKLIST.md` — изолированная threat-IP policy, LKG update и explicit timer.
-- `RUNTIME_SERVICE_PLANS.md` — планы service mode; это ещё не готовый пользовательский сервис.
-
-## Диагностика Discord и исторические исследования
-
-Файлы с `DISCORD_*`, `V04_ALPHA_*`, `V04_DISCORD_*` и `STAGE*` сохраняют ход исследований и описание отдельных реализованных инструментов. Номера stage являются историческими идентификаторами и не определяют текущую версию продукта.
-
-Для текущего решения сначала использовать `PROJECT_STATUS.md`, `V04_RELEASE.md` и `KNOWN_GAPS_CHECKLISTS.md`. К stage-файлам обращаться только за деталями конкретного адаптера, команды или наблюдения.
-
-## Reference и upstream
-
-- `docs/reference/` — локальные сводки старого проекта и Windows GUI.
-- `references/external/` — машинно-читаемые reference-снимки и краткие выдержки.
-- `core/zapret2/docs/` — неизменяемая документация upstream bol-van.
-- `meta_tools/devctl/` — снимок инструмента разработки; его upstream-файлы не являются пользовательской документацией z2guiflin.
-
-## Аудит
-
-`DOCUMENTATION_AUDIT.md` фиксирует результаты генеральной уборки, правила актуальности и перечень проверенных групп документов.
+Текущий кандидат P06: **0.10.0rc6 / v0.10 RC6**. Он не повышен до финальной версии: полный lifecycle на чистой Arch VM требует отдельного owner receipt. Последний независимо зафиксированный финальный продукт — **0.8.0**: P04 закрыт (P04a, P04b, P04c, P04d), marker `READY_FOR_USE_WITHIN_P04D`. Вход P06 — предоставленный post-P05 snapshot `ca6b4fb`; отдельная новая owner-приёмка P05 в архиве отсутствует. Это граница доказательств, а не повторное закрытие предыдущих этапов.

@@ -1,0 +1,123 @@
+# Применение и откат runtime — Stage 12
+
+Stage 12 вводит первый owner-confirmed путь для системных правил runtime lifecycle. Он отделён от bootstrap, local build и session runner.
+
+## Что добавлено
+
+Новый adapter:
+
+```text
+/gui/zap2_gui/adapters/runtime_apply.py
+```
+
+Он умеет строить и сохранять два типа планов:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-apply-plan --profile default
+PYTHONPATH=gui python -m zap2_gui.app --runtime-revert-plan --profile default
+```
+
+Планы сохраняются в `.zap2/runtime/plans/`, получают `planHash`, rollback notes и требуют owner confirmation через уже существующий gate:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-apply-owner-rules-plan
+PYTHONPATH=gui python -m zap2_gui.app --runtime-confirm runtime-default-manual-local-revert-owner-rules-plan
+```
+
+После подтверждения владелец может локально исполнить plan:
+
+```bash
+PYTHONPATH=gui python -m zap2_gui.app --runtime-apply --profile default --confirm runtime-default-manual-local-apply-owner-rules-plan
+PYTHONPATH=gui python -m zap2_gui.app --runtime-revert --profile default --confirm runtime-default-manual-local-revert-owner-rules-plan
+```
+
+## Что именно делает apply
+
+Stage 12 использует `nftables` как первый backend. Имя owned table теперь выводится из единой runtime owner identity `{desktop UID + canonical workspace digest + profile}`. Для default profile оно имеет вид:
+
+```text
+inet zap2_u<uid>_<workspace-digest>_default
+```
+
+Имя таблицы и встроенный owner marker должны совпасть с сохранённым plan/state. Совпадение одного имени больше не считается доказательством владения. Legacy/чужая таблица не удаляется автоматически.
+
+Внутри неё создаётся отдельная chain для локального исходящего трафика:
+
+```text
+local_out
+```
+
+Правила направляют выбранный локальный TCP/UDP-трафик в workspace-specific NFQUEUE с `queue bypass`. Номер очереди не фиксируется глобально на `200`: он детерминированно выбирается для owner identity и одинаково используется в nftables apply plan и session args `nfqws2`. Перед firewall mutation runtime дополнительно проверяет, не занят ли этот qnum внешним `nfqws2`; при подтверждённом конфликте start останавливается до apply.
+
+Stage 12 не пытается покрыть все возможные router/LAN/WAN схемы upstream zapret2. Это минимальный single-user desktop-oriented backend для default strategy. Расширенные схемы interception должны появляться отдельными strategy/profile options после того, как базовый lifecycle станет устойчивым.
+
+## Что делает revert
+
+Revert удаляет только owner-scoped table из подтверждённого saved plan, например:
+
+```text
+nft delete table inet zap2_u1000_a1b2c3d4_default
+```
+
+Перед удалением executor читает существующую table и сверяет owner marker. Чужая/legacy/непроверяемая table не удаляется. Если owned table уже отсутствует, guarded executor считает это безопасным состоянием для повторного stop workflow. Apply/revert выполняются через сохранённый nft batch: сначала `nft --check -f`, затем один `nft -f`; lifecycle одного owner key сериализован lock-файлом.
+
+## Граница безопасности
+
+Stage 12 запрещает:
+
+- `curl`/`wget` remote bootstrap;
+- upstream `install_easy.sh`/`uninstall_easy.sh`;
+- `systemctl` и service mode;
+- скрытое исполнение в devctl-проверках;
+- применение правил без сохранённого plan, совпадающего `planHash` и owner confirmation.
+
+Автоматические проверки используют fake runner и не вызывают настоящий `nft`, не требуют root и не меняют firewall.
+
+## Почему это не bootstrap
+
+Bootstrap отвечает за структуру проекта, vendored-core и developer tooling. Runtime apply/revert отвечает только за временные системные правила, необходимые для работы текущей runtime session. Эти уровни нельзя смешивать: установка/обновление проекта не должна автоматически менять firewall, а runtime stop/revert не должен удалять или пересобирать проект.
+
+## Использование в default workflow
+
+В Stage 14 apply/revert слой используется как child plan внутри composite default workflow. Пользователь подтверждает composite plan, после чего workflow создаёт derived confirmations для child plans только если их сохранённые hashes совпадают с composite plan. Это позволяет запускать `default-start/default-stop` одной понятной парой команд, не теряя hash-gate из Stage 10–12.
+
+## v0.3-dev Stage 16 — safer local interception
+
+Stage 16 меняет смысл default apply с «перехватить все локальные 80/443/UDP443»
+на более узкий single-owner scope:
+
+- порты берутся из активной strategy: `--filter-tcp` и `--filter-udp`;
+- если strategy не содержит `--filter-udp`, UDP/443 не добавляется неявно;
+- nftables rule получает `meta skuid <owner_uid>`, поэтому root/NetworkManager
+  connectivity checks не должны уходить в NFQUEUE вместе с браузером владельца;
+- rule получает loop guard `meta mark & 0x40000000 == 0`, а session args явно
+  передают `--fwmark=0x40000000`, чтобы сгенерированные nfqws2 пакеты не
+  переочередивались повторно;
+- перехват ограничен ранними исходящими пакетами connection через `ct original
+  packets`, а не всем TCP/UDP потоком.
+
+Это не финальная оптимальная zapret2-схема, а безопасный следующий шаг для GUI
+runtime: если соединение ломается, stop/revert по-прежнему удаляет только доказанно
+owned `inet zap2_u<uid>_<workspace-digest>_<profile>`, а диагностика показывает
+owner key, конкретный UID, mark и список портов, которые были поставлены в очередь.
+
+Read-only reconciliation различает `clean`, `consistent-applied`, `stale-state`,
+`cleanup-required`, `conflict` и `unknown`. Неизвестное состояние не трактуется как
+`stopped`; явный recovery использует обычный подтверждаемый revert plan только для
+ресурса с совпавшим owner marker.
+
+
+## v0.3-dev Stage 17 — saved-plan execution under sudo
+
+Stage 17 исправляет регрессию GUI start, где privileged `sudo -A` execution
+мог заново собрать owner-rules plan с другой runtime identity и получить ошибку:
+
+```text
+Prepared owner-rules plan устарел: текущий planHash не совпадает с сохранённым
+```
+
+Executor теперь валидирует hash сохранённого owner-confirmed plan и confirmation,
+а затем исполняет именно сохранённые команды из этого plan. Это сохраняет
+согласованный `ownerUid`, `nfqueueNum`, strategy-derived port set и nft syntax
+между шагами `plan -> confirm -> sudo execute`. Дополнительно loop guard syntax
+исправлен на nftables-совместимое выражение `meta mark & 0x40000000 == 0`.

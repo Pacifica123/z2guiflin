@@ -1,0 +1,471 @@
+{
+  "schemaVersion": 1,
+  "files": {
+    "ADR_P04_DOMAIN_ONTOLOGY.md": {
+      "sourcePath": "docs/ADR_P04_DOMAIN_ONTOLOGY.md",
+      "historyPath": "docs/history/stages/ADR_P04_DOMAIN_ONTOLOGY.md",
+      "sha256": "f63cb14c35d8e1d139d73b07cec3ae9631b61367dd0c514fafe49198a72957f7"
+    },
+    "BLOCKCHECK_GUI.md": {
+      "sourcePath": "docs/BLOCKCHECK_GUI.md",
+      "historyPath": "docs/history/stages/BLOCKCHECK_GUI.md",
+      "sha256": "70645bc113bdfb9099c5a7bfcc977cb6fced9ea3b0fa8c98f2870ddcdfa91993"
+    },
+    "BUILD_DEPENDENCY_PREFLIGHT.md": {
+      "sourcePath": "docs/BUILD_DEPENDENCY_PREFLIGHT.md",
+      "historyPath": "docs/history/stages/BUILD_DEPENDENCY_PREFLIGHT.md",
+      "sha256": "77bfa5c254313123e8dcf036bd198867533f8a737714d7cddacd3c4dc248d706"
+    },
+    "CORE_BUILD_MAP.md": {
+      "sourcePath": "docs/CORE_BUILD_MAP.md",
+      "historyPath": "docs/history/stages/CORE_BUILD_MAP.md",
+      "sha256": "8f888a60c189977f30885a60ab5ebbe7e58bb1a0e103c4a7b33b913477100335"
+    },
+    "CORE_INVENTORY.md": {
+      "sourcePath": "docs/CORE_INVENTORY.md",
+      "historyPath": "docs/history/stages/CORE_INVENTORY.md",
+      "sha256": "f825b62d7641984f28cf13b187c179d388bc28f48ae592857fb69d6a695d5100"
+    },
+    "CUSTOMIZATION.md": {
+      "sourcePath": "docs/CUSTOMIZATION.md",
+      "historyPath": "docs/history/stages/CUSTOMIZATION.md",
+      "sha256": "4289986f214056c97fee839ace29d6dee1c1cce05f94e3d82ee4924a36eefcf5"
+    },
+    "DEFAULT_BUILD_WORKFLOW.md": {
+      "sourcePath": "docs/DEFAULT_BUILD_WORKFLOW.md",
+      "historyPath": "docs/history/stages/DEFAULT_BUILD_WORKFLOW.md",
+      "sha256": "62afe61607aca7a49285b4613d136481bb00f83ee8708ed34bd4bf470a6ea477"
+    },
+    "DEFAULT_RUNTIME_PLAN_GENERATOR.md": {
+      "sourcePath": "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
+      "historyPath": "docs/history/stages/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
+      "sha256": "692554cfc5b1ae85ab9359680b4c365592dbbad2e071039beba685084b269b3b"
+    },
+    "DEFAULT_STRATEGY_IMPORT.md": {
+      "sourcePath": "docs/DEFAULT_STRATEGY_IMPORT.md",
+      "historyPath": "docs/history/stages/DEFAULT_STRATEGY_IMPORT.md",
+      "sha256": "b595c2608dc11f2e63596537b89b9afbcb8edae025801043f5915363543f871f"
+    },
+    "DEFAULT_WORKFLOW.md": {
+      "sourcePath": "docs/DEFAULT_WORKFLOW.md",
+      "historyPath": "docs/history/stages/DEFAULT_WORKFLOW.md",
+      "sha256": "e1dbc643642e4f67980b162639fec99ea0742b64f2d97cabd1de9338ad16acd9"
+    },
+    "DEVELOPMENT_STRATEGY.md": {
+      "sourcePath": "docs/DEVELOPMENT_STRATEGY.md",
+      "historyPath": "docs/history/stages/DEVELOPMENT_STRATEGY.md",
+      "sha256": "7b0e0b91cb86b1f0dd0744532a7348d124f1a9e6846de1c3cf7b882b85c758e5"
+    },
+    "DISCORD_COMMUNITY_5222_NOTES.md": {
+      "sourcePath": "docs/DISCORD_COMMUNITY_5222_NOTES.md",
+      "historyPath": "docs/history/stages/DISCORD_COMMUNITY_5222_NOTES.md",
+      "sha256": "21e0f057ce375696703478919efd5dfa0ca52e549e69dc53cf6f15e4ea50f263"
+    },
+    "DISCORD_COMMUNITY_EDGE_FLOW_RESULTS.md": {
+      "sourcePath": "docs/DISCORD_COMMUNITY_EDGE_FLOW_RESULTS.md",
+      "historyPath": "docs/history/stages/DISCORD_COMMUNITY_EDGE_FLOW_RESULTS.md",
+      "sha256": "12433edf1615ff4919f1d20b3bd9dc1b9c668081bd530b4590c70f82cee88431"
+    },
+    "DISCORD_DNS_EDGE_DIAGNOSTICS.md": {
+      "sourcePath": "docs/DISCORD_DNS_EDGE_DIAGNOSTICS.md",
+      "historyPath": "docs/history/stages/DISCORD_DNS_EDGE_DIAGNOSTICS.md",
+      "sha256": "c8fe91e3762e661ec3937ac44c539232b6bd22e7ff182f52a59c7bbbd6d68391"
+    },
+    "DISCORD_ENDPOINT_DISCOVERY.md": {
+      "sourcePath": "docs/DISCORD_ENDPOINT_DISCOVERY.md",
+      "historyPath": "docs/history/stages/DISCORD_ENDPOINT_DISCOVERY.md",
+      "sha256": "a9d9001b46100f3f561899806a7e621b0704207de7b3b4d92492b1336d9cc25e"
+    },
+    "DISCORD_FLOWSEAL_WINDOWS_REFERENCE.md": {
+      "sourcePath": "docs/DISCORD_FLOWSEAL_WINDOWS_REFERENCE.md",
+      "historyPath": "docs/history/stages/DISCORD_FLOWSEAL_WINDOWS_REFERENCE.md",
+      "sha256": "aa011a2659e248ee8704f4ce1f6ef8531dfb3cf3051e08b26b36342dd7cd8c8e"
+    },
+    "DISCORD_HAR_DISCOVERY.md": {
+      "sourcePath": "docs/DISCORD_HAR_DISCOVERY.md",
+      "historyPath": "docs/history/stages/DISCORD_HAR_DISCOVERY.md",
+      "sha256": "319704344737341c1aaa7eecc30bd5993dd8abe66c463a5dbd50f504c1a11121"
+    },
+    "DISCORD_MACHINE_DIAGNOSTICS.md": {
+      "sourcePath": "docs/DISCORD_MACHINE_DIAGNOSTICS.md",
+      "historyPath": "docs/history/stages/DISCORD_MACHINE_DIAGNOSTICS.md",
+      "sha256": "e21feae796a8f9a2f0a7d43ddbc3f966d041eaff7d81b13b355831c93d5ccec1"
+    },
+    "DISCORD_OBSERVATION_MATRIX.md": {
+      "sourcePath": "docs/DISCORD_OBSERVATION_MATRIX.md",
+      "historyPath": "docs/history/stages/DISCORD_OBSERVATION_MATRIX.md",
+      "sha256": "58874317d707f59856d913e53202e62f830a653c04ca4cf6f1a6b9757946e3e2"
+    },
+    "DISCORD_OBSERVATION_MATRIX_AUTO_RUNNER.md": {
+      "sourcePath": "docs/DISCORD_OBSERVATION_MATRIX_AUTO_RUNNER.md",
+      "historyPath": "docs/history/stages/DISCORD_OBSERVATION_MATRIX_AUTO_RUNNER.md",
+      "sha256": "4fc7f8b9611c68566db89871733644f3534d8f451ac2da2add78c3d6e828eeec"
+    },
+    "DISCORD_OBSERVATION_MATRIX_ROW_RUNNER.md": {
+      "sourcePath": "docs/DISCORD_OBSERVATION_MATRIX_ROW_RUNNER.md",
+      "historyPath": "docs/history/stages/DISCORD_OBSERVATION_MATRIX_ROW_RUNNER.md",
+      "sha256": "d3cd9c84b6ed08d393c911a771ea11bb4019c9bb471031b279eb68df04012604"
+    },
+    "DISCORD_PRETLS_GUIDED_PROBE.md": {
+      "sourcePath": "docs/DISCORD_PRETLS_GUIDED_PROBE.md",
+      "historyPath": "docs/history/stages/DISCORD_PRETLS_GUIDED_PROBE.md",
+      "sha256": "fc1c88cd32ccfff603cbab08e61fea772b9ca7fcbb699be84edc665d28b0c358"
+    },
+    "DISCORD_PRETLS_OBSERVABILITY.md": {
+      "sourcePath": "docs/DISCORD_PRETLS_OBSERVABILITY.md",
+      "historyPath": "docs/history/stages/DISCORD_PRETLS_OBSERVABILITY.md",
+      "sha256": "53a9a146bee6a6b3e0bea43a21f18b94c4f4efdbdcad90c7170d61befe194af6"
+    },
+    "DISCORD_SYN_DATA_EDGE_FLOW_V2B.md": {
+      "sourcePath": "docs/DISCORD_SYN_DATA_EDGE_FLOW_V2B.md",
+      "historyPath": "docs/history/stages/DISCORD_SYN_DATA_EDGE_FLOW_V2B.md",
+      "sha256": "ecc081926d384222ed224d8c62f60edd8aefbe3a2f313d0a6c39d2d2a7f1d58c"
+    },
+    "DISCORD_SYN_DATA_EDGE_FLOW_V2C_MATRIX.md": {
+      "sourcePath": "docs/DISCORD_SYN_DATA_EDGE_FLOW_V2C_MATRIX.md",
+      "historyPath": "docs/history/stages/DISCORD_SYN_DATA_EDGE_FLOW_V2C_MATRIX.md",
+      "sha256": "409b7b2b629b930dc2664309919946624718ad9e0d487373ac7b6b779165b0f3"
+    },
+    "DISCORD_TUNNEL_SOCKS_VLESS_PLAN.md": {
+      "sourcePath": "docs/DISCORD_TUNNEL_SOCKS_VLESS_PLAN.md",
+      "historyPath": "docs/history/stages/DISCORD_TUNNEL_SOCKS_VLESS_PLAN.md",
+      "sha256": "ddede1b678f76c31dce8ada26929b893d138da29070202d81400730b52e87fbb"
+    },
+    "DISCORD_VOICE_SOURCE_BRIDGE.md": {
+      "sourcePath": "docs/DISCORD_VOICE_SOURCE_BRIDGE.md",
+      "historyPath": "docs/history/stages/DISCORD_VOICE_SOURCE_BRIDGE.md",
+      "sha256": "fdf7015e4de1c36bb4d2f6ae6e3de1e081b6777819764efb82e38bf2ac247950"
+    },
+    "DOCUMENTATION_AUDIT.md": {
+      "sourcePath": "docs/DOCUMENTATION_AUDIT.md",
+      "historyPath": "docs/history/stages/DOCUMENTATION_AUDIT.md",
+      "sha256": "f2604fffa1ddd312a2e837ac38d8fd22b2e3d08f80960dd152d7df357f87d66a"
+    },
+    "DOCUMENTATION_LANGUAGE.md": {
+      "sourcePath": "docs/DOCUMENTATION_LANGUAGE.md",
+      "historyPath": "docs/history/stages/DOCUMENTATION_LANGUAGE.md",
+      "sha256": "d24cb284622cdaa493dc0440d7aa4d8684fce730bcff372d2dca809d9a88f642"
+    },
+    "EXTERNAL_REFERENCE_AUDIT.md": {
+      "sourcePath": "docs/EXTERNAL_REFERENCE_AUDIT.md",
+      "historyPath": "docs/history/stages/EXTERNAL_REFERENCE_AUDIT.md",
+      "sha256": "e42af9b20f5e67a4ce3edf146d77c8a5ade7fa588c2891d0a7751ba3cd2478b0"
+    },
+    "EXTERNAL_REFERENCE_CANDIDATE_STRATEGIES.md": {
+      "sourcePath": "docs/EXTERNAL_REFERENCE_CANDIDATE_STRATEGIES.md",
+      "historyPath": "docs/history/stages/EXTERNAL_REFERENCE_CANDIDATE_STRATEGIES.md",
+      "sha256": "0530ce634784751d7175bd672c07f21e97f14b83e244025be8925dcaff329186"
+    },
+    "GUI_FIRST_PRIVILEGED_PROBE_AND_LOGS.md": {
+      "sourcePath": "docs/GUI_FIRST_PRIVILEGED_PROBE_AND_LOGS.md",
+      "historyPath": "docs/history/stages/GUI_FIRST_PRIVILEGED_PROBE_AND_LOGS.md",
+      "sha256": "edb5800324e02e30969a61c54f4a52a8035862cc86558e446fbb37b0f6e60264"
+    },
+    "GUI_FIRST_RUNTIME_OVERVIEW.md": {
+      "sourcePath": "docs/GUI_FIRST_RUNTIME_OVERVIEW.md",
+      "historyPath": "docs/history/stages/GUI_FIRST_RUNTIME_OVERVIEW.md",
+      "sha256": "37ce6be39dd114ebd0a40323ea3283ca6df823169a4d369bc0a7aa6a4e8ce512"
+    },
+    "GUI_FIRST_TABLES_AND_COPY.md": {
+      "sourcePath": "docs/GUI_FIRST_TABLES_AND_COPY.md",
+      "historyPath": "docs/history/stages/GUI_FIRST_TABLES_AND_COPY.md",
+      "sha256": "585cb3e2bf063866fa9c8dc2b0fdf3b74a123d1df20f1fa59fcb05a657e73c7e"
+    },
+    "GUI_FLAT_PASTEL_ICONS.md": {
+      "sourcePath": "docs/GUI_FLAT_PASTEL_ICONS.md",
+      "historyPath": "docs/history/stages/GUI_FLAT_PASTEL_ICONS.md",
+      "sha256": "d9c3d627131562e4dd907ec0e9244081c0dceff63b73df99edf1c6a47d3602ea"
+    },
+    "GUI_FRAMEWORK.md": {
+      "sourcePath": "docs/GUI_FRAMEWORK.md",
+      "historyPath": "docs/history/stages/GUI_FRAMEWORK.md",
+      "sha256": "0d1a4e11117b10daed0db3a4afa3353faea30b912eb45880a47facce5b9fa93f"
+    },
+    "GUI_POLKIT_PRIVILEGE.md": {
+      "sourcePath": "docs/GUI_POLKIT_PRIVILEGE.md",
+      "historyPath": "docs/history/stages/GUI_POLKIT_PRIVILEGE.md",
+      "sha256": "2f416bf9f3e9ab52f5ca11908c60354010b0fb3a4068edf153ce43a3a6e7817d"
+    },
+    "GUI_RUNTIME_CONTROLS.md": {
+      "sourcePath": "docs/GUI_RUNTIME_CONTROLS.md",
+      "historyPath": "docs/history/stages/GUI_RUNTIME_CONTROLS.md",
+      "sha256": "404ac15f3d999a51b23c8bc76ff4faa993528d1cce3ba04e068bde124554c513"
+    },
+    "GUI_SHELL.md": {
+      "sourcePath": "docs/GUI_SHELL.md",
+      "historyPath": "docs/history/stages/GUI_SHELL.md",
+      "sha256": "3c6f2bad23710c2c21b2af6958dea6309df752e8c559263b84aecc32ef22546b"
+    },
+    "GUI_TOGGLE_AND_LOGS.md": {
+      "sourcePath": "docs/GUI_TOGGLE_AND_LOGS.md",
+      "historyPath": "docs/history/stages/GUI_TOGGLE_AND_LOGS.md",
+      "sha256": "6073eb861349bc7b33cc3c36ae09c6054c1b91e73e0532e93cd24496f0de1460"
+    },
+    "GUI_UX_STAGE8F.md": {
+      "sourcePath": "docs/GUI_UX_STAGE8F.md",
+      "historyPath": "docs/history/stages/GUI_UX_STAGE8F.md",
+      "sha256": "3bb0fab98373e3858e2c5830a02dad74ab94b16a412874dd2ea2bc498ba1754c"
+    },
+    "GUI_UX_STAGE8F_R1.md": {
+      "sourcePath": "docs/GUI_UX_STAGE8F_R1.md",
+      "historyPath": "docs/history/stages/GUI_UX_STAGE8F_R1.md",
+      "sha256": "f43d87ef74b07d48dbe15e4653d1bd075c49943267a82ecf857fe485be39dada"
+    },
+    "GUI_UX_STAGE8F_R2.md": {
+      "sourcePath": "docs/GUI_UX_STAGE8F_R2.md",
+      "historyPath": "docs/history/stages/GUI_UX_STAGE8F_R2.md",
+      "sha256": "b2745c6853aa307fd92034e255079936a1b0e31cc76b0afe20cd02967d70cd52"
+    },
+    "GUI_UX_STAGE8F_R3.md": {
+      "sourcePath": "docs/GUI_UX_STAGE8F_R3.md",
+      "historyPath": "docs/history/stages/GUI_UX_STAGE8F_R3.md",
+      "sha256": "f845d23b43aabf4397ccf043313c8ad2d82774498ee24680a1921b7752e913b7"
+    },
+    "KNOWN_GAPS_CHECKLISTS.md": {
+      "sourcePath": "docs/KNOWN_GAPS_CHECKLISTS.md",
+      "historyPath": "docs/history/stages/KNOWN_GAPS_CHECKLISTS.md",
+      "sha256": "ff9c65d710481d417464c248314d40f4acff95fdd038283cb415cb3353619dca"
+    },
+    "LAUNCH_COMPOSER_PRECHECKS.md": {
+      "sourcePath": "docs/LAUNCH_COMPOSER_PRECHECKS.md",
+      "historyPath": "docs/history/stages/LAUNCH_COMPOSER_PRECHECKS.md",
+      "sha256": "c26778bf26ca885ef7b8443a9c576f9cae3f54c2e790bb621c0483fa5dcb0297"
+    },
+    "LAUNCH_ERROR_CLASSIFIER.md": {
+      "sourcePath": "docs/LAUNCH_ERROR_CLASSIFIER.md",
+      "historyPath": "docs/history/stages/LAUNCH_ERROR_CLASSIFIER.md",
+      "sha256": "8eb7e3fa6e58893a71d6d7c4c95a086c7dc042d3722be26c4867efa32fbfd652"
+    },
+    "LOCAL_BUILD_ADAPTER.md": {
+      "sourcePath": "docs/LOCAL_BUILD_ADAPTER.md",
+      "historyPath": "docs/history/stages/LOCAL_BUILD_ADAPTER.md",
+      "sha256": "c5060212056e981364299e0c1ce5a4d449b03cb2a31d204802beb2132e6aa650"
+    },
+    "META_TOOLS.md": {
+      "sourcePath": "docs/META_TOOLS.md",
+      "historyPath": "docs/history/stages/META_TOOLS.md",
+      "sha256": "1b27c4bbc8d800dbd77a7043ed9248c376ae37faab41f64e6e6444a23b0ac8b3"
+    },
+    "NFQUEUE_PRIVILEGE_ORDER.md": {
+      "sourcePath": "docs/NFQUEUE_PRIVILEGE_ORDER.md",
+      "historyPath": "docs/history/stages/NFQUEUE_PRIVILEGE_ORDER.md",
+      "sha256": "2c831bd4ea928f083825f15b523928cfea9dac6f8bf37e97ca8258136de6b0c3"
+    },
+    "P01_NETWORK_TRUTH_EVIDENCE.md": {
+      "sourcePath": "docs/P01_NETWORK_TRUTH_EVIDENCE.md",
+      "historyPath": "docs/history/stages/P01_NETWORK_TRUTH_EVIDENCE.md",
+      "sha256": "3aedd9f2a6fdd5d71de477bd8a1e944a73a7293a37dbd8da26f943062f6e8d06"
+    },
+    "P02_RUNTIME_LIFECYCLE_KERNEL.md": {
+      "sourcePath": "docs/P02_RUNTIME_LIFECYCLE_KERNEL.md",
+      "historyPath": "docs/history/stages/P02_RUNTIME_LIFECYCLE_KERNEL.md",
+      "sha256": "eb82e82c005b77be2701a32bd71e3cebe1dbf3df7d4a77e9cd38cb4a8a757179"
+    },
+    "P03_ZAPRET2_GENERATION.md": {
+      "sourcePath": "docs/P03_ZAPRET2_GENERATION.md",
+      "historyPath": "docs/history/stages/P03_ZAPRET2_GENERATION.md",
+      "sha256": "b10562dac8ee29860eac44cdcca4302a7f5caa11ca1e7f3ba63cbeef7d125eac"
+    },
+    "P04B_EXECUTION_PLAN.md": {
+      "sourcePath": "docs/P04B_EXECUTION_PLAN.md",
+      "historyPath": "docs/history/stages/P04B_EXECUTION_PLAN.md",
+      "sha256": "caf800f9da7d3d83f886ecb3d4f197db45a2b52b015c1db85529e646b25ecf5b"
+    },
+    "P04C_ACTION_DISPATCHER.md": {
+      "sourcePath": "docs/P04C_ACTION_DISPATCHER.md",
+      "historyPath": "docs/history/stages/P04C_ACTION_DISPATCHER.md",
+      "sha256": "d494580aa50792ddcf494ac4eb0fecb333b6199f705c39b4e11c6888a39b1728"
+    },
+    "P04D_ACTION_CONTRACT_CLOSURE.md": {
+      "sourcePath": "docs/P04D_ACTION_CONTRACT_CLOSURE.md",
+      "historyPath": "docs/history/stages/P04D_ACTION_CONTRACT_CLOSURE.md",
+      "sha256": "8407032af45bacada50370e4459f1622afdde4542a5606f107945f3d9f631eb7"
+    },
+    "P04_REFORENSICS.md": {
+      "sourcePath": "docs/P04_REFORENSICS.md",
+      "historyPath": "docs/history/stages/P04_REFORENSICS.md",
+      "sha256": "5380a98f5395928e758e2a3946c6fd9b67d11a2fa2f91afa6b854482b26b40da"
+    },
+    "P05_DISCOVERABILITY.md": {
+      "sourcePath": "docs/P05_DISCOVERABILITY.md",
+      "historyPath": "docs/history/stages/P05_DISCOVERABILITY.md",
+      "sha256": "8816ee05e2847311a161715f59e94c18b1331a39142d1fe38e6baee1d1db8b3a"
+    },
+    "P05_REFORENSICS.md": {
+      "sourcePath": "docs/P05_REFORENSICS.md",
+      "historyPath": "docs/history/stages/P05_REFORENSICS.md",
+      "sha256": "96eda91ba848ed954d019463b2220972d0274486fbb5467d99ba6c2b1a09dfb9"
+    },
+    "PRESET_CONSTRUCTOR.md": {
+      "sourcePath": "docs/PRESET_CONSTRUCTOR.md",
+      "historyPath": "docs/history/stages/PRESET_CONSTRUCTOR.md",
+      "sha256": "8e8cbe04803bd653b04f6a040aa75c480b6329712c599346a5a9165a2e78da5a"
+    },
+    "PRESET_PROFILE_ARCHITECTURE.md": {
+      "sourcePath": "docs/PRESET_PROFILE_ARCHITECTURE.md",
+      "historyPath": "docs/history/stages/PRESET_PROFILE_ARCHITECTURE.md",
+      "sha256": "a7de48777dafd0050bb8d0b3c20aac86343a43e9a483a10a9f6878d6d5c05853"
+    },
+    "PROJECT_STATUS.md": {
+      "sourcePath": "docs/PROJECT_STATUS.md",
+      "historyPath": "docs/history/stages/PROJECT_STATUS.md",
+      "sha256": "a927be3996568c3ec08424eae83181bc69519b71b3eee7639922dec629ba3075"
+    },
+    "PROJECT_STRUCTURE.md": {
+      "sourcePath": "docs/PROJECT_STRUCTURE.md",
+      "historyPath": "docs/history/stages/PROJECT_STRUCTURE.md",
+      "sha256": "a4302972f91a934555fba09ed9a8afc08765020838d7af48610e6083fd2d3738"
+    },
+    "README.md": {
+      "sourcePath": "docs/README.md",
+      "historyPath": "docs/history/stages/README.md",
+      "sha256": "614b83974591d8378a0716bbf84a2d7d13ecf7365d96179d754dfe89aacbd582"
+    },
+    "RUNTIME_APPLY_REVERT.md": {
+      "sourcePath": "docs/RUNTIME_APPLY_REVERT.md",
+      "historyPath": "docs/history/stages/RUNTIME_APPLY_REVERT.md",
+      "sha256": "c79c208f492a3a97fc13f803fe75bf8a6a85c4376cbe61b2ba0a76d3df95936c"
+    },
+    "RUNTIME_LIFECYCLE.md": {
+      "sourcePath": "docs/RUNTIME_LIFECYCLE.md",
+      "historyPath": "docs/history/stages/RUNTIME_LIFECYCLE.md",
+      "sha256": "7f18c8004c82809aeb7fb9a01a74a3ff1b59a43c01dbf309ebc122e77427547d"
+    },
+    "RUNTIME_OWNERSHIP_RECOVERY.md": {
+      "sourcePath": "docs/RUNTIME_OWNERSHIP_RECOVERY.md",
+      "historyPath": "docs/history/stages/RUNTIME_OWNERSHIP_RECOVERY.md",
+      "sha256": "076ac8552c10e9c4380bb3225861e247e423a9995747fcd1e5ab6e34d6f88e16"
+    },
+    "RUNTIME_PLANS.md": {
+      "sourcePath": "docs/RUNTIME_PLANS.md",
+      "historyPath": "docs/history/stages/RUNTIME_PLANS.md",
+      "sha256": "09c12a253a44052a79d0482803bbf0fe598276e998f76eac9387982d637987d7"
+    },
+    "RUNTIME_QUEUE_POLICY.md": {
+      "sourcePath": "docs/RUNTIME_QUEUE_POLICY.md",
+      "historyPath": "docs/history/stages/RUNTIME_QUEUE_POLICY.md",
+      "sha256": "d68a50732f9534378ed48f5110b525cc01d40d6a36fd2111b53e1f62abc42ec3"
+    },
+    "RUNTIME_SERVICE_PLANS.md": {
+      "sourcePath": "docs/RUNTIME_SERVICE_PLANS.md",
+      "historyPath": "docs/history/stages/RUNTIME_SERVICE_PLANS.md",
+      "sha256": "7729d7d88292cb1aaa46d8b44abe100da3d22328ce2c5a116a1a5a2f878d6ca8"
+    },
+    "RUNTIME_SESSION_INPUTS.md": {
+      "sourcePath": "docs/RUNTIME_SESSION_INPUTS.md",
+      "historyPath": "docs/history/stages/RUNTIME_SESSION_INPUTS.md",
+      "sha256": "a0de8466afc2874cf2ab03f704f8f14d4c18277cced66698e47e883b92f88791"
+    },
+    "RUNTIME_SESSION_RUNNER.md": {
+      "sourcePath": "docs/RUNTIME_SESSION_RUNNER.md",
+      "historyPath": "docs/history/stages/RUNTIME_SESSION_RUNNER.md",
+      "sha256": "208a3e9a2a7b0a0ea51b37819f9d5bf4889b426cf3326a3127f60e176b6741d8"
+    },
+    "RUNTIME_STATE_AND_CONFIRMATION.md": {
+      "sourcePath": "docs/RUNTIME_STATE_AND_CONFIRMATION.md",
+      "historyPath": "docs/history/stages/RUNTIME_STATE_AND_CONFIRMATION.md",
+      "sha256": "21b347e061bf41b43c498edecf28455469380ea95961bd8c4982b0b461c7447c"
+    },
+    "SAFETY_AND_PRIVILEGE_BOUNDARY.md": {
+      "sourcePath": "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
+      "historyPath": "docs/history/stages/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
+      "sha256": "58b53e51833de6304935c2bde8bede0b1daed41fe8750f9e71d6357f6627692b"
+    },
+    "SECURITY_IPBLOCKLIST.md": {
+      "sourcePath": "docs/SECURITY_IPBLOCKLIST.md",
+      "historyPath": "docs/history/stages/SECURITY_IPBLOCKLIST.md",
+      "sha256": "93669faa63b7b25700ca17563e6011febf5ae7cdcf35e70f69fbb8801b208939"
+    },
+    "SERVICE_COVERAGE_POLICIES.md": {
+      "sourcePath": "docs/SERVICE_COVERAGE_POLICIES.md",
+      "historyPath": "docs/history/stages/SERVICE_COVERAGE_POLICIES.md",
+      "sha256": "e72b9faeb00a72a3a1815f0c7f7601bb60e3ffb83531c0394eee6065d05a06d9"
+    },
+    "SERVICE_TARGET_PRESETS.md": {
+      "sourcePath": "docs/SERVICE_TARGET_PRESETS.md",
+      "historyPath": "docs/history/stages/SERVICE_TARGET_PRESETS.md",
+      "sha256": "5d0512686493273a558c17e8664ec49ac80f05783907fdcddba862c1b27b1a94"
+    },
+    "SOURCE_ALIGNMENT.md": {
+      "sourcePath": "docs/SOURCE_ALIGNMENT.md",
+      "historyPath": "docs/history/stages/SOURCE_ALIGNMENT.md",
+      "sha256": "3033947744df692af6bc89f5c83b7b835111c0dfac2fc9540a4d537d5f26563c"
+    },
+    "STRATEGIES.md": {
+      "sourcePath": "docs/STRATEGIES.md",
+      "historyPath": "docs/history/stages/STRATEGIES.md",
+      "sha256": "419a3a665f2fa524fc000f29e108d880508bce09e9a3c6f34da023f42577f190"
+    },
+    "TOR_BACKENDS_AND_V2RAYNG_IMPORT.md": {
+      "sourcePath": "docs/TOR_BACKENDS_AND_V2RAYNG_IMPORT.md",
+      "historyPath": "docs/history/stages/TOR_BACKENDS_AND_V2RAYNG_IMPORT.md",
+      "sha256": "623296852ede6962d0a259b10508b73f43e810d312eeb3510c1a7f1edd7d2a15"
+    },
+    "TUNNEL_GUI_CORE_START_AND_XHTTP.md": {
+      "sourcePath": "docs/TUNNEL_GUI_CORE_START_AND_XHTTP.md",
+      "historyPath": "docs/history/stages/TUNNEL_GUI_CORE_START_AND_XHTTP.md",
+      "sha256": "766674f3392d0e3b265795155635d70594a4f1fb12e3e6d7c64b3ef8315723da"
+    },
+    "TUNNEL_GUI_PROFILE_TABLE_AND_UNIFIED_TOGGLE.md": {
+      "sourcePath": "docs/TUNNEL_GUI_PROFILE_TABLE_AND_UNIFIED_TOGGLE.md",
+      "historyPath": "docs/history/stages/TUNNEL_GUI_PROFILE_TABLE_AND_UNIFIED_TOGGLE.md",
+      "sha256": "f1bdf5e7afc8d2df4560126285e3f2d35f20a36753f4803d01f2bd5c0e99e24b"
+    },
+    "UNIVERSAL_HAR_WORKBENCH.md": {
+      "sourcePath": "docs/UNIVERSAL_HAR_WORKBENCH.md",
+      "historyPath": "docs/history/stages/UNIVERSAL_HAR_WORKBENCH.md",
+      "sha256": "408a3d3c44a157f6345eb59cb70b139f904e8414ae19fd9b73dc0ed37a1df731"
+    },
+    "V04_ALPHA_PATCH_ROADMAP.md": {
+      "sourcePath": "docs/V04_ALPHA_PATCH_ROADMAP.md",
+      "historyPath": "docs/history/stages/V04_ALPHA_PATCH_ROADMAP.md",
+      "sha256": "203ee558b9cd57336c9d7dd4c1571811184174d9748dbe914516df4b81ca3129"
+    },
+    "V04_DISCORD_DESKTOP_PLAN.md": {
+      "sourcePath": "docs/V04_DISCORD_DESKTOP_PLAN.md",
+      "historyPath": "docs/history/stages/V04_DISCORD_DESKTOP_PLAN.md",
+      "sha256": "d3545171f00cb151c96c2df6d7f3c84d8afbc69daab57e8a77e0e749e88d59bd"
+    },
+    "V04_DISCORD_OWNER_VERIFICATION.md": {
+      "sourcePath": "docs/V04_DISCORD_OWNER_VERIFICATION.md",
+      "historyPath": "docs/history/stages/V04_DISCORD_OWNER_VERIFICATION.md",
+      "sha256": "8a7af0f0b3bddb6fe47899acd946217eaab9580c5171785e848cae91e99a511c"
+    },
+    "V04_RELEASE.md": {
+      "sourcePath": "docs/V04_RELEASE.md",
+      "historyPath": "docs/history/stages/V04_RELEASE.md",
+      "sha256": "c6ce70e362df32940d3d1206a3f520a68fd28877fdd7f862841e4d07e81d63f0"
+    },
+    "V08_RELEASE_P05_HANDOFF.md": {
+      "sourcePath": "docs/V08_RELEASE_P05_HANDOFF.md",
+      "historyPath": "docs/history/stages/V08_RELEASE_P05_HANDOFF.md",
+      "sha256": "20fd9193fdff37084467473069e6557c661fa23f16dbb03ae48569d6c8209e07"
+    },
+    "V2RAYNG_REFERENCE_NOTES.md": {
+      "sourcePath": "docs/V2RAYNG_REFERENCE_NOTES.md",
+      "historyPath": "docs/history/stages/V2RAYNG_REFERENCE_NOTES.md",
+      "sha256": "eba416ff00224c48079030e1cfbc0e179571c435960b72f922bed70bb1405060"
+    },
+    "VERSIONING.md": {
+      "sourcePath": "docs/VERSIONING.md",
+      "historyPath": "docs/history/stages/VERSIONING.md",
+      "sha256": "f9e7b55f62fdbae8a582f9cb8301804d08f7244596c0744fa09c61467a3251f9"
+    },
+    "WINDOWS_COMMUNITY_PRESET_PORTING.md": {
+      "sourcePath": "docs/WINDOWS_COMMUNITY_PRESET_PORTING.md",
+      "historyPath": "docs/history/stages/WINDOWS_COMMUNITY_PRESET_PORTING.md",
+      "sha256": "7f80334f4d177831d2a3b457ad9324b0f88b23edcbeb27f22ad194f0e1b050bd"
+    },
+    "WORKSPACE_PROFILES.md": {
+      "sourcePath": "docs/WORKSPACE_PROFILES.md",
+      "historyPath": "docs/history/stages/WORKSPACE_PROFILES.md",
+      "sha256": "ba996c0d4f49b465c6b310ce62870fb33545974d141cf887ca8c1e5ee4679d8b"
+    },
+    "ZAPRET2_CORE_BLOCKCHECK_NOTES.md": {
+      "sourcePath": "docs/ZAPRET2_CORE_BLOCKCHECK_NOTES.md",
+      "historyPath": "docs/history/stages/ZAPRET2_CORE_BLOCKCHECK_NOTES.md",
+      "sha256": "1207ad9904c729dba18e5f50d6c278cede2b38bf216c2c40c24e3476909c8d13"
+    }
+  },
+  "rule": "old paths redirect; historical originals retain exact bytes; current help never reads stages by default"
+}

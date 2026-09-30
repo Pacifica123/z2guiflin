@@ -51,7 +51,7 @@ def test_community_discord_syndata_edge_flow_v2_is_registered() -> None:
 
 
 def test_stage7k_documents_owner_result_split() -> None:
-    doc = (ROOT / "docs" / "DISCORD_COMMUNITY_EDGE_FLOW_RESULTS.md").read_text(encoding="utf-8")
+    doc = (ROOT / "docs" / "history" / "stages" / "DISCORD_COMMUNITY_EDGE_FLOW_RESULTS.md").read_text(encoding="utf-8")
 
     assert "YouTube изменял поведение" in doc
     assert "desktop Discord оставался" in doc

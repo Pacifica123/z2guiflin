@@ -16,7 +16,7 @@ def _text(path: str) -> str:
 
 
 def test_tunnel_plan_documents_external_core_lane() -> None:
-    text = _text("docs/DISCORD_TUNNEL_SOCKS_VLESS_PLAN.md")
+    text = _text("docs/history/stages/DISCORD_TUNNEL_SOCKS_VLESS_PLAN.md")
 
     assert "SOCKS5/VLESS tunnel lane" in text
     assert "не реализует VLESS самостоятельно" in text
@@ -30,8 +30,8 @@ def test_tunnel_plan_documents_external_core_lane() -> None:
 
 def test_tunnel_docs_keep_secrets_out_of_repo() -> None:
     paths = [
-        "docs/DISCORD_TUNNEL_SOCKS_VLESS_PLAN.md",
-        "docs/V2RAYNG_REFERENCE_NOTES.md",
+        "docs/history/stages/DISCORD_TUNNEL_SOCKS_VLESS_PLAN.md",
+        "docs/history/stages/V2RAYNG_REFERENCE_NOTES.md",
         "references/external/snippets/stage7p0-v2rayng-socks-vless-notes.txt",
         "PATCH_SUMMARY.md",
     ]
@@ -45,7 +45,7 @@ def test_tunnel_docs_keep_secrets_out_of_repo() -> None:
 
 
 def test_v2rayng_reference_is_reference_only() -> None:
-    text = _text("docs/V2RAYNG_REFERENCE_NOTES.md")
+    text = _text("docs/history/stages/V2RAYNG_REFERENCE_NOTES.md")
     snippet = _text("references/external/snippets/stage7p0-v2rayng-socks-vless-notes.txt")
 
     assert "GPL-3.0" in text
@@ -56,7 +56,7 @@ def test_v2rayng_reference_is_reference_only() -> None:
 
 
 def test_historical_roadmap_records_tunnel_lane() -> None:
-    text = _text("docs/V04_ALPHA_PATCH_ROADMAP.md")
+    text = _text("docs/history/stages/V04_ALPHA_PATCH_ROADMAP.md")
 
     assert "SOCKS5/VLESS" in text
     assert "внешним core" in text

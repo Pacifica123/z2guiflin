@@ -58,7 +58,7 @@ def test_stage7m_runtime_apply_queues_5222_for_minimal_strategy(tmp_path: Path) 
 def test_stage7m_imported_discord_reference_preserves_windows_5222_hint() -> None:
     metadata = json.loads((ROOT / "strategies" / "imported" / "community-discord-hostfakesplit-5222.json").read_text(encoding="utf-8"))
     source = (ROOT / "strategies" / "imported" / "community-discord-hostfakesplit-5222.txt").read_text(encoding="utf-8")
-    docs = (ROOT / "docs" / "DISCORD_COMMUNITY_5222_NOTES.md").read_text(encoding="utf-8")
+    docs = (ROOT / "docs" / "history" / "stages" / "DISCORD_COMMUNITY_5222_NOTES.md").read_text(encoding="utf-8")
 
     assert metadata["windowsOptionsExecuted"] is False
     assert "--wf-tcp-out=80,443,1080,2053,2083,2087,2096,5222,8443" in source

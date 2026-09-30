@@ -1,0 +1,5688 @@
+{
+  "capabilities": {
+    "boundary": "HTTP alone does not establish gateway, navigation or Voice capability",
+    "electronNavigation": "vesktop-main-window",
+    "gatewayWebsocket": "gateway.discord.gg",
+    "mandatoryHttpTargets": [
+      "updates.discord.com",
+      "discord.com"
+    ],
+    "verdictStates": [
+      "PASS",
+      "FAIL",
+      "UNKNOWN",
+      "NOT_RUN"
+    ]
+  },
+  "cli": [
+    {
+      "destination": "help",
+      "nargs": 0,
+      "options": [
+        "-h",
+        "--help"
+      ],
+      "required": false
+    },
+    {
+      "destination": "action",
+      "nargs": null,
+      "options": [
+        "--action"
+      ],
+      "required": false
+    },
+    {
+      "destination": "operand",
+      "nargs": null,
+      "options": [
+        "--operand"
+      ],
+      "required": false
+    },
+    {
+      "destination": "gui",
+      "nargs": 0,
+      "options": [
+        "--gui"
+      ],
+      "required": false
+    },
+    {
+      "destination": "build_plan",
+      "nargs": 0,
+      "options": [
+        "--build-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "build_target",
+      "nargs": null,
+      "options": [
+        "--build-target"
+      ],
+      "required": false
+    },
+    {
+      "destination": "security_blocklist_status",
+      "nargs": 0,
+      "options": [
+        "--security-blocklist-status"
+      ],
+      "required": false
+    },
+    {
+      "destination": "security_blocklist_enable",
+      "nargs": 0,
+      "options": [
+        "--security-blocklist-enable"
+      ],
+      "required": false
+    },
+    {
+      "destination": "security_blocklist_enable_inbound",
+      "nargs": 0,
+      "options": [
+        "--security-blocklist-enable-inbound"
+      ],
+      "required": false
+    },
+    {
+      "destination": "security_blocklist_disable",
+      "nargs": 0,
+      "options": [
+        "--security-blocklist-disable"
+      ],
+      "required": false
+    },
+    {
+      "destination": "security_blocklist_update",
+      "nargs": 0,
+      "options": [
+        "--security-blocklist-update"
+      ],
+      "required": false
+    },
+    {
+      "destination": "security_blocklist_apply",
+      "nargs": 0,
+      "options": [
+        "--security-blocklist-apply"
+      ],
+      "required": false
+    },
+    {
+      "destination": "security_blocklist_refresh",
+      "nargs": 0,
+      "options": [
+        "--security-blocklist-refresh"
+      ],
+      "required": false
+    },
+    {
+      "destination": "security_blocklist_timer_plan",
+      "nargs": 0,
+      "options": [
+        "--security-blocklist-timer-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "security_blocklist_install_timer",
+      "nargs": 0,
+      "options": [
+        "--security-blocklist-install-timer"
+      ],
+      "required": false
+    },
+    {
+      "destination": "security_blocklist_remove_timer",
+      "nargs": 0,
+      "options": [
+        "--security-blocklist-remove-timer"
+      ],
+      "required": false
+    },
+    {
+      "destination": "strategy_parser_preflight",
+      "nargs": 0,
+      "options": [
+        "--strategy-parser-preflight"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_contracts",
+      "nargs": 0,
+      "options": [
+        "--runtime-contracts"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_plan",
+      "nargs": null,
+      "options": [
+        "--runtime-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "profile",
+      "nargs": null,
+      "options": [
+        "--profile"
+      ],
+      "required": false
+    },
+    {
+      "destination": "launch_components",
+      "nargs": null,
+      "options": [
+        "--launch-components"
+      ],
+      "required": false
+    },
+    {
+      "destination": "launch_composer_plan",
+      "nargs": 0,
+      "options": [
+        "--launch-composer-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "launch_composer_status",
+      "nargs": 0,
+      "options": [
+        "--launch-composer-status"
+      ],
+      "required": false
+    },
+    {
+      "destination": "launch_composer_start",
+      "nargs": 0,
+      "options": [
+        "--launch-composer-start"
+      ],
+      "required": false
+    },
+    {
+      "destination": "launch_composer_stop",
+      "nargs": 0,
+      "options": [
+        "--launch-composer-stop"
+      ],
+      "required": false
+    },
+    {
+      "destination": "validate_runtime_contracts",
+      "nargs": 0,
+      "options": [
+        "--validate-runtime-contracts"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_prepare",
+      "nargs": null,
+      "options": [
+        "--runtime-prepare"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_confirm",
+      "nargs": null,
+      "options": [
+        "--runtime-confirm"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_log",
+      "nargs": 0,
+      "options": [
+        "--runtime-log"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_logs",
+      "nargs": 0,
+      "options": [
+        "--runtime-logs"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_apply_plan",
+      "nargs": 0,
+      "options": [
+        "--runtime-apply-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_revert_plan",
+      "nargs": 0,
+      "options": [
+        "--runtime-revert-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_apply",
+      "nargs": 0,
+      "options": [
+        "--runtime-apply"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_revert",
+      "nargs": 0,
+      "options": [
+        "--runtime-revert"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_reconcile",
+      "nargs": 0,
+      "options": [
+        "--runtime-reconcile"
+      ],
+      "required": false
+    },
+    {
+      "destination": "confirm",
+      "nargs": null,
+      "options": [
+        "--confirm"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_session_start",
+      "nargs": 0,
+      "options": [
+        "--runtime-session-start"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_session_status",
+      "nargs": 0,
+      "options": [
+        "--runtime-session-status"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_session_stop",
+      "nargs": 0,
+      "options": [
+        "--runtime-session-stop"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_nft_state",
+      "nargs": 0,
+      "options": [
+        "--runtime-nft-state"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_pretls_probe",
+      "nargs": 0,
+      "options": [
+        "--runtime-pretls-probe"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_discord_pretls_guided_probe",
+      "nargs": 0,
+      "options": [
+        "--runtime-discord-pretls-guided-probe"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_observation_matrix_plan",
+      "nargs": 0,
+      "options": [
+        "--discord-observation-matrix-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_observation_matrix_report",
+      "nargs": 0,
+      "options": [
+        "--discord-observation-matrix-report"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_observation_matrix_run_row",
+      "nargs": null,
+      "options": [
+        "--discord-observation-matrix-run-row"
+      ],
+      "required": false
+    },
+    {
+      "destination": "matrix_row_wait_seconds",
+      "nargs": null,
+      "options": [
+        "--matrix-row-wait-seconds"
+      ],
+      "required": false
+    },
+    {
+      "destination": "matrix_row_no_wait",
+      "nargs": 0,
+      "options": [
+        "--matrix-row-no-wait"
+      ],
+      "required": false
+    },
+    {
+      "destination": "matrix_row_auto",
+      "nargs": 0,
+      "options": [
+        "--matrix-row-auto"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_connection_import_vless",
+      "nargs": null,
+      "options": [
+        "--tunnel-connection-import-vless"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_connections",
+      "nargs": 0,
+      "options": [
+        "--tunnel-connections"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_select_connection",
+      "nargs": null,
+      "options": [
+        "--tunnel-select-connection"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_core_binary",
+      "nargs": null,
+      "options": [
+        "--tunnel-core-binary"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_core_kind",
+      "nargs": null,
+      "options": [
+        "--tunnel-core-kind"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_socks_port",
+      "nargs": null,
+      "options": [
+        "--tunnel-socks-port"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tor_backend",
+      "nargs": null,
+      "options": [
+        "--tor-backend"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tor_binary",
+      "nargs": null,
+      "options": [
+        "--tor-binary"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tor_socks_port",
+      "nargs": null,
+      "options": [
+        "--tor-socks-port"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tor_backend_plan",
+      "nargs": 0,
+      "options": [
+        "--tor-backend-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tor_backend_start",
+      "nargs": 0,
+      "options": [
+        "--tor-backend-start"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tor_backend_status",
+      "nargs": 0,
+      "options": [
+        "--tor-backend-status"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tor_backend_stop",
+      "nargs": 0,
+      "options": [
+        "--tor-backend-stop"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_tunnel_plan",
+      "nargs": 0,
+      "options": [
+        "--discord-tunnel-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_tunnel_core_preflight",
+      "nargs": 0,
+      "options": [
+        "--discord-tunnel-core-preflight"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_tunnel_start",
+      "nargs": 0,
+      "options": [
+        "--discord-tunnel-start"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_allow_zapret_parallel",
+      "nargs": 0,
+      "options": [
+        "--tunnel-allow-zapret-parallel"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_tunnel_stop",
+      "nargs": 0,
+      "options": [
+        "--discord-tunnel-stop"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_tunnel_status",
+      "nargs": 0,
+      "options": [
+        "--discord-tunnel-status"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_tunnel_probe",
+      "nargs": 0,
+      "options": [
+        "--discord-tunnel-probe"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_tunnel_https_probe",
+      "nargs": 0,
+      "options": [
+        "--discord-tunnel-https-probe"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_tunnel_route_diagnose",
+      "nargs": 0,
+      "options": [
+        "--discord-tunnel-route-diagnose"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_tunnel_evidence",
+      "nargs": 0,
+      "options": [
+        "--discord-tunnel-evidence"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_probe_host",
+      "nargs": null,
+      "options": [
+        "--tunnel-probe-host"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_probe_path",
+      "nargs": null,
+      "options": [
+        "--tunnel-probe-path"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_probe_timeout",
+      "nargs": null,
+      "options": [
+        "--tunnel-probe-timeout"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_tunnel_guided_run",
+      "nargs": 0,
+      "options": [
+        "--discord-tunnel-guided-run"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_guided_no_wait",
+      "nargs": 0,
+      "options": [
+        "--tunnel-guided-no-wait"
+      ],
+      "required": false
+    },
+    {
+      "destination": "tunnel_observe_seconds",
+      "nargs": null,
+      "options": [
+        "--tunnel-observe-seconds"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_updater_result",
+      "nargs": null,
+      "options": [
+        "--discord-updater-result"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_tunnel_tun_plan",
+      "nargs": 0,
+      "options": [
+        "--discord-tunnel-tun-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_proxy_route_plan",
+      "nargs": 0,
+      "options": [
+        "--discord-proxy-route-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_launch_through_socks",
+      "nargs": 0,
+      "options": [
+        "--discord-launch-through-socks"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_launch_preflight",
+      "nargs": 0,
+      "options": [
+        "--discord-launch-preflight"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_launch_allow_failed_preflight",
+      "nargs": 0,
+      "options": [
+        "--discord-launch-allow-failed-preflight"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_stop_launched",
+      "nargs": 0,
+      "options": [
+        "--discord-stop-launched"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_binary",
+      "nargs": null,
+      "options": [
+        "--discord-binary"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_launch_mode",
+      "nargs": null,
+      "options": [
+        "--discord-launch-mode"
+      ],
+      "required": false
+    },
+    {
+      "destination": "pretls_probe_wait_seconds",
+      "nargs": null,
+      "options": [
+        "--pretls-probe-wait-seconds"
+      ],
+      "required": false
+    },
+    {
+      "destination": "pretls_probe_no_wait",
+      "nargs": 0,
+      "options": [
+        "--pretls-probe-no-wait"
+      ],
+      "required": false
+    },
+    {
+      "destination": "service_plan",
+      "nargs": null,
+      "options": [
+        "--service-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "service_apply",
+      "nargs": null,
+      "options": [
+        "--service-apply"
+      ],
+      "required": false
+    },
+    {
+      "destination": "default_build_deps",
+      "nargs": 0,
+      "options": [
+        "--default-build-deps"
+      ],
+      "required": false
+    },
+    {
+      "destination": "default_build_plan",
+      "nargs": 0,
+      "options": [
+        "--default-build-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "default_build",
+      "nargs": 0,
+      "options": [
+        "--default-build"
+      ],
+      "required": false
+    },
+    {
+      "destination": "default_start_plan",
+      "nargs": 0,
+      "options": [
+        "--default-start-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "default_stop_plan",
+      "nargs": 0,
+      "options": [
+        "--default-stop-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "default_start",
+      "nargs": 0,
+      "options": [
+        "--default-start"
+      ],
+      "required": false
+    },
+    {
+      "destination": "default_stop",
+      "nargs": 0,
+      "options": [
+        "--default-stop"
+      ],
+      "required": false
+    },
+    {
+      "destination": "default_status",
+      "nargs": 0,
+      "options": [
+        "--default-status"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_kernel_status",
+      "nargs": 0,
+      "options": [
+        "--runtime-kernel-status"
+      ],
+      "required": false
+    },
+    {
+      "destination": "runtime_migrate_state",
+      "nargs": 0,
+      "options": [
+        "--runtime-migrate-state"
+      ],
+      "required": false
+    },
+    {
+      "destination": "privileged_executor_status",
+      "nargs": 0,
+      "options": [
+        "--privileged-executor-status"
+      ],
+      "required": false
+    },
+    {
+      "destination": "privileged_executor_install_plan",
+      "nargs": 0,
+      "options": [
+        "--privileged-executor-install-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "gui_first_overview",
+      "nargs": 0,
+      "options": [
+        "--gui-first-overview"
+      ],
+      "required": false
+    },
+    {
+      "destination": "gui_first_developer",
+      "nargs": 0,
+      "options": [
+        "--gui-first-developer"
+      ],
+      "required": false
+    },
+    {
+      "destination": "gui_privileged_command",
+      "nargs": null,
+      "options": [
+        "--gui-privileged-command"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_preflight",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-preflight"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_plan",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_run",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-run"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_build_plan",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-build-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_build",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-build"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_last_log",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-last-log"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_export_strategies",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-export-strategies"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_coverage",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-coverage"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_service_policy",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-service-policy"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_tournament",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-tournament"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_validate_strategy_plan",
+      "nargs": null,
+      "options": [
+        "--blockcheck-validate-strategy-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "select_strategy",
+      "nargs": null,
+      "options": [
+        "--select-strategy"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_verification_plan",
+      "nargs": 0,
+      "options": [
+        "--discord-verification-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_verification_template",
+      "nargs": 0,
+      "options": [
+        "--discord-verification-template"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_endpoint_plan",
+      "nargs": 0,
+      "options": [
+        "--discord-endpoint-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_endpoint_watch",
+      "nargs": 0,
+      "options": [
+        "--discord-endpoint-watch"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_endpoint_report",
+      "nargs": 0,
+      "options": [
+        "--discord-endpoint-report"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_netlog_plan",
+      "nargs": 0,
+      "options": [
+        "--discord-netlog-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "har_plan",
+      "nargs": 0,
+      "options": [
+        "--har-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "har_analyze",
+      "nargs": null,
+      "options": [
+        "--har-analyze"
+      ],
+      "required": false
+    },
+    {
+      "destination": "har_report",
+      "nargs": 0,
+      "options": [
+        "--har-report"
+      ],
+      "required": false
+    },
+    {
+      "destination": "har_workbench",
+      "nargs": null,
+      "options": [
+        "--har-workbench"
+      ],
+      "required": false
+    },
+    {
+      "destination": "har_workbench_report",
+      "nargs": 0,
+      "options": [
+        "--har-workbench-report"
+      ],
+      "required": false
+    },
+    {
+      "destination": "har_group_plan",
+      "nargs": null,
+      "options": [
+        "--har-group-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_har_plan",
+      "nargs": 0,
+      "options": [
+        "--discord-har-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_har_analyze",
+      "nargs": null,
+      "options": [
+        "--discord-har-analyze"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_har_report",
+      "nargs": 0,
+      "options": [
+        "--discord-har-report"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_har_workbench",
+      "nargs": null,
+      "options": [
+        "--discord-har-workbench"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_har_workbench_report",
+      "nargs": 0,
+      "options": [
+        "--discord-har-workbench-report"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_har_group_plan",
+      "nargs": null,
+      "options": [
+        "--discord-har-group-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_voice_profiles",
+      "nargs": 0,
+      "options": [
+        "--discord-voice-profiles"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_endpoint_seconds",
+      "nargs": null,
+      "options": [
+        "--discord-endpoint-seconds"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_dns_edge_plan",
+      "nargs": 0,
+      "options": [
+        "--discord-dns-edge-plan"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_dns_edge_check",
+      "nargs": 0,
+      "options": [
+        "--discord-dns-edge-check"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_dns_edge_resolvers",
+      "nargs": null,
+      "options": [
+        "--discord-dns-edge-resolvers"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_dns_edge_hosts",
+      "nargs": null,
+      "options": [
+        "--discord-dns-edge-hosts"
+      ],
+      "required": false
+    },
+    {
+      "destination": "discord_dns_edge_timeout",
+      "nargs": null,
+      "options": [
+        "--discord-dns-edge-timeout"
+      ],
+      "required": false
+    },
+    {
+      "destination": "external_reference_audit",
+      "nargs": 0,
+      "options": [
+        "--external-reference-audit"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_target_preset",
+      "nargs": null,
+      "options": [
+        "--blockcheck-target-preset"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_domains",
+      "nargs": null,
+      "options": [
+        "--blockcheck-domains"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_scan_mode",
+      "nargs": null,
+      "options": [
+        "--blockcheck-scan-mode"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_dead_target_guard",
+      "nargs": null,
+      "options": [
+        "--blockcheck-dead-target-guard"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_test",
+      "nargs": null,
+      "options": [
+        "--blockcheck-test"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_scanlevel",
+      "nargs": null,
+      "options": [
+        "--blockcheck-scanlevel"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_ipvs",
+      "nargs": null,
+      "options": [
+        "--blockcheck-ipvs"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_http",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-http"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_disable_tls12",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-disable-tls12"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_disable_tls13",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-disable-tls13"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_disable_http3",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-disable-http3"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_dnscheck",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-dnscheck"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_skip_dnscheck",
+      "nargs": 0,
+      "options": [
+        "--blockcheck-skip-dnscheck"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_repeats",
+      "nargs": null,
+      "options": [
+        "--blockcheck-repeats"
+      ],
+      "required": false
+    },
+    {
+      "destination": "blockcheck_curl_timeout",
+      "nargs": null,
+      "options": [
+        "--blockcheck-curl-timeout"
+      ],
+      "required": false
+    },
+    {
+      "destination": "list_presets",
+      "nargs": 0,
+      "options": [
+        "--list-presets"
+      ],
+      "required": false
+    },
+    {
+      "destination": "show_preset",
+      "nargs": null,
+      "options": [
+        "--show-preset"
+      ],
+      "required": false
+    },
+    {
+      "destination": "show_preset_profile",
+      "nargs": 2,
+      "options": [
+        "--show-preset-profile"
+      ],
+      "required": false
+    },
+    {
+      "destination": "select_preset",
+      "nargs": null,
+      "options": [
+        "--select-preset"
+      ],
+      "required": false
+    },
+    {
+      "destination": "list_profiles",
+      "nargs": 0,
+      "options": [
+        "--list-profiles"
+      ],
+      "required": false
+    },
+    {
+      "destination": "show_profile",
+      "nargs": null,
+      "options": [
+        "--show-profile"
+      ],
+      "required": false
+    },
+    {
+      "destination": "list_strategies",
+      "nargs": 0,
+      "options": [
+        "--list-strategies"
+      ],
+      "required": false
+    },
+    {
+      "destination": "show_strategy",
+      "nargs": null,
+      "options": [
+        "--show-strategy"
+      ],
+      "required": false
+    }
+  ],
+  "concepts": {
+    "help": {
+      "Capability": [
+        "Возможность приложения",
+        "capability health состояние здоровье доступность",
+        "Требует всех обязательных проверок. Работа процесса не доказывает работу приложения."
+      ],
+      "Evidence": [
+        "Данные проверки",
+        "evidence доказательство лог журнал",
+        "Наблюдения имеют run ID, время, входные хеши и границы применимости."
+      ],
+      "Plan": [
+        "План и подтверждение",
+        "план безопасно запустить safe start confirm confirmation",
+        "Сначала подготовьте план, проверьте эффект и подтвердите его ID; затем исполните через штатный workflow."
+      ],
+      "Verdict": [
+        "Результат",
+        "verdict fail pass unknown неизвестно",
+        "PASS относится к проверенному утверждению. Недостающие и устаревшие данные дают UNKNOWN."
+      ],
+      "backend/core": [
+        "Ядро",
+        "ядро core nfqws2 xray v2ray binary сборка",
+        "Исполняемый компонент; версия и происхождение важны для совместимости."
+      ],
+      "desyncAction": [
+        "Действие desync",
+        "обход dpi пакет segmentation fake",
+        "Меняет наблюдение DPI, сохраняя смысл соединения для конечного узла."
+      ],
+      "operation/action": [
+        "Действие",
+        "действие action команда command",
+        "Именованная операция с контрактом эффекта и прав."
+      ],
+      "preset": [
+        "Пресет",
+        "пресет стратегия recipe",
+        "Рецепт обработки пакетов. Один удачный тест не гарантирует работу на другом маршруте."
+      ],
+      "probe": [
+        "Проверка",
+        "проверка диагностика probe diagnostic",
+        "Наблюдение одного слоя на свежем соединении; результат ограничен условиями проверки."
+      ],
+      "runtimeContext": [
+        "Контекст запуска",
+        "контекст workspace profile",
+        "Выбранные настройки запуска и его локальное состояние."
+      ],
+      "runtimeResource": [
+        "Firewall / NFQUEUE",
+        "nfqueue nft firewall файрвол очередь откат undo firewall",
+        "Принадлежащие этому запуску правила и процессы. Чужие или неизвестные ресурсы нельзя удалять автоматически."
+      ],
+      "trafficProfile": [
+        "Профиль трафика",
+        "фильтр traffic filter",
+        "Упорядоченный блок правил внутри пресета."
+      ],
+      "tunnelConnection": [
+        "VLESS / SOCKS / Discord",
+        "туннель vless socks tls discord vesktop дискорд почему не работает",
+        "Локальный SOCKS, удалённый TLS и приложение проверяются отдельно. localhost сам по себе не гарантирует приватность."
+      ]
+    },
+    "nouns": [
+      "runtimeContext",
+      "preset",
+      "trafficProfile",
+      "desyncAction",
+      "tunnelConnection",
+      "backend/core",
+      "runtimeResource",
+      "operation/action",
+      "Plan",
+      "probe",
+      "Evidence",
+      "Verdict",
+      "Capability"
+    ],
+    "verbs": [
+      "inspect",
+      "list",
+      "show",
+      "plan",
+      "validate",
+      "prepare",
+      "confirm",
+      "apply",
+      "revert",
+      "start",
+      "stop",
+      "reconcile",
+      "probe",
+      "launch",
+      "import",
+      "export"
+    ]
+  },
+  "contracts": [
+    {
+      "action_id": "runtime.contracts.show",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "Plan"
+      ],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "runtime.contracts.show",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "contracts",
+        "lifecycle"
+      ],
+      "label": "Показать runtime contracts",
+      "legacy_aliases": [
+        "--runtime-contracts"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Показать lifecycle contracts без исполнения."
+    },
+    {
+      "action_id": "runtime.contracts.validate",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "Plan"
+      ],
+      "deep_help": null,
+      "effect": "validate",
+      "focus_target": null,
+      "handler_id": "runtime.contracts.validate",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "contracts",
+        "validate"
+      ],
+      "label": "Проверить runtime contracts",
+      "legacy_aliases": [
+        "--validate-runtime-contracts"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Проверить lifecycle contract catalog без исполнения."
+    },
+    {
+      "action_id": "runtime.plan.start",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "preset",
+        "Plan"
+      ],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "runtime.plan.start",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "plan",
+        "start"
+      ],
+      "label": "План запуска runtime",
+      "legacy_aliases": [
+        "--runtime-plan start"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Материализовать immutable start Plan выбранного runtime context без исполнения."
+    },
+    {
+      "action_id": "runtime.plan.stop",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "preset",
+        "Plan"
+      ],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "runtime.plan.stop",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "plan",
+        "stop"
+      ],
+      "label": "План остановки runtime",
+      "legacy_aliases": [
+        "--runtime-plan stop"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Материализовать immutable stop Plan выбранного runtime context без исполнения."
+    },
+    {
+      "action_id": "runtime.plan.status",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "preset",
+        "Plan"
+      ],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "runtime.plan.status",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "plan",
+        "status"
+      ],
+      "label": "План статуса runtime",
+      "legacy_aliases": [
+        "--runtime-plan status"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Материализовать immutable status Plan выбранного runtime context без исполнения."
+    },
+    {
+      "action_id": "runtime.logs.show",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "Evidence"
+      ],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "runtime.logs.show",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "log"
+      ],
+      "label": "Показать runtime log",
+      "legacy_aliases": [
+        "--runtime-log"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Показать основной runtime log выбранного context."
+    },
+    {
+      "action_id": "runtime.logs.snapshot",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "Evidence"
+      ],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "runtime.logs.snapshot",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "logs",
+        "snapshot"
+      ],
+      "label": "Показать runtime log snapshot",
+      "legacy_aliases": [
+        "--runtime-logs"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Показать read-only snapshot runtime logs выбранного context."
+    },
+    {
+      "action_id": "runtime.owner-rules.plan.apply",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "Plan",
+        "runtimeResource"
+      ],
+      "deep_help": null,
+      "effect": "prepare",
+      "focus_target": null,
+      "handler_id": "runtime.owner-rules.plan.apply",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "nftables",
+        "apply",
+        "plan"
+      ],
+      "label": "План применения owner-rules",
+      "legacy_aliases": [
+        "--runtime-apply-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Подготовить owner-confirmed nftables apply Plan без исполнения."
+    },
+    {
+      "action_id": "runtime.owner-rules.plan.revert",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "Plan",
+        "runtimeResource"
+      ],
+      "deep_help": null,
+      "effect": "prepare",
+      "focus_target": null,
+      "handler_id": "runtime.owner-rules.plan.revert",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "nftables",
+        "revert",
+        "plan"
+      ],
+      "label": "План отката owner-rules",
+      "legacy_aliases": [
+        "--runtime-revert-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Подготовить owner-confirmed nftables revert Plan без исполнения."
+    },
+    {
+      "action_id": "runtime.owner-rules.apply",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "Plan",
+        "runtimeResource"
+      ],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "runtime.owner-rules.apply",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "nftables",
+        "apply"
+      ],
+      "label": "Применить owner-rules",
+      "legacy_aliases": [
+        "--runtime-apply"
+      ],
+      "location": null,
+      "preconditions": [
+        "confirmed Plan id supplied via --confirm"
+      ],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "Исполнить только заранее подтверждённый bounded owner-rules apply Plan."
+    },
+    {
+      "action_id": "runtime.owner-rules.revert",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "Plan",
+        "runtimeResource"
+      ],
+      "deep_help": null,
+      "effect": "revert",
+      "focus_target": null,
+      "handler_id": "runtime.owner-rules.revert",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "nftables",
+        "revert"
+      ],
+      "label": "Откатить owner-rules",
+      "legacy_aliases": [
+        "--runtime-revert"
+      ],
+      "location": null,
+      "preconditions": [
+        "confirmed Plan id supplied via --confirm"
+      ],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "Исполнить только заранее подтверждённый bounded owner-rules revert Plan."
+    },
+    {
+      "action_id": "runtime.owner-rules.reconcile",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeResource",
+        "Evidence",
+        "Verdict"
+      ],
+      "deep_help": null,
+      "effect": "reconcile",
+      "focus_target": null,
+      "handler_id": "runtime.owner-rules.reconcile",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "nftables",
+        "reconcile"
+      ],
+      "label": "Сверить owner-rules",
+      "legacy_aliases": [
+        "--runtime-reconcile"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Сверить saved owned state с observed nftables state без удаления unknown/conflict ресурсов."
+    },
+    {
+      "action_id": "runtime.session.start",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "Plan",
+        "backend/core"
+      ],
+      "deep_help": null,
+      "effect": "start",
+      "focus_target": null,
+      "handler_id": "runtime.session.start",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "session",
+        "start",
+        "nfqws2"
+      ],
+      "label": "Запустить runtime session",
+      "legacy_aliases": [
+        "--runtime-session-start"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "Запустить подтверждённую nfqws2 runtime session через bounded executor."
+    },
+    {
+      "action_id": "runtime.session.status",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "Evidence"
+      ],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "runtime.session.status",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "session",
+        "status"
+      ],
+      "label": "Статус runtime session",
+      "legacy_aliases": [
+        "--runtime-session-status"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Показать read-only статус nfqws2 runtime session."
+    },
+    {
+      "action_id": "runtime.session.stop",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "runtimeResource"
+      ],
+      "deep_help": null,
+      "effect": "stop",
+      "focus_target": null,
+      "handler_id": "runtime.session.stop",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "session",
+        "stop"
+      ],
+      "label": "Остановить runtime session",
+      "legacy_aliases": [
+        "--runtime-session-stop"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "Остановить только session identity, записанную текущим runtime state."
+    },
+    {
+      "action_id": "runtime.nft-state.show",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeResource",
+        "Evidence"
+      ],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "runtime.nft-state.show",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "nftables",
+        "nfqueue",
+        "status"
+      ],
+      "label": "Показать runtime nft state",
+      "legacy_aliases": [
+        "--runtime-nft-state"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Показать read-only owned nftables/NFQUEUE state."
+    },
+    {
+      "action_id": "runtime.kernel.status",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "Plan",
+        "runtimeResource",
+        "Evidence"
+      ],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "runtime.kernel.status",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "kernel",
+        "status"
+      ],
+      "label": "Показать runtime kernel status",
+      "legacy_aliases": [
+        "--runtime-kernel-status"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Показать единый read-only Plan/Run/owned-resource status."
+    },
+    {
+      "action_id": "default.build.dependencies.inspect",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "backend/core",
+        "Capability"
+      ],
+      "deep_help": null,
+      "effect": "inspect",
+      "focus_target": null,
+      "handler_id": "default.build.dependencies.inspect",
+      "internal": false,
+      "keywords": [
+        "default",
+        "build",
+        "dependencies"
+      ],
+      "label": "Проверить зависимости сборки",
+      "legacy_aliases": [
+        "--default-build-deps"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Проверить зависимости default build target без установки пакетов и make."
+    },
+    {
+      "action_id": "default.build.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "backend/core",
+        "Plan"
+      ],
+      "deep_help": null,
+      "effect": "prepare",
+      "focus_target": null,
+      "handler_id": "default.build.plan",
+      "internal": false,
+      "keywords": [
+        "default",
+        "build",
+        "plan"
+      ],
+      "label": "План default build",
+      "legacy_aliases": [
+        "--default-build-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Подготовить owner-confirmed local build Plan без запуска make."
+    },
+    {
+      "action_id": "default.build.apply",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "backend/core",
+        "Plan"
+      ],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "default.build.apply",
+      "internal": false,
+      "keywords": [
+        "default",
+        "build"
+      ],
+      "label": "Выполнить default build",
+      "legacy_aliases": [
+        "--default-build"
+      ],
+      "location": null,
+      "preconditions": [
+        "confirmed Plan id supplied via --confirm"
+      ],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "Исполнить подтверждённую локальную сборку default build target."
+    },
+    {
+      "action_id": "default.workflow.plan.start",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "preset",
+        "Plan"
+      ],
+      "deep_help": null,
+      "effect": "prepare",
+      "focus_target": null,
+      "handler_id": "default.workflow.plan.start",
+      "internal": false,
+      "keywords": [
+        "default",
+        "workflow",
+        "start",
+        "plan"
+      ],
+      "label": "План запуска Default workflow",
+      "legacy_aliases": [
+        "--default-start-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Подготовить composite start Plan без исполнения."
+    },
+    {
+      "action_id": "default.workflow.plan.stop",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "preset",
+        "Plan"
+      ],
+      "deep_help": null,
+      "effect": "prepare",
+      "focus_target": null,
+      "handler_id": "default.workflow.plan.stop",
+      "internal": false,
+      "keywords": [
+        "default",
+        "workflow",
+        "stop",
+        "plan"
+      ],
+      "label": "План остановки Default workflow",
+      "legacy_aliases": [
+        "--default-stop-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Подготовить composite stop Plan без исполнения."
+    },
+    {
+      "action_id": "default.workflow.start",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "preset",
+        "Plan",
+        "runtimeResource"
+      ],
+      "deep_help": null,
+      "effect": "start",
+      "focus_target": null,
+      "handler_id": "default.workflow.start",
+      "internal": false,
+      "keywords": [
+        "default",
+        "workflow",
+        "start"
+      ],
+      "label": "Запустить Default workflow",
+      "legacy_aliases": [
+        "--default-start"
+      ],
+      "location": null,
+      "preconditions": [
+        "confirmed Plan id supplied via --confirm"
+      ],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "Исполнить подтверждённый bounded start workflow: owner-rules + runtime session."
+    },
+    {
+      "action_id": "default.workflow.status",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "Evidence",
+        "Verdict"
+      ],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "default.workflow.status",
+      "internal": false,
+      "keywords": [
+        "default",
+        "workflow",
+        "status"
+      ],
+      "label": "Статус Default workflow",
+      "legacy_aliases": [
+        "--default-status"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Показать read-only Default workflow/session status для GUI и CLI."
+    },
+    {
+      "action_id": "default.workflow.stop",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "preset",
+        "Plan",
+        "runtimeResource"
+      ],
+      "deep_help": null,
+      "effect": "stop",
+      "focus_target": null,
+      "handler_id": "default.workflow.stop",
+      "internal": false,
+      "keywords": [
+        "default",
+        "workflow",
+        "stop"
+      ],
+      "label": "Остановить Default workflow",
+      "legacy_aliases": [
+        "--default-stop"
+      ],
+      "location": null,
+      "preconditions": [
+        "confirmed Plan id supplied via --confirm"
+      ],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "Исполнить подтверждённый bounded stop workflow: session stop + owner-rules revert."
+    },
+    {
+      "action_id": "privileged.executor.status",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "Capability",
+        "Evidence"
+      ],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "privileged.executor.status",
+      "internal": false,
+      "keywords": [
+        "privileged",
+        "executor",
+        "status",
+        "provenance"
+      ],
+      "label": "Статус bounded executor",
+      "legacy_aliases": [
+        "--privileged-executor-status"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Проверить root-owned bounded executor и provenance hash без мутаций."
+    },
+    {
+      "action_id": "privileged.executor.install-plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "Capability",
+        "Plan"
+      ],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "privileged.executor.install-plan",
+      "internal": false,
+      "keywords": [
+        "privileged",
+        "executor",
+        "install",
+        "plan"
+      ],
+      "label": "План установки bounded executor",
+      "legacy_aliases": [
+        "--privileged-executor-install-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Показать явную install-команду bounded executor без установки."
+    },
+    {
+      "action_id": "gui.overview.show",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [
+        "runtimeContext",
+        "preset",
+        "Evidence",
+        "Verdict"
+      ],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": "runtimeStatusIndicator",
+      "handler_id": "gui.overview.show",
+      "internal": false,
+      "keywords": [
+        "gui",
+        "overview",
+        "status"
+      ],
+      "label": "Показать GUI-first overview",
+      "legacy_aliases": [
+        "--gui-first-overview"
+      ],
+      "location": "Overview",
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": true,
+      "short_help": "Показать GUI-first selected/prepared/running/firewall state machine summary."
+    },
+    {
+      "action_id": "gui.launch",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "launch",
+      "focus_target": null,
+      "handler_id": "gui.launch",
+      "internal": false,
+      "keywords": [
+        "gui"
+      ],
+      "label": "запустить локальную PyQt GUI shell",
+      "legacy_aliases": [
+        "--gui"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "запустить локальную PyQt GUI shell; требует установленный PyQt6 и display server"
+    },
+    {
+      "action_id": "build.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "build.plan",
+      "internal": false,
+      "keywords": [
+        "build",
+        "plan"
+      ],
+      "label": "показать явный local build plan для ядра без запуска make",
+      "legacy_aliases": [
+        "--build-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать явный local build plan для ядра без запуска make"
+    },
+    {
+      "action_id": "security.blocklist.status",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "security.blocklist.status",
+      "internal": false,
+      "keywords": [
+        "security",
+        "blocklist",
+        "status"
+      ],
+      "label": "показать config/cache state security IP blocklist без сетевых изменений",
+      "legacy_aliases": [
+        "--security-blocklist-status"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать config/cache state security IP blocklist без сетевых изменений"
+    },
+    {
+      "action_id": "security.blocklist.enable",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "security.blocklist.enable",
+      "internal": false,
+      "keywords": [
+        "security",
+        "blocklist",
+        "enable"
+      ],
+      "label": "включить outbound security blocklist policy в локальном config",
+      "legacy_aliases": [
+        "--security-blocklist-enable"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "включить outbound security blocklist policy в локальном config; apply отдельно"
+    },
+    {
+      "action_id": "security.blocklist.enable-inbound",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "security.blocklist.enable-inbound",
+      "internal": false,
+      "keywords": [
+        "security",
+        "blocklist",
+        "enable",
+        "inbound"
+      ],
+      "label": "включить также inbound blocking (host-wide INPUT)",
+      "legacy_aliases": [
+        "--security-blocklist-enable-inbound"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "включить также inbound blocking (host-wide INPUT); требует осознанного выбора"
+    },
+    {
+      "action_id": "security.blocklist.disable",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "revert",
+      "focus_target": null,
+      "handler_id": "security.blocklist.disable",
+      "internal": false,
+      "keywords": [
+        "security",
+        "blocklist",
+        "disable"
+      ],
+      "label": "выключить policy в config и удалить только owned nft table",
+      "legacy_aliases": [
+        "--security-blocklist-disable"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "выключить policy в config и удалить только owned nft table"
+    },
+    {
+      "action_id": "security.blocklist.update",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "security.blocklist.update",
+      "internal": false,
+      "keywords": [
+        "security",
+        "blocklist",
+        "update"
+      ],
+      "label": "скачать/валидировать external lists и атомарно заменить last-known-good cache",
+      "legacy_aliases": [
+        "--security-blocklist-update"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "скачать/валидировать external lists и атомарно заменить last-known-good cache; firewall не меняется"
+    },
+    {
+      "action_id": "security.blocklist.apply",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "security.blocklist.apply",
+      "internal": false,
+      "keywords": [
+        "security",
+        "blocklist",
+        "apply"
+      ],
+      "label": "применить validated cache в isolated owned nft table",
+      "legacy_aliases": [
+        "--security-blocklist-apply"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "применить validated cache в isolated owned nft table; требует root"
+    },
+    {
+      "action_id": "security.blocklist.refresh",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "security.blocklist.refresh",
+      "internal": false,
+      "keywords": [
+        "security",
+        "blocklist",
+        "refresh"
+      ],
+      "label": "periodic path: update с LKG fallback + apply",
+      "legacy_aliases": [
+        "--security-blocklist-refresh"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "periodic path: update с LKG fallback + apply; требует root"
+    },
+    {
+      "action_id": "security.blocklist.timer.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "security.blocklist.timer.plan",
+      "internal": false,
+      "keywords": [
+        "security",
+        "blocklist",
+        "timer",
+        "plan"
+      ],
+      "label": "показать systemd service/timer для 2h periodic refresh",
+      "legacy_aliases": [
+        "--security-blocklist-timer-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать systemd service/timer для 2h periodic refresh; без установки"
+    },
+    {
+      "action_id": "security.blocklist.timer.install",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "security.blocklist.timer.install",
+      "internal": false,
+      "keywords": [
+        "security",
+        "blocklist",
+        "install",
+        "timer"
+      ],
+      "label": "установить workspace-scoped systemd timer",
+      "legacy_aliases": [
+        "--security-blocklist-install-timer"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "установить workspace-scoped systemd timer; требует root"
+    },
+    {
+      "action_id": "security.blocklist.timer.remove",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "revert",
+      "focus_target": null,
+      "handler_id": "security.blocklist.timer.remove",
+      "internal": false,
+      "keywords": [
+        "security",
+        "blocklist",
+        "remove",
+        "timer"
+      ],
+      "label": "удалить только workspace-scoped blocklist timer",
+      "legacy_aliases": [
+        "--security-blocklist-remove-timer"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "удалить только workspace-scoped blocklist timer; firewall не меняет"
+    },
+    {
+      "action_id": "launch.composer.status",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "launch.composer.status",
+      "internal": false,
+      "keywords": [
+        "launch",
+        "composer",
+        "status"
+      ],
+      "label": "Stage 7z: показать read-only статус launch composer и всех launch components",
+      "legacy_aliases": [
+        "--launch-composer-status"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 7z: показать read-only статус launch composer и всех launch components"
+    },
+    {
+      "action_id": "launch.composer.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "launch.composer.plan",
+      "internal": false,
+      "keywords": [
+        "launch",
+        "composer",
+        "plan"
+      ],
+      "label": "Stage 7z: показать read-only план комбинированного запуска выбранных компонентов",
+      "legacy_aliases": [
+        "--launch-composer-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 7z: показать read-only план комбинированного запуска выбранных компонентов"
+    },
+    {
+      "action_id": "launch.composer.start",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "start",
+      "focus_target": null,
+      "handler_id": "launch.composer.start",
+      "internal": false,
+      "keywords": [
+        "launch",
+        "composer",
+        "start"
+      ],
+      "label": "Stage 7z: запустить выбранные supported components в порядке composer",
+      "legacy_aliases": [
+        "--launch-composer-start"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "Stage 7z: запустить выбранные supported components в порядке composer; Zapret требует GUI sudo-askpass"
+    },
+    {
+      "action_id": "launch.composer.stop",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "stop",
+      "focus_target": null,
+      "handler_id": "launch.composer.stop",
+      "internal": false,
+      "keywords": [
+        "launch",
+        "composer",
+        "stop"
+      ],
+      "label": "Stage 7z: остановить выбранные supported components в обратном порядке composer",
+      "legacy_aliases": [
+        "--launch-composer-stop"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "Stage 7z: остановить выбранные supported components в обратном порядке composer"
+    },
+    {
+      "action_id": "discord.verification.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "discord.verification.plan",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "verification",
+        "plan"
+      ],
+      "label": "показать owner verification loop для Discord desktop non-voice",
+      "legacy_aliases": [
+        "--discord-verification-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать owner verification loop для Discord desktop non-voice; без запуска проверок"
+    },
+    {
+      "action_id": "discord.verification.template.create",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "prepare",
+      "focus_target": null,
+      "handler_id": "discord.verification.template.create",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "verification",
+        "template"
+      ],
+      "label": "создать markdown-шаблон owner report для Discord desktop non-voice в .zap2/verification",
+      "legacy_aliases": [
+        "--discord-verification-template"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "создать markdown-шаблон owner report для Discord desktop non-voice в .zap2/verification"
+    },
+    {
+      "action_id": "discord.endpoint.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "discord.endpoint.plan",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "endpoint",
+        "plan"
+      ],
+      "label": "показать read-only план discovery для endpoints desktop Discord updater",
+      "legacy_aliases": [
+        "--discord-endpoint-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать read-only план discovery для endpoints desktop Discord updater; без запуска"
+    },
+    {
+      "action_id": "discord.endpoint.watch",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "probe",
+      "focus_target": null,
+      "handler_id": "discord.endpoint.watch",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "endpoint",
+        "watch"
+      ],
+      "label": "read-only ss/pgrep watch: запустите Discord во время окна наблюдения, чтобы увидеть TCP/UDP endpoints",
+      "legacy_aliases": [
+        "--discord-endpoint-watch"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "read-only ss/pgrep watch: запустите Discord во время окна наблюдения, чтобы увидеть TCP/UDP endpoints"
+    },
+    {
+      "action_id": "discord.endpoint.report",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "discord.endpoint.report",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "endpoint",
+        "report"
+      ],
+      "label": "показать последний сохранённый Discord endpoint discovery snapshot",
+      "legacy_aliases": [
+        "--discord-endpoint-report"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать последний сохранённый Discord endpoint discovery snapshot"
+    },
+    {
+      "action_id": "discord.netlog.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "discord.netlog.plan",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "netlog",
+        "plan"
+      ],
+      "label": "показать privacy-aware owner plan для optional Chromium netlog диагностики Discord",
+      "legacy_aliases": [
+        "--discord-netlog-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать privacy-aware owner plan для optional Chromium netlog диагностики Discord"
+    },
+    {
+      "action_id": "har.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "har.plan",
+      "internal": false,
+      "keywords": [
+        "har",
+        "plan"
+      ],
+      "label": "показать privacy-aware план универсального анализа HAR",
+      "legacy_aliases": [
+        "--har-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать privacy-aware план универсального анализа HAR; без чтения файла"
+    },
+    {
+      "action_id": "har.analyze",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "inspect",
+      "focus_target": null,
+      "handler_id": "har.analyze",
+      "internal": false,
+      "keywords": [
+        "har",
+        "analyze"
+      ],
+      "label": "прочитать HAR любого ресурса и сохранить sanitized host/path/status/L7/error summary",
+      "legacy_aliases": [
+        "--har-analyze"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "прочитать HAR любого ресурса и сохранить sanitized host/path/status/L7/error summary"
+    },
+    {
+      "action_id": "har.report",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "har.report",
+      "internal": false,
+      "keywords": [
+        "har",
+        "report"
+      ],
+      "label": "показать последний универсальный sanitized HAR summary",
+      "legacy_aliases": [
+        "--har-report"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать последний универсальный sanitized HAR summary"
+    },
+    {
+      "action_id": "har.workbench",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "har.workbench",
+      "internal": false,
+      "keywords": [
+        "har",
+        "workbench"
+      ],
+      "label": "универсальный HAR import, family/L7/error grouping, Blockcheck inputs и preset blueprint",
+      "legacy_aliases": [
+        "--har-workbench"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "универсальный HAR import, family/L7/error grouping, Blockcheck inputs и preset blueprint"
+    },
+    {
+      "action_id": "har.workbench.report",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "har.workbench.report",
+      "internal": false,
+      "keywords": [
+        "har",
+        "workbench",
+        "report"
+      ],
+      "label": "показать последний универсальный HAR workbench",
+      "legacy_aliases": [
+        "--har-workbench-report"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать последний универсальный HAR workbench"
+    },
+    {
+      "action_id": "har.group.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "har.group.plan",
+      "internal": false,
+      "keywords": [
+        "har",
+        "group",
+        "plan"
+      ],
+      "label": "показать Blockcheck plan для группы последнего универсального HAR workbench",
+      "legacy_aliases": [
+        "--har-group-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать Blockcheck plan для группы последнего универсального HAR workbench"
+    },
+    {
+      "action_id": "discord.har.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "discord.har.plan",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "har",
+        "plan"
+      ],
+      "label": "показать privacy-aware план анализа HAR Discord",
+      "legacy_aliases": [
+        "--discord-har-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать privacy-aware план анализа HAR Discord; без чтения файла"
+    },
+    {
+      "action_id": "discord.har.analyze",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "inspect",
+      "focus_target": null,
+      "handler_id": "discord.har.analyze",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "har",
+        "analyze"
+      ],
+      "label": "прочитать HAR/.zip локально и сохранить sanitized host/path/status summary без секретов",
+      "legacy_aliases": [
+        "--discord-har-analyze"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "прочитать HAR/.zip локально и сохранить sanitized host/path/status summary без секретов"
+    },
+    {
+      "action_id": "discord.har.report",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "discord.har.report",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "har",
+        "report"
+      ],
+      "label": "показать последний sanitized Discord HAR summary",
+      "legacy_aliases": [
+        "--discord-har-report"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать последний sanitized Discord HAR summary"
+    },
+    {
+      "action_id": "discord.har.workbench",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "discord.har.workbench",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "har",
+        "workbench"
+      ],
+      "label": "sanitized HAR import, L7 grouping, Blockcheck group files и preset blueprint",
+      "legacy_aliases": [
+        "--discord-har-workbench"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "sanitized HAR import, L7 grouping, Blockcheck group files и preset blueprint; без sudo/run"
+    },
+    {
+      "action_id": "discord.har.workbench.report",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "discord.har.workbench.report",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "har",
+        "workbench",
+        "report"
+      ],
+      "label": "показать последний Discord HAR workbench",
+      "legacy_aliases": [
+        "--discord-har-workbench-report"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать последний Discord HAR workbench"
+    },
+    {
+      "action_id": "discord.har.group.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "discord.har.group.plan",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "har",
+        "group",
+        "plan"
+      ],
+      "label": "показать Blockcheck plan для группы последнего HAR workbench",
+      "legacy_aliases": [
+        "--discord-har-group-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать Blockcheck plan для группы последнего HAR workbench; без запуска"
+    },
+    {
+      "action_id": "discord.voice.profiles",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "discord.voice.profiles",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "voice",
+        "profiles"
+      ],
+      "label": "показать перенесённые Discord Voice Linux/nfqws2 профили и их источники",
+      "legacy_aliases": [
+        "--discord-voice-profiles"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать перенесённые Discord Voice Linux/nfqws2 профили и их источники"
+    },
+    {
+      "action_id": "discord.dns.edge.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "discord.dns.edge.plan",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "dns",
+        "edge",
+        "plan"
+      ],
+      "label": "показать read-only план проверки DNS edge для Discord",
+      "legacy_aliases": [
+        "--discord-dns-edge-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать read-only план проверки DNS edge для Discord; без запуска"
+    },
+    {
+      "action_id": "discord.dns.edge.check",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "inspect",
+      "focus_target": null,
+      "handler_id": "discord.dns.edge.check",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "dns",
+        "edge",
+        "check"
+      ],
+      "label": "read-only диагностика: сравнить DNS resolvers и TCP/443 доступность Discord edge IP",
+      "legacy_aliases": [
+        "--discord-dns-edge-check"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "read-only диагностика: сравнить DNS resolvers и TCP/443 доступность Discord edge IP"
+    },
+    {
+      "action_id": "external.reference.audit",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "inspect",
+      "focus_target": null,
+      "handler_id": "external.reference.audit",
+      "internal": false,
+      "keywords": [
+        "external",
+        "reference",
+        "audit"
+      ],
+      "label": "показать read-only Stage 7o0 audit внешних рабочих zapret/Linux/Windows reference-решений",
+      "legacy_aliases": [
+        "--external-reference-audit"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать read-only Stage 7o0 audit внешних рабочих zapret/Linux/Windows reference-решений; без запуска внешних скриптов"
+    },
+    {
+      "action_id": "tunnel.connection.vless.import",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "import",
+      "focus_target": null,
+      "handler_id": "tunnel.connection.vless.import",
+      "internal": false,
+      "keywords": [
+        "tunnel",
+        "connection",
+        "import",
+        "vless"
+      ],
+      "label": "Stage 7p1: импортировать VLESS share link в .zap2/tunnel и auto-select",
+      "legacy_aliases": [
+        "--tunnel-connection-import-vless"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "Stage 7p1: импортировать VLESS share link в .zap2/tunnel и auto-select; секрет не печатается"
+    },
+    {
+      "action_id": "tunnel.connection.list",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "tunnel.connection.list",
+      "internal": false,
+      "keywords": [
+        "tunnel",
+        "connections"
+      ],
+      "label": "Stage 7p1: показать redacted список Discord tunnel connection profiles",
+      "legacy_aliases": [
+        "--tunnel-connections"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 7p1: показать redacted список Discord tunnel connection profiles; без запуска"
+    },
+    {
+      "action_id": "tunnel.connection.select",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "tunnel.connection.select",
+      "internal": false,
+      "keywords": [
+        "tunnel",
+        "select",
+        "connection"
+      ],
+      "label": "Stage 7p1: выбрать активный tunnel connection profile",
+      "legacy_aliases": [
+        "--tunnel-select-connection"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "Stage 7p1: выбрать активный tunnel connection profile; без запуска"
+    },
+    {
+      "action_id": "tor.backend.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "tor.backend.plan",
+      "internal": false,
+      "keywords": [
+        "tor",
+        "backend",
+        "plan"
+      ],
+      "label": "подготовить owner-confirmed plan запуска C Tor/Arti",
+      "legacy_aliases": [
+        "--tor-backend-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "подготовить owner-confirmed plan запуска C Tor/Arti"
+    },
+    {
+      "action_id": "tor.backend.start",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "start",
+      "focus_target": null,
+      "handler_id": "tor.backend.start",
+      "internal": false,
+      "keywords": [
+        "tor",
+        "backend",
+        "start"
+      ],
+      "label": "запустить C Tor/Arti по confirmed plan",
+      "legacy_aliases": [
+        "--tor-backend-start"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "запустить C Tor/Arti по confirmed plan"
+    },
+    {
+      "action_id": "tor.backend.status",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "tor.backend.status",
+      "internal": false,
+      "keywords": [
+        "tor",
+        "backend",
+        "status"
+      ],
+      "label": "read-only статус managed Tor backend",
+      "legacy_aliases": [
+        "--tor-backend-status"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "read-only статус managed Tor backend"
+    },
+    {
+      "action_id": "tor.backend.stop",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "stop",
+      "focus_target": null,
+      "handler_id": "tor.backend.stop",
+      "internal": false,
+      "keywords": [
+        "tor",
+        "backend",
+        "stop"
+      ],
+      "label": "остановить только PID managed Tor backend",
+      "legacy_aliases": [
+        "--tor-backend-stop"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "остановить только PID managed Tor backend"
+    },
+    {
+      "action_id": "discord.tunnel.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "discord.tunnel.plan",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "tunnel",
+        "plan"
+      ],
+      "label": "Stage 7p2: подготовить owner-confirmed Discord SOCKS/VLESS tunnel start plan и redacted core config preview",
+      "legacy_aliases": [
+        "--discord-tunnel-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 7p2: подготовить owner-confirmed Discord SOCKS/VLESS tunnel start plan и redacted core config preview"
+    },
+    {
+      "action_id": "discord.tunnel.core.preflight",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "inspect",
+      "focus_target": null,
+      "handler_id": "discord.tunnel.core.preflight",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "tunnel",
+        "core",
+        "preflight"
+      ],
+      "label": "Stage 8h: проверить generated Xray VLESS config через upstream `xray run -test`",
+      "legacy_aliases": [
+        "--discord-tunnel-core-preflight"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 8h: проверить generated Xray VLESS config через upstream `xray run -test`; без persistent start"
+    },
+    {
+      "action_id": "discord.tunnel.start",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "start",
+      "focus_target": null,
+      "handler_id": "discord.tunnel.start",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "tunnel",
+        "start"
+      ],
+      "label": "Stage 7p3: запустить внешний core по confirmed tunnel plan",
+      "legacy_aliases": [
+        "--discord-tunnel-start"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "Stage 7p3: запустить внешний core по confirmed tunnel plan; без sudo/firewall/service"
+    },
+    {
+      "action_id": "discord.tunnel.stop",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "stop",
+      "focus_target": null,
+      "handler_id": "discord.tunnel.stop",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "tunnel",
+        "stop"
+      ],
+      "label": "Stage 7p3: остановить только managed tunnel core PID из .zap2/tunnel/runtime",
+      "legacy_aliases": [
+        "--discord-tunnel-stop"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "Stage 7p3: остановить только managed tunnel core PID из .zap2/tunnel/runtime"
+    },
+    {
+      "action_id": "discord.tunnel.status",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "discord.tunnel.status",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "tunnel",
+        "status"
+      ],
+      "label": "Stage 7p3: read-only статус managed tunnel core/session",
+      "legacy_aliases": [
+        "--discord-tunnel-status"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 7p3: read-only статус managed tunnel core/session"
+    },
+    {
+      "action_id": "discord.tunnel.probe",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "probe",
+      "focus_target": null,
+      "handler_id": "discord.tunnel.probe",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "tunnel",
+        "probe"
+      ],
+      "label": "Stage 7p3: проверить running core и loopback SOCKS port",
+      "legacy_aliases": [
+        "--discord-tunnel-probe"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 7p3: проверить running core и loopback SOCKS port; без запуска Discord"
+    },
+    {
+      "action_id": "discord.tunnel.https.probe",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "probe",
+      "focus_target": null,
+      "handler_id": "discord.tunnel.https.probe",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "tunnel",
+        "https",
+        "probe"
+      ],
+      "label": "Stage 7p5: выполнить harmless HTTPS HEAD через managed local SOCKS",
+      "legacy_aliases": [
+        "--discord-tunnel-https-probe"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 7p5: выполнить harmless HTTPS HEAD через managed local SOCKS; без запуска Discord"
+    },
+    {
+      "action_id": "discord.tunnel.route.diagnose",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "inspect",
+      "focus_target": null,
+      "handler_id": "discord.tunnel.route.diagnose",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "tunnel",
+        "route",
+        "diagnose"
+      ],
+      "label": "Stage 8c: свести tunnel/SOCKS/upstream/Discord logs в короткий route verdict",
+      "legacy_aliases": [
+        "--discord-tunnel-route-diagnose"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 8c: свести tunnel/SOCKS/upstream/Discord logs в короткий route verdict; read-only"
+    },
+    {
+      "action_id": "discord.tunnel.evidence",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "discord.tunnel.evidence",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "tunnel",
+        "evidence"
+      ],
+      "label": "P01: показать current-run EvidenceGraph и CapabilityVerdict без вывода секретов",
+      "legacy_aliases": [
+        "--discord-tunnel-evidence"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "P01: показать current-run EvidenceGraph и CapabilityVerdict без вывода секретов; read-only"
+    },
+    {
+      "action_id": "discord.tunnel.guided.run",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "probe",
+      "focus_target": null,
+      "handler_id": "discord.tunnel.guided.run",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "tunnel",
+        "guided",
+        "run"
+      ],
+      "label": "Stage 7p5: one-command owner guided SOCKS/VLESS run: plan+confirm+start+probe+launch+verdict",
+      "legacy_aliases": [
+        "--discord-tunnel-guided-run"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 7p5: one-command owner guided SOCKS/VLESS run: plan+confirm+start+probe+launch+verdict"
+    },
+    {
+      "action_id": "discord.tunnel.tun.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "discord.tunnel.tun.plan",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "tunnel",
+        "tun",
+        "plan"
+      ],
+      "label": "Stage 7p5: plan-only TUN/TProxy research lane",
+      "legacy_aliases": [
+        "--discord-tunnel-tun-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 7p5: plan-only TUN/TProxy research lane; ничего не применяет"
+    },
+    {
+      "action_id": "discord.proxy.route.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "discord.proxy.route.plan",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "proxy",
+        "route",
+        "plan"
+      ],
+      "label": "Stage 8a: объяснить, как направить Discord/браузер через managed local SOCKS",
+      "legacy_aliases": [
+        "--discord-proxy-route-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 8a: объяснить, как направить Discord/браузер через managed local SOCKS; без запуска"
+    },
+    {
+      "action_id": "discord.socks.launch",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "launch",
+      "focus_target": null,
+      "handler_id": "discord.socks.launch",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "launch",
+        "through",
+        "socks"
+      ],
+      "label": "Stage 7p4/8a: запустить Discord command с SOCKS env/Chromium proxy candidates через active tunnel",
+      "legacy_aliases": [
+        "--discord-launch-through-socks"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "Stage 7p4/8a: запустить Discord command с SOCKS env/Chromium proxy candidates через active tunnel"
+    },
+    {
+      "action_id": "discord.socks.stop",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "launch",
+      "focus_target": null,
+      "handler_id": "discord.socks.stop",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "stop",
+        "launched"
+      ],
+      "label": "Stage 8b: остановить Discord process group, запущенный через --discord-launch-through-socks",
+      "legacy_aliases": [
+        "--discord-stop-launched"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "Stage 8b: остановить Discord process group, запущенный через --discord-launch-through-socks"
+    },
+    {
+      "action_id": "strategy.parser.preflight",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "inspect",
+      "focus_target": null,
+      "handler_id": "strategy.parser.preflight",
+      "internal": false,
+      "keywords": [
+        "strategy",
+        "parser",
+        "preflight"
+      ],
+      "label": "Stage 8h: выполнить read-only nfqws2 --dry-run для выбранной workspace strategy",
+      "legacy_aliases": [
+        "--strategy-parser-preflight"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 8h: выполнить read-only nfqws2 --dry-run для выбранной workspace strategy"
+    },
+    {
+      "action_id": "runtime.plan.prepare",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "prepare",
+      "focus_target": null,
+      "handler_id": "runtime.plan.prepare",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "prepare"
+      ],
+      "label": "сохранить runtime plan в .zap2/runtime, записать rollback notes и log",
+      "legacy_aliases": [
+        "--runtime-prepare"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "сохранить runtime plan в .zap2/runtime, записать rollback notes и log; без исполнения"
+    },
+    {
+      "action_id": "runtime.plan.confirm",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "confirm",
+      "focus_target": null,
+      "handler_id": "runtime.plan.confirm",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "confirm"
+      ],
+      "label": "создать owner confirmation для сохранённого plan id",
+      "legacy_aliases": [
+        "--runtime-confirm"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "создать owner confirmation для сохранённого plan id; без исполнения"
+    },
+    {
+      "action_id": "runtime.pretls.probe",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "probe",
+      "focus_target": null,
+      "handler_id": "runtime.pretls.probe",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "pretls",
+        "probe"
+      ],
+      "label": "показать read-only pre-TLS probe checklist для активного nfqws2/nft состояния",
+      "legacy_aliases": [
+        "--runtime-pretls-probe"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать read-only pre-TLS probe checklist для активного nfqws2/nft состояния; без исполнения nft"
+    },
+    {
+      "action_id": "runtime.discord.pretls.guided.probe",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "probe",
+      "focus_target": null,
+      "handler_id": "runtime.discord.pretls.guided.probe",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "discord",
+        "pretls",
+        "guided",
+        "probe"
+      ],
+      "label": "интерактивный guided-прогон Discord pre-TLS: counters before/after, nfqws2 health, verdict report",
+      "legacy_aliases": [
+        "--runtime-discord-pretls-guided-probe"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "интерактивный guided-прогон Discord pre-TLS: counters before/after, nfqws2 health, verdict report; без запуска Discord и без firewall mutation"
+    },
+    {
+      "action_id": "discord.observation.matrix.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "discord.observation.matrix.plan",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "observation",
+        "matrix",
+        "plan"
+      ],
+      "label": "показать Stage 7o2 matrix-plan: baseline, diagnostic, current v2 и external-reference кандидаты",
+      "legacy_aliases": [
+        "--discord-observation-matrix-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать Stage 7o2 matrix-plan: baseline, diagnostic, current v2 и external-reference кандидаты; без исполнения"
+    },
+    {
+      "action_id": "discord.observation.matrix.report",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "discord.observation.matrix.report",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "observation",
+        "matrix",
+        "report"
+      ],
+      "label": "собрать read-only Stage 7o2 observation matrix из уже сохранённых guided reports/snapshots",
+      "legacy_aliases": [
+        "--discord-observation-matrix-report"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "собрать read-only Stage 7o2 observation matrix из уже сохранённых guided reports/snapshots"
+    },
+    {
+      "action_id": "discord.observation.matrix.run.row",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "probe",
+      "focus_target": null,
+      "handler_id": "discord.observation.matrix.run.row",
+      "internal": false,
+      "keywords": [
+        "discord",
+        "observation",
+        "matrix",
+        "run",
+        "row"
+      ],
+      "label": "Stage 7o2a: упростить сбор одной строки observation matrix: baseline или guided row runner",
+      "legacy_aliases": [
+        "--discord-observation-matrix-run-row"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "Stage 7o2a: упростить сбор одной строки observation matrix: baseline или guided row runner"
+    },
+    {
+      "action_id": "service.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "service.plan",
+      "internal": false,
+      "keywords": [
+        "service",
+        "plan"
+      ],
+      "label": "подготовить service plan install/start/stop/remove в .zap2/runtime",
+      "legacy_aliases": [
+        "--service-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "подготовить service plan install/start/stop/remove в .zap2/runtime; без исполнения"
+    },
+    {
+      "action_id": "service.apply",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "service.apply",
+      "internal": false,
+      "keywords": [
+        "service",
+        "apply"
+      ],
+      "label": "P02 plan-only: privileged service execution staged/unsupported",
+      "legacy_aliases": [
+        "--service-apply"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "P02 plan-only: privileged service execution staged/unsupported; используйте --service-plan для review"
+    },
+    {
+      "action_id": "runtime.state.migrate",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "runtime.state.migrate",
+      "internal": false,
+      "keywords": [
+        "runtime",
+        "migrate",
+        "state"
+      ],
+      "label": "P02: explicit receipted MigrationTxn legacy runtime session state",
+      "legacy_aliases": [
+        "--runtime-migrate-state"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "P02: explicit receipted MigrationTxn legacy runtime session state"
+    },
+    {
+      "action_id": "gui.privileged-command.show",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "gui.privileged-command.show",
+      "internal": false,
+      "keywords": [
+        "gui",
+        "privileged",
+        "command"
+      ],
+      "label": "показать sudo-askpass команду, которую GUI использует для default start/stop",
+      "legacy_aliases": [
+        "--gui-privileged-command"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать sudo-askpass команду, которую GUI использует для default start/stop; без исполнения"
+    },
+    {
+      "action_id": "blockcheck.preflight",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "inspect",
+      "focus_target": null,
+      "handler_id": "blockcheck.preflight",
+      "internal": false,
+      "keywords": [
+        "blockcheck",
+        "preflight"
+      ],
+      "label": "показать read-only preflight для GUI blockcheck lab",
+      "legacy_aliases": [
+        "--blockcheck-preflight"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать read-only preflight для GUI blockcheck lab"
+    },
+    {
+      "action_id": "blockcheck.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "blockcheck.plan",
+      "internal": false,
+      "keywords": [
+        "blockcheck",
+        "plan"
+      ],
+      "label": "показать sudo-askpass план запуска upstream blockcheck2.sh",
+      "legacy_aliases": [
+        "--blockcheck-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать sudo-askpass план запуска upstream blockcheck2.sh; без исполнения"
+    },
+    {
+      "action_id": "blockcheck.build.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "plan",
+      "focus_target": null,
+      "handler_id": "blockcheck.build.plan",
+      "internal": false,
+      "keywords": [
+        "blockcheck",
+        "build",
+        "plan"
+      ],
+      "label": "показать local build plan для nfqws2/mdig prerequisites blockcheck",
+      "legacy_aliases": [
+        "--blockcheck-build-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать local build plan для nfqws2/mdig prerequisites blockcheck; без запуска make"
+    },
+    {
+      "action_id": "blockcheck.build",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "blockcheck.build",
+      "internal": false,
+      "keywords": [
+        "blockcheck",
+        "build"
+      ],
+      "label": "собрать nfqws2/mdig prerequisites локально через make без sudo/firewall/service",
+      "legacy_aliases": [
+        "--blockcheck-build"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "собрать nfqws2/mdig prerequisites локально через make без sudo/firewall/service"
+    },
+    {
+      "action_id": "blockcheck.run",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "probe",
+      "focus_target": null,
+      "handler_id": "blockcheck.run",
+      "internal": false,
+      "keywords": [
+        "blockcheck",
+        "run"
+      ],
+      "label": "запустить upstream blockcheck2.sh через графический sudo askpass",
+      "legacy_aliases": [
+        "--blockcheck-run"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "bounded-root",
+      "safe_invoke": false,
+      "short_help": "запустить upstream blockcheck2.sh через графический sudo askpass"
+    },
+    {
+      "action_id": "blockcheck.last.log",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "blockcheck.last.log",
+      "internal": false,
+      "keywords": [
+        "blockcheck",
+        "last",
+        "log"
+      ],
+      "label": "показать последний сохранённый GUI blockcheck log",
+      "legacy_aliases": [
+        "--blockcheck-last-log"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать последний сохранённый GUI blockcheck log; без исполнения"
+    },
+    {
+      "action_id": "blockcheck.coverage",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "inspect",
+      "focus_target": null,
+      "handler_id": "blockcheck.coverage",
+      "internal": false,
+      "keywords": [
+        "blockcheck",
+        "coverage"
+      ],
+      "label": "показать per-target coverage manifest для последнего service target preset",
+      "legacy_aliases": [
+        "--blockcheck-coverage"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать per-target coverage manifest для последнего service target preset; без исполнения"
+    },
+    {
+      "action_id": "blockcheck.service.policy",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "blockcheck.service.policy",
+      "internal": false,
+      "keywords": [
+        "blockcheck",
+        "service",
+        "policy"
+      ],
+      "label": "показать универсальную coverage policy для выбранного service target preset",
+      "legacy_aliases": [
+        "--blockcheck-service-policy"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать универсальную coverage policy для выбранного service target preset; без исполнения"
+    },
+    {
+      "action_id": "blockcheck.tournament",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "inspect",
+      "focus_target": null,
+      "handler_id": "blockcheck.tournament",
+      "internal": false,
+      "keywords": [
+        "blockcheck",
+        "tournament"
+      ],
+      "label": "показать read-only service coverage tournament/best-so-far snapshot",
+      "legacy_aliases": [
+        "--blockcheck-tournament"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать read-only service coverage tournament/best-so-far snapshot; без исполнения"
+    },
+    {
+      "action_id": "blockcheck.strategy-validation.plan",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "validate",
+      "focus_target": null,
+      "handler_id": "blockcheck.strategy-validation.plan",
+      "internal": false,
+      "keywords": [
+        "blockcheck",
+        "validate",
+        "strategy",
+        "plan"
+      ],
+      "label": "подготовить read-only план проверки одной strategy через upstream custom list на одном target из --blockcheck-domains",
+      "legacy_aliases": [
+        "--blockcheck-validate-strategy-plan"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "подготовить read-only план проверки одной strategy через upstream custom list на одном target из --blockcheck-domains"
+    },
+    {
+      "action_id": "blockcheck.strategy.export",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "export",
+      "focus_target": null,
+      "handler_id": "blockcheck.strategy.export",
+      "internal": false,
+      "keywords": [
+        "blockcheck",
+        "export",
+        "strategies"
+      ],
+      "label": "создать strategies/generated/*.json из AVAILABLE стратегий последнего blockcheck log и обновить catalog.json",
+      "legacy_aliases": [
+        "--blockcheck-export-strategies"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "создать strategies/generated/*.json из AVAILABLE стратегий последнего blockcheck log и обновить catalog.json"
+    },
+    {
+      "action_id": "preset.select",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "preset.select",
+      "internal": false,
+      "keywords": [
+        "select",
+        "preset"
+      ],
+      "label": "выбрать пресет для Default workspace",
+      "legacy_aliases": [
+        "--select-preset"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "выбрать пресет для Default workspace; только сохраняет .zap2 selection"
+    },
+    {
+      "action_id": "strategy.select",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "apply",
+      "focus_target": null,
+      "handler_id": "strategy.select",
+      "internal": false,
+      "keywords": [
+        "select",
+        "strategy"
+      ],
+      "label": "выбрать strategy id для Default profile",
+      "legacy_aliases": [
+        "--select-strategy"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "owner",
+      "safe_invoke": false,
+      "short_help": "выбрать strategy id для Default profile; только сохраняет .zap2 selection, без запуска"
+    },
+    {
+      "action_id": "preset.list",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "list",
+      "focus_target": null,
+      "handler_id": "preset.list",
+      "internal": false,
+      "keywords": [
+        "list",
+        "presets"
+      ],
+      "label": "показать каталог пресетов и число profile-блоков без исполнения",
+      "legacy_aliases": [
+        "--list-presets"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать каталог пресетов и число profile-блоков без исполнения"
+    },
+    {
+      "action_id": "preset.show",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "preset.show",
+      "internal": false,
+      "keywords": [
+        "show",
+        "preset"
+      ],
+      "label": "показать порядок profile-блоков одного пресета",
+      "legacy_aliases": [
+        "--show-preset"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать порядок profile-блоков одного пресета"
+    },
+    {
+      "action_id": "preset.traffic-profile.show",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "preset.traffic-profile.show",
+      "internal": false,
+      "keywords": [
+        "show",
+        "preset",
+        "profile"
+      ],
+      "label": "показать filter/strategy/range/direction одного profile-блока",
+      "legacy_aliases": [
+        "--show-preset-profile"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать filter/strategy/range/direction одного profile-блока"
+    },
+    {
+      "action_id": "runtime-context.list",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "list",
+      "focus_target": null,
+      "handler_id": "runtime-context.list",
+      "internal": false,
+      "keywords": [
+        "list",
+        "profiles"
+      ],
+      "label": "legacy: показать workspace contexts без применения настроек",
+      "legacy_aliases": [
+        "--list-profiles"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "legacy: показать workspace contexts без применения настроек"
+    },
+    {
+      "action_id": "runtime-context.show",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "runtime-context.show",
+      "internal": false,
+      "keywords": [
+        "show",
+        "profile"
+      ],
+      "label": "показать один workspace-профиль без применения настроек",
+      "legacy_aliases": [
+        "--show-profile"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать один workspace-профиль без применения настроек"
+    },
+    {
+      "action_id": "strategy.list",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "list",
+      "focus_target": null,
+      "handler_id": "strategy.list",
+      "internal": false,
+      "keywords": [
+        "list",
+        "strategies"
+      ],
+      "label": "показать каталог стратегий без исполнения",
+      "legacy_aliases": [
+        "--list-strategies"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать каталог стратегий без исполнения"
+    },
+    {
+      "action_id": "strategy.show",
+      "aliases": [],
+      "capability": null,
+      "concept_links": [],
+      "deep_help": null,
+      "effect": "show",
+      "focus_target": null,
+      "handler_id": "strategy.show",
+      "internal": false,
+      "keywords": [
+        "show",
+        "strategy"
+      ],
+      "label": "показать одну стратегию без исполнения",
+      "legacy_aliases": [
+        "--show-strategy"
+      ],
+      "location": null,
+      "preconditions": [],
+      "privilege": "none",
+      "safe_invoke": false,
+      "short_help": "показать одну стратегию без исполнения"
+    }
+  ],
+  "legacyOperandBindings": [
+    {
+      "action_id": "gui.launch",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--gui"
+      ],
+      "selector": "gui"
+    },
+    {
+      "action_id": "build.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--build-plan"
+      ],
+      "selector": "build_plan"
+    },
+    {
+      "action_id": "security.blocklist.status",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--security-blocklist-status"
+      ],
+      "selector": "security_blocklist_status"
+    },
+    {
+      "action_id": "security.blocklist.enable",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--security-blocklist-enable"
+      ],
+      "selector": "security_blocklist_enable"
+    },
+    {
+      "action_id": "security.blocklist.enable-inbound",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--security-blocklist-enable-inbound"
+      ],
+      "selector": "security_blocklist_enable_inbound"
+    },
+    {
+      "action_id": "security.blocklist.disable",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--security-blocklist-disable"
+      ],
+      "selector": "security_blocklist_disable"
+    },
+    {
+      "action_id": "security.blocklist.update",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--security-blocklist-update"
+      ],
+      "selector": "security_blocklist_update"
+    },
+    {
+      "action_id": "security.blocklist.apply",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--security-blocklist-apply"
+      ],
+      "selector": "security_blocklist_apply"
+    },
+    {
+      "action_id": "security.blocklist.refresh",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--security-blocklist-refresh"
+      ],
+      "selector": "security_blocklist_refresh"
+    },
+    {
+      "action_id": "security.blocklist.timer.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--security-blocklist-timer-plan"
+      ],
+      "selector": "security_blocklist_timer_plan"
+    },
+    {
+      "action_id": "security.blocklist.timer.install",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--security-blocklist-install-timer"
+      ],
+      "selector": "security_blocklist_install_timer"
+    },
+    {
+      "action_id": "security.blocklist.timer.remove",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--security-blocklist-remove-timer"
+      ],
+      "selector": "security_blocklist_remove_timer"
+    },
+    {
+      "action_id": "launch.composer.status",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--launch-composer-status"
+      ],
+      "selector": "launch_composer_status"
+    },
+    {
+      "action_id": "launch.composer.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--launch-composer-plan"
+      ],
+      "selector": "launch_composer_plan"
+    },
+    {
+      "action_id": "launch.composer.start",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--launch-composer-start"
+      ],
+      "selector": "launch_composer_start"
+    },
+    {
+      "action_id": "launch.composer.stop",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--launch-composer-stop"
+      ],
+      "selector": "launch_composer_stop"
+    },
+    {
+      "action_id": "discord.verification.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-verification-plan"
+      ],
+      "selector": "discord_verification_plan"
+    },
+    {
+      "action_id": "discord.verification.template.create",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-verification-template"
+      ],
+      "selector": "discord_verification_template"
+    },
+    {
+      "action_id": "discord.endpoint.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-endpoint-plan"
+      ],
+      "selector": "discord_endpoint_plan"
+    },
+    {
+      "action_id": "discord.endpoint.watch",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-endpoint-watch"
+      ],
+      "selector": "discord_endpoint_watch"
+    },
+    {
+      "action_id": "discord.endpoint.report",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-endpoint-report"
+      ],
+      "selector": "discord_endpoint_report"
+    },
+    {
+      "action_id": "discord.netlog.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-netlog-plan"
+      ],
+      "selector": "discord_netlog_plan"
+    },
+    {
+      "action_id": "har.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--har-plan"
+      ],
+      "selector": "har_plan"
+    },
+    {
+      "action_id": "har.analyze",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--har-analyze"
+      ],
+      "selector": "har_analyze"
+    },
+    {
+      "action_id": "har.report",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--har-report"
+      ],
+      "selector": "har_report"
+    },
+    {
+      "action_id": "har.workbench",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--har-workbench"
+      ],
+      "selector": "har_workbench"
+    },
+    {
+      "action_id": "har.workbench.report",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--har-workbench-report"
+      ],
+      "selector": "har_workbench_report"
+    },
+    {
+      "action_id": "har.group.plan",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--har-group-plan"
+      ],
+      "selector": "har_group_plan"
+    },
+    {
+      "action_id": "discord.har.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-har-plan"
+      ],
+      "selector": "discord_har_plan"
+    },
+    {
+      "action_id": "discord.har.analyze",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--discord-har-analyze"
+      ],
+      "selector": "discord_har_analyze"
+    },
+    {
+      "action_id": "discord.har.report",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-har-report"
+      ],
+      "selector": "discord_har_report"
+    },
+    {
+      "action_id": "discord.har.workbench",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--discord-har-workbench"
+      ],
+      "selector": "discord_har_workbench"
+    },
+    {
+      "action_id": "discord.har.workbench.report",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-har-workbench-report"
+      ],
+      "selector": "discord_har_workbench_report"
+    },
+    {
+      "action_id": "discord.har.group.plan",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--discord-har-group-plan"
+      ],
+      "selector": "discord_har_group_plan"
+    },
+    {
+      "action_id": "discord.voice.profiles",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-voice-profiles"
+      ],
+      "selector": "discord_voice_profiles"
+    },
+    {
+      "action_id": "discord.dns.edge.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-dns-edge-plan"
+      ],
+      "selector": "discord_dns_edge_plan"
+    },
+    {
+      "action_id": "discord.dns.edge.check",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-dns-edge-check"
+      ],
+      "selector": "discord_dns_edge_check"
+    },
+    {
+      "action_id": "external.reference.audit",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--external-reference-audit"
+      ],
+      "selector": "external_reference_audit"
+    },
+    {
+      "action_id": "tunnel.connection.vless.import",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--tunnel-connection-import-vless"
+      ],
+      "selector": "tunnel_connection_import_vless"
+    },
+    {
+      "action_id": "tunnel.connection.list",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--tunnel-connections"
+      ],
+      "selector": "tunnel_connections"
+    },
+    {
+      "action_id": "tunnel.connection.select",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--tunnel-select-connection"
+      ],
+      "selector": "tunnel_select_connection"
+    },
+    {
+      "action_id": "tor.backend.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--tor-backend-plan"
+      ],
+      "selector": "tor_backend_plan"
+    },
+    {
+      "action_id": "tor.backend.start",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--tor-backend-start"
+      ],
+      "selector": "tor_backend_start"
+    },
+    {
+      "action_id": "tor.backend.status",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--tor-backend-status"
+      ],
+      "selector": "tor_backend_status"
+    },
+    {
+      "action_id": "tor.backend.stop",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--tor-backend-stop"
+      ],
+      "selector": "tor_backend_stop"
+    },
+    {
+      "action_id": "discord.tunnel.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-tunnel-plan"
+      ],
+      "selector": "discord_tunnel_plan"
+    },
+    {
+      "action_id": "discord.tunnel.core.preflight",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-tunnel-core-preflight"
+      ],
+      "selector": "discord_tunnel_core_preflight"
+    },
+    {
+      "action_id": "discord.tunnel.start",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-tunnel-start"
+      ],
+      "selector": "discord_tunnel_start"
+    },
+    {
+      "action_id": "discord.tunnel.stop",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-tunnel-stop"
+      ],
+      "selector": "discord_tunnel_stop"
+    },
+    {
+      "action_id": "discord.tunnel.status",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-tunnel-status"
+      ],
+      "selector": "discord_tunnel_status"
+    },
+    {
+      "action_id": "discord.tunnel.probe",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-tunnel-probe"
+      ],
+      "selector": "discord_tunnel_probe"
+    },
+    {
+      "action_id": "discord.tunnel.https.probe",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-tunnel-https-probe"
+      ],
+      "selector": "discord_tunnel_https_probe"
+    },
+    {
+      "action_id": "discord.tunnel.route.diagnose",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-tunnel-route-diagnose"
+      ],
+      "selector": "discord_tunnel_route_diagnose"
+    },
+    {
+      "action_id": "discord.tunnel.evidence",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-tunnel-evidence"
+      ],
+      "selector": "discord_tunnel_evidence"
+    },
+    {
+      "action_id": "discord.tunnel.guided.run",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-tunnel-guided-run"
+      ],
+      "selector": "discord_tunnel_guided_run"
+    },
+    {
+      "action_id": "discord.tunnel.tun.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-tunnel-tun-plan"
+      ],
+      "selector": "discord_tunnel_tun_plan"
+    },
+    {
+      "action_id": "discord.proxy.route.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-proxy-route-plan"
+      ],
+      "selector": "discord_proxy_route_plan"
+    },
+    {
+      "action_id": "discord.socks.launch",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-launch-through-socks"
+      ],
+      "selector": "discord_launch_through_socks"
+    },
+    {
+      "action_id": "discord.socks.stop",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-stop-launched"
+      ],
+      "selector": "discord_stop_launched"
+    },
+    {
+      "action_id": "strategy.parser.preflight",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--strategy-parser-preflight"
+      ],
+      "selector": "strategy_parser_preflight"
+    },
+    {
+      "action_id": "runtime.plan.prepare",
+      "choices": [
+        "start",
+        "stop",
+        "status"
+      ],
+      "operand_arity": 1,
+      "option_strings": [
+        "--runtime-prepare"
+      ],
+      "selector": "runtime_prepare"
+    },
+    {
+      "action_id": "runtime.plan.confirm",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--runtime-confirm"
+      ],
+      "selector": "runtime_confirm"
+    },
+    {
+      "action_id": "runtime.pretls.probe",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--runtime-pretls-probe"
+      ],
+      "selector": "runtime_pretls_probe"
+    },
+    {
+      "action_id": "runtime.discord.pretls.guided.probe",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--runtime-discord-pretls-guided-probe"
+      ],
+      "selector": "runtime_discord_pretls_guided_probe"
+    },
+    {
+      "action_id": "discord.observation.matrix.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-observation-matrix-plan"
+      ],
+      "selector": "discord_observation_matrix_plan"
+    },
+    {
+      "action_id": "discord.observation.matrix.report",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--discord-observation-matrix-report"
+      ],
+      "selector": "discord_observation_matrix_report"
+    },
+    {
+      "action_id": "discord.observation.matrix.run.row",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--discord-observation-matrix-run-row"
+      ],
+      "selector": "discord_observation_matrix_run_row"
+    },
+    {
+      "action_id": "service.plan",
+      "choices": [
+        "install",
+        "start",
+        "stop",
+        "remove"
+      ],
+      "operand_arity": 1,
+      "option_strings": [
+        "--service-plan"
+      ],
+      "selector": "service_plan"
+    },
+    {
+      "action_id": "service.apply",
+      "choices": [
+        "install",
+        "remove"
+      ],
+      "operand_arity": 1,
+      "option_strings": [
+        "--service-apply"
+      ],
+      "selector": "service_apply"
+    },
+    {
+      "action_id": "runtime.state.migrate",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--runtime-migrate-state"
+      ],
+      "selector": "runtime_migrate_state"
+    },
+    {
+      "action_id": "gui.privileged-command.show",
+      "choices": [
+        "start",
+        "stop"
+      ],
+      "operand_arity": 1,
+      "option_strings": [
+        "--gui-privileged-command"
+      ],
+      "selector": "gui_privileged_command"
+    },
+    {
+      "action_id": "blockcheck.preflight",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--blockcheck-preflight"
+      ],
+      "selector": "blockcheck_preflight"
+    },
+    {
+      "action_id": "blockcheck.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--blockcheck-plan"
+      ],
+      "selector": "blockcheck_plan"
+    },
+    {
+      "action_id": "blockcheck.build.plan",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--blockcheck-build-plan"
+      ],
+      "selector": "blockcheck_build_plan"
+    },
+    {
+      "action_id": "blockcheck.build",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--blockcheck-build"
+      ],
+      "selector": "blockcheck_build"
+    },
+    {
+      "action_id": "blockcheck.run",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--blockcheck-run"
+      ],
+      "selector": "blockcheck_run"
+    },
+    {
+      "action_id": "blockcheck.last.log",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--blockcheck-last-log"
+      ],
+      "selector": "blockcheck_last_log"
+    },
+    {
+      "action_id": "blockcheck.coverage",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--blockcheck-coverage"
+      ],
+      "selector": "blockcheck_coverage"
+    },
+    {
+      "action_id": "blockcheck.service.policy",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--blockcheck-service-policy"
+      ],
+      "selector": "blockcheck_service_policy"
+    },
+    {
+      "action_id": "blockcheck.tournament",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--blockcheck-tournament"
+      ],
+      "selector": "blockcheck_tournament"
+    },
+    {
+      "action_id": "blockcheck.strategy-validation.plan",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--blockcheck-validate-strategy-plan"
+      ],
+      "selector": "blockcheck_validate_strategy_plan"
+    },
+    {
+      "action_id": "blockcheck.strategy.export",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--blockcheck-export-strategies"
+      ],
+      "selector": "blockcheck_export_strategies"
+    },
+    {
+      "action_id": "preset.select",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--select-preset"
+      ],
+      "selector": "select_preset"
+    },
+    {
+      "action_id": "strategy.select",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--select-strategy"
+      ],
+      "selector": "select_strategy"
+    },
+    {
+      "action_id": "preset.list",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--list-presets"
+      ],
+      "selector": "list_presets"
+    },
+    {
+      "action_id": "preset.show",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--show-preset"
+      ],
+      "selector": "show_preset"
+    },
+    {
+      "action_id": "preset.traffic-profile.show",
+      "choices": [],
+      "operand_arity": 2,
+      "option_strings": [
+        "--show-preset-profile"
+      ],
+      "selector": "show_preset_profile"
+    },
+    {
+      "action_id": "runtime-context.list",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--list-profiles"
+      ],
+      "selector": "list_profiles"
+    },
+    {
+      "action_id": "runtime-context.show",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--show-profile"
+      ],
+      "selector": "show_profile"
+    },
+    {
+      "action_id": "strategy.list",
+      "choices": [],
+      "operand_arity": 0,
+      "option_strings": [
+        "--list-strategies"
+      ],
+      "selector": "list_strategies"
+    },
+    {
+      "action_id": "strategy.show",
+      "choices": [],
+      "operand_arity": 1,
+      "option_strings": [
+        "--show-strategy"
+      ],
+      "selector": "show_strategy"
+    }
+  ],
+  "packageCli": {
+    "--about": "independent identity axes",
+    "--find QUERY": "read-only ActionContract projection",
+    "--package-preflight": "verify installed package; no user state",
+    "--support-bundle FILE": "redacted evidence only"
+  },
+  "productVersion": "0.10.0rc6",
+  "provenance": {
+    "manifestSha256": "8e31eb82e3c06f5803d60e95eb27f2c80b513b98530443927c33770447a7f8c1",
+    "schemas": {
+      "capabilityVerdict": 1,
+      "connectionReceipt": 2,
+      "evidenceGraph": 1,
+      "executionPlan": 1,
+      "workspaceInstallation": 1
+    },
+    "upstream": {
+      "commit": "00f5aaa36de500971faf6db440dd7d8b25672281",
+      "name": "bol-van/zapret2",
+      "version": "1.0.6"
+    }
+  },
+  "schemaVersion": 1,
+  "schemas": {
+    "confirmation.schema.json": {
+      "schema": {
+        "$id": "https://zap2.local/schemas/confirmation.schema.json",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "allowsAutomaticReuse": {
+            "const": false,
+            "type": "boolean"
+          },
+          "confirmationId": {
+            "minLength": 3,
+            "type": "string"
+          },
+          "confirmedByOwner": {
+            "type": "boolean"
+          },
+          "expiresWhenPlanChanges": {
+            "const": true,
+            "type": "boolean"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "planHash": {
+            "minLength": 12,
+            "type": "string"
+          },
+          "planId": {
+            "minLength": 3,
+            "type": "string"
+          },
+          "schemaVersion": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "confirmationId",
+          "planId",
+          "planHash",
+          "confirmedByOwner",
+          "expiresWhenPlanChanges",
+          "allowsAutomaticReuse"
+        ],
+        "title": "Zap2 owner confirmation contract",
+        "type": "object"
+      },
+      "sha256": "5bec73a302459c122586b908369ebb4a4dc944c40e4b68ed8ee5b4a3201f8db5"
+    },
+    "runtime-event.schema.json": {
+      "schema": {
+        "$id": "https://zap2.local/schemas/runtime-event.schema.json",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "eventId": {
+            "minLength": 3,
+            "type": "string"
+          },
+          "eventType": {
+            "enum": [
+              "planned",
+              "confirmed",
+              "started",
+              "stopped",
+              "failed",
+              "rolled-back",
+              "status"
+            ],
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "debug",
+              "info",
+              "warning",
+              "error"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "planId": {
+            "minLength": 3,
+            "type": "string"
+          },
+          "schemaVersion": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "eventId",
+          "planId",
+          "eventType",
+          "level",
+          "message",
+          "createdAt"
+        ],
+        "title": "Zap2 runtime event contract",
+        "type": "object"
+      },
+      "sha256": "c7bc6aaacfe7aea1f232c5eb278f0a1b9b0476070c81f1a786e2874ac961164c"
+    },
+    "runtime-plan.schema.json": {
+      "schema": {
+        "$id": "https://zap2.local/schemas/runtime-plan.schema.json",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "action": {
+            "enum": [
+              "start",
+              "stop",
+              "status",
+              "install-service",
+              "remove-service"
+            ],
+            "type": "string"
+          },
+          "lifecycle": {
+            "properties": {
+              "automaticChecksMayExecute": {
+                "const": false,
+                "type": "boolean"
+              },
+              "bootstrapMixedIn": {
+                "const": false,
+                "type": "boolean"
+              },
+              "contractStage": {
+                "const": "v0.3-alpha_stage_8",
+                "type": "string"
+              }
+            },
+            "required": [
+              "contractStage",
+              "bootstrapMixedIn",
+              "automaticChecksMayExecute"
+            ],
+            "type": "object"
+          },
+          "planId": {
+            "minLength": 3,
+            "type": "string"
+          },
+          "profileId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "rollbackNotes": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "safety": {
+            "properties": {
+              "containsRemoteBootstrap": {
+                "const": false,
+                "type": "boolean"
+              },
+              "containsUpstreamInstallerScript": {
+                "const": false,
+                "type": "boolean"
+              },
+              "mayManageServiceWhenExecutedByOwner": {
+                "type": "boolean"
+              },
+              "mayMutateFirewallWhenExecutedByOwner": {
+                "type": "boolean"
+              },
+              "mayRequireSudoWhenExecutedByOwner": {
+                "type": "boolean"
+              },
+              "requiresOwnerConfirmation": {
+                "const": true,
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "requiresOwnerConfirmation",
+              "mayRequireSudoWhenExecutedByOwner",
+              "mayMutateFirewallWhenExecutedByOwner",
+              "mayManageServiceWhenExecutedByOwner",
+              "containsRemoteBootstrap",
+              "containsUpstreamInstallerScript"
+            ],
+            "type": "object"
+          },
+          "schemaVersion": {
+            "const": 1,
+            "type": "integer"
+          },
+          "sections": {
+            "items": {
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "run",
+                    "apply",
+                    "session",
+                    "service"
+                  ],
+                  "type": "string"
+                },
+                "purpose": {
+                  "type": "string"
+                },
+                "steps": {
+                  "items": {
+                    "properties": {
+                      "commands": {
+                        "type": "array"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "requiresOwnerConfirmation": {
+                        "type": "boolean"
+                      },
+                      "stepId": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "stepId",
+                      "title",
+                      "description",
+                      "requiresOwnerConfirmation",
+                      "commands"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "purpose",
+                "steps"
+              ],
+              "type": "object"
+            },
+            "minItems": 4,
+            "type": "array"
+          },
+          "strategyId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": {
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "planId",
+          "title",
+          "profileId",
+          "strategyId",
+          "action",
+          "lifecycle",
+          "safety",
+          "sections",
+          "rollbackNotes"
+        ],
+        "title": "Zap2 runtime plan contract",
+        "type": "object"
+      },
+      "sha256": "22fff1d581a5e38153e7338c9294be45b61d04e87d93990c8b0639e54a1de6a2"
+    }
+  }
+}

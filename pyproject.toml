@@ -1,6 +1,6 @@
 [project]
 name = "zap2gui-linux"
-version = "0.9.0rc5"
+version = "0.10.0rc6"
 description = "Linux PyQt GUI shell around a vendored zapret2 core source tree"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,7 +13,7 @@ authors = [
 gui = ["PyQt6>=6.6"]
 
 [project.scripts]
-zap2-gui = "zap2_gui.app:main"
+zap2-gui = "zap2_gui.distribution:main"
 
 [tool.setuptools]
 package-dir = {"" = "gui"}

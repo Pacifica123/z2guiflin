@@ -51,7 +51,7 @@ INPUTS = (
     "meta_tools/generate_p04d_action_bindings.py",
     "tests/test_action_dispatcher.py",
     "tests/test_p04d_action_contract_closure.py",
-    "docs/P04D_ACTION_CONTRACT_CLOSURE.md",
+    "docs/history/stages/P04D_ACTION_CONTRACT_CLOSURE.md",
     "tools/gui_checks/check_p04d_action_contracts.py",
     "tools/gui_checks/check_p04d_regression.py",
     "tools/gui_checks/check_project_tree.py",

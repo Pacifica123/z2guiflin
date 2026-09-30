@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_historical_v04_roadmap_keeps_original_service_choice() -> None:
-    text = (ROOT / "docs" / "V04_ALPHA_PATCH_ROADMAP.md").read_text(encoding="utf-8")
+    text = (ROOT / "docs" / "history" / "stages" / "V04_ALPHA_PATCH_ROADMAP.md").read_text(encoding="utf-8")
 
     assert "Историческая дорожная карта" in text
     assert "youtube-basic" in text
@@ -17,8 +17,8 @@ def test_historical_v04_roadmap_keeps_original_service_choice() -> None:
 
 
 def test_historical_v04_roadmap_points_to_release_boundary() -> None:
-    roadmap = (ROOT / "docs" / "V04_ALPHA_PATCH_ROADMAP.md").read_text(encoding="utf-8")
-    release = (ROOT / "docs" / "V04_RELEASE.md").read_text(encoding="utf-8")
+    roadmap = (ROOT / "docs" / "history" / "stages" / "V04_ALPHA_PATCH_ROADMAP.md").read_text(encoding="utf-8")
+    release = (ROOT / "docs" / "history" / "stages" / "V04_RELEASE.md").read_text(encoding="utf-8")
 
     assert "принято как `v0.4`" in roadmap
     assert "не универсального сетевого результата" in roadmap

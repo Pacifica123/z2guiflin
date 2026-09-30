@@ -9,20 +9,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_product_version_tracks_accepted_v08_after_p04_closure() -> None:
-    assert PRODUCT_LABEL == "v0.9 RC5"
-    assert __version__ == "0.9.0rc5"
+    assert PRODUCT_LABEL == "v0.10 RC6"
+    assert __version__ == "0.10.0rc6"
 
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "0.9.0rc5"' in pyproject
+    assert 'version = "0.10.0rc6"' in pyproject
     assert 'version = "0.4.0a0"' not in pyproject
 
 
 def test_current_docs_define_environment_dependent_release_boundary() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    release = (ROOT / "docs" / "V04_RELEASE.md").read_text(encoding="utf-8")
+    release = (ROOT / "docs" / "history" / "stages" / "V04_RELEASE.md").read_text(encoding="utf-8")
     status = (ROOT / "docs" / "PROJECT_STATUS.md").read_text(encoding="utf-8")
 
-    assert "Zap2 GUI Linux — v0.9 RC5 (P05 candidate)" in readme
+    assert "Zap2 GUI Linux — v0.10 RC6 (P06 candidate)" in readme
     assert "не универсальную стратегию" in readme
     assert "не обещает" in readme
     assert "рабочая платформа" in release
@@ -38,7 +38,7 @@ def test_current_docs_define_environment_dependent_release_boundary() -> None:
 
 
 def test_horizontal_gap_checklists_cover_reference_projects() -> None:
-    text = (ROOT / "docs" / "KNOWN_GAPS_CHECKLISTS.md").read_text(encoding="utf-8")
+    text = (ROOT / "docs" / "history" / "stages" / "KNOWN_GAPS_CHECKLISTS.md").read_text(encoding="utf-8")
 
     for marker in ("bol-van", "loop-uh", "Flowseal", "Категоризация горизонтальная"):
         assert marker in text
@@ -63,7 +63,7 @@ def test_horizontal_gap_checklists_cover_reference_projects() -> None:
 
 def test_documentation_index_and_audit_exist() -> None:
     index = (ROOT / "docs" / "README.md").read_text(encoding="utf-8")
-    audit = (ROOT / "docs" / "DOCUMENTATION_AUDIT.md").read_text(encoding="utf-8")
+    audit = (ROOT / "docs" / "history" / "stages" / "DOCUMENTATION_AUDIT.md").read_text(encoding="utf-8")
 
     assert "Сначала читать" in index
     assert "История исследований v0.4" in audit

@@ -131,7 +131,7 @@ def test_stage7o2_cli_exposes_plan_and_report(capsys) -> None:
 
 
 def test_stage7o2_docs_keep_matrix_non_executable() -> None:
-    docs = (ROOT / "docs" / "DISCORD_OBSERVATION_MATRIX.md").read_text(encoding="utf-8")
+    docs = (ROOT / "docs" / "history" / "stages" / "DISCORD_OBSERVATION_MATRIX.md").read_text(encoding="utf-8")
     snippet = (ROOT / "references" / "external" / "snippets" / "stage7o2-observation-matrix-plan.txt").read_text(encoding="utf-8")
 
     assert "не добавляет новую стратегию" in docs

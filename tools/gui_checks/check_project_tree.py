@@ -33,14 +33,14 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/core_provenance.py",
     "tools/core_generation_build.py",
     "tools/gui_checks/check_p03_core_generation.py",
-    "docs/P03_ZAPRET2_GENERATION.md",
-    "docs/P04_REFORENSICS.md",
-    "docs/P04B_EXECUTION_PLAN.md",
-    "docs/P04C_ACTION_DISPATCHER.md",
-    "docs/P04D_ACTION_CONTRACT_CLOSURE.md",
-    "docs/V08_RELEASE_P05_HANDOFF.md",
-    "docs/P05_REFORENSICS.md",
-    "docs/P05_DISCOVERABILITY.md",
+    "docs/history/stages/P03_ZAPRET2_GENERATION.md",
+    "docs/history/stages/P04_REFORENSICS.md",
+    "docs/history/stages/P04B_EXECUTION_PLAN.md",
+    "docs/history/stages/P04C_ACTION_DISPATCHER.md",
+    "docs/history/stages/P04D_ACTION_CONTRACT_CLOSURE.md",
+    "docs/history/stages/V08_RELEASE_P05_HANDOFF.md",
+    "docs/history/stages/P05_REFORENSICS.md",
+    "docs/history/stages/P05_DISCOVERABILITY.md",
     "runtime/p05/pre-forensics.json",
     "gui/zap2_gui/models/discovery.py",
     "gui/zap2_gui/widgets/discovery_palette.py",
@@ -103,33 +103,33 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/widgets/placeholders.py",
     "docs/DEVELOPMENT_STRATEGY.md",
     "docs/DOCUMENTATION_LANGUAGE.md",
-    "docs/GUI_FRAMEWORK.md",
-    "docs/GUI_SHELL.md",
-    "docs/CORE_INVENTORY.md",
-    "docs/CORE_BUILD_MAP.md",
-    "docs/LOCAL_BUILD_ADAPTER.md",
-    "docs/BUILD_DEPENDENCY_PREFLIGHT.md",
-    "docs/BUILD_DEPENDENCY_PREFLIGHT.md",
-    "docs/WORKSPACE_PROFILES.md",
-    "docs/STRATEGIES.md",
-    "docs/RUNTIME_LIFECYCLE.md",
-    "docs/RUNTIME_PLANS.md",
-    "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
-    "docs/RUNTIME_STATE_AND_CONFIRMATION.md",
-    "docs/RUNTIME_SESSION_RUNNER.md",
-    "docs/RUNTIME_SESSION_INPUTS.md",
-    "docs/NFQUEUE_PRIVILEGE_ORDER.md",
-    "docs/RUNTIME_APPLY_REVERT.md",
-    "docs/RUNTIME_QUEUE_POLICY.md",
-    "docs/RUNTIME_QUEUE_POLICY.md",
-    "docs/RUNTIME_SERVICE_PLANS.md",
-    "docs/DEFAULT_WORKFLOW.md",
-    "docs/DEFAULT_BUILD_WORKFLOW.md",
-    "docs/PROJECT_STRUCTURE.md",
+    "docs/history/stages/GUI_FRAMEWORK.md",
+    "docs/history/stages/GUI_SHELL.md",
+    "docs/history/stages/CORE_INVENTORY.md",
+    "docs/history/stages/CORE_BUILD_MAP.md",
+    "docs/history/stages/LOCAL_BUILD_ADAPTER.md",
+    "docs/history/stages/BUILD_DEPENDENCY_PREFLIGHT.md",
+    "docs/history/stages/BUILD_DEPENDENCY_PREFLIGHT.md",
+    "docs/history/stages/WORKSPACE_PROFILES.md",
+    "docs/history/stages/STRATEGIES.md",
+    "docs/history/stages/RUNTIME_LIFECYCLE.md",
+    "docs/history/stages/RUNTIME_PLANS.md",
+    "docs/history/stages/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
+    "docs/history/stages/RUNTIME_STATE_AND_CONFIRMATION.md",
+    "docs/history/stages/RUNTIME_SESSION_RUNNER.md",
+    "docs/history/stages/RUNTIME_SESSION_INPUTS.md",
+    "docs/history/stages/NFQUEUE_PRIVILEGE_ORDER.md",
+    "docs/history/stages/RUNTIME_APPLY_REVERT.md",
+    "docs/history/stages/RUNTIME_QUEUE_POLICY.md",
+    "docs/history/stages/RUNTIME_QUEUE_POLICY.md",
+    "docs/history/stages/RUNTIME_SERVICE_PLANS.md",
+    "docs/history/stages/DEFAULT_WORKFLOW.md",
+    "docs/history/stages/DEFAULT_BUILD_WORKFLOW.md",
+    "docs/history/stages/PROJECT_STRUCTURE.md",
     "docs/VERSIONING.md",
-    "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
-    "docs/SOURCE_ALIGNMENT.md",
-    "docs/META_TOOLS.md",
+    "docs/history/stages/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
+    "docs/history/stages/SOURCE_ALIGNMENT.md",
+    "docs/history/stages/META_TOOLS.md",
     "tools/README.md",
     "tools/experimental/README.md",
     "tools/lowlevel/README.md",
@@ -147,10 +147,10 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/runtime_queue.py",
     "gui/zap2_gui/widgets/runtime_controls.py",
     "gui/zap2_gui/widgets/runtime_logs.py",
-    "docs/DEFAULT_STRATEGY_IMPORT.md",
-    "docs/GUI_RUNTIME_CONTROLS.md",
-    "docs/GUI_POLKIT_PRIVILEGE.md",
-    "docs/GUI_TOGGLE_AND_LOGS.md",
+    "docs/history/stages/DEFAULT_STRATEGY_IMPORT.md",
+    "docs/history/stages/GUI_RUNTIME_CONTROLS.md",
+    "docs/history/stages/GUI_POLKIT_PRIVILEGE.md",
+    "docs/history/stages/GUI_TOGGLE_AND_LOGS.md",
     "tools/gui_checks/check_default_strategy_import.py",
     "tools/gui_checks/check_gui_toggle_runtime.py",
     "tests/test_default_strategy_import_and_gui_controls.py",
@@ -203,39 +203,39 @@ PROJECT_DOCUMENTATION_PATHS = [
     "runtime/README.md",
     "docs/DEVELOPMENT_STRATEGY.md",
     "docs/DOCUMENTATION_LANGUAGE.md",
-    "docs/GUI_FRAMEWORK.md",
-    "docs/GUI_SHELL.md",
-    "docs/GUI_POLKIT_PRIVILEGE.md",
-    "docs/GUI_TOGGLE_AND_LOGS.md",
-    "docs/CORE_INVENTORY.md",
-    "docs/CORE_BUILD_MAP.md",
-    "docs/LOCAL_BUILD_ADAPTER.md",
-    "docs/BUILD_DEPENDENCY_PREFLIGHT.md",
-    "docs/BUILD_DEPENDENCY_PREFLIGHT.md",
-    "docs/WORKSPACE_PROFILES.md",
-    "docs/STRATEGIES.md",
-    "docs/RUNTIME_LIFECYCLE.md",
-    "docs/RUNTIME_PLANS.md",
-    "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
-    "docs/RUNTIME_STATE_AND_CONFIRMATION.md",
-    "docs/RUNTIME_SESSION_RUNNER.md",
-    "docs/RUNTIME_SESSION_INPUTS.md",
-    "docs/NFQUEUE_PRIVILEGE_ORDER.md",
-    "docs/P03_ZAPRET2_GENERATION.md",
-    "docs/P04_REFORENSICS.md",
-    "docs/P04B_EXECUTION_PLAN.md",
-    "docs/P04C_ACTION_DISPATCHER.md",
-    "docs/P04D_ACTION_CONTRACT_CLOSURE.md",
-    "docs/V08_RELEASE_P05_HANDOFF.md",
-    "docs/P05_REFORENSICS.md",
-    "docs/RUNTIME_APPLY_REVERT.md",
-    "docs/RUNTIME_SERVICE_PLANS.md",
-    "docs/DEFAULT_WORKFLOW.md",
-    "docs/DEFAULT_BUILD_WORKFLOW.md",
-    "docs/PROJECT_STRUCTURE.md",
-    "docs/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
-    "docs/SOURCE_ALIGNMENT.md",
-    "docs/META_TOOLS.md",
+    "docs/history/stages/GUI_FRAMEWORK.md",
+    "docs/history/stages/GUI_SHELL.md",
+    "docs/history/stages/GUI_POLKIT_PRIVILEGE.md",
+    "docs/history/stages/GUI_TOGGLE_AND_LOGS.md",
+    "docs/history/stages/CORE_INVENTORY.md",
+    "docs/history/stages/CORE_BUILD_MAP.md",
+    "docs/history/stages/LOCAL_BUILD_ADAPTER.md",
+    "docs/history/stages/BUILD_DEPENDENCY_PREFLIGHT.md",
+    "docs/history/stages/BUILD_DEPENDENCY_PREFLIGHT.md",
+    "docs/history/stages/WORKSPACE_PROFILES.md",
+    "docs/history/stages/STRATEGIES.md",
+    "docs/history/stages/RUNTIME_LIFECYCLE.md",
+    "docs/history/stages/RUNTIME_PLANS.md",
+    "docs/history/stages/DEFAULT_RUNTIME_PLAN_GENERATOR.md",
+    "docs/history/stages/RUNTIME_STATE_AND_CONFIRMATION.md",
+    "docs/history/stages/RUNTIME_SESSION_RUNNER.md",
+    "docs/history/stages/RUNTIME_SESSION_INPUTS.md",
+    "docs/history/stages/NFQUEUE_PRIVILEGE_ORDER.md",
+    "docs/history/stages/P03_ZAPRET2_GENERATION.md",
+    "docs/history/stages/P04_REFORENSICS.md",
+    "docs/history/stages/P04B_EXECUTION_PLAN.md",
+    "docs/history/stages/P04C_ACTION_DISPATCHER.md",
+    "docs/history/stages/P04D_ACTION_CONTRACT_CLOSURE.md",
+    "docs/history/stages/V08_RELEASE_P05_HANDOFF.md",
+    "docs/history/stages/P05_REFORENSICS.md",
+    "docs/history/stages/RUNTIME_APPLY_REVERT.md",
+    "docs/history/stages/RUNTIME_SERVICE_PLANS.md",
+    "docs/history/stages/DEFAULT_WORKFLOW.md",
+    "docs/history/stages/DEFAULT_BUILD_WORKFLOW.md",
+    "docs/history/stages/PROJECT_STRUCTURE.md",
+    "docs/history/stages/SAFETY_AND_PRIVILEGE_BOUNDARY.md",
+    "docs/history/stages/SOURCE_ALIGNMENT.md",
+    "docs/history/stages/META_TOOLS.md",
     "tools/README.md",
     "tools/experimental/README.md",
     "tools/lowlevel/README.md",
@@ -296,13 +296,13 @@ def main() -> int:
             print(f" - {path}")
         return 1
 
-    gui_framework_doc = (ROOT / "docs/GUI_FRAMEWORK.md").read_text(encoding="utf-8")
+    gui_framework_doc = (ROOT / "docs/history/stages/GUI_FRAMEWORK.md").read_text(encoding="utf-8")
     strategy_doc = (ROOT / "docs/DEVELOPMENT_STRATEGY.md").read_text(encoding="utf-8")
     if "PyQt" not in gui_framework_doc or "PyQt" not in strategy_doc:
         print("Решение по PyQt GUI framework отсутствует в документации")
         return 1
 
-    shell_doc = (ROOT / "docs/GUI_SHELL.md").read_text(encoding="utf-8")
+    shell_doc = (ROOT / "docs/history/stages/GUI_SHELL.md").read_text(encoding="utf-8")
     for section in ("Обзор", "Ядро", "Стратегии", "Диагностика", "Настройки", "Логи"):
         if section not in shell_doc:
             print(f"В документации GUI shell отсутствует раздел: {section}")
@@ -313,7 +313,7 @@ def main() -> int:
         print("PyQt6 optional dependency или entry point zap2-gui не зафиксированы")
         return 1
 
-    local_build_doc = (ROOT / "docs/LOCAL_BUILD_ADAPTER.md").read_text(encoding="utf-8")
+    local_build_doc = (ROOT / "docs/history/stages/LOCAL_BUILD_ADAPTER.md").read_text(encoding="utf-8")
     app_py = (ROOT / "gui/zap2_gui/app.py").read_text(encoding="utf-8")
     local_build_py = (ROOT / "gui/zap2_gui/adapters/local_build.py").read_text(encoding="utf-8")
     if "адаптер локальной сборки" not in local_build_doc.lower() or "--build-plan" not in app_py:
@@ -323,8 +323,8 @@ def main() -> int:
         print("Local build adapter должен оставаться plan-only и без sudo")
         return 1
 
-    workspace_doc = (ROOT / "docs/WORKSPACE_PROFILES.md").read_text(encoding="utf-8")
-    strategies_doc = (ROOT / "docs/STRATEGIES.md").read_text(encoding="utf-8")
+    workspace_doc = (ROOT / "docs/history/stages/WORKSPACE_PROFILES.md").read_text(encoding="utf-8")
+    strategies_doc = (ROOT / "docs/history/stages/STRATEGIES.md").read_text(encoding="utf-8")
     workspace_adapter = (ROOT / "gui/zap2_gui/adapters/workspace_profiles.py").read_text(encoding="utf-8")
     if "workspace-проф" not in workspace_doc or "plan-only" not in strategies_doc:
         print("Документация workspace-профилей/стратегий не зафиксирована")
@@ -333,8 +333,8 @@ def main() -> int:
         print("Workspace profiles adapter должен валидировать стратегии и read-only boundary")
         return 1
 
-    runtime_doc = (ROOT / "docs/RUNTIME_LIFECYCLE.md").read_text(encoding="utf-8")
-    runtime_plans_doc = (ROOT / "docs/RUNTIME_PLANS.md").read_text(encoding="utf-8")
+    runtime_doc = (ROOT / "docs/history/stages/RUNTIME_LIFECYCLE.md").read_text(encoding="utf-8")
+    runtime_plans_doc = (ROOT / "docs/history/stages/RUNTIME_PLANS.md").read_text(encoding="utf-8")
     runtime_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_contracts.py").read_text(encoding="utf-8")
     runtime_plan_schema = json.loads((ROOT / "runtime/schemas/runtime-plan.schema.json").read_text(encoding="utf-8"))
     runtime_contract = json.loads((ROOT / "runtime/examples/manual-local-start.contract.json").read_text(encoding="utf-8"))
@@ -357,7 +357,7 @@ def main() -> int:
         print("Runtime contract должен покрывать run/apply/session/service")
         return 1
 
-    default_build_doc = (ROOT / "docs/DEFAULT_BUILD_WORKFLOW.md").read_text(encoding="utf-8")
+    default_build_doc = (ROOT / "docs/history/stages/DEFAULT_BUILD_WORKFLOW.md").read_text(encoding="utf-8")
     default_build_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_default_build.py").read_text(encoding="utf-8")
     if "--default-build-plan" not in app_py or "--default-build" not in app_py:
         print("Default build workflow CLI-команды отсутствуют")
@@ -373,7 +373,7 @@ def main() -> int:
         print("Default build adapter не должен вызывать upstream installer scripts или service manager")
         return 1
 
-    build_deps_doc = (ROOT / "docs/BUILD_DEPENDENCY_PREFLIGHT.md").read_text(encoding="utf-8")
+    build_deps_doc = (ROOT / "docs/history/stages/BUILD_DEPENDENCY_PREFLIGHT.md").read_text(encoding="utf-8")
     build_deps_adapter = (ROOT / "gui/zap2_gui/adapters/build_dependencies.py").read_text(encoding="utf-8")
     if "--default-build-deps" not in app_py or "проверка зависимостей сборки" not in build_deps_doc.lower():
         print("Build dependency preflight CLI/documentation отсутствуют")
@@ -388,7 +388,7 @@ def main() -> int:
             print(f"Build dependency preflight adapter не должен устанавливать пакеты или запускать shell: {fragment}")
             return 1
 
-    default_workflow_doc = (ROOT / "docs/DEFAULT_WORKFLOW.md").read_text(encoding="utf-8")
+    default_workflow_doc = (ROOT / "docs/history/stages/DEFAULT_WORKFLOW.md").read_text(encoding="utf-8")
     default_workflow_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_default.py").read_text(encoding="utf-8")
     if "--default-start-plan" not in app_py or "--default-stop" not in app_py:
         print("Default workflow CLI-команды отсутствуют")
@@ -413,7 +413,7 @@ def main() -> int:
         print("Strategy catalog должен запрещать исполнение стратегий в проверках")
         return 1
 
-    runtime_generator_doc = (ROOT / "docs/DEFAULT_RUNTIME_PLAN_GENERATOR.md").read_text(encoding="utf-8")
+    runtime_generator_doc = (ROOT / "docs/history/stages/DEFAULT_RUNTIME_PLAN_GENERATOR.md").read_text(encoding="utf-8")
     runtime_generator = (ROOT / "gui/zap2_gui/adapters/runtime_plan_generator.py").read_text(encoding="utf-8")
     if "Stage 9" not in runtime_generator_doc or "--runtime-plan" not in app_py:
         print("Runtime plan generator Stage 9 не зафиксирован в документации или CLI")
@@ -425,7 +425,7 @@ def main() -> int:
         print("Runtime plan generator не должен исполнять shell/process commands")
         return 1
 
-    runtime_state_doc = (ROOT / "docs/RUNTIME_STATE_AND_CONFIRMATION.md").read_text(encoding="utf-8")
+    runtime_state_doc = (ROOT / "docs/history/stages/RUNTIME_STATE_AND_CONFIRMATION.md").read_text(encoding="utf-8")
     runtime_state_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_state.py").read_text(encoding="utf-8")
     if "confirmation gate" not in runtime_state_doc or ".zap2/runtime" not in runtime_state_doc:
         print("Runtime state/confirmation gate Stage 10 не зафиксирован в документации")
@@ -450,7 +450,7 @@ def main() -> int:
         print("CLI Stage 10 должен иметь runtime prepare/confirm/log commands")
         return 1
 
-    runtime_session_doc = (ROOT / "docs/RUNTIME_SESSION_RUNNER.md").read_text(encoding="utf-8")
+    runtime_session_doc = (ROOT / "docs/history/stages/RUNTIME_SESSION_RUNNER.md").read_text(encoding="utf-8")
     runtime_session_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_session.py").read_text(encoding="utf-8")
     if "runtime-сесс" not in runtime_session_doc.lower() or "nfqws2" not in runtime_session_doc:
         print("Runtime session runner Stage 11 не зафиксирован в документации")
@@ -476,7 +476,7 @@ def main() -> int:
         return 1
 
 
-    runtime_apply_doc = (ROOT / "docs/RUNTIME_APPLY_REVERT.md").read_text(encoding="utf-8")
+    runtime_apply_doc = (ROOT / "docs/history/stages/RUNTIME_APPLY_REVERT.md").read_text(encoding="utf-8")
     runtime_apply_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_apply.py").read_text(encoding="utf-8")
     if "owner-confirmed" not in runtime_apply_doc or "nftables" not in runtime_apply_doc:
         print("Runtime apply/revert Stage 12 не зафиксирован в документации")
@@ -506,7 +506,7 @@ def main() -> int:
         return 1
 
 
-    runtime_service_doc = (ROOT / "docs/RUNTIME_SERVICE_PLANS.md").read_text(encoding="utf-8")
+    runtime_service_doc = (ROOT / "docs/history/stages/RUNTIME_SERVICE_PLANS.md").read_text(encoding="utf-8")
     runtime_service_adapter = (ROOT / "gui/zap2_gui/adapters/runtime_service.py").read_text(encoding="utf-8")
     if "service mode" not in runtime_service_doc or "Stage 13" not in runtime_service_doc:
         print("Runtime service plans Stage 13 не зафиксированы в документации")
@@ -536,7 +536,7 @@ def main() -> int:
         print("CLI Stage 13 должен иметь service-plan и service-apply commands")
         return 1
 
-    p04c_doc = (ROOT / "docs/P04C_ACTION_DISPATCHER.md").read_text(encoding="utf-8")
+    p04c_doc = (ROOT / "docs/history/stages/P04C_ACTION_DISPATCHER.md").read_text(encoding="utf-8")
     action_catalog = (ROOT / "gui/zap2_gui/models/action_catalog.py").read_text(encoding="utf-8")
     action_dispatcher = (ROOT / "gui/zap2_gui/adapters/action_dispatcher.py").read_text(encoding="utf-8")
     legacy_cli = (ROOT / "gui/zap2_gui/adapters/legacy_cli.py").read_text(encoding="utf-8")
@@ -553,7 +553,7 @@ def main() -> int:
         print("P04c documentation/acceptance boundary не зафиксирована")
         return 1
 
-    p04d_doc = (ROOT / "docs/P04D_ACTION_CONTRACT_CLOSURE.md").read_text(encoding="utf-8")
+    p04d_doc = (ROOT / "docs/history/stages/P04D_ACTION_CONTRACT_CLOSURE.md").read_text(encoding="utf-8")
     action_bindings = (ROOT / "gui/zap2_gui/models/action_bindings.py").read_text(encoding="utf-8")
     action_bindings_generated = (ROOT / "gui/zap2_gui/models/action_bindings_generated.py").read_text(encoding="utf-8")
     if "--operand" not in app_py or "dispatch_legacy_compat" not in app_py:
@@ -575,8 +575,8 @@ def main() -> int:
         print("P04d documentation/acceptance boundary не зафиксирована")
         return 1
 
-    v08_doc = (ROOT / "docs/V08_RELEASE_P05_HANDOFF.md").read_text(encoding="utf-8")
-    p05_doc = (ROOT / "docs/P05_REFORENSICS.md").read_text(encoding="utf-8")
+    v08_doc = (ROOT / "docs/history/stages/V08_RELEASE_P05_HANDOFF.md").read_text(encoding="utf-8")
+    p05_doc = (ROOT / "docs/history/stages/P05_REFORENSICS.md").read_text(encoding="utf-8")
     owner_receipt = json.loads((ROOT / "runtime/p04/p04d-owner-acceptance-receipt.json").read_text(encoding="utf-8"))
     release_evidence = json.loads((ROOT / "runtime/p04/v08-release-evidence.json").read_text(encoding="utf-8"))
     if owner_receipt.get("readiness") != "READY_FOR_USE_WITHIN_P04D" or owner_receipt.get("result") != "PASS":

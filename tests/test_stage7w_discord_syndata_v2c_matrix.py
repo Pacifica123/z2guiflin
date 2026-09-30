@@ -104,8 +104,8 @@ def test_stage7w_generated_session_args_use_selected_v2c_variant(tmp_path: Path,
 
 
 def test_stage7w_docs_name_all_matrix_variants() -> None:
-    doc = (ROOT / "docs" / "DISCORD_SYN_DATA_EDGE_FLOW_V2C_MATRIX.md").read_text(encoding="utf-8")
-    results = (ROOT / "docs" / "DISCORD_COMMUNITY_EDGE_FLOW_RESULTS.md").read_text(encoding="utf-8")
+    doc = (ROOT / "docs" / "history" / "stages" / "DISCORD_SYN_DATA_EDGE_FLOW_V2C_MATRIX.md").read_text(encoding="utf-8")
+    results = (ROOT / "docs" / "history" / "stages" / "DISCORD_COMMUNITY_EDGE_FLOW_RESULTS.md").read_text(encoding="utf-8")
     catalog = json.loads((ROOT / "strategies" / "catalog.json").read_text(encoding="utf-8"))
 
     for strategy_id in V2C_IDS:

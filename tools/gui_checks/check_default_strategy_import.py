@@ -19,9 +19,9 @@ def main() -> int:
     gui_privilege = ROOT / "gui/zap2_gui/adapters/gui_privilege.py"
     gui_widget = ROOT / "gui/zap2_gui/widgets/runtime_controls.py"
     docs = [
-        ROOT / "docs/DEFAULT_STRATEGY_IMPORT.md",
-        ROOT / "docs/GUI_RUNTIME_CONTROLS.md",
-        ROOT / "docs/GUI_POLKIT_PRIVILEGE.md",
+        ROOT / "docs/history/stages/DEFAULT_STRATEGY_IMPORT.md",
+        ROOT / "docs/history/stages/GUI_RUNTIME_CONTROLS.md",
+        ROOT / "docs/history/stages/GUI_POLKIT_PRIVILEGE.md",
     ]
     for path in [source_txt, source_json, default_hosts, strategy_path, gui_adapter, gui_privilege, gui_widget, *docs]:
         if not path.exists():

@@ -61,7 +61,7 @@ def test_stage7o0_external_reference_audit_cli(capsys) -> None:
 
 
 def test_stage7o0_docs_and_snippets_exist() -> None:
-    assert (ROOT / "docs" / "EXTERNAL_REFERENCE_AUDIT.md").is_file()
+    assert (ROOT / "docs" / "history" / "stages" / "EXTERNAL_REFERENCE_AUDIT.md").is_file()
     snippets = sorted((ROOT / "references" / "external" / "snippets").glob("*.txt"))
     assert len(snippets) >= 4
     assert all(path.read_text(encoding="utf-8").strip() for path in snippets)

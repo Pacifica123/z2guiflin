@@ -26,7 +26,7 @@ from ..project_paths import discover_layout
 
 PRIVILEGE_PROTOCOL_SCHEMA_VERSION = 1
 PRIVILEGED_EXECUTOR_VERSION = "p02-v1"
-DEFAULT_PRIVILEGED_EXECUTOR = Path("/usr/local/libexec/zap2-runtime-executor")
+DEFAULT_PRIVILEGED_EXECUTOR = Path(os.environ.get("ZAP2_PRIVILEGED_EXECUTOR", "/usr/local/libexec/zap2-runtime-executor"))
 PROJECT_EXECUTOR_RELATIVE_PATH = Path("tools/privileged/zap2-runtime-executor")
 _PLAN_TRANSIENT_FIELDS = {
     "planHash",
@@ -96,6 +96,9 @@ class PrivilegedExecutorStatus:
 
 
 def project_executor_path(root: Path | None = None) -> Path:
+    installed = os.environ.get("ZAP2_INSTALLED_ROOT")
+    if installed:
+        return Path(installed) / PROJECT_EXECUTOR_RELATIVE_PATH
     return discover_layout(root).root / PROJECT_EXECUTOR_RELATIVE_PATH
 
 
@@ -108,6 +111,13 @@ def privileged_executor_status(root: Path | None = None, *, installed_path: Path
     except OSError as exc:
         return PrivilegedExecutorStatus(installed_path, "missing", f"trusted helper не установлен: {exc}", None, project_sha, None, None)
     mode = stat.S_IMODE(info.st_mode)
+    if os.environ.get("ZAP2_INSTALLED_ROOT"):
+        if installed_path.is_symlink():
+            return PrivilegedExecutorStatus(installed_path, "untrusted", "packaged helper cannot be a symlink", None, project_sha, info.st_uid, mode)
+        for parent in installed_path.parents:
+            parent_info=parent.stat()
+            if parent_info.st_uid != 0 or stat.S_IMODE(parent_info.st_mode) & 0o022:
+                return PrivilegedExecutorStatus(installed_path, "untrusted", "packaged helper ancestry must be root-owned and non-writable", None, project_sha, info.st_uid, mode)
     installed_sha = _file_sha256(installed_path)
     if not stat.S_ISREG(info.st_mode):
         return PrivilegedExecutorStatus(installed_path, "untrusted", "helper path не является regular file", installed_sha, project_sha, info.st_uid, mode)
@@ -125,6 +135,8 @@ def privileged_executor_status(root: Path | None = None, *, installed_path: Path
 
 
 def privileged_executor_install_command(root: Path | None = None, *, installed_path: Path = DEFAULT_PRIVILEGED_EXECUTOR) -> str:
+    if os.environ.get("ZAP2_INSTALLED_ROOT"):
+        return "Package-owned helper: reinstall/upgrade zap2gui-linux through pacman; never install the workspace copy with sudo."
     source = project_executor_path(root)
     digest = _file_sha256(source) or "UNKNOWN"
     return "\n".join(

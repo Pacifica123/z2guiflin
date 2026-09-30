@@ -62,8 +62,8 @@ def test_stage7v_runtime_apply_queues_v2b_ports(tmp_path: Path) -> None:
 
 def test_stage7v_documents_v2b_owner_phase_shift() -> None:
     strategy = json.loads((ROOT / "strategies" / "community-discord-syndata-edge-flow-v2b.json").read_text(encoding="utf-8"))
-    doc = (ROOT / "docs" / "DISCORD_SYN_DATA_EDGE_FLOW_V2B.md").read_text(encoding="utf-8")
-    results = (ROOT / "docs" / "DISCORD_COMMUNITY_EDGE_FLOW_RESULTS.md").read_text(encoding="utf-8")
+    doc = (ROOT / "docs" / "history" / "stages" / "DISCORD_SYN_DATA_EDGE_FLOW_V2B.md").read_text(encoding="utf-8")
+    results = (ROOT / "docs" / "history" / "stages" / "DISCORD_COMMUNITY_EDGE_FLOW_RESULTS.md").read_text(encoding="utf-8")
 
     assert strategy["diagnosticHints"]["observedDiscordHost"] == "discordapp.com"
     assert "https://discordapp.com/app" in doc
