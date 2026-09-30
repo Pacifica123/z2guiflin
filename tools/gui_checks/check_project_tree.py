@@ -37,7 +37,9 @@ REQUIRED_PATHS = [
     "docs/P04_REFORENSICS.md",
     "docs/P04B_EXECUTION_PLAN.md",
     "docs/P04C_ACTION_DISPATCHER.md",
+    "docs/P04D_ACTION_CONTRACT_CLOSURE.md",
     "runtime/p04/p04c-frozen-evidence.json",
+    "runtime/p04/p04d-frozen-evidence.json",
     "profiles/README.md",
     "profiles/default.json",
     "profiles/hostlists/default.hosts",
@@ -86,6 +88,8 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/models/runtime_events.py",
     "gui/zap2_gui/models/execution_plan.py",
     "gui/zap2_gui/models/action_catalog.py",
+    "gui/zap2_gui/models/action_bindings.py",
+    "gui/zap2_gui/models/action_bindings_generated.py",
     "gui/zap2_gui/windows/main_window.py",
     "gui/zap2_gui/widgets/placeholders.py",
     "docs/DEVELOPMENT_STRATEGY.md",
@@ -149,6 +153,9 @@ REQUIRED_PATHS = [
     "tools/gui_checks/check_p04b_execution_plan.py",
     "tools/gui_checks/check_p04c_action_dispatcher.py",
     "tools/gui_checks/check_p04c_regression.py",
+    "tools/gui_checks/check_p04d_action_contracts.py",
+    "tools/gui_checks/check_p04d_regression.py",
+    "meta_tools/generate_p04d_action_bindings.py",
     "tools/gui_checks/check_runtime_lifecycle.py",
     "tools/gui_checks/check_runtime_plan_generator.py",
     "tools/gui_checks/check_runtime_state.py",
@@ -163,6 +170,7 @@ REQUIRED_PATHS = [
     "tests/test_workspace_profiles_and_strategies.py",
     "tests/test_p04b_execution_plan.py",
     "tests/test_action_dispatcher.py",
+    "tests/test_p04d_action_contract_closure.py",
     "tests/test_runtime_lifecycle_contracts.py",
     "tests/test_runtime_plan_generator.py",
     "tests/test_runtime_state_and_confirmation.py",
@@ -206,6 +214,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/P04_REFORENSICS.md",
     "docs/P04B_EXECUTION_PLAN.md",
     "docs/P04C_ACTION_DISPATCHER.md",
+    "docs/P04D_ACTION_CONTRACT_CLOSURE.md",
     "docs/RUNTIME_APPLY_REVERT.md",
     "docs/RUNTIME_SERVICE_PLANS.md",
     "docs/DEFAULT_WORKFLOW.md",
@@ -531,6 +540,28 @@ def main() -> int:
         print("P04c documentation/acceptance boundary не зафиксирована")
         return 1
 
+    p04d_doc = (ROOT / "docs/P04D_ACTION_CONTRACT_CLOSURE.md").read_text(encoding="utf-8")
+    action_bindings = (ROOT / "gui/zap2_gui/models/action_bindings.py").read_text(encoding="utf-8")
+    action_bindings_generated = (ROOT / "gui/zap2_gui/models/action_bindings_generated.py").read_text(encoding="utf-8")
+    if "--operand" not in app_py or "dispatch_legacy_compat" not in app_py:
+        print("P04d canonical operand / selector-scoped compatibility boundary отсутствует")
+        return 1
+    if "P04D_GENERATED_ACTION_CONTRACTS" not in action_catalog or "ACTION_CONTRACTS" not in action_catalog:
+        print("P04d полный ActionContract catalog не зафиксирован")
+        return 1
+    if "GENERATED_LEGACY_ACTION_BINDINGS" not in action_bindings or "GENERATED_BINDING_BY_SELECTOR" not in action_bindings:
+        print("P04d generated selector/action bindings не зафиксированы")
+        return 1
+    if "GENERATED_LEGACY_ACTION_SPECS" not in action_bindings_generated:
+        print("P04d generated action binding projection отсутствует")
+        return 1
+    if "remaining_legacy_only_selectors" not in legacy_cli or "GENERATED_BINDING_BY_SELECTOR" not in legacy_cli:
+        print("P04d legacy CLI closure не зафиксирована")
+        return 1
+    if "117/117" not in p04d_doc or "119" not in p04d_doc or "READY_FOR_USE_WITHIN_P04D" not in p04d_doc:
+        print("P04d documentation/acceptance boundary не зафиксирована")
+        return 1
+
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
     if "русском" not in language_doc or "проектная документация" not in language_doc:
         print("Правило русского языка документации не зафиксировано")
@@ -563,7 +594,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.7 + P04c корректно: P03f принят, PyQt-интерфейс, русская документация, инвентаризация ядра, карта сборки, адаптеры и runtime-контракты зафиксированы")
+    print("Дерево v0.8-rc4 + P04d/RC4 корректно: P03f/P04a/P04b/P04c приняты, ActionContract closure, русская документация, инвентаризация ядра, адаптеры и runtime-контракты зафиксированы")
     return 0
 
 

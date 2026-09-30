@@ -3,12 +3,12 @@
 ## Текущая версия
 
 ```text
-v0.7
-Python package: 0.7.0
-Development line: P04c ActionContract dispatcher foundation toward v0.8
+v0.7 accepted baseline / v0.8 RC4 candidate
+Python package: 0.8.0rc4
+Development line: P04d/RC4 ActionContract closure toward v0.8
 ```
 
-`v0.7` — последняя принятая продуктовая версия. P03f owner-host acceptance подтвердил runnable generation/build/parser/privilege/runtime lifecycle для pinned zapret2 `1.0.6@00f5aaa` и завершился `READY_FOR_USE_WITHIN_P03`. P04a и P04b приняты (`READY_FOR_USE_WITHIN_P04A`, `READY_FOR_USE_WITHIN_P04B`); текущий HEAD реализует P04c. `v0.8` не присваивается до завершения всего P04/RC4. Универсальная сетевая стратегия по-прежнему не является обещанием версии.
+`v0.7` — последняя принятая продуктовая версия. P03f owner-host acceptance подтвердил runnable generation/build/parser/privilege/runtime lifecycle для pinned zapret2 `1.0.6@00f5aaa` и завершился `READY_FOR_USE_WITHIN_P03`. P04a, P04b и P04c приняты (`READY_FOR_USE_WITHIN_P04A/B/C`); текущий HEAD реализует P04d и поэтому использует prerelease package version `0.8.0rc4`. Финальный `v0.8` не считается принятой версией до owner acceptance P04d/RC4. Универсальная сетевая стратегия по-прежнему не является обещанием версии.
 
 ## Формат
 
@@ -63,9 +63,9 @@ Blockcheck -> AVAILABLE -> generated strategy -> selection -> Default workflow -
 
 Принят P03/P03f: pinned zapret2 `1.0.6@00f5aaa`, LuaCompat 6, explicit overlays/source transform, whole-generation receipt и bounded drop-identity recovery. Owner-host `hyperpatch_acceptance.sh --p03` завершён с `READY_FOR_USE_WITHIN_P03`.
 
-### P04a/P04b/P04c -> v0.8 candidate
+### P04a/P04b/P04c/P04d -> v0.8 candidate
 
-P04a синхронизировал post-P03f baseline и зафиксировал ontology/REP/CLI/S-INSTALL evidence. P04b добавил explicit resource-root contract и location-independent immutable execution Plan. P04c вводит canonical `--action`, executable ActionContract dispatcher для bounded runtime/default slice и contradiction gate для всех 117 legacy action selectors. Это ещё не `v0.8`: 91 legacy-only selector и 100% meaningful action coverage/lint/generated projections остаются P04d.
+P04a синхронизировал post-P03f baseline и зафиксировал ontology/REP/CLI/S-INSTALL evidence. P04b добавил explicit resource-root contract и location-independent immutable execution Plan. P04c ввёл canonical `--action`, bounded executable dispatcher и global contradiction gate. P04d закрывает 117/117 legacy selector destinations, 119/119 ActionContract handlers, generated metadata/projection и roundtrip/lint acceptance. До owner acceptance это RC4 candidate (`0.8.0rc4`), а не принятый финальный `v0.8`.
 
 ## Исторические stage ID
 

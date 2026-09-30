@@ -1,6 +1,6 @@
 # ADR P04 — domain ontology и ActionContract boundary
 
-Статус: **P04a/P04b accepted; P04c executable ActionContract dispatcher implemented for bounded runtime/default slice; full coverage remains P04d**.
+Статус: **P04a/P04b/P04c accepted; P04d closes full ActionContract coverage and RC4 projections**.
 
 ## Решение
 
@@ -34,7 +34,7 @@ Evidence / Verdict / Capability
 
 ## ActionContract
 
-`ActionContract` является декларацией **исполняемого** action и одновременно источником projection metadata. Видимый action без handler недопустим; internal/debug action должен быть помечен явно. P04c добавляет executable catalog/dispatcher для 28 действий и canonical `--action`; 26 legacy selector destinations переводятся в эти contracts. Весь legacy CLI ещё не объявлен migrated: 91 selector destination остаётся P04d scope.
+`ActionContract` является декларацией **исполняемого** action и одновременно источником projection metadata. Видимый action без handler недопустим; internal/debug action должен быть помечен явно. P04c добавил bounded executable catalog/dispatcher и canonical `--action`; P04d расширяет authority на все 117 historical selectors. Итоговый catalog содержит 119 canonical actions и 119 handlers, remaining legacy-only selectors = 0.
 
 ```text
 ActionContract

@@ -148,3 +148,22 @@ bash meta_tools/hyperpatch_acceptance.sh --p04c
 ```
 
 Он сверяет frozen ActionContract/legacy-CLI evidence: actual inventory из 117 legacy top-level selectors должен полностью совпасть с compatibility grammar; contradiction gate обязан reject migrated, legacy-only и canonical+legacy conflicts до handler; 28 ActionContracts должны иметь 28 executable handlers; canonical/legacy parity и GUI projection проверяются из той же authority. Затем сохраняется P03 generation identity, запускаются structural gate и полный pytest corpus в изолированных project-copy workers. `sudo`, `nftables`, NFQUEUE, network probes и `nfqws2` не запускаются. PASS marker: `READY_FOR_USE_WITHIN_P04C`.
+
+## P04d / RC4: ActionContract closure acceptance
+
+После owner-accepted P04c финальный bounded gate P04 остаётся read-only и не выполняет сетевых/root-действий:
+
+```bash
+bash meta_tools/hyperpatch_acceptance.sh --p04d
+```
+
+Gate проверяет closure исторического CLI: все 117 selector destinations должны быть contract-backed, remaining legacy-only = 0, каталог и executable dispatcher должны содержать 119 ActionContracts/handlers. Generated binding metadata пересобирается детерминированным генератором и сравнивается byte-for-byte; canonical/legacy parser roundtrip и representative execution parity входят во frozen evidence. Затем сохраняется P03 generation identity, выполняется structural gate и полный pytest corpus в четырёх изолированных worker-копиях с отдельными HOME/XDG/TMP.
+
+P04d acceptance не вызывает `sudo`, не меняет `nftables`/NFQUEUE и не запускает runtime. Успешный owner-host прогон завершается:
+
+```text
+HYPERPATCH ACCEPTANCE: PASS
+readiness: READY_FOR_USE_WITHIN_P04D
+```
+
+До этого marker `0.8.0rc4` остаётся release candidate поверх последней принятой продуктовой версии `v0.7`; только owner acceptance P04d разрешает отдельное решение о promotion финального `v0.8`.

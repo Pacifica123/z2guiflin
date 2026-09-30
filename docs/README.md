@@ -15,11 +15,12 @@
 - `DEVELOPMENT_STRATEGY.md` — порядок развития и принятия решений.
 - `P04B_EXECUTION_PLAN.md` — resource-location contract, immutable execution Plan и compatibility aliases.
 - `P04C_ACTION_DISPATCHER.md` — canonical ActionContract dispatcher, legacy CLI translator и contradiction gate.
-- `VERSIONING.md` — правила версий, принятый v0.7 baseline и P04c toward v0.8.
+- `VERSIONING.md` — правила версий, принятый v0.7 baseline и P04d/RC4 candidate toward v0.8.
 - `DOCUMENTATION_LANGUAGE.md` — язык и границы перевода.
 - `SOURCE_ALIGNMENT.md` — связь с bol-van, loop-uh, Flowseal и другими reference-снимками.
 - `ADR_P04_DOMAIN_ONTOLOGY.md` — canonical nouns, legacy aliases и ActionContract boundary.
-- `P04_REFORENSICS.md` — post-P03f assumptions delta, REP/CLI/S-INSTALL evidence и recompiled DAG.
+- `P04_REFORENSICS.md`
+- `P04D_ACTION_CONTRACT_CLOSURE.md` — финальное закрытие ActionContract coverage/roundtrip/lint для RC4 — post-P03f assumptions delta, REP/CLI/S-INSTALL evidence и recompiled DAG.
 - `PRESET_PROFILE_ARCHITECTURE.md` — модель `пресет -> профили`.
 - `RUNTIME_LIFECYCLE.md` — общий lifecycle runtime.
 - `SAFETY_AND_PRIVILEGE_BOUNDARY.md` — правила безопасности.

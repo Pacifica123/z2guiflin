@@ -1,14 +1,14 @@
-"""P04c executable ActionContract catalog.
+"""P04d executable ActionContract catalog.
 
-This module is intentionally pure metadata. It co-defines the canonical action
-surface used by CLI and GUI projections while execution remains in the adapter
-layer. P04c migrates the bounded runtime/default workflow slice only; P04d is
-responsible for 100% meaningful-action coverage and removal of the remaining
-legacy-only selectors.
+P04d closes the action authority: every legacy top-level selector has a
+canonical ActionContract. Curated P04c runtime/default contracts remain intact;
+the remaining compatibility surface is generated once from the frozen parser
+metadata and validated by the P04d acceptance checker.
 """
 from __future__ import annotations
 
 from .domain_semantics import ActionContract
+from .action_bindings_generated import GENERATED_LEGACY_ACTION_SPECS
 
 
 def _contract(
@@ -367,7 +367,22 @@ P04C_ACTION_CONTRACTS: tuple[ActionContract, ...] = (
 )
 
 
-ACTION_CONTRACT_BY_ID: dict[str, ActionContract] = {contract.action_id: contract for contract in P04C_ACTION_CONTRACTS}
+P04D_GENERATED_ACTION_CONTRACTS: tuple[ActionContract, ...] = tuple(
+    _contract(
+        action_id=str(spec["action_id"]),
+        label=str(spec["label"]),
+        effect=str(spec["effect"]),
+        short_help=str(spec["short_help"]),
+        handler_id=str(spec["handler_id"]),
+        keywords=tuple(str(spec["selector"]).split("_")),
+        privilege=str(spec["privilege"]),
+        legacy_aliases=tuple(str(value) for value in spec["option_strings"]),
+    )
+    for spec in GENERATED_LEGACY_ACTION_SPECS
+)
+
+ACTION_CONTRACTS: tuple[ActionContract, ...] = P04C_ACTION_CONTRACTS + P04D_GENERATED_ACTION_CONTRACTS
+ACTION_CONTRACT_BY_ID: dict[str, ActionContract] = {contract.action_id: contract for contract in ACTION_CONTRACTS}
 
 
 def action_contract(action_id: str) -> ActionContract:
@@ -378,7 +393,29 @@ def action_contract(action_id: str) -> ActionContract:
 
 
 def action_contract_ids() -> tuple[str, ...]:
-    return tuple(contract.action_id for contract in P04C_ACTION_CONTRACTS)
+    return tuple(contract.action_id for contract in ACTION_CONTRACTS)
+
+
+def action_projection_rows() -> tuple[dict[str, object], ...]:
+    """Stable metadata projection shared by CLI/help/GUI tooling.
+
+    This is deliberately generated from ActionContracts rather than maintained
+    as a second registry. P05 may build richer search/help views on this shape.
+    """
+
+    return tuple(
+        {
+            "actionId": contract.action_id,
+            "label": contract.label,
+            "effect": contract.effect,
+            "shortHelp": contract.short_help,
+            "privilege": contract.privilege,
+            "safeInvoke": contract.safe_invoke,
+            "legacyAliases": list(contract.legacy_aliases),
+            "conceptLinks": list(contract.concept_links),
+        }
+        for contract in ACTION_CONTRACTS
+    )
 
 
 def gui_runtime_action_contracts() -> tuple[ActionContract, ...]:
@@ -400,7 +437,7 @@ def validation_errors() -> tuple[str, ...]:
     errors: list[str] = []
     seen_ids: set[str] = set()
     seen_legacy: set[str] = set()
-    for contract in P04C_ACTION_CONTRACTS:
+    for contract in ACTION_CONTRACTS:
         for error in contract.validation_errors():
             errors.append(f"{contract.action_id}: {error}")
         if contract.action_id in seen_ids:

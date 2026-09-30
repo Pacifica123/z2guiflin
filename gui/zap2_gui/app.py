@@ -261,7 +261,7 @@ def describe_project() -> str:
             "launch composer: Stage 7z GUI panel for combining Zapret and tunnel components",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
-            "status: v0.7 accepted baseline; P04c ActionContract dispatcher foundation toward v0.8; strategy results remain environment-dependent",
+            "status: v0.7 accepted baseline; P04d/RC4 ActionContract closure toward v0.8 candidate; strategy results remain environment-dependent",
         ]
     )
 
@@ -272,7 +272,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--action",
         choices=action_contract_ids(),
         metavar="ACTION_ID",
-        help="P04c canonical ActionContract selector; legacy action flags remain compatibility aliases",
+        help="P04d canonical ActionContract selector; every legacy action flag is a compatibility alias",
+    )
+    parser.add_argument(
+        "--operand",
+        action="append",
+        default=[],
+        metavar="VALUE",
+        help="canonical ActionContract operand; repeat for actions that historically took selector arguments",
     )
     parser.add_argument(
         "--gui",
@@ -1115,20 +1122,28 @@ def _blockcheck_options_from_args(args: argparse.Namespace) -> BlockcheckOptions
     )
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
-    try:
-        action_resolution = resolve_cli_action(args)
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
-        return 2
-    if action_resolution.migrated:
-        return dispatch_action(action_resolution.canonical_action_id or "", args)
+def dispatch_legacy_compat(args: argparse.Namespace, expected_selector: str) -> int:
+    """Execute one already-selected historical command body.
+
+    P04d keeps these mature command bodies for behavior compatibility, but this
+    function is not allowed to select an action. The canonical dispatcher passes
+    ``expected_selector`` after ActionContract resolution, and the namespace must
+    contain that selector and no competing top-level selector.
+    """
+
+    from .adapters.legacy_cli import active_legacy_selectors
+
+    active = active_legacy_selectors(args)
+    if active != (expected_selector,):
+        raise ValueError(
+            f"Compatibility executor expected exactly {expected_selector!r}; active selectors: {active!r}"
+        )
+
     if args.gui:
         try:
             from .qt_app import run_gui
 
-            return run_gui(sys.argv if argv is None else [sys.argv[0], *argv])
+            return run_gui([sys.argv[0], "--gui"])
         except PyQtUnavailableError as exc:
             print(str(exc), file=sys.stderr)
             return 2
@@ -1929,6 +1944,24 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 2
 
+    raise ValueError(f"No compatibility body for selector: {expected_selector}")
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        action_resolution = resolve_cli_action(args)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if action_resolution.migrated:
+        return dispatch_action(action_resolution.canonical_action_id or "", args)
+    if action_resolution.legacy_only:
+        print(
+            f"P04d invariant violation: legacy selector {action_resolution.legacy_selector!r} has no ActionContract",
+            file=sys.stderr,
+        )
+        return 2
     print(describe_project())
     return 0
 

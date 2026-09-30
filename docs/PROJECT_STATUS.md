@@ -2,7 +2,7 @@
 
 ## Статус релиза
 
-Последняя принятая версия: `v0.7` (`0.7.0`). P03f owner-host acceptance завершён с `READY_FOR_USE_WITHIN_P03`. P04a и P04b приняты (`READY_FOR_USE_WITHIN_P04A`, `READY_FOR_USE_WITHIN_P04B`). Текущий HEAD: P04c ActionContract dispatcher foundation toward `v0.8`.
+Последняя принятая версия: `v0.7` (`0.7.0`). P03f и P04a/P04b/P04c owner acceptance завершены. Текущий HEAD: **P04d/RC4 candidate**, package version `0.8.0rc4`; финальный `v0.8` требует `READY_FOR_USE_WITHIN_P04D`.
 
 Это рабочий персональный инструмент для исследования и запуска стратегий обхода DPI на Arch-family Linux (включая Arch, EndeavourOS и Manjaro). Версия фиксирует зрелость приложения и его диагностического/runtime-контура. Она не фиксирует одну универсальную рабочую стратегию.
 
@@ -48,21 +48,21 @@
 
 Если нижние уровни исправны, результат может зависеть от конкретного DPI и маршрута. В таком случае проект должен дать наблюдение и воспроизводимый отчёт, а не изображать гарантированную починку.
 
-## Ближайший приоритет: P04 normalized semantics / ActionContract
+## Текущий приоритет: P04d / RC4 ActionContract closure
 
 Следующая архитектурная задача — не очередная стратегия, а устранение semantic/command drift:
 
 1. P04a фиксирует re-forensics, REP/CLI/S-INSTALL evidence и canonical ontology;
 2. P04b вводит resource-location contract и материализует один immutable Plan из разных source/import representations;
 3. P04c переводит bounded runtime/default slice на executable ActionContract/dispatcher и ставит contradiction gate перед всеми 117 legacy action selectors;
-4. P04d мигрирует оставшиеся 91 legacy-only selector destination и закрывает 100% coverage/lint/generated projection/roundtrip acceptance перед P05.
+4. P04d закрывает 117/117 selectors, 119/119 contracts/handlers, generated metadata/projection и roundtrip/lint acceptance перед P05.
 
 Подробно: `P04_REFORENSICS.md`. Остальные продуктовые пробелы остаются в `KNOWN_GAPS_CHECKLISTS.md`.
 
 
-### P04c action authority
+### P04d action authority / RC4
 
-Canonical `--action <contract-id>` и 26 legacy selector destinations сходятся в одном dispatcher для 28 ActionContracts. Все 117 post-P04b legacy top-level action selectors проходят единый contradiction gate до handler; first-match ordering больше не может молча выбирать действие при противоречивом argv. Основные GUI Default workflow tooltips проецируются из тех же contracts. Полная миграция ещё не завершена: 91 selector destination остаётся legacy-only до P04d.
+Все 117 historical selector destinations переводятся в canonical ActionContracts до исполнения; `runtime_plan` даёт три canonical actions, поэтому catalog закрыт на 119 actions/119 handlers. `main()` не содержит legacy first-match dispatch. Проверенные старые command bodies остаются selector-scoped compatibility executor только после contract selection. Generated bindings воспроизводимы из parser surface, canonical operands поддерживают legacy selector values, а projection metadata строится из единого ActionContract catalog. Подробности: `P04D_ACTION_CONTRACT_CLOSURE.md`.
 
 ### P04b execution authority
 

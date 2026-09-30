@@ -1,10 +1,10 @@
-"""P04c legacy flat-CLI compatibility grammar.
+"""P04d legacy flat-CLI compatibility grammar.
 
-The old CLI accepted many top-level action selectors and relied on first-match
-``if`` ordering. P04c freezes that selector surface as compatibility data and
-rejects contradictory selectors before any handler can run. This module does
-not define action metadata or handlers; migrated legacy selectors translate to
-the canonical ActionContract IDs from ``models.action_catalog``.
+Every historical top-level action selector now translates to a canonical
+ActionContract before execution. The compatibility grammar remains accepted,
+but there are no legacy-only selectors and first-match ordering is no longer an
+action authority. Canonical actions that need the old selector operand use
+``--operand`` and are materialized only inside the selected contract handler.
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..models.action_catalog import ACTION_CONTRACT_BY_ID
+from ..models.action_bindings import GENERATED_BINDING_BY_SELECTOR
 
 
 # Exactly the argparse destinations referenced by top-level dispatch branches in
@@ -201,7 +202,10 @@ def _translate_migrated_selector(selector: str, args: Any) -> str | None:
         action = str(getattr(args, "runtime_plan", "") or "").strip()
         candidate = f"runtime.plan.{action}"
         return candidate if candidate in ACTION_CONTRACT_BY_ID else None
-    return STATIC_MIGRATED_SELECTOR_MAP.get(selector)
+    if selector in STATIC_MIGRATED_SELECTOR_MAP:
+        return STATIC_MIGRATED_SELECTOR_MAP[selector]
+    binding = GENERATED_BINDING_BY_SELECTOR.get(selector)
+    return binding.action_id if binding is not None else None
 
 
 def resolve_cli_action(args: Any) -> CliActionResolution:
@@ -216,6 +220,9 @@ def resolve_cli_action(args: Any) -> CliActionResolution:
 
     legacy = active_legacy_selectors(args)
     canonical = str(getattr(args, "action", "") or "").strip() or None
+    operands = tuple(str(value) for value in (getattr(args, "operand", ()) or ()))
+    if operands and not canonical:
+        raise ValueError("--operand requires canonical --action; legacy selectors carry their own operand value")
     selector_tokens = (("action",) if canonical else ()) + legacy
     if len(selector_tokens) > 1:
         pretty = ["--action" if item == "action" else "--" + item.replace("_", "-") for item in selector_tokens]
@@ -233,4 +240,10 @@ def resolve_cli_action(args: Any) -> CliActionResolution:
 
 
 def migrated_legacy_selectors() -> tuple[str, ...]:
-    return tuple(sorted((*STATIC_MIGRATED_SELECTOR_MAP.keys(), "runtime_plan")))
+    """All historical top-level selectors are contract-backed in P04d."""
+
+    return tuple(sorted(LEGACY_SELECTOR_DESTS))
+
+
+def remaining_legacy_only_selectors() -> tuple[str, ...]:
+    return tuple(selector for selector in LEGACY_SELECTOR_DESTS if selector not in migrated_legacy_selectors())

@@ -108,3 +108,8 @@ zap2_gui.app --gui`: из корня проекта используется `./
 ## P04c: ActionContract dispatcher
 
 CLI и GUI начинают сходиться на одной executable action authority. `models/action_catalog.py` содержит pure ActionContracts, `adapters/action_dispatcher.py` связывает их с handlers, а `adapters/legacy_cli.py` переводит совместимые legacy selectors и отвергает противоречивые selector combinations до исполнения. Canonical CLI form для мигрированного slice: `--action <contract-id>`. Overview start/status/stop tooltips читаются из того же catalog. Полная миграция legacy actions остаётся P04d.
+
+
+## P04d: ActionContract closure
+
+Все 117 historical top-level selectors переводятся в 119 canonical ActionContracts до исполнения. `main()` больше не выбирает action по first-match branch order; compatibility bodies вызываются только выбранным dispatcher contract. Canonical selector values передаются через повторяемый `--operand`.

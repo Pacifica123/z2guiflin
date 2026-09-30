@@ -1,15 +1,18 @@
-"""P04c canonical ActionContract dispatcher.
+"""P04d canonical ActionContract dispatcher.
 
-The dispatcher is the executable authority for the bounded P04c action slice.
-CLI and GUI project the same ActionContracts. Legacy CLI spellings are resolved
-before this module is called; handlers never inspect competing selector flags.
+All historical top-level CLI actions are contract-backed. Curated P04c handlers
+remain explicit; the rest execute their already-tested command body through a
+selector-scoped compatibility executor. The compatibility executor is never an
+action selector: the ActionContract has already been selected before it runs.
 """
 from __future__ import annotations
 
 import sys
+from argparse import Namespace
 from typing import Any, Callable
 
-from ..models.action_catalog import ACTION_CONTRACT_BY_ID, P04C_ACTION_CONTRACTS
+from ..models.action_catalog import ACTION_CONTRACT_BY_ID, ACTION_CONTRACTS
+from ..models.action_bindings import GENERATED_LEGACY_ACTION_BINDINGS, LegacyActionBinding
 from .runtime_contracts import runtime_contracts_to_text, validate_runtime_contracts_to_text
 from .runtime_plan_generator import runtime_plan_to_text
 from .runtime_state import runtime_log_to_text
@@ -160,6 +163,70 @@ def _gui_overview(args: Any) -> int:
     return _print(gui_first_runtime_overview_to_text(profile_id=args.profile, developer=bool(args.gui_first_developer)))
 
 
+def _materialize_compat_selector(binding: LegacyActionBinding, args: Any) -> Namespace:
+    """Create a namespace containing exactly one historical selector.
+
+    Legacy invocation already carries its selector value. Canonical invocation
+    supplies selector operands through ``--operand``. In both cases this helper
+    clears every other legacy selector before entering the compatibility body,
+    so historical branch order cannot select the operation.
+    """
+
+    from .legacy_cli import LEGACY_SELECTOR_DESTS, _selector_active
+
+    data = dict(vars(args))
+    current = data.get(binding.selector)
+    operands = tuple(str(value) for value in (data.get("operand") or ()))
+    legacy_invocation = _selector_active(current)
+
+    for selector in LEGACY_SELECTOR_DESTS:
+        value = data.get(selector)
+        if isinstance(value, bool):
+            data[selector] = False
+        else:
+            data[selector] = None
+
+    if legacy_invocation:
+        if operands:
+            raise ValueError("--operand cannot be combined with a legacy action selector")
+        value = current
+    else:
+        if len(operands) != binding.operand_arity:
+            raise ValueError(
+                f"ActionContract {binding.action_id} requires {binding.operand_arity} operand(s); "
+                f"received {len(operands)}. Use repeated --operand VALUE."
+            )
+        if binding.operand_arity == 0:
+            value = True
+        elif binding.operand_arity == 1:
+            value = operands[0]
+        else:
+            value = list(operands)
+
+    if binding.choices:
+        values = (value,) if binding.operand_arity == 1 else tuple(value if isinstance(value, (tuple, list)) else ())
+        invalid = [str(item) for item in values if str(item) not in binding.choices]
+        if invalid:
+            raise ValueError(
+                f"ActionContract {binding.action_id} operand must be one of: {', '.join(binding.choices)}; "
+                f"received: {', '.join(invalid)}"
+            )
+
+    data[binding.selector] = value
+    return Namespace(**data)
+
+
+def _legacy_compat_handler(binding: LegacyActionBinding) -> ActionHandler:
+    def handler(args: Any) -> int:
+        # Lazy import avoids app -> dispatcher -> app import recursion.
+        from ..app import dispatch_legacy_compat
+
+        compat_args = _materialize_compat_selector(binding, args)
+        return dispatch_legacy_compat(compat_args, expected_selector=binding.selector)
+
+    return handler
+
+
 ACTION_HANDLERS: dict[str, ActionHandler] = {
     "runtime.contracts.show": _runtime_contracts_show,
     "runtime.contracts.validate": _runtime_contracts_validate,
@@ -191,10 +258,13 @@ ACTION_HANDLERS: dict[str, ActionHandler] = {
     "gui.overview.show": _gui_overview,
 }
 
+for _binding in GENERATED_LEGACY_ACTION_BINDINGS:
+    ACTION_HANDLERS[_binding.action_id] = _legacy_compat_handler(_binding)
+
 
 def dispatcher_validation_errors() -> tuple[str, ...]:
     errors: list[str] = []
-    contract_handler_ids = {contract.handler_id for contract in P04C_ACTION_CONTRACTS if contract.handler_id}
+    contract_handler_ids = {contract.handler_id for contract in ACTION_CONTRACTS if contract.handler_id}
     handler_ids = set(ACTION_HANDLERS)
     missing = sorted(contract_handler_ids - handler_ids)
     extra = sorted(handler_ids - contract_handler_ids)

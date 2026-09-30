@@ -5,16 +5,18 @@ import argparse
 import pytest
 
 from zap2_gui.app import build_parser, main
-from zap2_gui.adapters.action_dispatcher import dispatcher_validation_errors
+from zap2_gui.adapters.action_dispatcher import ACTION_HANDLERS, dispatcher_validation_errors
 from zap2_gui.adapters.legacy_cli import (
     LEGACY_SELECTOR_DESTS,
-    STATIC_MIGRATED_SELECTOR_MAP,
     migrated_legacy_selectors,
+    remaining_legacy_only_selectors,
     resolve_cli_action,
 )
+from zap2_gui.models.action_bindings import GENERATED_LEGACY_ACTION_BINDINGS
 from zap2_gui.models.action_catalog import (
     ACTION_CONTRACT_BY_ID,
     action_contract_ids,
+    action_projection_rows,
     gui_runtime_action_contracts,
     validation_errors,
 )
@@ -24,11 +26,12 @@ def _parse(*argv: str) -> argparse.Namespace:
     return build_parser().parse_args(list(argv))
 
 
-def test_p04c_contract_catalog_and_dispatcher_are_closed() -> None:
-    assert len(action_contract_ids()) == 28
+def test_p04d_contract_catalog_and_dispatcher_are_closed() -> None:
+    assert len(action_contract_ids()) == 119
+    assert len(ACTION_HANDLERS) == 119
     assert not validation_errors()
     assert not dispatcher_validation_errors()
-    assert set(STATIC_MIGRATED_SELECTOR_MAP.values()) <= set(ACTION_CONTRACT_BY_ID)
+    assert set(ACTION_HANDLERS) == {contract.handler_id for contract in ACTION_CONTRACT_BY_ID.values()}
 
 
 def test_legacy_runtime_plan_translates_to_same_contract() -> None:
@@ -45,12 +48,9 @@ def test_canonical_action_selector_resolves_without_legacy_alias() -> None:
     assert resolution.active_selectors == ("action",)
 
 
-def test_contradictory_migrated_legacy_selectors_fail_before_dispatch() -> None:
+def test_contradictory_legacy_selectors_fail_before_dispatch() -> None:
     with pytest.raises(ValueError, match="Contradictory action selectors"):
         resolve_cli_action(_parse("--runtime-plan", "status", "--default-status"))
-
-
-def test_contradictory_unmigrated_legacy_selectors_also_fail() -> None:
     with pytest.raises(ValueError, match="Contradictory action selectors"):
         resolve_cli_action(_parse("--list-presets", "--list-strategies"))
 
@@ -58,6 +58,11 @@ def test_contradictory_unmigrated_legacy_selectors_also_fail() -> None:
 def test_canonical_plus_legacy_selector_is_rejected_even_if_equivalent() -> None:
     with pytest.raises(ValueError, match="Contradictory action selectors"):
         resolve_cli_action(_parse("--action", "default.workflow.status", "--default-status"))
+
+
+def test_operand_requires_canonical_action() -> None:
+    with pytest.raises(ValueError, match="--operand requires canonical --action"):
+        resolve_cli_action(_parse("--operand", "manual-local"))
 
 
 def test_cli_conflict_returns_two_without_running_a_handler(capsys: pytest.CaptureFixture[str]) -> None:
@@ -79,15 +84,31 @@ def test_canonical_and_legacy_runtime_plan_have_identical_output(capsys: pytest.
     assert "normalized execution plan:" in canonical.out
 
 
-def test_single_unmigrated_selector_remains_legacy_compatible(capsys: pytest.CaptureFixture[str]) -> None:
-    resolution = resolve_cli_action(_parse("--list-presets"))
-    assert resolution.legacy_only is True
-    assert resolution.canonical_action_id is None
-    rc = main(["--list-presets"])
+def test_p04d_generated_zero_operand_action_has_execution_parity(capsys: pytest.CaptureFixture[str]) -> None:
+    legacy_rc = main(["--list-presets"])
+    legacy = capsys.readouterr()
+    canonical_rc = main(["--action", "preset.list"])
+    canonical = capsys.readouterr()
+    assert legacy_rc == canonical_rc == 0
+    assert legacy.err == canonical.err == ""
+    assert legacy.out == canonical.out
+
+
+def test_p04d_generated_operand_action_has_execution_parity(capsys: pytest.CaptureFixture[str]) -> None:
+    legacy_rc = main(["--show-preset", "manual-local"])
+    legacy = capsys.readouterr()
+    canonical_rc = main(["--action", "preset.show", "--operand", "manual-local"])
+    canonical = capsys.readouterr()
+    assert legacy_rc == canonical_rc == 0
+    assert legacy.err == canonical.err == ""
+    assert legacy.out == canonical.out
+
+
+def test_canonical_operand_arity_fails_closed(capsys: pytest.CaptureFixture[str]) -> None:
+    rc = main(["--action", "preset.show"])
     captured = capsys.readouterr()
-    assert rc == 0
-    assert captured.err == ""
-    assert captured.out.strip()
+    assert rc == 2
+    assert "requires 1 operand" in captured.err
 
 
 def test_gui_projection_comes_from_same_contract_catalog() -> None:
@@ -98,9 +119,14 @@ def test_gui_projection_comes_from_same_contract_catalog() -> None:
         "default.workflow.stop",
     )
     assert all(contract in ACTION_CONTRACT_BY_ID.values() for contract in projected)
+    rows = action_projection_rows()
+    assert len(rows) == len(ACTION_CONTRACT_BY_ID)
+    assert {row["actionId"] for row in rows} == set(ACTION_CONTRACT_BY_ID)
 
 
-def test_global_legacy_selector_inventory_is_unique_and_has_migrated_subset() -> None:
+def test_all_historical_selectors_are_contract_backed() -> None:
     assert len(LEGACY_SELECTOR_DESTS) == 117
     assert len(set(LEGACY_SELECTOR_DESTS)) == len(LEGACY_SELECTOR_DESTS)
-    assert set(migrated_legacy_selectors()) <= set(LEGACY_SELECTOR_DESTS)
+    assert set(migrated_legacy_selectors()) == set(LEGACY_SELECTOR_DESTS)
+    assert remaining_legacy_only_selectors() == ()
+    assert len(GENERATED_LEGACY_ACTION_BINDINGS) == 91

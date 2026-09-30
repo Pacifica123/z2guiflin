@@ -18,9 +18,9 @@ BASELINE = ROOT / "runtime/p04/p04a-frozen-evidence.json"
 
 
 def test_p03f_acceptance_promotes_product_baseline_before_p04() -> None:
-    assert PRODUCT_LABEL == "v0.7"
-    assert __version__ == "0.7.0"
-    assert DEVELOPMENT_LINE == "P04c ActionContract dispatcher foundation toward v0.8"
+    assert PRODUCT_LABEL == "v0.8-rc4"
+    assert __version__ == "0.8.0rc4"
+    assert DEVELOPMENT_LINE == "P04d/RC4 ActionContract closure toward v0.8"
     status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
     versioning = (ROOT / "docs/VERSIONING.md").read_text(encoding="utf-8")
     assert "READY_FOR_USE_WITHIN_P03" in status
@@ -28,6 +28,8 @@ def test_p03f_acceptance_promotes_product_baseline_before_p04() -> None:
     assert "P04a" in versioning
     assert "P04b" in versioning
     assert "P04c" in versioning
+    assert "P04d" in versioning
+    assert "0.8.0rc4" in versioning
 
 
 def test_p04_ontology_names_core_domain_concepts() -> None:
@@ -107,9 +109,11 @@ def test_p04_recompiled_dag_keeps_p05_waiting() -> None:
     assert "P05 waits for P04d" in dag
 
 
-def test_p04_docs_do_not_claim_full_p04_or_v08_acceptance() -> None:
+def test_p04_docs_mark_p04d_current_without_claiming_owner_accepted_v08() -> None:
     text = (ROOT / "docs/P04_REFORENSICS.md").read_text(encoding="utf-8")
     assert "P04a" in text
     assert "READY_FOR_USE_WITHIN_P04A" in text
     assert "P04b" in text and "P04c" in text and "P04d" in text
+    assert "P04d" in text and "CURRENT" in text
+    assert "0.8.0rc4" in text
     assert "не" in text.lower() and "v0.8" in text

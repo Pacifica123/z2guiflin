@@ -1,0 +1,305 @@
+{
+  "actionContracts": {
+    "catalogValid": true,
+    "contractCount": 119,
+    "dispatcherClosed": true,
+    "generatedContractCount": 91,
+    "handlerCount": 119,
+    "handlerIdsMatchContracts": true
+  },
+  "assumptionsDelta": {
+    "confirmed": [
+      "all 117 historical top-level action selectors resolve to canonical ActionContracts before execution",
+      "main() no longer contains first-match legacy action dispatch",
+      "119 canonical actions are closed over 119 executable dispatcher handlers",
+      "generated compatibility metadata is reproducible from the frozen parser surface",
+      "canonical and legacy action forms roundtrip across every contract and representative execution outputs are identical"
+    ],
+    "stillOpen": [
+      "full S-INSTALL package-data bundling and writable-state separation remain unresolved",
+      "P05 may build richer search/help UX on the now-stable ActionContract projection",
+      "owner acceptance is still required before promoting the RC4 candidate to accepted v0.8"
+    ]
+  },
+  "contradictionGate": {
+    "allMentionContradiction": true,
+    "allRejectedWithTwo": true,
+    "allStdoutEmpty": true,
+    "caseCount": 3,
+    "operandWithoutActionRejected": true
+  },
+  "executionParity": {
+    "allPairsEqual": true,
+    "pairCount": 5,
+    "pairs": [
+      {
+        "canonical": [
+          "--action",
+          "runtime.plan.status",
+          "--profile",
+          "default"
+        ],
+        "canonicalRc": 0,
+        "legacy": [
+          "--runtime-plan",
+          "status",
+          "--profile",
+          "default"
+        ],
+        "legacyRc": 0,
+        "normalizedOutputSha256": "21fe49394e5271f1f92b673908e3c406e92e9bd260712ecb9b3ea9cf05f28b88",
+        "normalizedStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputsEqual": true,
+        "stderrEqual": true
+      },
+      {
+        "canonical": [
+          "--action",
+          "preset.list"
+        ],
+        "canonicalRc": 0,
+        "legacy": [
+          "--list-presets"
+        ],
+        "legacyRc": 0,
+        "normalizedOutputSha256": "38a392ee29a38df515bb87b06a2ebbd670a636c257eb96829c28d0a778db542d",
+        "normalizedStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputsEqual": true,
+        "stderrEqual": true
+      },
+      {
+        "canonical": [
+          "--action",
+          "preset.show",
+          "--operand",
+          "manual-local"
+        ],
+        "canonicalRc": 0,
+        "legacy": [
+          "--show-preset",
+          "manual-local"
+        ],
+        "legacyRc": 0,
+        "normalizedOutputSha256": "d0387c439572393a3e80dc1ce31ffb24dcff10200c5314a26f06c5a939a3a861",
+        "normalizedStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputsEqual": true,
+        "stderrEqual": true
+      },
+      {
+        "canonical": [
+          "--action",
+          "build.plan",
+          "--build-target",
+          "nfqws2"
+        ],
+        "canonicalRc": 0,
+        "legacy": [
+          "--build-plan",
+          "--build-target",
+          "nfqws2"
+        ],
+        "legacyRc": 0,
+        "normalizedOutputSha256": "e718fd605550201ad7889f0196fa195e0291d9fac212b370383665ff7b99e6a7",
+        "normalizedStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputsEqual": true,
+        "stderrEqual": true
+      },
+      {
+        "canonical": [
+          "--action",
+          "har.plan"
+        ],
+        "canonicalRc": 0,
+        "legacy": [
+          "--har-plan"
+        ],
+        "legacyRc": 0,
+        "normalizedOutputSha256": "ae019e32158d88686bb2ca4f472796a2ebf07d64588a16cdd7d755d8a037dc33",
+        "normalizedStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputsEqual": true,
+        "stderrEqual": true
+      }
+    ]
+  },
+  "generatedMetadata": {
+    "generatedBindingCount": 91,
+    "generatedMetadataMatchesGenerator": true,
+    "generatedMetadataSha256": "1b22bf6f06f8dfebe10b2f45042bd20c058b31f1c6ea0191c9f1a4dfb9c7bc34"
+  },
+  "inputSha256": {
+    "docs/P04D_ACTION_CONTRACT_CLOSURE.md": "8407032af45bacada50370e4459f1622afdde4542a5606f107945f3d9f631eb7",
+    "gui/zap2_gui/adapters/action_dispatcher.py": "1e49ba135934e7cd5fd7bb3ec957609ec8257a58daa12c2368d986368d9896e2",
+    "gui/zap2_gui/adapters/legacy_cli.py": "5f4e318db8233cf0586fa1a0c91ceae1847ffdca1c9d1f6a896bf4e5130e9297",
+    "gui/zap2_gui/app.py": "bea3ccd64d8ee09c14b80370f374177d029147c05f182dcb1ec6f38d000056da",
+    "gui/zap2_gui/models/action_bindings.py": "26cf4648524838bb91fccd7229d7284855f999b2565aab6ba2b2ffcfab03d5a8",
+    "gui/zap2_gui/models/action_bindings_generated.py": "1b22bf6f06f8dfebe10b2f45042bd20c058b31f1c6ea0191c9f1a4dfb9c7bc34",
+    "gui/zap2_gui/models/action_catalog.py": "901da3ffd47073334bbebac29c2de17b031a42123266c7a90aff4950157590bd",
+    "gui/zap2_gui/widgets/runtime_controls.py": "82c9467c1a9eda117d11b5b1e4859788ddd1293291a0d54ef9a870114c1e2422",
+    "meta_tools/generate_p04d_action_bindings.py": "1dda1f5083ab1de89dfc8cdd7a9dcdc908454128f6b1c4efc4db0ca8f6f086df",
+    "meta_tools/hyperpatch_acceptance.sh": "82bcb2aa69e644a085989109bab8d1270076a39f35ac82750b379579d0de0feb",
+    "tests/test_action_dispatcher.py": "6849c3356a162144e5da79827a452b95f6987d98e0689d434b7b655ff50c0366",
+    "tests/test_p04d_action_contract_closure.py": "1e6fc81754a9a98c63b16498f1f0c91d70f1aad2e32da954e51f882debd9fd07",
+    "tools/gui_checks/check_p04d_action_contracts.py": "8eb5f29827714a0b2112c46e333eae7ba4d00cee0041e76137662f590f78a313",
+    "tools/gui_checks/check_p04d_regression.py": "4ffb71c0bbaa774ae352b0de71fcc226ef28cbb02451039371738d5d892eabf3",
+    "tools/gui_checks/check_project_tree.py": "d3d37293464f307ed9ab16cfe1c56eaa4831d1e1621c8226258a7707b189ba22"
+  },
+  "legacyCompatibilityGrammar": {
+    "compatibilityBodySelectorCount": 117,
+    "compatibilityInventoryMatches": true,
+    "mainLegacySelectorBranchCount": 0,
+    "migratedSelectorCount": 117,
+    "remainingLegacyOnlySelectorCount": 0,
+    "selectorCount": 117
+  },
+  "parentP04cEvidenceSha256": "f455e8ceaf2220894423496a42419c9d5eb8474b036145a2942128950dd03a3d",
+  "parser": {
+    "canonicalActionChoiceCount": 119,
+    "canonicalActionChoices": [
+      "runtime.contracts.show",
+      "runtime.contracts.validate",
+      "runtime.plan.start",
+      "runtime.plan.stop",
+      "runtime.plan.status",
+      "runtime.logs.show",
+      "runtime.logs.snapshot",
+      "runtime.owner-rules.plan.apply",
+      "runtime.owner-rules.plan.revert",
+      "runtime.owner-rules.apply",
+      "runtime.owner-rules.revert",
+      "runtime.owner-rules.reconcile",
+      "runtime.session.start",
+      "runtime.session.status",
+      "runtime.session.stop",
+      "runtime.nft-state.show",
+      "runtime.kernel.status",
+      "default.build.dependencies.inspect",
+      "default.build.plan",
+      "default.build.apply",
+      "default.workflow.plan.start",
+      "default.workflow.plan.stop",
+      "default.workflow.start",
+      "default.workflow.status",
+      "default.workflow.stop",
+      "privileged.executor.status",
+      "privileged.executor.install-plan",
+      "gui.overview.show",
+      "gui.launch",
+      "build.plan",
+      "security.blocklist.status",
+      "security.blocklist.enable",
+      "security.blocklist.enable-inbound",
+      "security.blocklist.disable",
+      "security.blocklist.update",
+      "security.blocklist.apply",
+      "security.blocklist.refresh",
+      "security.blocklist.timer.plan",
+      "security.blocklist.timer.install",
+      "security.blocklist.timer.remove",
+      "launch.composer.status",
+      "launch.composer.plan",
+      "launch.composer.start",
+      "launch.composer.stop",
+      "discord.verification.plan",
+      "discord.verification.template.create",
+      "discord.endpoint.plan",
+      "discord.endpoint.watch",
+      "discord.endpoint.report",
+      "discord.netlog.plan",
+      "har.plan",
+      "har.analyze",
+      "har.report",
+      "har.workbench",
+      "har.workbench.report",
+      "har.group.plan",
+      "discord.har.plan",
+      "discord.har.analyze",
+      "discord.har.report",
+      "discord.har.workbench",
+      "discord.har.workbench.report",
+      "discord.har.group.plan",
+      "discord.voice.profiles",
+      "discord.dns.edge.plan",
+      "discord.dns.edge.check",
+      "external.reference.audit",
+      "tunnel.connection.vless.import",
+      "tunnel.connection.list",
+      "tunnel.connection.select",
+      "tor.backend.plan",
+      "tor.backend.start",
+      "tor.backend.status",
+      "tor.backend.stop",
+      "discord.tunnel.plan",
+      "discord.tunnel.core.preflight",
+      "discord.tunnel.start",
+      "discord.tunnel.stop",
+      "discord.tunnel.status",
+      "discord.tunnel.probe",
+      "discord.tunnel.https.probe",
+      "discord.tunnel.route.diagnose",
+      "discord.tunnel.evidence",
+      "discord.tunnel.guided.run",
+      "discord.tunnel.tun.plan",
+      "discord.proxy.route.plan",
+      "discord.socks.launch",
+      "discord.socks.stop",
+      "strategy.parser.preflight",
+      "runtime.plan.prepare",
+      "runtime.plan.confirm",
+      "runtime.pretls.probe",
+      "runtime.discord.pretls.guided.probe",
+      "discord.observation.matrix.plan",
+      "discord.observation.matrix.report",
+      "discord.observation.matrix.run.row",
+      "service.plan",
+      "service.apply",
+      "runtime.state.migrate",
+      "gui.privileged-command.show",
+      "blockcheck.preflight",
+      "blockcheck.plan",
+      "blockcheck.build.plan",
+      "blockcheck.build",
+      "blockcheck.run",
+      "blockcheck.last.log",
+      "blockcheck.coverage",
+      "blockcheck.service.policy",
+      "blockcheck.tournament",
+      "blockcheck.strategy-validation.plan",
+      "blockcheck.strategy.export",
+      "preset.select",
+      "strategy.select",
+      "preset.list",
+      "preset.show",
+      "preset.traffic-profile.show",
+      "runtime-context.list",
+      "runtime-context.show",
+      "strategy.list",
+      "strategy.show"
+    ],
+    "operandIsRepeatable": true,
+    "optionStringCount": 167
+  },
+  "patch": "P04d",
+  "projection": {
+    "catalogMatchesProjection": true,
+    "projectionSha256": "32629e679f73a54a2010669326dae441789219d37778befacaf9a1acdc9e3aab",
+    "rowCount": 119,
+    "runtimeGuiProjectedIds": [
+      "default.workflow.start",
+      "default.workflow.status",
+      "default.workflow.stop"
+    ],
+    "runtimeWidgetConsumesContracts": true,
+    "uniqueActionIds": 119
+  },
+  "recompiledDag": [
+    "P04d accepted -> RC4 ActionContract closure complete / v0.8 candidate eligible for promotion",
+    "accepted RC4/v0.8 -> P05 search/help/capability projection work"
+  ],
+  "roundtrip": {
+    "allRoundtripsPass": true,
+    "expectedCaseCount": 119,
+    "failures": [],
+    "roundtripCaseCount": 119
+  },
+  "schemaVersion": 1
+}

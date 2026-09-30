@@ -18,12 +18,12 @@ P04a  ACCEPTED: freeze evidence + version/docs sync + ontology/ActionContract fo
 P04b  ACCEPTED: resource-location contract + normalized immutable Plan materializer
       + runtimeContext/preset compatibility migration
   ↓
-P04c  CURRENT: executable ActionContract dispatcher + GUI projection
+P04c  ACCEPTED: executable ActionContract dispatcher + GUI projection
       + legacy CLI translator + contradiction gate
   ↓
-P04d  100% action coverage / migration / roundtrip / lint acceptance
+P04d  CURRENT: 100% action coverage / migration / roundtrip / lint acceptance
   ↓
-RC4 / v0.8 candidate
+RC4 / v0.8 candidate (package 0.8.0rc4 until owner acceptance)
   ↓
 P05
 ```
@@ -124,3 +124,8 @@ bash meta_tools/hyperpatch_acceptance.sh --p04c
 ```
 
 PASS marker: `READY_FOR_USE_WITHIN_P04C`. После него следующий bounded node — P04d.
+
+
+## P04d implemented boundary
+
+P04d переводит все 117 historical selector destinations в ActionContracts и удаляет first-match action authority из `main()`. Catalog/dispatcher закрыт как 119/119, generated compatibility metadata проверяется byte-for-byte, а canonical `--operand` сохраняет параметры legacy selector-команд без второго registry. Frozen evidence: `runtime/p04/p04d-frozen-evidence.json`; acceptance: `bash meta_tools/hyperpatch_acceptance.sh --p04d`. До owner PASS это RC4 candidate, а не принятый final `v0.8`.
