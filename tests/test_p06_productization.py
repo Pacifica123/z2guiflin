@@ -28,7 +28,7 @@ def records(root):return {p.relative_to(root).as_posix():hashlib.sha256(p.read_b
 def tiny(tmp,version='old',text='one'):
     root=tmp/version;root.mkdir();(root/'tools').mkdir();(root/'tools/managed').write_text(text);(root/'presets').mkdir();(root/'presets/user.json').write_text('seed-'+version)
     files={p.relative_to(root).as_posix():{'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'mode':0o644} for p in root.rglob('*') if p.is_file()}
-    manifest={'schemaVersion':1,'version':version,'files':files,'releaseDigest':hashlib.sha256(json.dumps(files,sort_keys=True,separators=(',',':')).encode()).hexdigest()}
+    manifest={'schemaVersion':1,'version':{'old':'0.10.0rc6','new':'1.0.0rc7'}.get(version,version),'files':files,'releaseDigest':hashlib.sha256(json.dumps(files,sort_keys=True,separators=(',',':')).encode()).hexdigest()}
     (root/'RELEASE_MANIFEST.json').write_text(json.dumps(manifest));return root
 
 def test_source_archive_is_byte_reproducible(release):

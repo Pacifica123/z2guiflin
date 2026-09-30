@@ -20,7 +20,7 @@ def allowed(rel: str) -> bool:
     if p.parts[:2]==('meta_tools','devctl'):return False
     # Historical frozen engineering receipts can describe captures; current
     # runtime/session/user evidence must never be a shipping resource.
-    if p.parts[:2] in {('runtime','p05'),('runtime','p06')} :return p.name=='pre-forensics.json'
+    if p.parts[:2] in {('runtime','p05'),('runtime','p06'),('runtime','p07')} :return p.name=='pre-forensics.json'
     return True
 
 

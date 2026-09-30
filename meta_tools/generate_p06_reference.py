@@ -22,7 +22,17 @@ def generated():
     md='# Генерируемый справочник текущих контрактов\n\nЭтот документ автоматически получен из исполняемых контрактов, парсера командной строки, схем состояния, требований возможностей и закреплённого происхождения ядра. Ручное изменение справочника запрещено: исправляется соответствующий источник и повторяется генерация. Проверка свежести входит в единый профиль приёмки. Полные структуры находятся в [reference.json](reference.json). Исторические документы описывают только свои этапы и не подменяют текущий контракт.\n\nВерсия продукта: `'+__version__+'`. Команды оболочки установленного пакета `--about`, `--support-bundle FILE`, `--find QUERY`, `--package-preflight` перечислены отдельно от канонического диспетчера.\n\n| Действие | Эффект | Привилегия | CLI aliases |\n|---|---|---|---|\n'
     for c in ACTION_CONTRACTS:md+='| `'+c.action_id+'` | '+c.effect+' | '+c.privilege+' | '+', '.join('`'+x+'`' for x in c.legacy_aliases)+' |\n'
     md+='\nВозможности: обязательный HTTP для '+', '.join(VESKTOP_MANDATORY_HTTP_TARGETS)+'; WebSocket '+VESKTOP_GATEWAY_TARGET+'; Electron navigation '+VESKTOP_MAIN_WINDOW_TARGET+'. Отсутствующее доказательство остаётся UNKNOWN/NOT_RUN. Идентификаторы схем и SHA256 происхождения опубликованы в JSON; продукт, upstream, внешний core и evidence являются независимыми осями.\n'
-    return {'docs/generated/reference.json':raw,'docs/generated/reference.md':md}
+    outputs={'docs/generated/reference.json':raw,'docs/generated/reference.md':md}
+    profile=ROOT/'docs/developer/p07-contract.json'
+    if profile.exists():
+        contract=json.loads(profile.read_text())
+        text='# Генерируемый профиль квалификации P07\n\nТекущие gates и обязательные сценарии получены из замороженного qualification contract. Таблица не является результатом исполнения: фактические результаты сохраняются отдельно в qualification.json с привязкой к кандидату, времени, среде и артефактам. Локальные тесты не заменяют реальные привилегированные, сетевые, прикладные, пакетные и миграционные доказательства. Все обязательные ячейки проверяются совместно; отсутствие доказательства остаётся блокером финального релиза.\n\n| Gate | Claim | Evidence partitions | Falsifier |\n|---|---|---|---|\n'
+        for g in contract['gates']:text+='| '+g['id']+' | '+g['claim']+' | '+', '.join(g['requiredPartitions'])+' | '+g['falsifier']+' |\n'
+        text+='\n| Journey | Claim | Partitions |\n|---|---|---|\n'
+        for j in contract['journeys']:text+='| '+j['id']+' | '+j['claim']+' | '+', '.join(j['requiredPartitions'])+' |\n'
+        text+='\n[Контракт](../developer/P07_PATCH_CONTRACT.md) · [Закрытие v1](../operations/v1-qualification.md).\n'
+        outputs['docs/generated/qualification.md']=text
+    return outputs
 
 def main():
     a=argparse.ArgumentParser();a.add_argument('--check',action='store_true');args=a.parse_args();bad=[]

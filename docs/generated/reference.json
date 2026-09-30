@@ -5378,7 +5378,7 @@
     "--package-preflight": "verify installed package; no user state",
     "--support-bundle FILE": "redacted evidence only"
   },
-  "productVersion": "0.10.0rc6",
+  "productVersion": "1.0.0rc7",
   "provenance": {
     "manifestSha256": "8e31eb82e3c06f5803d60e95eb27f2c80b513b98530443927c33770447a7f8c1",
     "schemas": {

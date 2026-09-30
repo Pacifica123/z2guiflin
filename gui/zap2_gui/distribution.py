@@ -6,7 +6,7 @@ under XDG_DATA_HOME. The GUI's Python code and privileged helper remain package-
 """
 from __future__ import annotations
 from pathlib import Path
-import hashlib,json,os,shutil,tempfile,fcntl,sys
+import hashlib,json,os,shutil,tempfile,fcntl,sys,re
 
 WORKSPACE_SCHEMA_VERSION=1
 INSTALL_ROOT_ENV='ZAP2_INSTALLED_ROOT'
@@ -71,8 +71,6 @@ def ensure_workspace(package_root: Path, workspace: Path) -> dict:
             raise ValueError('unknown newer workspace receipt; no migration performed')
         if workspace.exists() and old is None:
             raise ValueError('existing unreceipted workspace; choose a new data directory or explicit migration')
-        if old and _active_records(workspace):
-            raise ValueError('stop/reconcile owned runtime before workspace upgrade')
         # Managed copies can be replaced only if still equal to their recorded
         # package baseline. User seeds and .zap2 state are never overwritten.
         previous=old.get('files',{}) if old else {}
@@ -83,6 +81,16 @@ def ensure_workspace(package_root: Path, workspace: Path) -> dict:
             raise ValueError('workspace contains symlinks; upgrade preserved data and stopped')
         if old and old.get('releaseDigest')==manifest['releaseDigest']:
             return old
+        if old and _active_records(workspace):
+            raise ValueError('stop/reconcile owned runtime before workspace upgrade')
+        if old:
+            def version_key(value):
+                match=re.fullmatch(r'(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)(\d+))?',str(value))
+                if not match:raise ValueError('unknown workspace version; explicit migration required')
+                major,minor,patch,kind,number=match.groups()
+                return (int(major),int(minor),int(patch),{'a':0,'b':1,'rc':2,None:3}[kind],int(number or 0))
+            if version_key(manifest['version'])<version_key(old.get('version')):
+                raise ValueError('workspace downgrade refused; retain data and restore an explicit backup')
         conflicts=[]
         for rel,entry in manifest['files'].items():
             destination=workspace/rel

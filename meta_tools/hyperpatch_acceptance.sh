@@ -11,6 +11,7 @@ cd "${PROJECT_ROOT}"
 
 HYPERPATCH="p03"
 PROFILE="default"
+P07_RELEASE=0
 CANARY_SECONDS=2
 RECOVER_ROOT=""
 HOST_SETUP=1
@@ -25,12 +26,25 @@ usage() {
   bash meta_tools/hyperpatch_acceptance.sh --p04c
   bash meta_tools/hyperpatch_acceptance.sh --p04d
   bash meta_tools/hyperpatch_acceptance.sh --v08-release
+  bash meta_tools/hyperpatch_acceptance.sh --p07
+  bash meta_tools/hyperpatch_acceptance.sh --p07-release
   bash meta_tools/hyperpatch_acceptance.sh --p06
   bash meta_tools/hyperpatch_acceptance.sh --p05
   bash meta_tools/hyperpatch_acceptance.sh --profile default
   bash meta_tools/hyperpatch_acceptance.sh --canary-seconds 3
   bash meta_tools/hyperpatch_acceptance.sh --p03 --recover-root /path/to/previous/UTS/project
   bash meta_tools/hyperpatch_acceptance.sh --p03 --no-host-setup
+
+Смысл PASS для --p07 (применение кандидата devctl):
+  - frozen candidate/PC/profile/release, проекции и полный L0–L2 regression прошли;
+  - G01–G21/J1–J7 matrix и owner evidence сохраняются в том же архиве;
+  - отсутствующие owner receipts блокируют final v1, но не применение RC.
+
+Смысл PASS для --p07-release (финальная квалификация):
+  - тот же полный pipeline плюс все MUST G01–G21/J1–J7 partitions PASS;
+  - owner bundle из ZAP2_P07_OWNER_BUNDLE связан с hash/time/env/scope/artifacts;
+  - отсутствующий MUST receipt означает BLOCKED и ненулевой exit;
+  - финальная версия/tag этим runner не присваиваются.
 
 Смысл PASS для --p05:
   - поиск/help/ошибки/health и все focus targets проверены;
@@ -127,6 +141,16 @@ while (($#)); do
       HYPERPATCH="p04d"
       shift
       ;;
+    --p07-release)
+      HYPERPATCH="p07"
+      P07_RELEASE=1
+      shift
+      ;;
+    --p07)
+      P07_RELEASE=0
+      HYPERPATCH="p07"
+      shift
+      ;;
     --p06)
       HYPERPATCH="p06"
       shift
@@ -170,8 +194,8 @@ while (($#)); do
   esac
 done
 
-if [[ "${HYPERPATCH}" != "p03" && "${HYPERPATCH}" != "p04a" && "${HYPERPATCH}" != "p04b" && "${HYPERPATCH}" != "p04c" && "${HYPERPATCH}" != "p04d" && "${HYPERPATCH}" != "v08-release" && "${HYPERPATCH}" != "p05" && "${HYPERPATCH}" != "p06" ]]; then
-  echo "Поддерживаются P03, P04a, P04b, P04c, P04d, v08-release P05 и P06 acceptance profiles." >&2
+if [[ "${HYPERPATCH}" != "p03" && "${HYPERPATCH}" != "p04a" && "${HYPERPATCH}" != "p04b" && "${HYPERPATCH}" != "p04c" && "${HYPERPATCH}" != "p04d" && "${HYPERPATCH}" != "v08-release" && "${HYPERPATCH}" != "p05" && "${HYPERPATCH}" != "p06" && "${HYPERPATCH}" != "p07" ]]; then
+  echo "Поддерживаются P03, P04a, P04b, P04c, P04d, v08-release P05, P06 и P07 acceptance profiles." >&2
   exit 2
 fi
 if [[ "${HYPERPATCH}" != "p03" && -n "${RECOVER_ROOT}" ]]; then
@@ -230,6 +254,13 @@ else
     exit 2
   fi
   HOST_SETUP=0
+fi
+
+if [[ "${HYPERPATCH}" == "p07" ]]; then
+  if (( P07_RELEASE )); then
+    exec "${PYTHON_BIN}" tools/gui_checks/check_p07_acceptance.py --release
+  fi
+  exec "${PYTHON_BIN}" tools/gui_checks/check_p07_acceptance.py
 fi
 
 if [[ "${HYPERPATCH}" == "p06" ]]; then

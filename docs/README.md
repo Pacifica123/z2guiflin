@@ -10,4 +10,8 @@
 - [Статус проекта](PROJECT_STATUS.md), [версионирование](VERSIONING.md)
 - [Upstream](upstream/README.md), [история](history/README.md)
 
-Текущий кандидат P06: **0.10.0rc6 / v0.10 RC6**. Он не повышен до финальной версии: полный lifecycle на чистой Arch VM требует отдельного owner receipt. Последний независимо зафиксированный финальный продукт — **0.8.0**: P04 закрыт (P04a, P04b, P04c, P04d), marker `READY_FOR_USE_WITHIN_P04D`. Вход P06 — предоставленный post-P05 snapshot `ca6b4fb`; отдельная новая owner-приёмка P05 в архиве отсутствует. Это граница доказательств, а не повторное закрытие предыдущих этапов.
+Текущий кандидат: **1.0.0rc7 / v1.0 RC7**, этап P07. Финальная версия **1.0.0 не назначена**: G01–G21 и J1–J7 требуют текущих evidence partitions и независимого review. Вход — применённый post-P06 snapshot **65b60b2**. В нём нет новых owner receipts для native clean install/privilege/live VLESS/Vesktop; контейнерная приёмка P06 сохраняла BLOCKED. Историческая финальная опора — 0.8.0: P04 закрыт (P04a, P04b, P04c, P04d), `READY_FOR_USE_WITHIN_P04D`; P03 имеет исторический marker `READY_FOR_USE_WITHIN_P03`. Историческое принятие не переносится на текущий кандидат автоматически.
+
+- [Квалификация и закрытие v1](operations/v1-qualification.md)
+- [G01–G21 и J1–J7](generated/qualification.md)
+- [Контракт патча](developer/P07_PATCH_CONTRACT.md) и [SA](developer/P07_SPEC_AMENDMENTS.md)

@@ -17,3 +17,5 @@
 Support export: `zap2-gui --support-bundle /path/new-support.zip`. В нём только положительно разрешённые identity/status/evidence fields; динамические ID и targets хешируются. Raw logs, URI, UUID/password/token/key material, HAR и configs не включаются. Поэтому это полезный краткий контекст проверки, а не полный лог или доказательство внешней доступности.
 
 [Установка](../user/getting-started.md) · [Жизненный цикл](lifecycle.md) · [Справочник](../generated/reference.md).
+
+P07 добавляет в support разрешённые Plan/Run summaries и typed log event projections, а также nextAction для ownership class. Все динамические ID/hash значения дополнительно хешируются; argv/message/detail не сериализуются. Полезность такого контекста при намеренно вызванной ошибке и отсутствие секретов оценивает отдельный reviewer: наличие ZIP не равно успешной оценке.

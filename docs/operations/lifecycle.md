@@ -11,3 +11,5 @@
 Перед удалением пакета остановите session и revert owned rules, пока helper доступен. Затем выполните `sudo pacman -R zap2gui-linux`. Пакетный менеджер удаляет только системные package-owned файлы. Пользовательский workspace, его backups и QSettings сохраняются. Автоматического удаления nft rules, процессов или пользовательских каталогов при uninstall нет.
 
 [Первые действия](../user/getting-started.md) · [Архитектура](../developer/architecture.md).
+
+Same-release bootstrap допускает доступ при active/stale runtime: CLI status/stop и GUI остаются доступны. Это не подтверждает ownership и не выполняет очистку автоматически. Upgrade на иной release требует stop/reconcile; product downgrade запрещён с сохранением байтов. Для отката выбирают согласованную backup либо новый user data root явно.
