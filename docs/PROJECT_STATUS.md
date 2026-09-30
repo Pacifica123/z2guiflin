@@ -69,3 +69,12 @@ Owner-host acceptance больше не считает `python3` из `PATH` с�
 но невидимы shim-интерпретатору. Отсутствующий `--recover-root` после переезда host является `SKIP`, а не FAIL.
 Acceptance может подготовить Arch host-local prerequisites и bounded helper; `untrusted/unknown` helper остаётся
 fail-closed. Финальный PASS по-прежнему требует native build, parser, real nft/NFQUEUE canary и clean stop/revert.
+
+
+### P03f owner-host acceptance correction
+
+A real Manjaro canary proved that nft/NFQUEUE start succeeds but bounded sessions could become
+`unknown` after privilege drop because `dropIdentity` was not copied from the confirmed bounded
+start-plan into the session receipt. P03f fixes the receipt propagation and adds strict one-time
+recovery for already-running P03/P03e sessions. P03 remains a candidate toward v0.7 until the
+owner-host hyperpatch acceptance ends in `READY_FOR_USE_WITHIN_P03`.

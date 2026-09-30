@@ -104,3 +104,15 @@ P03e не удаляет `zap2_default` по одному имени. Owner-host
 - создаётся отдельный consent receipt с SHA-256 именно наблюдённой таблицы.
 
 После этого обычный confirmed owner-rules apply повторно наблюдает таблицу, сверяет digest/fingerprint и только затем удаляет legacy table первой операцией той же checked atomic nft transaction, которая создаёт новую owner/workspace-scoped table. Если старая v0.4 ещё работает, fingerprint неоднозначен или live NFQUEUE state нельзя надёжно определить, migration остаётся fail-closed.
+
+
+## P03f — bounded launch drop-identity receipt
+
+Owner-side orchestration is intentionally unprivileged, while the bounded root helper derives
+`--uid=<owner uid>:<owner gid>` from the confirmed start-plan.  P03f makes that same plan-bound
+identity part of the owner session receipt (`dropIdentity.source=bounded-plan-owner`).  This closes
+the post-setuid/non-dumpable status gap without trusting a PID alone or weakening stop safety.
+
+For P03/P03e sessions already created with `dropIdentity: null`, explicit previous-workspace
+recovery may perform a one-time backfill only when helper SHA, start-plan hash, owner evidence,
+boot-id/PID/starttime/cmdline and live UID/GID all agree.

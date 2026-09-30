@@ -17,6 +17,7 @@ from zap2_gui.adapters.gui_privilege import (
 )
 from zap2_gui.adapters.privileged_executor import BoundedNftRunner
 import zap2_gui.adapters.privileged_executor as privileged_executor_module
+import zap2_gui.adapters.runtime_session as runtime_session_module
 from zap2_gui.adapters.runtime_kernel import runtime_kernel_status
 from zap2_gui.adapters.runtime_migration import migrate_runtime_session_state
 from zap2_gui.adapters.runtime_session import SESSION_MARKER, build_runtime_session_config, runtime_session_status
@@ -336,3 +337,128 @@ def test_plan_preparation_rejects_symlink_runtime_input(tmp_path: Path) -> None:
     lua.symlink_to(original)
     with pytest.raises(ValueError, match="symlink|leaves workspace"):
         prepare_runtime_plan(project, action="start", profile_id="default")
+
+
+def test_bounded_session_launcher_carries_confirmed_plan_owner_drop_identity(tmp_path: Path, monkeypatch) -> None:
+    project = _copy_project(tmp_path)
+    plan = {
+        "planHash": "a" * 64,
+        "runtimeArtifacts": {"owner": {"uid": 1234, "gid": 1235}},
+    }
+    monkeypatch.setattr(privileged_executor_module, "_confirmed_plan", lambda _root, _plan_id: (plan, {"confirmedByOwner": True}))
+    monkeypatch.setattr(
+        privileged_executor_module,
+        "_call_helper",
+        lambda *args, **kwargs: {
+            "actionId": "nfqws.start-confirmed-plan",
+            "planHash": "a" * 64,
+            "requestHash": "b" * 64,
+            "helper": {"sha256": "c" * 64, "version": "p02-v1", "ruid": 0, "euid": 0},
+            "process": {
+                "pid": 4242,
+                "executablePath": "/run/zap2/u1234/test/nfqws2",
+                "stdoutLogPath": "/run/zap2/u1234/test/stdout.log",
+                "stderrLogPath": "/run/zap2/u1234/test/stderr.log",
+                "debugLogPath": None,
+                "identity": {"bootId": "boot", "procStartTime": "1", "procExecutable": "/run/zap2/u1234/test/nfqws2", "cmdlineSha256": "d" * 64},
+            },
+        },
+    )
+    launcher = privileged_executor_module.BoundedSessionLauncher(project)
+    receipt = launcher(SimpleNamespace(plan_id="runtime-default-manual-local-start-plan"))
+    assert receipt.drop_identity is not None
+    assert (receipt.drop_identity.uid, receipt.drop_identity.gid, receipt.drop_identity.source) == (1234, 1235, "bounded-plan-owner")
+
+
+def test_session_record_uses_bounded_launcher_drop_identity_even_when_owner_config_has_none(tmp_path: Path, monkeypatch) -> None:
+    from zap2_gui.adapters.runtime_session import RuntimeDropIdentity, RuntimeSessionConfig, RuntimeSessionLaunchReceipt, _base_session_record
+
+    project = tmp_path / "project"
+    project.mkdir()
+    binary = project / "nfqws2"
+    binary.write_bytes(b"x")
+    session = project / "session.json"
+    config = RuntimeSessionConfig(
+        profile_id="default", plan_id="plan", plan_hash="a" * 64, root_path=project,
+        binary_path=binary, cwd=project, argv=(str(binary),), args_path=project / "args",
+        session_inputs_dir=project / "inputs", public_session_inputs_dir=None,
+        hostlist_input_paths=(), strategy_file_input_paths=(), lua_input_paths=(), blob_input_paths=(),
+        pidfile_path=project / "pid", stdout_log_path=project / "out", stderr_log_path=project / "err",
+        debug_log_path=project / "debug", session_path=session, runtime_args=(), drop_identity=None,
+        nfqueue_num=1, nfqueue_source="test",
+    )
+    receipt = RuntimeSessionLaunchReceipt(
+        pid=os.getpid(), runtime_executable_path=binary, stdout_log_path=project / "hout", stderr_log_path=project / "herr",
+        debug_log_path=None, helper_sha256="b" * 64, helper_version="p02-v1", helper_ruid=0, helper_euid=0,
+        action_id="nfqws.start-confirmed-plan", plan_hash="a" * 64, request_hash="c" * 64,
+        process_identity={"bootId": "boot", "procStartTime": "1", "procExecutable": str(binary), "cmdlineSha256": "d" * 64},
+        drop_identity=RuntimeDropIdentity(uid=1000, gid=1000, source="bounded-plan-owner"),
+    )
+    monkeypatch.setattr(runtime_session_module, "verify_core_bundle", lambda *args, **kwargs: SimpleNamespace(state="verified", message="ok", receipt_path=project / "receipt"))
+    monkeypatch.setattr(runtime_session_module, "find_nfqueue_processes", lambda *_args, **_kwargs: ())
+    record = _base_session_record(config, os.getpid(), "running", launch_receipt=receipt)
+    assert record["dropIdentity"] == {"uid": 1000, "gid": 1000, "source": "bounded-plan-owner"}
+
+
+def test_backfill_bounded_drop_identity_requires_plan_helper_and_live_identity(tmp_path: Path, monkeypatch) -> None:
+    from zap2_gui.adapters.runtime_session import _capture_process_identity, backfill_bounded_drop_identity
+
+    project = _copy_project(tmp_path)
+    binary = tmp_path / "sleep"
+    shutil.copyfile("/bin/sleep", binary)
+    binary.chmod(0o755)
+    proc = subprocess.Popen([str(binary), "30"])
+    try:
+        identity = None
+        for _ in range(20):
+            identity = _capture_process_identity(proc.pid, binary)
+            if identity:
+                break
+            time.sleep(0.01)
+        assert identity
+        paths = project / ".zap2/runtime"
+        (paths / "sessions").mkdir(parents=True)
+        (paths / "plans").mkdir(parents=True)
+        (paths / "confirmations").mkdir(parents=True)
+        plan_id = "runtime-default-manual-local-start-plan"
+        plan_hash = "e" * 64
+        plan = {
+            "planId": plan_id, "planHash": plan_hash, "action": "start", "buildTarget": "nfqws2",
+            "runtimeArtifacts": {"owner": {"uid": os.getuid(), "gid": os.getgid()}},
+        }
+        (paths / "plans" / f"{plan_id}.json").write_text(json.dumps(plan), encoding="utf-8")
+        (paths / "confirmations" / f"{plan_id}.confirmation.json").write_text(json.dumps({"planHash": plan_hash, "confirmedByOwner": True}), encoding="utf-8")
+        helper_sha = __import__("hashlib").sha256((project / "tools/privileged/zap2-runtime-executor").read_bytes()).hexdigest()
+        session_path = paths / "sessions/default.session.json"
+        session_path.write_text(json.dumps({
+            "schemaVersion": 2, "marker": SESSION_MARKER, "state": "running", "profileId": "default",
+            "rootPath": str(project), "sessionPath": str(session_path), "pid": proc.pid, "binaryPath": str(binary),
+            "planId": plan_id, "planHash": plan_hash, "processIdentity": identity, "dropIdentity": None,
+            "privilegedExecutor": {"actionId": "nfqws.start-confirmed-plan", "planHash": plan_hash, "helperSha256": helper_sha},
+        }), encoding="utf-8")
+        monkeypatch.setattr(runtime_session_module, "_proc_executable", lambda _pid: None)
+        assert backfill_bounded_drop_identity(project) == "backfilled"
+        adopted = json.loads(session_path.read_text(encoding="utf-8"))
+        assert adopted["dropIdentity"]["uid"] == os.getuid()
+        assert adopted["dropIdentity"]["gid"] == os.getgid()
+        assert adopted["dropIdentity"]["source"] == "bounded-plan-owner-backfill"
+        assert adopted["dropIdentityBackfill"]["identityMode"] == "drop-identity-anchored"
+    finally:
+        proc.terminate(); proc.wait(timeout=5)
+
+
+def test_backfill_bounded_drop_identity_skips_dead_session_without_mutation(tmp_path: Path) -> None:
+    from zap2_gui.adapters.runtime_session import backfill_bounded_drop_identity
+    project = _copy_project(tmp_path)
+    sessions = project / ".zap2/runtime/sessions"
+    sessions.mkdir(parents=True)
+    path = sessions / "default.session.json"
+    original = {
+        "schemaVersion": 2, "marker": SESSION_MARKER, "state": "running", "profileId": "default",
+        "rootPath": str(project), "sessionPath": str(path), "pid": 99999999,
+        "binaryPath": str(project / "core/zapret2/nfq2/nfqws2"), "dropIdentity": None,
+    }
+    path.write_text(json.dumps(original), encoding="utf-8")
+    before = path.read_bytes()
+    assert backfill_bounded_drop_identity(project) == "process-not-live"
+    assert path.read_bytes() == before

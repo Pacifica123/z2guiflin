@@ -19,6 +19,7 @@ sys.path.insert(0, str(CURRENT_ROOT / "gui"))
 
 from zap2_gui.adapters.privileged_executor import execute_bounded_default_workflow, privileged_executor_status
 from zap2_gui.adapters.runtime_default import default_workflow_status, prepare_default_workflow_plan
+from zap2_gui.adapters.runtime_session import backfill_bounded_drop_identity
 from zap2_gui.adapters.runtime_state import confirm_runtime_plan
 
 
@@ -45,6 +46,9 @@ def main() -> int:
     print(helper.to_text())
     if not helper.ready:
         raise SystemExit("target workspace helper provenance is not ready; recovery refused")
+
+    backfill = backfill_bounded_drop_identity(root, args.profile)
+    print(f"dropIdentity recovery: {backfill}")
 
     before = default_workflow_status(root, args.profile)
     print("\nBefore recovery:")

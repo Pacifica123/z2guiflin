@@ -196,6 +196,7 @@ class RuntimeSessionLaunchReceipt:
     plan_hash: str
     request_hash: str = ""
     process_identity: dict[str, Any] | None = None
+    drop_identity: RuntimeDropIdentity | None = None
 
 
 @dataclass(frozen=True)
@@ -1098,6 +1099,93 @@ def _load_session_record(path: Path) -> dict[str, Any] | None:
     return record
 
 
+def backfill_bounded_drop_identity(root: Path | None = None, profile_id: str = "default") -> str:
+    """Backfill a missing dropIdentity for one already-running bounded session.
+
+    P03c introduced a safe post-setuid identity fallback, but P03/P03e sessions
+    launched through the bounded root helper could still persist ``dropIdentity``
+    as null because the owner-side config is intentionally unprivileged.  The
+    helper nevertheless derives ``--uid`` only from the confirmed start plan's
+    runtimeArtifacts.owner evidence.  Recovery may therefore adopt that exact
+    owner identity, but only when helper provenance, plan/confirmation hashes,
+    the live task anchor/cmdline and the resulting uid/gid all still match.
+    """
+
+    layout = discover_layout(root)
+    paths = ensure_runtime_store(layout.root)
+    session_path = _session_path(paths.root, profile_id)
+    record = _load_session_record(session_path)
+    if record is None:
+        return "no-session"
+    if isinstance(record.get("dropIdentity"), dict):
+        return "already-present"
+    try:
+        pid = int(record.get("pid", 0))
+    except (TypeError, ValueError):
+        pid = 0
+    if pid <= 1 or not _pid_alive(pid):
+        # No live task needs identity adoption.  The normal confirmed stop path
+        # can still converge any owned owner-rules state from this stale workspace.
+        return "process-not-live"
+
+    privileged = record.get("privilegedExecutor")
+    if not isinstance(privileged, dict) or privileged.get("actionId") != "nfqws.start-confirmed-plan":
+        raise ValueError("missing dropIdentity is not attributable to the bounded nfqws launcher")
+    plan_id = str(record.get("planId", ""))
+    plan_hash = str(record.get("planHash", ""))
+    if not plan_id or not plan_hash or str(privileged.get("planHash", "")) != plan_hash:
+        raise ValueError("bounded session plan provenance does not match the session receipt")
+
+    project_helper = paths.root / "tools/privileged/zap2-runtime-executor"
+    if not project_helper.is_file():
+        raise ValueError("project bounded helper source is missing")
+    helper_sha = hashlib.sha256(project_helper.read_bytes()).hexdigest()
+    if str(privileged.get("helperSha256", "")) != helper_sha:
+        raise ValueError("bounded helper hash no longer matches the session receipt")
+
+    plan_path = paths.plans_dir / f"{plan_id}.json"
+    confirmation_path = paths.confirmations_dir / f"{plan_id}.confirmation.json"
+    if not plan_path.is_file() or not confirmation_path.is_file():
+        raise ValueError("bounded session start plan/confirmation is missing")
+    plan = _read_json(plan_path)
+    confirmation = _read_json(confirmation_path)
+    if str(plan.get("planHash", "")) != plan_hash:
+        raise ValueError("stored bounded start plan hash does not match the session receipt")
+    if str(confirmation.get("planHash", "")) != plan_hash or confirmation.get("confirmedByOwner") is not True:
+        raise ValueError("stored bounded start confirmation does not match the session receipt")
+    if plan.get("action") != "start" or plan.get("buildTarget") != "nfqws2":
+        raise ValueError("stored bounded plan is not the canonical nfqws2 start plan")
+
+    artifacts = plan.get("runtimeArtifacts")
+    owner = artifacts.get("owner") if isinstance(artifacts, dict) else None
+    if not isinstance(owner, dict):
+        raise ValueError("bounded start plan has no owner identity evidence")
+    try:
+        uid = int(owner.get("uid"))
+        gid = int(owner.get("gid"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("bounded start plan owner identity is invalid") from exc
+    if uid < 0 or gid < 0:
+        raise ValueError("bounded start plan owner identity is invalid")
+
+    candidate = dict(record)
+    candidate["dropIdentity"] = {"uid": uid, "gid": gid, "source": "bounded-plan-owner-backfill"}
+    identity_mode = _record_process_identity_mode(candidate)
+    if identity_mode not in {"exact-executable", "drop-identity-anchored"}:
+        raise ValueError("live bounded process does not match the plan-derived owner identity")
+
+    candidate["dropIdentityBackfilledAt"] = _utc_now()
+    candidate["dropIdentityBackfill"] = {
+        "source": "confirmed-bounded-start-plan",
+        "planId": plan_id,
+        "planHash": plan_hash,
+        "helperSha256": helper_sha,
+        "identityMode": identity_mode,
+    }
+    _write_json(session_path, candidate)
+    return "backfilled"
+
+
 def runtime_session_status(root: Path | None = None, profile_id: str = "default") -> RuntimeSessionStatus:
     """Read-only status текущей session."""
 
@@ -1300,6 +1388,11 @@ def _base_session_record(
         if launch_receipt is not None and launch_receipt.process_identity is not None
         else _capture_process_identity(pid, runtime_executable)
     )
+    effective_drop_identity = (
+        launch_receipt.drop_identity
+        if launch_receipt is not None and launch_receipt.drop_identity is not None
+        else config.drop_identity
+    )
     return {
         "schemaVersion": SESSION_SCHEMA_VERSION,
         "stage": SESSION_STAGE,
@@ -1334,7 +1427,7 @@ def _base_session_record(
         "strategyFileInputPaths": [str(path) for path in config.strategy_file_input_paths],
         "luaInputPaths": [str(path) for path in config.lua_input_paths],
         "blobInputPaths": [str(path) for path in config.blob_input_paths],
-        "dropIdentity": None if config.drop_identity is None else {"uid": config.drop_identity.uid, "gid": config.drop_identity.gid, "source": config.drop_identity.source},
+        "dropIdentity": None if effective_drop_identity is None else {"uid": effective_drop_identity.uid, "gid": effective_drop_identity.gid, "source": effective_drop_identity.source},
         "argsPath": str(config.args_path),
         "pidfilePath": str(config.pidfile_path),
         "stdoutLogPath": str(launch_receipt.stdout_log_path if launch_receipt is not None else config.stdout_log_path),

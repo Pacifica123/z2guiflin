@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from .runtime_apply import RuntimeCommandResult
-from .runtime_session import RuntimeSessionConfig, RuntimeSessionLaunchReceipt
+from .runtime_session import RuntimeDropIdentity, RuntimeSessionConfig, RuntimeSessionLaunchReceipt
 from .runtime_state import ensure_runtime_store
 from ..project_paths import discover_layout
 
@@ -343,6 +343,18 @@ class BoundedSessionLauncher:
         if not isinstance(process, dict) or not isinstance(helper, dict):
             raise ValueError("privileged session receipt missing process/helper provenance")
         identity = process.get("identity") if isinstance(process.get("identity"), dict) else None
+        artifacts = plan.get("runtimeArtifacts")
+        owner = artifacts.get("owner") if isinstance(artifacts, dict) else None
+        if not isinstance(owner, dict):
+            raise ValueError("confirmed bounded start plan missing owner identity")
+        try:
+            owner_uid = int(owner.get("uid"))
+            owner_gid = int(owner.get("gid"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("confirmed bounded start plan has invalid owner identity") from exc
+        if owner_uid < 0 or owner_gid < 0:
+            raise ValueError("confirmed bounded start plan has invalid owner identity")
+        drop_identity = RuntimeDropIdentity(uid=owner_uid, gid=owner_gid, source="bounded-plan-owner")
         return RuntimeSessionLaunchReceipt(
             pid=int(process["pid"]),
             runtime_executable_path=Path(str(process["executablePath"])),
@@ -357,6 +369,7 @@ class BoundedSessionLauncher:
             plan_hash=str(receipt.get("planHash", "")),
             request_hash=str(receipt.get("requestHash", "")),
             process_identity=identity,
+            drop_identity=drop_identity,
         )
 
 

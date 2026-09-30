@@ -77,6 +77,7 @@ def test_p03_acceptance_supports_explicit_previous_workspace_recovery() -> None:
     assert "confirm_runtime_plan" in recovery
     assert "execute_bounded_default_workflow" in recovery
     assert "privileged_executor_status" in recovery
+    assert "backfill_bounded_drop_identity" in recovery
     assert "os.kill(" not in recovery
     result = subprocess.run(["python", "-m", "py_compile", str(RECOVERY)], text=True, capture_output=True, check=False)
     assert result.returncode == 0, result.stderr
