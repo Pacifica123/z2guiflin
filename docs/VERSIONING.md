@@ -3,12 +3,12 @@
 ## Текущая версия
 
 ```text
-v0.6
-Python package: 0.6.0
-Development line: P03 candidate toward v0.7
+v0.7
+Python package: 0.7.0
+Development line: P04a evidence/ontology foundation toward v0.8
 ```
 
-`v0.6` — последняя принятая продуктовая версия: P01 закрепил typed network truth/evidence, P02 — owned lifecycle и bounded privilege boundary. Текущий HEAD содержит P03-кандидат перехода `0.6 -> 0.7`; финальный bump до `v0.7` разрешён только после owner-host acceptance P03. Универсальная сетeвая стратегия по-прежнему не является обещанием версии.
+`v0.7` — последняя принятая продуктовая версия. P03f owner-host acceptance подтвердил runnable generation/build/parser/privilege/runtime lifecycle для pinned zapret2 `1.0.6@00f5aaa` и завершился `READY_FOR_USE_WITHIN_P03`. Текущий HEAD начинает P04a; `v0.8` не присваивается до завершения всего P04/RC4. Универсальная сетевая стратегия по-прежнему не является обещанием версии.
 
 ## Формат
 
@@ -59,9 +59,13 @@ Blockcheck -> AVAILABLE -> generated strategy -> selection -> Default workflow -
 
 Принят P02: lifecycle/state ownership и привилегии сведены к bounded root-owned executor, immutable PlanHash/confirmation и fail-closed reconciliation.
 
-### P03 candidate -> v0.7
+### v0.7
 
-Pinned zapret2 `1.0.6@00f5aaa`, LuaCompat 6, explicit overlays/source transform и whole-generation receipt уже реализованы. Версия `v0.7` не считается присвоенной, пока `hyperpatch_acceptance.sh --p03` не завершится `READY_FOR_USE_WITHIN_P03` на owner-host.
+Принят P03/P03f: pinned zapret2 `1.0.6@00f5aaa`, LuaCompat 6, explicit overlays/source transform, whole-generation receipt и bounded drop-identity recovery. Owner-host `hyperpatch_acceptance.sh --p03` завершён с `READY_FOR_USE_WITHIN_P03`.
+
+### P04a -> v0.8 candidate
+
+P04a синхронизирует post-P03f baseline, фиксирует ontology/ActionContract foundation и замораживает REP/CLI/S-INSTALL decision evidence. Это ещё не `v0.8`: единый Plan materializer, dispatcher/legacy translator и 100% contract coverage относятся к следующим bounded P04 hyperpatches.
 
 ## Исторические stage ID
 

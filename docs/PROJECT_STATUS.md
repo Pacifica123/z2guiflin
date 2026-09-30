@@ -2,7 +2,7 @@
 
 ## Статус релиза
 
-Последняя принятая версия: `v0.6` (`0.6.0`). Текущий HEAD: P03 candidate toward `v0.7`.
+Последняя принятая версия: `v0.7` (`0.7.0`). P03f owner-host acceptance завершён с `READY_FOR_USE_WITHIN_P03`. Текущий HEAD: P04a evidence/ontology foundation toward `v0.8`.
 
 Это рабочий персональный инструмент для исследования и запуска стратегий обхода DPI на Arch-family Linux (включая Arch, EndeavourOS и Manjaro). Версия фиксирует зрелость приложения и его диагностического/runtime-контура. Она не фиксирует одну универсальную рабочую стратегию.
 
@@ -48,18 +48,16 @@
 
 Если нижние уровни исправны, результат может зависеть от конкретного DPI и маршрута. В таком случае проект должен дать наблюдение и воспроизводимый отчёт, а не изображать гарантированную починку.
 
-## Ближайший приоритет после принятия P03 / перехода к v0.7
+## Ближайший приоритет: P04 normalized semantics / ActionContract
 
-Основной долг находится не в добавлении очередной стратегии, а в надёжности продукта:
+Следующая архитектурная задача — не очередная стратегия, а устранение semantic/command drift:
 
-1. проверка совместимости профилей внутри пресета;
-2. более ясный результат HAR/Blockcheck -> покрытие -> пресет;
-3. стабильный service/autostart lifecycle;
-4. управление DNS/hostlist/ipset;
-5. упаковка для Arch;
-6. отдельное завершение Discord Voice и tunnel routing.
+1. P04a фиксирует re-forensics, REP/CLI/S-INSTALL evidence и canonical ontology;
+2. P04b должен решить resource-location contract и материализовать один immutable Plan из разных source/import representations;
+3. P04c переводит executable actions на ActionContract/dispatcher и ставит conflict gate перед legacy handlers;
+4. P04d закрывает coverage/lint/migration/roundtrip acceptance перед P05.
 
-Полный список: `KNOWN_GAPS_CHECKLISTS.md`.
+Подробно: `P04_REFORENSICS.md`. Остальные продуктовые пробелы остаются в `KNOWN_GAPS_CHECKLISTS.md`.
 
 ### P03d portability contract (Arch-family)
 
@@ -76,5 +74,4 @@ fail-closed. Финальный PASS по-прежнему требует native
 A real Manjaro canary proved that nft/NFQUEUE start succeeds but bounded sessions could become
 `unknown` after privilege drop because `dropIdentity` was not copied from the confirmed bounded
 start-plan into the session receipt. P03f fixes the receipt propagation and adds strict one-time
-recovery for already-running P03/P03e sessions. P03 remains a candidate toward v0.7 until the
-owner-host hyperpatch acceptance ends in `READY_FOR_USE_WITHIN_P03`.
+recovery for already-running P03/P03e sessions. P03f acceptance завершён: owner-host runner достиг `READY_FOR_USE_WITHIN_P03`, поэтому baseline повышен до `v0.7`.

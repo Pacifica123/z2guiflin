@@ -40,6 +40,12 @@ class WorkspaceStrategy:
     diagnostic_hints: dict[str, Any] | None = None
 
     @property
+    def preset_id(self) -> str:
+        """Canonical P04 alias for strategy_id while legacy JSON stays readable."""
+
+        return self.strategy_id
+
+    @property
     def capture_policy_label(self) -> str:
         if not self.capture_policy:
             return "capture policy: default runtime-derived"

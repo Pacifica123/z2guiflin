@@ -2,9 +2,9 @@
 set -Eeuo pipefail
 
 # Owner-host acceptance runner for an applied hyperpatch.
-# P03 mode deliberately exercises the real local lifecycle:
-# deterministic regression -> native build -> parser -> bounded privilege ->
-# nft/NFQUEUE start canary -> read-only health -> confirmed stop/revert.
+# P03 mode deliberately exercises the real local lifecycle.
+# P04a mode is a deterministic/read-only acceptance profile for the frozen
+# re-forensics/ontology foundation and does not repeat the network canary.
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
@@ -21,6 +21,7 @@ usage() {
 Использование:
   bash meta_tools/hyperpatch_acceptance.sh
   bash meta_tools/hyperpatch_acceptance.sh --p03
+  bash meta_tools/hyperpatch_acceptance.sh --p04a
   bash meta_tools/hyperpatch_acceptance.sh --profile default
   bash meta_tools/hyperpatch_acceptance.sh --canary-seconds 3
   bash meta_tools/hyperpatch_acceptance.sh --p03 --recover-root /path/to/previous/UTS/project
@@ -47,6 +48,13 @@ usage() {
 PASS означает runnable readiness текущего P03 hyperpatch на этом owner-host.
 В конце автоматически создаётся ZIP с step logs и runtime state snapshot.
 PASS НЕ доказывает эффективность конкретной DPI/ISP strategy на внешнем сайте.
+
+Смысл PASS для --p04a:
+  - post-P03f product baseline синхронизирован как v0.7/P04a;
+  - frozen REP/CLI/S-INSTALL evidence совпадает с fixture;
+  - P03 generation identity сохранена;
+  - structural gate и полный pytest regression проходят;
+  - никаких nft/NFQUEUE/network/root mutations не выполняется.
 USAGE
 }
 
@@ -54,6 +62,10 @@ while (($#)); do
   case "$1" in
     --p03)
       HYPERPATCH="p03"
+      shift
+      ;;
+    --p04a)
+      HYPERPATCH="p04a"
       shift
       ;;
     --profile)
@@ -87,8 +99,12 @@ while (($#)); do
   esac
 done
 
-if [[ "${HYPERPATCH}" != "p03" ]]; then
-  echo "Поддерживается только P03 acceptance profile." >&2
+if [[ "${HYPERPATCH}" != "p03" && "${HYPERPATCH}" != "p04a" ]]; then
+  echo "Поддерживаются P03 и P04a acceptance profiles." >&2
+  exit 2
+fi
+if [[ "${HYPERPATCH}" == "p04a" && -n "${RECOVER_ROOT}" ]]; then
+  echo "--recover-root относится только к P03 owner-host lifecycle acceptance." >&2
   exit 2
 fi
 if [[ "$(id -u)" -eq 0 ]]; then
@@ -128,13 +144,28 @@ ensure_gui_python() {
 }
 
 PYTHON_BIN=""
-if ! ensure_gui_python; then
-  cat >&2 <<'ERR'
+if [[ "${HYPERPATCH}" == "p03" ]]; then
+  if ! ensure_gui_python; then
+    cat >&2 <<'ERR'
 Не найден совместимый Python >= 3.10 с PyQt6.
 Arch/Manjaro/EndeavourOS: sudo pacman -S --needed python python-pyqt6
 Или укажи ZAP2_PYTHON=/path/to/python. Для автоматической host-подготовки не используй --no-host-setup.
 ERR
-  exit 2
+    exit 2
+  fi
+else
+  if ! PYTHON_BIN="$(zap2_pick_python "${PROJECT_ROOT}" pytest)"; then
+    echo "Не найден совместимый Python >= 3.10 с pytest для P04a deterministic acceptance." >&2
+    exit 2
+  fi
+  HOST_SETUP=0
+fi
+
+READINESS_MARKER="READY_FOR_USE_WITHIN_P03"
+ACCEPTANCE_LABEL="P03 owner-host hyperpatch acceptance"
+if [[ "${HYPERPATCH}" == "p04a" ]]; then
+  READINESS_MARKER="READY_FOR_USE_WITHIN_P04A"
+  ACCEPTANCE_LABEL="P04a deterministic hyperpatch acceptance"
 fi
 
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -271,7 +302,7 @@ on_exit() {
   if (( FINAL_PASS != 0 && rc == 0 && cleanup_rc == 0 )); then
     say ""
     say "HYPERPATCH ACCEPTANCE: PASS"
-    say "readiness: READY_FOR_USE_WITHIN_P03"
+    say "readiness: ${READINESS_MARKER}"
     say "evidence: ${LOG_DIR}"
     if (( evidence_rc == 0 )); then say "evidence archive: ${EVIDENCE_ARCHIVE}"; fi
     exit 0
@@ -288,7 +319,7 @@ trap on_exit EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-say "P03 owner-host hyperpatch acceptance"
+say "${ACCEPTANCE_LABEL}"
 say "project: ${PROJECT_ROOT}"
 say "profile: ${PROFILE}"
 say "python: ${PYTHON_BIN}"
@@ -296,6 +327,22 @@ say "host setup: $([[ ${HOST_SETUP} -eq 1 ]] && echo enabled || echo disabled)"
 say "canary seconds: ${CANARY_SECONDS}"
 say "evidence dir: ${LOG_DIR}"
 run_step "Host portability fingerprint" "${PYTHON_BIN}" -c 'import os,platform,sys,pathlib; print("python executable:",sys.executable); print("python version:",platform.python_version()); print("kernel:",platform.release()); p=pathlib.Path("/etc/os-release"); print(p.read_text(errors="replace") if p.exists() else "os-release: unavailable")'
+
+if [[ "${HYPERPATCH}" == "p04a" ]]; then
+  run_step "P04a frozen re-forensics" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p04a_re_forensics.py
+  require_last '^P04a re-forensics: PASS$' "P04a frozen decision evidence не совпадает"
+
+  run_step "P03 generation identity preserved" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p03_core_generation.py
+  require_last '^P03 core generation: PASS$' "P04a не должен ломать принятую P03 generation identity"
+
+  run_step "Project tree structural gate" "${PYTHON_BIN}" tools/gui_checks/check_project_tree.py
+
+  run_step "Full deterministic regression" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p04a_regression.py
+  require_last '^P04a regression: PASS \(.*\)$' "P04a full regression не PASS"
+
+  FINAL_PASS=1
+  exit 0
+fi
 
 if [[ -n "${RECOVER_ROOT}" ]]; then
   say "recover root: ${RECOVER_ROOT}"

@@ -43,6 +43,18 @@ class WorkspaceRuntimeContext:
     notes: tuple[str, ...]
 
     @property
+    def runtime_context_id(self) -> str:
+        """Canonical P04 name for the legacy profile_id field."""
+
+        return self.profile_id
+
+    @property
+    def preset_id(self) -> str:
+        """Canonical P04 name for the legacy strategy_id selection field."""
+
+        return self.strategy_id
+
+    @property
     def is_read_only_stage7(self) -> bool:
         return (
             self.safety.read_only_in_checks

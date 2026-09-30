@@ -143,3 +143,22 @@ def test_p03e_acceptance_guards_stale_legacy_v04_table_before_start() -> None:
     helper = (ROOT / "meta_tools/prepare_legacy_v04_migration.py").read_text(encoding="utf-8")
     assert "authorize_stale_legacy_v04_table" in helper
     assert "BoundedNftRunner" in helper
+
+
+def test_p04a_acceptance_is_read_only_orchestrated_and_archives_evidence() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "--p04a" in text
+    assert 'READINESS_MARKER="READY_FOR_USE_WITHIN_P04A"' in text
+    assert "check_p04a_re_forensics.py" in text
+    assert 'zap2_pick_python "${PROJECT_ROOT}" pytest' in text
+    assert "check_p04a_regression.py" in text
+    assert "P03 generation identity preserved" in text
+    assert "Full deterministic regression" in text
+    p04_start = text.index('if [[ "${HYPERPATCH}" == "p04a" ]]; then', text.index('run_step "Host portability fingerprint"'))
+    p04_end = text.index("fi", p04_start)
+    p04_block = text[p04_start:p04_end]
+    assert "sudo" not in p04_block
+    assert "--default-start" not in p04_block
+    assert "--runtime-apply" not in p04_block
+    assert "nft" not in p04_block.lower()
+    assert "FINAL_PASS=1" in p04_block

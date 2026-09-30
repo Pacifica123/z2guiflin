@@ -1,0 +1,75 @@
+{
+  "assumptionsDelta": {
+    "confirmed": [
+      "P03 target-core semantics are present in the current tree",
+      "preset execution order round-trips exactly across the shipping corpus"
+    ],
+    "deferred": [
+      "TXT vs structured authoring authority",
+      "typed subcommands vs compatibility grammar as the canonical CLI surface"
+    ],
+    "falsified": [
+      "outside-checkout resource discovery is not established",
+      "legacy argparse grammar does not reject representative contradictory action selectors"
+    ]
+  },
+  "cli": {
+    "addArgumentCalls": 163,
+    "decision": "explicit contradiction validation is required before any legacy handler; canonical typed CLI shape remains evidence-driven",
+    "optionStringCount": 163,
+    "representativeContradiction": {
+      "acceptedByArgparse": true,
+      "argv": [
+        "--runtime-plan",
+        "status",
+        "--default-status"
+      ],
+      "defaultStatusBranchLine": 1742,
+      "firstMatchDispatchWouldPrefer": "runtime_plan",
+      "parseError": "",
+      "parsedValues": {
+        "default_status": true,
+        "runtime_plan": "status"
+      },
+      "runtimePlanBranchLine": 1483
+    },
+    "selectorDestinationCount": 117,
+    "topLevelDispatchBranches": 116
+  },
+  "inputSha256": {
+    "gui/zap2_gui/adapters/workspace_profiles.py": "008c5799ecf5ebab7cbd6ab1b68d948227daadba8e86929464ed0974f08d80bd",
+    "gui/zap2_gui/app.py": "4cb50b7bf8532c57af0d56536ce04cde5fb1ee1891933f45eecaa7f9e0165a87",
+    "gui/zap2_gui/models/preset.py": "4ce274383859a920775dc235d4158a5ad14c0e49fea65ebf09abc782504fe2c5",
+    "gui/zap2_gui/project_paths.py": "364b8089261789dbb2464e13b5526e34aa27d14840b2b758578c0606d76c7782",
+    "pyproject.toml": "a0933303c0e1059e531efb399ba9c84ad22c73911a3b9cf1c5c5eb11d56acc7d"
+  },
+  "patch": "P04a",
+  "recompiledDag": [
+    "P04a: freeze post-P03f evidence + v0.7 sync + ontology/contract foundation",
+    "P04b: resource-location contract + normalized immutable Plan materializer + runtimeContext/preset aliases",
+    "P04c: executable ActionContract dispatcher + legacy CLI translator/conflict gate + GUI projection",
+    "P04d: migration/coverage/lint/roundtrip acceptance -> v0.8 candidate",
+    "P05 waits for P04d"
+  ],
+  "representation": {
+    "classification": {
+      "comments": "information-loss only under current execution materializer",
+      "order": "execution-significant and preserved exactly",
+      "runtimeArgsDuplicate": "duplicate execution representation guarded by equality today; cannot remain an independent authority in final P04"
+    },
+    "commentLinesNotInExecutionArgv": 72,
+    "decision": "preserve many authoring/import forms, but materialize one immutable execution Plan; canonical authoring format remains unresolved by P04a",
+    "exactExecutionRoundTrips": 18,
+    "failures": [],
+    "presetPathCount": 18,
+    "strategyCount": 18,
+    "strategyJsonWithPresetPathAndRuntimeArgs": 17
+  },
+  "sInstall": {
+    "decision": "S-INSTALL falsifies repository-relative resource discovery; resource-location/install contract must be resolved before P04 freezes Plan/ActionContract projections",
+    "defaultLayoutIsRepositoryRelative": true,
+    "outsideCheckoutDefaultLayoutReady": false,
+    "projectResourcePackageDataDeclared": false
+  },
+  "schemaVersion": 1
+}

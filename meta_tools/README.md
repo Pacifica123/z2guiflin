@@ -88,6 +88,26 @@ readiness: READY_FOR_USE_WITHIN_P03
 конкретная стратегия уже обходит конкретный DPI/провайдера: внешняя
 censorship-resistance проверяется отдельными traffic/strategy probes.
 
+
+## P04a: deterministic re-forensics acceptance
+
+После принятого P03f следующий bounded hyperpatch не повторяет root/network canary. P04a проверяется одним read-only orchestration entrypoint:
+
+```bash
+bash meta_tools/hyperpatch_acceptance.sh --p04a
+```
+
+Он сверяет frozen REP/CLI/S-INSTALL evidence, сохраняет P03 generation identity, запускает structural gate и полный deterministic pytest regression. P04a не вызывает `sudo`, не меняет `nftables`/NFQUEUE и не стартует `nfqws2`. Evidence упаковывается в `.zap2/runtime/acceptance/p04a-<UTC timestamp>.zip`.
+
+Успешный marker:
+
+```text
+HYPERPATCH ACCEPTANCE: PASS
+readiness: READY_FOR_USE_WITHIN_P04A
+```
+
+Этот marker принимает только P04a foundation. Он **не** означает, что P04 целиком завершён или что `v0.8` уже присвоена; следующие зависимости зафиксированы в `docs/P04_REFORENSICS.md`.
+
 ## P03d: переносимый owner-host acceptance для Arch-family
 
 `hyperpatch_acceptance.sh --p03` теперь отделяет переносимое состояние проекта от host-local prerequisites.
