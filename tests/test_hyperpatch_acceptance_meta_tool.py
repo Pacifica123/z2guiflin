@@ -217,3 +217,18 @@ def test_p04d_acceptance_is_read_only_orchestrated_and_archives_evidence() -> No
     assert "--runtime-apply" not in block
     assert "nft" not in block.lower()
     assert "FINAL_PASS=1" in block
+
+
+def test_v08_release_acceptance_profile_prepares_p05_without_network_mutation() -> None:
+    text = (ROOT / "meta_tools/hyperpatch_acceptance.sh").read_text(encoding="utf-8")
+    assert "--v08-release" in text
+    assert 'READINESS_MARKER="READY_FOR_P05"' in text
+    assert "v0.8 release / P05 handoff" in text
+    block = text[text.index('if [[ "${HYPERPATCH}" == "v08-release" ]]'):text.index('if [[ -n "${RECOVER_ROOT}" ]]')]
+    assert "check_v08_release.py" in block
+    assert "generate_p04d_action_bindings.py --check" in block
+    assert "check_p03_core_generation.py" in block
+    assert "check_project_tree.py" in block
+    assert "check_p04d_regression.py" in block
+    assert "sudo" not in block
+    assert "FINAL_PASS=1" in block

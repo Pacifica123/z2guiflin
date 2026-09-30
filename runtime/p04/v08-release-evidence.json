@@ -1,0 +1,79 @@
+{
+  "assumptionsDelta": {
+    "confirmed": [
+      "P04 product transition is owner-accepted and eligible for v0.8 promotion",
+      "ActionContract is stable enough to be the projection authority for P05",
+      "P01 typed network evidence and P02 runtime next-action state exist for health projection"
+    ],
+    "deferred": [
+      "full S-INSTALL package-data bundle and writable-state separation remain P06/productization scope"
+    ],
+    "new": [
+      "P05 needs richer projection metadata/focus/help coverage before global UX can claim completeness",
+      "page-local preset search must remain distinct from future global action/concept search"
+    ]
+  },
+  "p04Closure": {
+    "actionContractCount": 119,
+    "catalogValid": true,
+    "dispatcherClosed": true,
+    "generatedMetadataStable": true,
+    "handlerCount": 119,
+    "p04dPairParity": true,
+    "remainingLegacyOnly": 0,
+    "selectorCount": 117,
+    "semanticFilesUnchangedFromRc4": {
+      "gui/zap2_gui/adapters/action_dispatcher.py": true,
+      "gui/zap2_gui/adapters/legacy_cli.py": true,
+      "gui/zap2_gui/models/action_bindings.py": true,
+      "gui/zap2_gui/models/action_bindings_generated.py": true,
+      "gui/zap2_gui/models/action_catalog.py": true,
+      "gui/zap2_gui/widgets/runtime_controls.py": true
+    }
+  },
+  "p05Dependencies": {
+    "actionProjectionRows": 119,
+    "capabilityVerdictAvailable": true,
+    "evidenceGraphAvailable": true,
+    "runtimeKernelHasNextAction": true,
+    "runtimeKernelStatusAvailable": true
+  },
+  "p05StartingPoint": {
+    "aliasesCovered": 0,
+    "capabilityLinksCovered": 0,
+    "conceptLinksCovered": 28,
+    "decision": "P05 search/help/health must be a deterministic projection from ActionContract + typed evidence/state; no third semantic registry",
+    "deepHelpCovered": 0,
+    "focusTargetCovered": 1,
+    "globalActionSearchImplemented": false,
+    "keywordsCovered": 119,
+    "locationCovered": 1,
+    "projectionKeys": [
+      "actionId",
+      "conceptLinks",
+      "effect",
+      "label",
+      "legacyAliases",
+      "privilege",
+      "safeInvoke",
+      "shortHelp"
+    ],
+    "safeInvokeCount": 21
+  },
+  "recompiledDag": [
+    "v0.8 accepted P04 closure -> P05 discoverability/help/unified health UX",
+    "P05 accepted -> re-forensics -> RC5/version transition candidate",
+    "P06 docs/release/productization remains after P05",
+    "P07 v1 qualification remains final planned qualification node"
+  ],
+  "schemaVersion": 1,
+  "transition": {
+    "developmentLine": "P05 discoverability/help/unified health UX preparation",
+    "from": "0.8.0rc4",
+    "ownerP04dAcceptance": true,
+    "ownerReceiptSha256": "747e415933cec43d523ba7d8b82504c5774964d2f28a06d534710a107e1bf4c7",
+    "parentP04dEvidenceSha256": "54e33b8034f46c560af352b1051654dcc74817b492bf84792382a1ec50cd601b",
+    "productLabel": "v0.8",
+    "to": "0.8.0"
+  }
+}

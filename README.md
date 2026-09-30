@@ -1,8 +1,8 @@
-# Zap2 GUI Linux — v0.8 RC4 candidate (P04d)
+# Zap2 GUI Linux — v0.8 (P04 closed)
 
 `z2guiflin` — персональный GUI и набор диагностических инструментов для Arch Linux вокруг vendored-копии `zapret2` от bol-van. Проект помогает исследовать блокировки, собирать и запускать стратегии `nfqws2`, работать с `nftables`, а также проверять отдельную ветку SOCKS5/VLESS.
 
-Последняя принятая продуктовая версия — `v0.7`: P03f завершил pinned zapret2 1.0.6 generation migration и прошёл owner-host hyperpatch acceptance (`READY_FOR_USE_WITHIN_P03`). P04a, P04b и P04c приняты владельцем (`READY_FOR_USE_WITHIN_P04A/B/C`). Текущий HEAD — P04d/RC4 candidate (`0.8.0rc4`): все 117 historical CLI selectors contract-backed, 119 canonical ActionContracts закрыты executable dispatcher и first-match authority удалён из `main()`. Как и раньше, версия фиксирует рабочую платформу, а не универсальную стратегию обхода. В целевой среде владельца отдельные стратегии уже помогают YouTube и запуску/сообщениям Discord. Другие комбинации могут не давать результата даже для YouTube. Это зависит от провайдера, DPI, маршрута, DNS, приложения и конкретной стратегии; приложение не может гарантировать одинаковый результат во всех сетях.
+Последняя принятая продуктовая версия — `v0.8` (`0.8.0`). P04a–P04d завершены, а P04d/RC4 прошёл owner-host acceptance (`READY_FOR_USE_WITHIN_P04D`): все 117 historical CLI selectors contract-backed, 119 canonical ActionContracts закрыты executable dispatcher и first-match authority удалён из `main()`. Следующий provisional узел — P05 discoverability/help/unified health UX поверх этой стабильной projection authority. Как и раньше, версия фиксирует рабочую платформу, а не универсальную стратегию обхода. В целевой среде владельца отдельные стратегии уже помогают YouTube и запуску/сообщениям Discord. Другие комбинации могут не давать результата даже для YouTube. Это зависит от провайдера, DPI, маршрута, DNS, приложения и конкретной стратегии; приложение не может гарантировать одинаковый результат во всех сетях.
 
 ## Быстрый запуск
 
@@ -34,7 +34,7 @@
 ./run.sh --help
 ```
 
-## Что входит в P04d / v0.8 RC4 candidate
+## Что вошло в v0.8 / закрытый P04
 
 Рабочая база включает:
 
@@ -68,7 +68,7 @@
 - готовую прозрачную маршрутизацию через VLESS/VPN;
 - стабильную поддержку Discord Voice.
 
-Историческая граница v0.4 описана в `docs/V04_RELEASE.md`; переходы P01/P02/P03/P04 и правила присвоения версий — в `docs/VERSIONING.md`, `docs/PROJECT_STATUS.md` и `docs/P04_REFORENSICS.md`.
+Историческая граница v0.4 описана в `docs/V04_RELEASE.md`; переходы P01/P02/P03/P04 и правила присвоения версий — в `docs/VERSIONING.md`, `docs/PROJECT_STATUS.md` и `docs/P04_REFORENSICS.md`. Итог promotion v0.8 и подготовка P05 зафиксированы в `docs/V08_RELEASE_P05_HANDOFF.md` и `docs/P05_REFORENSICS.md`.
 
 ## Основной рабочий цикл
 

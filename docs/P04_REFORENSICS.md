@@ -129,3 +129,8 @@ PASS marker: `READY_FOR_USE_WITHIN_P04C`. После него следующий
 ## P04d implemented boundary
 
 P04d переводит все 117 historical selector destinations в ActionContracts и удаляет first-match action authority из `main()`. Catalog/dispatcher закрыт как 119/119, generated compatibility metadata проверяется byte-for-byte, а canonical `--operand` сохраняет параметры legacy selector-команд без второго registry. Frozen evidence: `runtime/p04/p04d-frozen-evidence.json`; acceptance: `bash meta_tools/hyperpatch_acceptance.sh --p04d`. До owner PASS это RC4 candidate, а не принятый final `v0.8`.
+
+
+## Post-P04d owner acceptance / closure
+
+P04d/RC4 принят владельцем: `HYPERPATCH ACCEPTANCE: PASS`, `READY_FOR_USE_WITHIN_P04D`. Исторические разделы выше сохраняют состояние предположений на соответствующем HEAD и не переписываются задним числом. Отдельный owner receipt находится в `runtime/p04/p04d-owner-acceptance-receipt.json`. После нового re-forensics product transition доказан и promotion выполнен как `v0.8` / `0.8.0`. P04 закрыт; новый DAG начинается с provisional P05. Текущий handoff: `V08_RELEASE_P05_HANDOFF.md`, initial P05 PRE: `P05_REFORENSICS.md`.

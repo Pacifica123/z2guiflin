@@ -2,7 +2,7 @@
 
 ## Статус релиза
 
-Последняя принятая версия: `v0.7` (`0.7.0`). P03f и P04a/P04b/P04c owner acceptance завершены. Текущий HEAD: **P04d/RC4 candidate**, package version `0.8.0rc4`; финальный `v0.8` требует `READY_FOR_USE_WITHIN_P04D`.
+Последняя принятая версия: **`v0.8` (`0.8.0`)**. P03f и P04a/P04b/P04c/P04d owner acceptance завершены; P04d достиг `READY_FOR_USE_WITHIN_P04D`, P04 закрыт. Текущий следующий provisional узел — **P05 discoverability/help/unified health UX**. Promotion и recompiled DAG: `V08_RELEASE_P05_HANDOFF.md`.
 
 Это рабочий персональный инструмент для исследования и запуска стратегий обхода DPI на Arch-family Linux (включая Arch, EndeavourOS и Manjaro). Версия фиксирует зрелость приложения и его диагностического/runtime-контура. Она не фиксирует одну универсальную рабочую стратегию.
 
@@ -48,17 +48,17 @@
 
 Если нижние уровни исправны, результат может зависеть от конкретного DPI и маршрута. В таком случае проект должен дать наблюдение и воспроизводимый отчёт, а не изображать гарантированную починку.
 
-## Текущий приоритет: P04d / RC4 ActionContract closure
+## Текущий приоритет: подготовленный P05 discoverability/help/unified health UX
 
-Следующая архитектурная задача — не очередная стратегия, а устранение semantic/command drift:
+P04 архитектурно закрыт и принят как v0.8. Следующий PRE строится не вокруг новой стратегии, а вокруг пользовательской discoverability-проекции существующих truth sources:
 
-1. P04a фиксирует re-forensics, REP/CLI/S-INSTALL evidence и canonical ontology;
-2. P04b вводит resource-location contract и материализует один immutable Plan из разных source/import representations;
-3. P04c переводит bounded runtime/default slice на executable ActionContract/dispatcher и ставит contradiction gate перед всеми 117 legacy action selectors;
-4. P04d закрывает 117/117 selectors, 119/119 contracts/handlers, generated metadata/projection и roundtrip/lint acceptance перед P05.
+1. global action/concept search по RU/EN/technical terms из ActionContract/concept metadata;
+2. contextual help без отдельного ручного registry;
+3. structured errors `cause + evidence + nextAction`;
+4. health projection, сохраняющая различия runtime/network/app и UNKNOWN/stale;
+5. safe focus/invoke policy, которая не обходит Plan/confirmation/privilege.
 
-Подробно: `P04_REFORENSICS.md`. Остальные продуктовые пробелы остаются в `KNOWN_GAPS_CHECKLISTS.md`.
-
+Это пока **подготовленный контракт задачи**, а не реализованный P05. Перед первым P05 mutation patch обязателен новый re-forensics на принятом v0.8 HEAD. Подробно: `P05_REFORENSICS.md` и `V08_RELEASE_P05_HANDOFF.md`.
 
 ### P04d action authority / RC4
 

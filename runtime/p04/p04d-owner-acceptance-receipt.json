@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "receiptType": "owner-host-hyperpatch-acceptance",
+  "patch": "P04d",
+  "releaseCandidate": "0.8.0rc4",
+  "baseLineage": "2fc0a34",
+  "result": "PASS",
+  "readiness": "READY_FOR_USE_WITHIN_P04D",
+  "reportedAt": "2026-09-30",
+  "producer": "owner-host",
+  "evidencePath": "/home/noir/projects/TheGrayNetwork/UserTestSpace/project_20260930_160959_after_p04d-rc4-actioncontract-closure_2fc0a34/project/.zap2/runtime/acceptance/p04d-20260930T091318Z",
+  "evidenceArchive": "/home/noir/projects/TheGrayNetwork/UserTestSpace/project_20260930_160959_after_p04d-rc4-actioncontract-closure_2fc0a34/project/.zap2/runtime/acceptance/p04d-20260930T091318Z.zip",
+  "portabilityNote": "Host-local evidence paths are provenance only; deterministic release checks do not require these files to exist on another checkout."
+}

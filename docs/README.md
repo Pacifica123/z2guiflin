@@ -4,7 +4,7 @@
 
 ## Сначала читать
 
-1. `PROJECT_STATUS.md` — что реально работает в текущей v0.7/P04 линии и где проходит граница проекта.
+1. `PROJECT_STATUS.md` — что реально работает в принятой v0.8 и где проходит граница проекта.
 2. `V04_RELEASE.md` — почему состояние поднято до v0.4 без обещания универсальной стратегии.
 3. `KNOWN_GAPS_CHECKLISTS.md` — текущие недостатки по горизонтальным категориям.
 4. `SAFETY_AND_PRIVILEGE_BOUNDARY.md` — границы `sudo`, `nftables`, процессов и секретов.
@@ -15,7 +15,9 @@
 - `DEVELOPMENT_STRATEGY.md` — порядок развития и принятия решений.
 - `P04B_EXECUTION_PLAN.md` — resource-location contract, immutable execution Plan и compatibility aliases.
 - `P04C_ACTION_DISPATCHER.md` — canonical ActionContract dispatcher, legacy CLI translator и contradiction gate.
-- `VERSIONING.md` — правила версий, принятый v0.7 baseline и P04d/RC4 candidate toward v0.8.
+- `VERSIONING.md` — правила версий и принятый product transition v0.8.
+- `V08_RELEASE_P05_HANDOFF.md` — доказательство promotion после P04d owner acceptance и recompiled DAG.
+- `P05_REFORENSICS.md` — подготовленный, но ещё не реализованный P05 discoverability/help/health контракт.
 - `DOCUMENTATION_LANGUAGE.md` — язык и границы перевода.
 - `SOURCE_ALIGNMENT.md` — связь с bol-van, loop-uh, Flowseal и другими reference-снимками.
 - `ADR_P04_DOMAIN_ONTOLOGY.md` — canonical nouns, legacy aliases и ActionContract boundary.

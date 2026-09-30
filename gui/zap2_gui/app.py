@@ -261,7 +261,7 @@ def describe_project() -> str:
             "launch composer: Stage 7z GUI panel for combining Zapret and tunnel components",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
-            "status: v0.7 accepted baseline; P04d/RC4 ActionContract closure toward v0.8 candidate; strategy results remain environment-dependent",
+            "status: v0.8 accepted; P04 closed; P05 discoverability/help/health UX prepared as next provisional node; strategy results remain environment-dependent",
         ]
     )
 

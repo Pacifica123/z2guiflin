@@ -8,12 +8,12 @@ from zap2_gui import PRODUCT_LABEL, __version__
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_product_version_tracks_p04d_rc4_candidate_over_accepted_v07_baseline() -> None:
-    assert PRODUCT_LABEL == "v0.8-rc4"
-    assert __version__ == "0.8.0rc4"
+def test_product_version_tracks_accepted_v08_after_p04_closure() -> None:
+    assert PRODUCT_LABEL == "v0.8"
+    assert __version__ == "0.8.0"
 
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "0.8.0rc4"' in pyproject
+    assert 'version = "0.8.0"' in pyproject
     assert 'version = "0.4.0a0"' not in pyproject
 
 
@@ -22,18 +22,19 @@ def test_current_docs_define_environment_dependent_release_boundary() -> None:
     release = (ROOT / "docs" / "V04_RELEASE.md").read_text(encoding="utf-8")
     status = (ROOT / "docs" / "PROJECT_STATUS.md").read_text(encoding="utf-8")
 
-    assert "Zap2 GUI Linux — v0.8 RC4 candidate (P04d)" in readme
+    assert "Zap2 GUI Linux — v0.8 (P04 closed)" in readme
     assert "не универсальную стратегию" in readme
     assert "не обещает" in readme
     assert "рабочая платформа" in release
     assert "зависит не только от проекта" in release
-    assert "0.7.0" in status
-    assert "0.8.0rc4" in status
+    assert "0.8.0" in status
+    assert "P04 закрыт" in status
     assert "P04a" in status
     assert "P04b" in status
     assert "P04c" in status
     assert "P04d" in status
     assert "READY_FOR_USE_WITHIN_P04D" in status
+    assert "P05" in status
 
 
 def test_horizontal_gap_checklists_cover_reference_projects() -> None:

@@ -167,3 +167,22 @@ readiness: READY_FOR_USE_WITHIN_P04D
 ```
 
 До этого marker `0.8.0rc4` остаётся release candidate поверх последней принятой продуктовой версии `v0.7`; только owner acceptance P04d разрешает отдельное решение о promotion финального `v0.8`.
+
+## v0.8 release / P05 handoff acceptance
+
+После owner-host `READY_FOR_USE_WITHIN_P04D` P04 уже не расширяется ещё одним engineering subpatch. Отдельный release/handoff gate выполняет обязательный post-acceptance re-forensics, проверяет promotion final `0.8.0` и готовность зависимостей P05:
+
+```bash
+bash meta_tools/hyperpatch_acceptance.sh --v08-release
+```
+
+Gate read-only: он сверяет `p04d-owner-acceptance-receipt.json`, frozen v0.8 release evidence, P04d ActionContract closure, generated metadata, P03 generation identity, structural gate и полный isolated regression. Сетевой/root canary не повторяется.
+
+Успешный marker:
+
+```text
+HYPERPATCH ACCEPTANCE: PASS
+readiness: READY_FOR_P05
+```
+
+`READY_FOR_P05` означает только, что P04 принят как v0.8 и следующий новый mutation cycle может начать P05 PRE. Он не означает, что global search/help/health UX уже реализован.

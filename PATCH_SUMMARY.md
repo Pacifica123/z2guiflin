@@ -1,27 +1,24 @@
-# Итог hyperpatch — P04d ActionContract closure / RC4 candidate
+# Итог release/handoff patch — v0.8 promotion + P05 preparation
 
-База: owner-accepted P04c (`READY_FOR_USE_WITHIN_P04C`), post-P04c lineage `43fda92`. Последняя принятая версия остаётся `v0.7`; patch маркирует prerelease package `0.8.0rc4` до owner acceptance.
+База: owner-accepted P04d/RC4 (`READY_FOR_USE_WITHIN_P04D`), post-P04d lineage `2fc0a34`. Этот patch не добавляет новый P04 engineering scope: он выполняет обязательный post-acceptance re-forensics, доказывает product transition, снимает prerelease `0.8.0rc4` в пользу `0.8.0` и компилирует следующий provisional DAG.
 
-## Что делает P04d
+## Результат
 
-- переводит все 117 historical top-level selector destinations в canonical ActionContracts;
-- закрывает catalog/dispatcher как 119 ActionContracts / 119 executable handlers;
-- удаляет first-match action authority из `main()`;
-- сохраняет зрелые legacy command bodies только как selector-scoped compatibility executor после contract selection;
-- добавляет repeatable canonical `--operand` для действий с selector value;
-- генерирует/freeze compatibility metadata из parser surface и проверяет byte-for-byte regeneration;
-- генерирует единый ActionContract projection для CLI/help/GUI tooling;
-- добавляет all-contract parse/materialization roundtrip и representative execution parity;
-- добавляет P04d frozen evidence и `hyperpatch_acceptance.sh --p04d`;
-- синхронизирует product metadata как RC4 candidate (`0.8.0rc4`), не объявляя final v0.8 до owner PASS.
+- P04 считается закрытым;
+- final product metadata: `v0.8` / `0.8.0`;
+- owner acceptance записан отдельным provenance receipt без притворной переносимости host-local evidence;
+- P04 frozen evidence остаётся неизменяемой историей;
+- P05 подготовлен как projection-only discoverability/help/error/health UX поверх P04 ActionContracts + P01 typed evidence + P02 state;
+- S-INSTALL package-data/writable-state separation остаётся productization/P06 scope;
+- добавлен единый read-only acceptance `hyperpatch_acceptance.sh --v08-release`.
 
-## Acceptance target
+## Acceptance
 
-`HYPERPATCH ACCEPTANCE: PASS` + `READY_FOR_USE_WITHIN_P04D`. После этого P04 architecture считается закрытой и RC4 eligible for v0.8 promotion; P05 может строиться поверх стабильного ActionContract projection.
+Успешный marker этого patch:
 
-## Не входит
+```text
+HYPERPATCH ACCEPTANCE: PASS
+readiness: READY_FOR_P05
+```
 
-- универсальная гарантия обхода DPI;
-- повтор network/root canary P03;
-- полный S-INSTALL package-data bundle / writable-state separation;
-- P05 search/help UX.
+После него следующий mutation cycle обязан начать P05 с нового re-forensics принятого v0.8 HEAD, а не исполнять старый roadmap текст как authority.

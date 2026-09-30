@@ -17,10 +17,10 @@ ROOT = Path(__file__).resolve().parents[1]
 BASELINE = ROOT / "runtime/p04/p04a-frozen-evidence.json"
 
 
-def test_p03f_acceptance_promotes_product_baseline_before_p04() -> None:
-    assert PRODUCT_LABEL == "v0.8-rc4"
-    assert __version__ == "0.8.0rc4"
-    assert DEVELOPMENT_LINE == "P04d/RC4 ActionContract closure toward v0.8"
+def test_current_product_metadata_reflects_accepted_p04_transition() -> None:
+    assert PRODUCT_LABEL == "v0.8"
+    assert __version__ == "0.8.0"
+    assert DEVELOPMENT_LINE == "P05 discoverability/help/unified health UX preparation"
     status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
     versioning = (ROOT / "docs/VERSIONING.md").read_text(encoding="utf-8")
     assert "READY_FOR_USE_WITHIN_P03" in status
@@ -29,7 +29,8 @@ def test_p03f_acceptance_promotes_product_baseline_before_p04() -> None:
     assert "P04b" in versioning
     assert "P04c" in versioning
     assert "P04d" in versioning
-    assert "0.8.0rc4" in versioning
+    assert "0.8.0" in versioning
+    assert "READY_FOR_USE_WITHIN_P04D" in versioning
 
 
 def test_p04_ontology_names_core_domain_concepts() -> None:
@@ -109,11 +110,12 @@ def test_p04_recompiled_dag_keeps_p05_waiting() -> None:
     assert "P05 waits for P04d" in dag
 
 
-def test_p04_docs_mark_p04d_current_without_claiming_owner_accepted_v08() -> None:
+def test_p04_docs_preserve_historical_rc4_and_append_accepted_v08_closure() -> None:
     text = (ROOT / "docs/P04_REFORENSICS.md").read_text(encoding="utf-8")
     assert "P04a" in text
     assert "READY_FOR_USE_WITHIN_P04A" in text
     assert "P04b" in text and "P04c" in text and "P04d" in text
     assert "P04d" in text and "CURRENT" in text
-    assert "0.8.0rc4" in text
-    assert "не" in text.lower() and "v0.8" in text
+    assert "0.8.0rc4" in text  # historical pre-acceptance section remains immutable
+    assert "Post-P04d owner acceptance / closure" in text
+    assert "v0.8" in text and "P04 закрыт" in text

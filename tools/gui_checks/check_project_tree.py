@@ -38,8 +38,12 @@ REQUIRED_PATHS = [
     "docs/P04B_EXECUTION_PLAN.md",
     "docs/P04C_ACTION_DISPATCHER.md",
     "docs/P04D_ACTION_CONTRACT_CLOSURE.md",
+    "docs/V08_RELEASE_P05_HANDOFF.md",
+    "docs/P05_REFORENSICS.md",
     "runtime/p04/p04c-frozen-evidence.json",
     "runtime/p04/p04d-frozen-evidence.json",
+    "runtime/p04/p04d-owner-acceptance-receipt.json",
+    "runtime/p04/v08-release-evidence.json",
     "profiles/README.md",
     "profiles/default.json",
     "profiles/hostlists/default.hosts",
@@ -155,6 +159,7 @@ REQUIRED_PATHS = [
     "tools/gui_checks/check_p04c_regression.py",
     "tools/gui_checks/check_p04d_action_contracts.py",
     "tools/gui_checks/check_p04d_regression.py",
+    "tools/gui_checks/check_v08_release.py",
     "meta_tools/generate_p04d_action_bindings.py",
     "tools/gui_checks/check_runtime_lifecycle.py",
     "tools/gui_checks/check_runtime_plan_generator.py",
@@ -171,6 +176,7 @@ REQUIRED_PATHS = [
     "tests/test_p04b_execution_plan.py",
     "tests/test_action_dispatcher.py",
     "tests/test_p04d_action_contract_closure.py",
+    "tests/test_v08_release_p05_handoff.py",
     "tests/test_runtime_lifecycle_contracts.py",
     "tests/test_runtime_plan_generator.py",
     "tests/test_runtime_state_and_confirmation.py",
@@ -215,6 +221,8 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/P04B_EXECUTION_PLAN.md",
     "docs/P04C_ACTION_DISPATCHER.md",
     "docs/P04D_ACTION_CONTRACT_CLOSURE.md",
+    "docs/V08_RELEASE_P05_HANDOFF.md",
+    "docs/P05_REFORENSICS.md",
     "docs/RUNTIME_APPLY_REVERT.md",
     "docs/RUNTIME_SERVICE_PLANS.md",
     "docs/DEFAULT_WORKFLOW.md",
@@ -562,6 +570,23 @@ def main() -> int:
         print("P04d documentation/acceptance boundary не зафиксирована")
         return 1
 
+    v08_doc = (ROOT / "docs/V08_RELEASE_P05_HANDOFF.md").read_text(encoding="utf-8")
+    p05_doc = (ROOT / "docs/P05_REFORENSICS.md").read_text(encoding="utf-8")
+    owner_receipt = json.loads((ROOT / "runtime/p04/p04d-owner-acceptance-receipt.json").read_text(encoding="utf-8"))
+    release_evidence = json.loads((ROOT / "runtime/p04/v08-release-evidence.json").read_text(encoding="utf-8"))
+    if owner_receipt.get("readiness") != "READY_FOR_USE_WITHIN_P04D" or owner_receipt.get("result") != "PASS":
+        print("P04d owner acceptance receipt не PASS")
+        return 1
+    if release_evidence.get("transition", {}).get("to") != "0.8.0":
+        print("v0.8 release evidence не фиксирует финальный product transition")
+        return 1
+    if "P04 закрыт" not in v08_doc or "READY_FOR_P05" not in v08_doc:
+        print("v0.8 release/P05 handoff documentation не зафиксирована")
+        return 1
+    if "implementation ещё не начата" not in p05_doc or "WITHOUT new semantic authority" not in p05_doc:
+        print("P05 preparation boundary не зафиксирована")
+        return 1
+
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
     if "русском" not in language_doc or "проектная документация" not in language_doc:
         print("Правило русского языка документации не зафиксировано")
@@ -594,7 +619,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.8-rc4 + P04d/RC4 корректно: P03f/P04a/P04b/P04c приняты, ActionContract closure, русская документация, инвентаризация ядра, адаптеры и runtime-контракты зафиксированы")
+    print("Дерево v0.8 + закрытый P04 корректно: owner P04d PASS, ActionContract closure и release evidence зафиксированы; P05 подготовлен как projection-only следующий узел")
     return 0
 
 
