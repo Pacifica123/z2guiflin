@@ -8,6 +8,12 @@ from ..theme_profiles import ThemeProfile, apply_theme_profile, builtin_theme_pr
 
 _COLOR_FIELDS=(("text","Текст"),("muted","Вторичный текст"),("window","Фон окна"),("surface","Поверхность"),("card","Карточки"),("input","Поля ввода"),("border","Границы"),("control","Кнопки/навигация"),("hover","Наведение"),("selection","Выделение"),("selectionText","Текст выделения"),("accent","Акцент / Пуск"),("noticeBg","Уведомление: фон"),("noticeBorder","Уведомление: граница"),("noticeText","Уведомление: текст"),("noticeBadge","Уведомление: код"),("noticeBadgeText","Уведомление: текст кода"),("statusRunning","Индикатор: запущено"),("statusStopped","Индикатор: остановлено"),("statusWarning","Индикатор: проблема"),("statusUnknown","Индикатор: неизвестно"))
 
+
+_SETTING_FIELDS = (("theme", "Тема: тёмная основа", "Выбор светлой или тёмной темы; runtime не меняется."), ("name", "Название", "Название сохраняемого профиля оформления."), ("font", "Шрифт", "Семейство шрифта интерфейса."), ("size", "Размер шрифта, pt", "Размер текста интерфейса."), ("radius", "Скругление, px", "Скругление элементов интерфейса."), ("nav", "Ширина навигации, px", "Ширина левого меню."), ("apply", "Применить оформление", "Сохраняет локальный профиль оформления."), ("reset", "Сбросить оформление", "Возвращает стандартный профиль оформления."), ("import", "Импорт темы", "Читает файл профиля оформления после выбора файла."), ("export", "Экспорт темы", "Сохраняет профиль оформления после выбора файла."), ("hot", "Применять пресет одним кликом", "При активном Default: stop → смена selection → start, при ошибке попытка отката. Это действие меняет runtime после явного клика по пресету."))
+
+def setting_help_rows():
+    return tuple(("setting."+key,label,help_text) for key,label,help_text in _SETTING_FIELDS) + tuple(("setting.color."+key,label,"Семантический цвет: "+label+". Runtime не меняется.") for key,label in _COLOR_FIELDS)
+
 def make_settings_page(settings: Any) -> Any:
     QtCore,QtWidgets=require_pyqt(); from PyQt6 import QtGui
     class ThemeToggle(QtWidgets.QAbstractButton):
@@ -36,6 +42,10 @@ def make_settings_page(settings: Any) -> Any:
     theme_status=QtWidgets.QLabel(); theme_status.setObjectName("settingsValueHint"); theme_status.setWordWrap(True); gl.addWidget(theme_status)
     presets=QtWidgets.QGroupBox("Пресеты"); pl=QtWidgets.QVBoxLayout(presets); hot=QtWidgets.QCheckBox("Применять пресет одним кликом"); hot.setChecked(settings.value("presets/one-click-apply",True,type=bool)); hint=QtWidgets.QLabel("При активном Default выполняется stop → смена selection → start; при ошибке запуска — попытка отката. sudo может запроситься повторно после окончания сессии."); hint.setObjectName("settingsValueHint"); hint.setWordWrap(True); pl.addWidget(hot); pl.addWidget(hint)
     boundary=QtWidgets.QLabel("Тема не меняет runtime. Hot-swap выполняется только после явного клика по пресету."); boundary.setObjectName("settingsValueHint"); boundary.setWordWrap(True); bl.addWidget(group); bl.addWidget(presets); bl.addWidget(boundary); bl.addStretch(1); scroll.setWidget(body); layout.addWidget(title); layout.addWidget(intro); layout.addWidget(scroll,1)
+    controls={"theme":toggle,"name":name,"font":font,"size":size,"radius":radius,"nav":nav,"hot":hot,"apply":apply_btn,"reset":reset_btn,"import":import_btn,"export":export_btn}
+    for setting_id,label,help_text in setting_help_rows():
+        control=edits[setting_id.split(".")[-1]] if setting_id.startswith("setting.color.") else controls[setting_id.split(".")[-1]]
+        control.setObjectName(setting_id); control.setToolTip(help_text)
     loading={"v":False}
     def from_ui(): return ThemeProfile(name.text(),THEME_DARK if toggle.isChecked() else THEME_LIGHT,{k:e.text() for k,e in edits.items()},font.currentText(),size.value(),radius.value(),nav.value()).normalized()
     def fill(p):

@@ -40,6 +40,11 @@ REQUIRED_PATHS = [
     "docs/P04D_ACTION_CONTRACT_CLOSURE.md",
     "docs/V08_RELEASE_P05_HANDOFF.md",
     "docs/P05_REFORENSICS.md",
+    "docs/P05_DISCOVERABILITY.md",
+    "runtime/p05/pre-forensics.json",
+    "gui/zap2_gui/models/discovery.py",
+    "gui/zap2_gui/widgets/discovery_palette.py",
+    "tools/gui_checks/check_p05_acceptance.py",
     "runtime/p04/p04c-frozen-evidence.json",
     "runtime/p04/p04d-frozen-evidence.json",
     "runtime/p04/p04d-owner-acceptance-receipt.json",
@@ -583,8 +588,8 @@ def main() -> int:
     if "P04 закрыт" not in v08_doc or "READY_FOR_P05" not in v08_doc:
         print("v0.8 release/P05 handoff documentation не зафиксирована")
         return 1
-    if "implementation ещё не начата" not in p05_doc or "WITHOUT new semantic authority" not in p05_doc:
-        print("P05 preparation boundary не зафиксирована")
+    if "P05 реализован" not in p05_doc or "WITHOUT new semantic authority" not in p05_doc:
+        print("P05 RC5 implementation boundary не зафиксирована")
         return 1
 
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
@@ -619,7 +624,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.8 + закрытый P04 корректно: owner P04d PASS, ActionContract closure и release evidence зафиксированы; P05 подготовлен как projection-only следующий узел")
+    print("Дерево v0.8 + закрытый P04 корректно: owner P04d PASS, ActionContract closure и release evidence зафиксированы; P05 RC5 реализован как projection-only кандидат; owner acceptance pending")
     return 0
 
 

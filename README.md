@@ -1,8 +1,18 @@
-# Zap2 GUI Linux — v0.8 (P04 closed)
+# Zap2 GUI Linux — v0.9 RC5 (P05 candidate)
 
 `z2guiflin` — персональный GUI и набор диагностических инструментов для Arch Linux вокруг vendored-копии `zapret2` от bol-van. Проект помогает исследовать блокировки, собирать и запускать стратегии `nfqws2`, работать с `nftables`, а также проверять отдельную ветку SOCKS5/VLESS.
 
-Последняя принятая продуктовая версия — `v0.8` (`0.8.0`). P04a–P04d завершены, а P04d/RC4 прошёл owner-host acceptance (`READY_FOR_USE_WITHIN_P04D`): все 117 historical CLI selectors contract-backed, 119 canonical ActionContracts закрыты executable dispatcher и first-match authority удалён из `main()`. Следующий provisional узел — P05 discoverability/help/unified health UX поверх этой стабильной projection authority. Как и раньше, версия фиксирует рабочую платформу, а не универсальную стратегию обхода. В целевой среде владельца отдельные стратегии уже помогают YouTube и запуску/сообщениям Discord. Другие комбинации могут не давать результата даже для YouTube. Это зависит от провайдера, DPI, маршрута, DNS, приложения и конкретной стратегии; приложение не может гарантировать одинаковый результат во всех сетях.
+Последняя принятая продуктовая версия — `v0.8` (`0.8.0`). P04a–P04d завершены, а P04d/RC4 прошёл owner-host acceptance (`READY_FOR_USE_WITHIN_P04D`): все 117 historical CLI selectors contract-backed, 119 canonical ActionContracts закрыты executable dispatcher и first-match authority удалён из `main()`. P05 реализован как кандидат RC5 (`0.9.0rc5`); owner acceptance ещё не выполнен. Следующий узел после принятия — P06 docs/release/productization. Как и раньше, версия фиксирует рабочую платформу, а не универсальную стратегию обхода. В целевой среде владельца отдельные стратегии уже помогают YouTube и запуску/сообщениям Discord. Другие комбинации могут не давать результата даже для YouTube. Это зависит от провайдера, DPI, маршрута, DNS, приложения и конкретной стратегии; приложение не может гарантировать одинаковый результат во всех сетях.
+
+## Поиск, справка и состояние P05
+
+`Ctrl+K` или «Найти / справка» открывает глобальный поиск по RU/EN/technical terms. Выберите результат: справка показывает смысл, условия, эффект и права. Технические ID раскрываются отдельно. Для изменения системы откройте соответствующий раздел и используйте существующий plan/confirm workflow. Для CLI-only операции справка показывает canonical CLI; универсальная кнопка запуска изменения не добавляется.
+
+Снимок состояния разделяет runtime, локальный SOCKS, удалённый HTTPS/TLS и Discord/Vesktop. Его надо обновить после изменения состояния. UNKNOWN означает отсутствие текущих связанных данных. Исторический PASS не становится текущим.
+
+CLI-поиск: `PYTHONPATH=gui python -m zap2_gui.models.discovery VLESS`.
+Единая приёмка: `bash meta_tools/hyperpatch_acceptance.sh --p05` (без sudo).
+Подробности и задачи новичка: [P05](docs/P05_DISCOVERABILITY.md).
 
 ## Быстрый запуск
 

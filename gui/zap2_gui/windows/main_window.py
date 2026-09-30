@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from pathlib import Path
+from ..project_paths import discover_layout
+from ..widgets.discovery_palette import make_discovery_palette
+from ..widgets.health_panel import make_health_panel
 from .. import PRODUCT_LABEL
 from ..adapters.local_build import create_local_build_plan
 from ..core_inventory import load_core_build_map, load_core_inventory_snapshot
@@ -83,8 +87,26 @@ def create_main_window(root: object | None = None) -> Any:
                 else:
                     page = make_placeholder_page(section)
 
+                if section.key == "overview":
+                    from ..models.error_envelope import error_envelope
+                    message = page.findChild(QtWidgets.QLabel, "launchIssueMessage")
+                    if message is not None:
+                        def update_issue_help(label=message, issue_page=page):
+                            code_label = issue_page.findChild(QtWidgets.QLabel, "launchIssueCode")
+                            label.setToolTip(error_envelope(code_label.text(),label.text()).text())
+                        message.installEventFilter(self)
+                        self._update_issue_help = update_issue_help
                 page.setObjectName(f"page-{section.key}")
-                self.content_stack.addWidget(page)
+                if section.key == "overview":
+                    overview_scroll = QtWidgets.QScrollArea()
+                    overview_scroll.setObjectName("overviewScrollArea")
+                    overview_scroll.setWidgetResizable(True)
+                    overview_scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+                    overview_scroll.setWidget(page)
+                    overview_scroll.refresh_runtime_state = page.refresh_runtime_state
+                    self.content_stack.addWidget(overview_scroll)
+                else:
+                    self.content_stack.addWidget(page)
 
                 item = QtWidgets.QListWidgetItem(section_icon(section.key), section.title)
                 item.setData(QtCore.Qt.ItemDataRole.UserRole, section.key)
@@ -97,6 +119,14 @@ def create_main_window(root: object | None = None) -> Any:
             safety_hint.setObjectName("navigationHint")
             safety_hint.setWordWrap(True)
 
+            discovery_button = QtWidgets.QPushButton("Найти / справка · Ctrl+K")
+            discovery_button.setObjectName("globalDiscoveryButton")
+            from PyQt6.QtGui import QShortcut, QKeySequence
+            self.discovery_palette = make_discovery_palette(self, discover_layout(root).root, self.focus_discovery_target)
+            discovery_button.clicked.connect(self.open_discovery)
+            self.discovery_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
+            self.discovery_shortcut.activated.connect(self.open_discovery)
+            navigation_layout.addWidget(discovery_button)
             navigation_layout.addWidget(brand)
             navigation_layout.addWidget(brand_subtitle)
             navigation_layout.addSpacing(8)
@@ -113,6 +143,8 @@ def create_main_window(root: object | None = None) -> Any:
             self.page_subtitle.setObjectName("pageSubtitle")
             self.page_subtitle.setWordWrap(True)
 
+            self.health_panel = make_health_panel(root)
+            content_layout.addWidget(self.health_panel)
             content_layout.addWidget(self.page_subtitle)
             content_layout.addWidget(self.content_stack, 1)
 
@@ -132,6 +164,29 @@ def create_main_window(root: object | None = None) -> Any:
                     self.restoreGeometry(geometry)
                 except Exception:
                     pass
+
+        def eventFilter(self, watched, event):
+            if watched.objectName() == "launchIssueMessage" and event.type() == QtCore.QEvent.Type.ToolTip:
+                self._update_issue_help()
+            return super().eventFilter(watched,event)
+
+        def open_discovery(self) -> None:
+            self.discovery_palette.show()
+            self.discovery_palette.raise_()
+            self.discovery_palette.query.setFocus()
+
+        def focus_discovery_target(self, page_key: str, object_name: str | None) -> bool:
+            row = next((i for i,s in enumerate(sections) if s.key == page_key), None)
+            if row is None: return False
+            self.navigation_list.setCurrentRow(row)
+            if object_name is None: return True
+            page = self.content_stack.widget(row)
+            target = page.findChild(QtWidgets.QWidget, object_name)
+            if target is None: return False
+            target.setFocus()
+            scroll = page.findChild(QtWidgets.QScrollArea)
+            if scroll is not None: scroll.ensureWidgetVisible(target)
+            return True
 
         def _select_page(self, row: int) -> None:
             if not 0 <= row < len(sections):

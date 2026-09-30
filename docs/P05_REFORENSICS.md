@@ -1,6 +1,8 @@
 # P05 — initial re-forensics / discoverability-help-health UX
 
-Статус: **prepared after accepted v0.8; implementation ещё не начата**.
+Статус текущего кандидата: **P05 реализован, RC5 ожидает owner acceptance**.
+
+Исторический PRE после accepted v0.8: **implementation ещё не начата**. Измерения ниже относятся к этой исходной базе.
 
 ## Thesis
 
@@ -74,3 +76,11 @@ P05 должен позволить пользователю без чтения
 ## Scope discipline
 
 P05 остаётся provisional roadmap node. Перед первым mutation patch обязателен новый PRE на принятом `v0.8` HEAD. Если global search, help/errors и health projection не помещаются в один coherent/reviewable transition, P05 нужно разделить на bounded hyperpatches; номера подэтапов не являются заранее обязательными.
+
+## POST кандидата RC5
+
+WITHOUT new semantic authority сохраняется: catalog/dispatcher/CLI authority не меняются; index/help являются вычисляемыми views. Все 119 действий имеют поиск и help; CLI-only action фокусируется на точной справке инспектора, а раздел служит маршрутом к существующему workflow. Настройки берутся из metadata рядом с реальными controls. Concepts связаны с canonical ontology.
+
+Подтверждено: P01 mandatory capability predicates переиспользуются; P02 ownership и next_safe_action отображаются отдельно. Falsified: ни один исходный prerequisite не опровергнут. Новое ограничение: cached snapshot требует явного refresh; поиск не запускает probe/prepare/mutation. Исторические v0.8/P04 receipts не переписаны. Frozen PRE: `runtime/p05/pre-forensics.json`.
+
+DAG: RC5 owner acceptance → new HEAD re-forensics → final SemVer decision → P06 productization → P07 qualification. Полный package-data/S-INSTALL и внешние network results остаются за границами P05.

@@ -1,5 +1,9 @@
 # Стратегия разработки
 
+Текущее состояние P05: **0.9.0rc5 / v0.9 RC5 candidate**. Реализованы global discovery/help, structured error envelopes и separate health projections. Последний принятый релиз остаётся v0.8; принятие RC5 на owner-host ещё не выполнено. Общая проверка: `bash meta_tools/hyperpatch_acceptance.sh --p05`. После acceptance: re-forensics → решение о final 0.9.0 → P06 → P07. Детали: `docs/P05_DISCOVERABILITY.md`.
+
+Ниже сохранён контекст принятого v0.8 и предыдущих этапов.
+
 ## Цель
 
 Развивать z2guiflin как минимальный и проверяемый Linux-инструмент вокруг upstream `zapret2`, а не как отдельную реализацию DPI-движка. GUI-фреймворк проекта — PyQt6.

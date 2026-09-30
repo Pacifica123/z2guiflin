@@ -16,6 +16,11 @@ class LaunchIssue:
     message: str
     details: str
 
+    @property
+    def envelope(self):
+        from ..models.error_envelope import error_envelope
+        return error_envelope(self.code,self.message,(self.details,) if self.details else ())
+
     def short_text(self) -> str:
         return f"{self.code}: {self.message}"
 
@@ -27,6 +32,7 @@ class LaunchIssue:
                 f"message: {self.message}",
                 "details:",
                 self.details.strip() or "нет деталей",
+                self.envelope.text(),
             ]
         )
 
@@ -120,6 +126,17 @@ def classify_launch_issue(
             message="План был подтверждён, но сам tunnel core ещё не был запущен.",
             details=details,
         )
+
+    for tokens, code, cause in (
+        (("nft conflict", "foreign-conflict"), "Z2-NFT-CONFLICT", "Firewall содержит чужие или конфликтующие правила; сначала выполните сверку."),
+        (("stale pid", "owned-stale"), "Z2-STALE-PID", "Сохранённое состояние процесса устарело; автоматическое удаление неизвестного процесса запрещено."),
+        (("tls eof", "tls_eof"), "Z2-TLS-EOF", "Удалённый TLS не завершился; локальный SOCKS не доказывает доступность маршрута."),
+        (("socks handshake", "socks peer closed"), "Z2-SOCKS-FAILED", "Локальное SOCKS соединение не прошло проверку."),
+        (("unsupported transport",), "Z2-UNSUPPORTED-TRANSPORT", "Ядро не поддерживает транспорт выбранного соединения."),
+        (("migration-required", "unknown newer schema"), "Z2-MIGRATION", "Формат или состояние требует проверки совместимости; данные не удаляются."),
+    ):
+        if any(token in lower for token in tokens):
+            return LaunchIssue(code, "warning", cause, details)
 
     start_like = any(token in lower for token in ("start", "запустить", "combined toggle start", "launch composer start"))
     if start_like and all_selected_running is False:

@@ -18,9 +18,9 @@ BASELINE = ROOT / "runtime/p04/p04a-frozen-evidence.json"
 
 
 def test_current_product_metadata_reflects_accepted_p04_transition() -> None:
-    assert PRODUCT_LABEL == "v0.8"
-    assert __version__ == "0.8.0"
-    assert DEVELOPMENT_LINE == "P05 discoverability/help/unified health UX preparation"
+    assert PRODUCT_LABEL == "v0.9 RC5"
+    assert __version__ == "0.9.0rc5"
+    assert DEVELOPMENT_LINE == "P05 discoverability/help/unified health UX RC5 candidate"
     status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
     versioning = (ROOT / "docs/VERSIONING.md").read_text(encoding="utf-8")
     assert "READY_FOR_USE_WITHIN_P03" in status

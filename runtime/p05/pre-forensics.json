@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "baseLineage": "1addd90",
+  "baseVersion": "0.8.0",
+  "actionContracts": 119,
+  "legacySelectors": 117,
+  "ownerP05Acceptance": "NOT_RUN",
+  "assumptions": {
+    "confirmed": [
+      "P04 contracts are closed",
+      "P01 capability predicates and binding loader can be reused",
+      "P02 ownership status supplies next_safe_action"
+    ],
+    "falsified": [],
+    "new": [
+      "CLI-only actions resolve to their exact inspector help; page navigation does not pretend to be an execution button",
+      "Search never directly invokes prepare/apply/probe/import/export operations"
+    ]
+  },
+  "inputSha256": {
+    "gui/zap2_gui/models/action_catalog.py": "901da3ffd47073334bbebac29c2de17b031a42123266c7a90aff4950157590bd",
+    "gui/zap2_gui/adapters/action_dispatcher.py": "1e49ba135934e7cd5fd7bb3ec957609ec8257a58daa12c2368d986368d9896e2",
+    "gui/zap2_gui/adapters/legacy_cli.py": "5f4e318db8233cf0586fa1a0c91ceae1847ffdca1c9d1f6a896bf4e5130e9297",
+    "runtime/p04/v08-release-evidence.json": "d9dda311eb7170d88a73dba948549cae13b3dcefc6406664fb0c5ff5887948fc",
+    "runtime/p04/p04d-frozen-evidence.json": "54e33b8034f46c560af352b1051654dcc74817b492bf84792382a1ec50cd601b"
+  }
+}

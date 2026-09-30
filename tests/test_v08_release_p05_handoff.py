@@ -11,10 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_v08_is_final_accepted_product_marker_and_p05_is_next() -> None:
-    assert PRODUCT_LABEL == "v0.8"
-    assert __version__ == "0.8.0"
-    assert DEVELOPMENT_LINE == "P05 discoverability/help/unified health UX preparation"
-    assert 'version = "0.8.0"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert PRODUCT_LABEL == "v0.9 RC5"
+    assert __version__ == "0.9.0rc5"
+    assert DEVELOPMENT_LINE == "P05 discoverability/help/unified health UX RC5 candidate"
+    assert 'version = "0.9.0rc5"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
 
 def test_owner_p04d_receipt_closes_rc4_without_rewriting_frozen_evidence() -> None:

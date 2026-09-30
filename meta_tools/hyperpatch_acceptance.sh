@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 # Owner-host acceptance runner for an applied hyperpatch.
 # P03 mode deliberately exercises the real local lifecycle.
-# P04a/P04b/P04c/P04d/v08-release modes are deterministic/read-only acceptance profiles and do not repeat the network canary.
+# P04a/P04b/P04c/P04d/v08-release/P05 modes are deterministic/read-only acceptance profiles and do not repeat the network canary.
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
@@ -25,10 +25,19 @@ usage() {
   bash meta_tools/hyperpatch_acceptance.sh --p04c
   bash meta_tools/hyperpatch_acceptance.sh --p04d
   bash meta_tools/hyperpatch_acceptance.sh --v08-release
+  bash meta_tools/hyperpatch_acceptance.sh --p05
   bash meta_tools/hyperpatch_acceptance.sh --profile default
   bash meta_tools/hyperpatch_acceptance.sh --canary-seconds 3
   bash meta_tools/hyperpatch_acceptance.sh --p03 --recover-root /path/to/previous/UTS/project
   bash meta_tools/hyperpatch_acceptance.sh --p03 --no-host-setup
+
+Смысл PASS для --p05:
+  - поиск/help/ошибки/health и все focus targets проверены;
+  - ActionContract authority совпадает с frozen PRE;
+  - generated bindings, P03 identity, structural gate и полный isolated regression прошли;
+  - каждый шаг и полный pytest output сохраняются в ZIP evidence;
+  - readiness: READY_FOR_RC5_REVIEW; это deterministic candidate verification;
+  - никаких network probes, sudo, nft mutations и owner acceptance receipt не создаётся.
 
 Смысл PASS для --p03:
   - P03 generation/inventory + focused regression прошли;
@@ -117,6 +126,10 @@ while (($#)); do
       HYPERPATCH="p04d"
       shift
       ;;
+    --p05)
+      HYPERPATCH="p05"
+      shift
+      ;;
     --v08-release)
       HYPERPATCH="v08-release"
       shift
@@ -152,8 +165,8 @@ while (($#)); do
   esac
 done
 
-if [[ "${HYPERPATCH}" != "p03" && "${HYPERPATCH}" != "p04a" && "${HYPERPATCH}" != "p04b" && "${HYPERPATCH}" != "p04c" && "${HYPERPATCH}" != "p04d" && "${HYPERPATCH}" != "v08-release" ]]; then
-  echo "Поддерживаются P03, P04a, P04b, P04c, P04d и v08-release acceptance profiles." >&2
+if [[ "${HYPERPATCH}" != "p03" && "${HYPERPATCH}" != "p04a" && "${HYPERPATCH}" != "p04b" && "${HYPERPATCH}" != "p04c" && "${HYPERPATCH}" != "p04d" && "${HYPERPATCH}" != "v08-release" && "${HYPERPATCH}" != "p05" ]]; then
+  echo "Поддерживаются P03, P04a, P04b, P04c, P04d, v08-release и P05 acceptance profiles." >&2
   exit 2
 fi
 if [[ "${HYPERPATCH}" != "p03" && -n "${RECOVER_ROOT}" ]]; then
@@ -208,10 +221,16 @@ ERR
   fi
 else
   if ! PYTHON_BIN="$(zap2_pick_python "${PROJECT_ROOT}" pytest)"; then
-    echo "Не найден совместимый Python >= 3.10 с pytest для deterministic P04/release acceptance." >&2
+    echo "Не найден совместимый Python >= 3.10 с pytest для deterministic P04/P05/release acceptance." >&2
     exit 2
   fi
   HOST_SETUP=0
+fi
+
+# P05 uses exactly the same composite pipeline as devctl; it archives every
+# step and stops on the first failure. No scattered owner commands are needed.
+if [[ "${HYPERPATCH}" == "p05" ]]; then
+  exec "${PYTHON_BIN}" tools/gui_checks/check_p05_acceptance.py
 fi
 
 READINESS_MARKER="READY_FOR_USE_WITHIN_P03"

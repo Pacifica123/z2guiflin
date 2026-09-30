@@ -1,24 +1,19 @@
-# Итог release/handoff patch — v0.8 promotion + P05 preparation
+# P05 RC5 — глобальный поиск, справка и состояние
 
-База: owner-accepted P04d/RC4 (`READY_FOR_USE_WITHIN_P04D`), post-P04d lineage `2fc0a34`. Этот patch не добавляет новый P04 engineering scope: он выполняет обязательный post-acceptance re-forensics, доказывает product transition, снимает prerelease `0.8.0rc4` в пользу `0.8.0` и компилирует следующий provisional DAG.
+База: приложенный post-v0.8 archive, lineage `1addd90`. Product candidate: `0.9.0rc5` / `v0.9 RC5`; последний owner-accepted release — v0.8. Final 0.9.0 пока не назначен.
 
-## Результат
+- Ctrl+K ищет 119 действий, canonical concepts и реальные настройки по RU/EN/technical terms, с ограниченными опечатками и детерминированным ranking.
+- Exact action/concept help фокусируется в общем инспекторе; настройки — в реальном control. CLI-only действия получают справку и маршрут в раздел.
+- Явный direct invoke ограничен safe read/validate contracts, идёт через прежний canonical dispatcher; mutation/probe/prepare/import/export не запускаются из palette.
+- Contextual help содержит смысл, условия и эффект; ID и CLI раскрываются отдельно.
+- Structured error envelope добавляет cause/evidence/semantic nextAction к прежнему classifier и banner tooltip/full text.
+- Health разделяет runtime, local SOCKS, remote HTTPS/TLS и app mandatory predicates; использует P01 binding/requirements и P02 next_safe_action. Не сохраняет graph и не запускает network probes.
+- Stop/dead/mismatched/unbound state не получает зелёный network/app health. Снимок требует явного refresh после изменений.
+- Catalog/dispatcher/legacy CLI и исходные frozen receipts не переписываются; PRE зафиксирован в `runtime/p05/pre-forensics.json`.
+- Текущие entry-point документы, версия и regression version assertions согласованы с RC5 candidate. Исторические stages явно помечены.
 
-- P04 считается закрытым;
-- final product metadata: `v0.8` / `0.8.0`;
-- owner acceptance записан отдельным provenance receipt без притворной переносимости host-local evidence;
-- P04 frozen evidence остаётся неизменяемой историей;
-- P05 подготовлен как projection-only discoverability/help/error/health UX поверх P04 ActionContracts + P01 typed evidence + P02 state;
-- S-INSTALL package-data/writable-state separation остаётся productization/P06 scope;
-- добавлен единый read-only acceptance `hyperpatch_acceptance.sh --v08-release`.
+Единый профиль: `bash meta_tools/hyperpatch_acceptance.sh --p05`. Тот же pipeline включён в devctl manifest. Focused GUI tests и полный regression выполняются в временных копиях с изолированными настройками; все step/full pytest logs сохраняются в evidence ZIP.
 
-## Acceptance
+Фактический результат проверок этой среды записан в `runtime/p05/container-validation.json`. Детерминированные P05 проверки могут пройти, пока full regression остаётся BLOCKED: контейнер не предоставляет корректный `/proc/<child-pid>`. Эти проверки не исключаются из owner acceptance.
 
-Успешный marker этого patch:
-
-```text
-HYPERPATCH ACCEPTANCE: PASS
-readiness: READY_FOR_P05
-```
-
-После него следующий mutation cycle обязан начать P05 с нового re-forensics принятого v0.8 HEAD, а не исполнять старый roadmap текст как authority.
+Следующий DAG: RC5 owner acceptance → new HEAD re-forensics → решение о final SemVer → P06 productization → P07 qualification. Этот patch не создаёт owner receipt и не утверждает внешнюю доступность Discord.

@@ -1,5 +1,11 @@
 # GUI-пакет
 
+Текущий кандидат: **0.9.0rc5 / P05 RC5**, последний принятый релиз — v0.8. P05 добавляет глобальный поиск/справку по ActionContracts и ontology, structured error envelopes и отдельные health projections. В GUI: Ctrl+K; приёмка: `bash meta_tools/hyperpatch_acceptance.sh --p05`. Документ: `docs/P05_DISCOVERABILITY.md` (из `docs/`: `P05_DISCOVERABILITY.md`).
+
+Runtime executor и plan/confirm уже реализованы в P02–P04 (`gui/zap2_gui/adapters/`); `runtime/` содержит схемы и evidence. P05 не меняет authority исполнения. Полный S-INSTALL и физическая реорганизация документации остаются для P06.
+
+## Исторический контекст и указатель предыдущих этапов
+
 `gui/` содержит наш application-side Python-код и развивается в desktop GUI на PyQt. Он не должен поглощать upstream-исходники ядра и не должен выполнять privileged host mutations во время import.
 
 Начиная с `v0.3-alpha_stage_5`, пакет содержит первый скелет GUI shell:

@@ -1,5 +1,9 @@
 # Текущий статус проекта
 
+Текущее состояние P05: **0.9.0rc5 / v0.9 RC5 candidate**. Реализованы global discovery/help, structured error envelopes и separate health projections. Последний принятый релиз остаётся v0.8; принятие RC5 на owner-host ещё не выполнено. Общая проверка: `bash meta_tools/hyperpatch_acceptance.sh --p05`. После acceptance: re-forensics → решение о final 0.9.0 → P06 → P07. Детали: `docs/P05_DISCOVERABILITY.md`.
+
+Ниже сохранён контекст принятого v0.8 и предыдущих этапов.
+
 ## Статус релиза
 
 Последняя принятая версия: **`v0.8` (`0.8.0`)**. P03f и P04a/P04b/P04c/P04d owner acceptance завершены; P04d достиг `READY_FOR_USE_WITHIN_P04D`, P04 закрыт. Текущий следующий provisional узел — **P05 discoverability/help/unified health UX**. Promotion и recompiled DAG: `V08_RELEASE_P05_HANDOFF.md`.

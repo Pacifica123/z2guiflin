@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "candidate": "0.9.0rc5",
+  "lastAccepted": "0.8.0",
+  "ownerAcceptance": "NOT_RUN",
+  "overall": "BLOCKED",
+  "focusedP05Tests": {
+    "passed": 33,
+    "failed": 0
+  },
+  "fullRegression": {
+    "passed": 558,
+    "failed": 21,
+    "newFailuresComparedWithBaseline": [],
+    "failedTests": [
+      "tests/test_consolidated_runtime_security_patch.py::test_legacy_runtime_session_is_adopted_only_after_exact_pidfile_exe_argv_match",
+      "tests/test_consolidated_runtime_security_patch.py::test_session_identity_accepts_kernel_hidden_exe_only_for_expected_drop_identity",
+      "tests/test_consolidated_runtime_security_patch.py::test_session_identity_fails_closed_for_legacy_and_wrong_starttime",
+      "tests/test_default_workflow.py::test_default_start_executes_apply_then_session_with_fake_runner",
+      "tests/test_default_workflow.py::test_default_stop_stops_session_and_reverts_owner_rules",
+      "tests/test_default_workflow.py::test_p02_failure_after_session_start_compensates_session_and_owner_rules",
+      "tests/test_gui_first_overview.py::test_gui_first_overview_detects_running_strategy_mismatch",
+      "tests/test_p01_network_truth_evidence.py::test_failed_preflight_bypass_does_not_green_capability",
+      "tests/test_p02_runtime_lifecycle_privilege.py::test_backfill_bounded_drop_identity_requires_plan_helper_and_live_identity",
+      "tests/test_p02_runtime_lifecycle_privilege.py::test_read_only_status_requires_explicit_legacy_migration",
+      "tests/test_runtime_session_runner.py::test_session_runner_starts_statuses_and_stops_only_owned_process",
+      "tests/test_runtime_session_runner.py::test_session_status_marks_copied_state_from_other_workspace_as_stale",
+      "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n2_guided_probe_reports_log_activity",
+      "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n2_guided_probe_reports_out_hit_alive_logs_silent",
+      "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n3_guided_probe_accepts_windows_v3_bridge_and_udp_counter",
+      "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n3_guided_probe_correlates_estab_sendq_endpoint",
+      "tests/test_stage7p1_discord_tunnel.py::test_confirm_start_probe_stop_with_fake_core",
+      "tests/test_stage7p5_discord_tunnel_guided.py::test_stage8a_launch_through_socks_accepts_flatpak_command_string",
+      "tests/test_stage7p5_discord_tunnel_guided.py::test_stage8b_launch_is_blocked_when_tunnel_session_is_stopped",
+      "tests/test_stage7p5_discord_tunnel_guided.py::test_stage8c_launch_preflight_blocks_discord_before_spawn",
+      "tests/test_stage7z_launch_composer.py::test_stage7z_can_start_and_stop_vless_only_with_fake_core"
+    ]
+  },
+  "baseline": {
+    "failed": 22,
+    "failedTests": [
+      "tests/test_consolidated_runtime_security_patch.py::test_legacy_runtime_session_is_adopted_only_after_exact_pidfile_exe_argv_match",
+      "tests/test_consolidated_runtime_security_patch.py::test_session_identity_accepts_kernel_hidden_exe_only_for_expected_drop_identity",
+      "tests/test_consolidated_runtime_security_patch.py::test_session_identity_fails_closed_for_legacy_and_wrong_starttime",
+      "tests/test_default_workflow.py::test_default_start_executes_apply_then_session_with_fake_runner",
+      "tests/test_default_workflow.py::test_default_stop_stops_session_and_reverts_owner_rules",
+      "tests/test_default_workflow.py::test_p02_failure_after_session_start_compensates_session_and_owner_rules",
+      "tests/test_gui_first_overview.py::test_gui_first_overview_detects_running_strategy_mismatch",
+      "tests/test_p01_network_truth_evidence.py::test_failed_preflight_bypass_does_not_green_capability",
+      "tests/test_p02_runtime_lifecycle_privilege.py::test_backfill_bounded_drop_identity_requires_plan_helper_and_live_identity",
+      "tests/test_p02_runtime_lifecycle_privilege.py::test_read_only_status_requires_explicit_legacy_migration",
+      "tests/test_runtime_session_runner.py::test_session_runner_starts_statuses_and_stops_only_owned_process",
+      "tests/test_runtime_session_runner.py::test_session_status_marks_copied_state_from_other_workspace_as_stale",
+      "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n2_guided_probe_reports_log_activity",
+      "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n2_guided_probe_reports_out_hit_alive_logs_silent",
+      "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n3_guided_probe_accepts_windows_v3_bridge_and_udp_counter",
+      "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n3_guided_probe_correlates_estab_sendq_endpoint",
+      "tests/test_stage7p1_discord_tunnel.py::test_confirm_start_probe_stop_with_fake_core",
+      "tests/test_stage7p5_discord_tunnel_guided.py::test_stage8a_launch_through_socks_accepts_flatpak_command_string",
+      "tests/test_stage7p5_discord_tunnel_guided.py::test_stage8b_launch_is_blocked_when_tunnel_session_is_stopped",
+      "tests/test_stage7p5_discord_tunnel_guided.py::test_stage8c_launch_preflight_blocks_discord_before_spawn",
+      "tests/test_stage7p5_discord_tunnel_guided.py::test_vesktop_launch_uses_socks_flag_and_disables_quic",
+      "tests/test_stage7z_launch_composer.py::test_stage7z_can_start_and_stop_vless_only_with_fake_core"
+    ]
+  },
+  "checks": [
+    {
+      "step": "P05 projection and PRE bindings",
+      "returncode": 0,
+      "command": [
+        "/tmp/tgn-p05-venv/bin/python",
+        "tools/gui_checks/check_p05_projection.py"
+      ]
+    },
+    {
+      "step": "P05 GUI dependencies",
+      "returncode": 0,
+      "command": [
+        "/tmp/tgn-p05-venv/bin/python",
+        "-c",
+        "import pytest,PyQt6; print(\"pytest/PyQt6: PASS\")"
+      ]
+    },
+    {
+      "step": "P05 focused search help errors health GUI",
+      "returncode": 0,
+      "command": [
+        "/tmp/tgn-p05-venv/bin/python",
+        "tools/gui_checks/check_p05_focused.py"
+      ]
+    },
+    {
+      "step": "Generated action metadata",
+      "returncode": 0,
+      "command": [
+        "/tmp/tgn-p05-venv/bin/python",
+        "meta_tools/generate_p04d_action_bindings.py",
+        "--check"
+      ]
+    },
+    {
+      "step": "P03 generation identity preserved",
+      "returncode": 0,
+      "command": [
+        "/tmp/tgn-p05-venv/bin/python",
+        "tools/gui_checks/check_p03_core_generation.py"
+      ]
+    },
+    {
+      "step": "Project tree structural gate",
+      "returncode": 0,
+      "command": [
+        "/tmp/tgn-p05-venv/bin/python",
+        "tools/gui_checks/check_project_tree.py"
+      ]
+    },
+    {
+      "step": "Full isolated regression",
+      "returncode": 1,
+      "command": [
+        "/tmp/tgn-p05-venv/bin/python",
+        "tools/gui_checks/check_p05_regression.py"
+      ]
+    }
+  ],
+  "environmentProbe": {
+    "selfPid": 2,
+    "procSelf": "52737",
+    "childPid": 5,
+    "childProcExists": true
+  },
+  "interpretation": "Container PID namespace and /proc disagree. Unmodified v0.8 also fails the real-process fixtures. Full owner acceptance remains mandatory; no tests are skipped or weakened."
+}

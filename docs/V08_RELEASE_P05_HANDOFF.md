@@ -59,7 +59,7 @@ v0.8 accepted P04 closure
 
 Ни один будущий номер версии не считается заранее назначенным. После принятого P05 снова выполняется `new HEAD -> re-forensics -> assumptionsΔ -> DAG/version recompilation`.
 
-## P05 — подготовленный контракт задачи
+## P05 — исторический подготовленный контракт задачи
 
 Исходный RA thesis сохраняется, потому что P04 устранил prerequisite instability:
 
@@ -108,3 +108,7 @@ readiness: READY_FOR_P05
 ```
 
 Этот PASS подтверждает promotion metadata, сохранение P04/P03 semantic evidence, structural gate и полный deterministic regression. Он не запускает root/network canary и не утверждает, что P05 уже реализован.
+
+## Текущий преемник
+
+Подготовленный выше scope реализован в P05 RC5 candidate (`0.9.0rc5`). Текущие инструкции: `P05_DISCOVERABILITY.md`; исходный receipt v0.8 не переписывается.
