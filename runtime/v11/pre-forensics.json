@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "patch": "P07",
+  "baseSnapshot": "a0bd474",
+  "baseVersion": "0.10.0rc6",
+  "candidateVersion": "1.0.0rc7",
+  "planSha256": {
+    "V1_GATES.md": "370737babc69aae35857abea177e9cd6bf9ec676345a094db572d4c5f51d8ede",
+    "patches/P07_V1_QUALIFICATION.md": "39c67da807d98b45e10426f1b6e850d7ef27d33f98aa7f9ef98f6152513ae073",
+    "00_NEURALESE_KERNEL.md": "33b3b6d84b07a10c700dc96a7ae7da27a6bae8719f573f1b0dc3d86d82c7584f"
+  },
+  "preservedAuthorities": {
+    "gui/zap2_gui/models/action_catalog.py": "901da3ffd47073334bbebac29c2de17b031a42123266c7a90aff4950157590bd",
+    "gui/zap2_gui/models/action_bindings_generated.py": "1b22bf6f06f8dfebe10b2f45042bd20c058b31f1c6ea0191c9f1a4dfb9c7bc34",
+    "gui/zap2_gui/adapters/action_dispatcher.py": "1e49ba135934e7cd5fd7bb3ec957609ec8257a58daa12c2368d986368d9896e2",
+    "gui/zap2_gui/adapters/legacy_cli.py": "5f4e318db8233cf0586fa1a0c91ceae1847ffdca1c9d1f6a896bf4e5130e9297",
+    "gui/zap2_gui/app.py": "2d11274035d2bb87aafe102db5d30f06c43d22eae3abaf611a71b2c39b52fd93",
+    "core/zapret2/UPSTREAM_IMPORT.json": "8e31eb82e3c06f5803d60e95eb27f2c80b513b98530443927c33770447a7f8c1",
+    "tools/privileged/zap2-runtime-executor": "5cca5a0798c7e1880083f2a9a8c5762203a146d348e886e10052b2190115a697"
+  },
+  "inputEvidence": {
+    "P04dOwnerReceipt": "historical PASS, not current candidate evidence",
+    "P05": "container receipt only in supplied snapshot",
+    "P06": "container receipt only in supplied snapshot",
+    "cleanVm": "NOT_ATTACHED",
+    "liveNetwork": "NOT_ATTACHED",
+    "targetApp": "NOT_ATTACHED"
+  },
+  "assumptions": {
+    "confirmed": [
+      "ActionContract closure 119, legacy selectors 117",
+      "P03 upstream 1.0.6 exact generation",
+      "P06 package/user ownership and receipts implemented"
+    ],
+    "falsified": [
+      "P06 same-release bootstrap allowed access to active runtime: active check was before idempotence"
+    ],
+    "new": [
+      "same-release access repair owned by P06",
+      "explicit non-destructive downgrade policy",
+      "G01..G21/J1..J7 current evidence must be candidate-bound"
+    ]
+  },
+  "amendments": [
+    "SA-P07-01",
+    "SA-P07-02"
+  ],
+  "versionDecision": {
+    "acceptedVersion": "1.0.0",
+    "decision": "owner explicitly closed v1.0 in this conversation",
+    "implementationSnapshotVersion": "1.0.0rc7",
+    "doesNotFabricateOwnerProbeResults": true
+  }
+}

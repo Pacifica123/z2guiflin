@@ -26,6 +26,7 @@ usage() {
   bash meta_tools/hyperpatch_acceptance.sh --p04c
   bash meta_tools/hyperpatch_acceptance.sh --p04d
   bash meta_tools/hyperpatch_acceptance.sh --v08-release
+  bash meta_tools/hyperpatch_acceptance.sh --v11
   bash meta_tools/hyperpatch_acceptance.sh --p07
   bash meta_tools/hyperpatch_acceptance.sh --p07-release
   bash meta_tools/hyperpatch_acceptance.sh --p06
@@ -139,6 +140,11 @@ while (($#)); do
       ;;
     --p04d)
       HYPERPATCH="p04d"
+      shift
+      ;;
+    --v11)
+      HYPERPATCH="p07"
+      P07_RELEASE=2
       shift
       ;;
     --p07-release)
@@ -257,7 +263,10 @@ else
 fi
 
 if [[ "${HYPERPATCH}" == "p07" ]]; then
-  if (( P07_RELEASE )); then
+  if (( P07_RELEASE == 2 )); then
+    exec "${PYTHON_BIN}" tools/gui_checks/check_p07_acceptance.py --v11
+  fi
+  if (( P07_RELEASE == 1 )); then
     exec "${PYTHON_BIN}" tools/gui_checks/check_p07_acceptance.py --release
   fi
   exec "${PYTHON_BIN}" tools/gui_checks/check_p07_acceptance.py

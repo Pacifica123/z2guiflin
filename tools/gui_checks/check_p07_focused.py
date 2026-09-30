@@ -8,7 +8,9 @@ from p07_process import install_signal_cleanup
 def main():
     install_signal_cleanup()
     with tempfile.TemporaryDirectory(prefix='zap2-p07-focused-') as tmp:
-        _index,rc,log=_run_group(1,['tests/test_p07_qualification.py'],Path(tmp))
+        tests=['tests/test_p07_qualification.py']
+        if (Path(__file__).resolve().parents[2]/'tests/test_v11_launch_overview.py').exists():tests.append('tests/test_v11_launch_overview.py')
+        _index,rc,log=_run_group(1,tests,Path(tmp))
         print(log.read_text(encoding='utf-8'))
         destination=os.environ.get('ZAP2_P07_LOG_DIR')
         if destination:

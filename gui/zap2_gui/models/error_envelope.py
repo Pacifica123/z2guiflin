@@ -15,7 +15,8 @@ class ErrorEnvelope:
 
 def error_envelope(code: str, cause: str, evidence: tuple[str,...] = ()) -> ErrorEnvelope:
     key = code.lower()
-    if 'nft' in key or 'pid' in key or 'stale' in key or 'migration' in key: action_id = 'runtime.owner-rules.reconcile'
+    if code == 'Z2-ZAPRET-BUILD-PROVENANCE': action_id = 'default.build.plan'
+    elif 'nft' in key or 'pid' in key or 'stale' in key or 'migration' in key: action_id = 'runtime.owner-rules.reconcile'
     elif 'tunnel' in key and 'core' in key: action_id = 'discord.tunnel.core.preflight'
     elif 'core' in key or 'binary' in key: action_id = 'default.build.dependencies.inspect'
     elif any(s in key for s in ('tls','socks','transport','tunnel','xhttp')):

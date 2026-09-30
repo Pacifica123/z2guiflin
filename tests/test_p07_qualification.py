@@ -78,7 +78,7 @@ def test_all_gates_journeys_falsifiers_and_baseline_bindings_are_frozen():
     contract=q.validate_contract(ROOT);frozen=q.verify_freeze(ROOT)
     assert len(contract['gates'])==21 and len(contract['journeys'])==7
     assert all(g['falsifier'] for g in contract['gates'])
-    assert len(frozen['files'])>800 and frozen['binding']['candidateVersion']=='1.0.0rc7'
+    assert len(frozen['files'])>800 and frozen['binding']['candidateVersion']=='1.1.0'
     assert {'SA-P07-01','SA-P07-02'}<=set(json.loads((ROOT/'runtime/p07/pre-forensics.json').read_text())['amendments'])
 
 def outcomes(contract):

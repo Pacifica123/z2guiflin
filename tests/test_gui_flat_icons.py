@@ -33,8 +33,9 @@ def test_flat_icons_do_not_use_pastel_background_boxes() -> None:
         assert 'linearGradient' not in source, path.name
 
 
-def test_runtime_start_button_is_icon_only_not_text_triangle() -> None:
+def test_runtime_start_button_keeps_icon_and_readable_action_caption() -> None:
     source = (Path(__file__).resolve().parents[1] / "gui/zap2_gui/widgets/runtime_controls.py").read_text()
     assert 'toggle_button.setText("■" if started else "▶")' not in source
     assert 'toggle_button.setText("▶")' not in source
-    assert 'toggle_button.setText("")' in source
+    assert 'toggle_button.setText("Остановить" if all_selected_running else "Запустить")' in source
+    assert 'toggle_button.setIcon(' in source

@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "productVersion": "1.1.0",
+  "baseSnapshot": "a0bd474",
+  "v1ReleaseDecision": "owner explicitly closed v1.0; does not fabricate new native/live receipts",
+  "binding": {
+    "candidateVersion": "1.1.0",
+    "candidateDigest": "fec31733c8b395ad62fc0987cb011f8bf44a13807d4ceee8c31020ca7bcf2a05",
+    "releaseDigest": "4a633503076894d0f5e81636059fadd54e80b22622f85653847a6640a8144633",
+    "pcSha256": "f14523262df5fdf2dcac067387d7c7cb3668f02a052a355a3aed4538f16f7d88",
+    "profileSha256": "cf0dc696eb13641d5d3878b8a0c232ff8b8d377fd2734e12a7af9d40765ed2eb"
+  },
+  "focusedPassed": 59,
+  "currentFullRegression": {
+    "passed": 654,
+    "failed": 22
+  },
+  "unchangedPostP07Baseline": {
+    "passed": 641,
+    "failed": 22
+  },
+  "newFailuresComparedWithInput": [],
+  "failedTests": [
+    "tests/test_consolidated_runtime_security_patch.py::test_legacy_runtime_session_is_adopted_only_after_exact_pidfile_exe_argv_match",
+    "tests/test_consolidated_runtime_security_patch.py::test_session_identity_accepts_kernel_hidden_exe_only_for_expected_drop_identity",
+    "tests/test_consolidated_runtime_security_patch.py::test_session_identity_fails_closed_for_legacy_and_wrong_starttime",
+    "tests/test_default_workflow.py::test_default_start_executes_apply_then_session_with_fake_runner",
+    "tests/test_default_workflow.py::test_default_stop_stops_session_and_reverts_owner_rules",
+    "tests/test_default_workflow.py::test_p02_failure_after_session_start_compensates_session_and_owner_rules",
+    "tests/test_gui_first_overview.py::test_gui_first_overview_detects_running_strategy_mismatch",
+    "tests/test_p01_network_truth_evidence.py::test_failed_preflight_bypass_does_not_green_capability",
+    "tests/test_p02_runtime_lifecycle_privilege.py::test_backfill_bounded_drop_identity_requires_plan_helper_and_live_identity",
+    "tests/test_p02_runtime_lifecycle_privilege.py::test_read_only_status_requires_explicit_legacy_migration",
+    "tests/test_runtime_session_runner.py::test_session_runner_starts_statuses_and_stops_only_owned_process",
+    "tests/test_runtime_session_runner.py::test_session_status_marks_copied_state_from_other_workspace_as_stale",
+    "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n2_guided_probe_reports_log_activity",
+    "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n2_guided_probe_reports_out_hit_alive_logs_silent",
+    "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n3_guided_probe_accepts_windows_v3_bridge_and_udp_counter",
+    "tests/test_stage7n2_guided_pretls_probe.py::test_stage7n3_guided_probe_correlates_estab_sendq_endpoint",
+    "tests/test_stage7p1_discord_tunnel.py::test_confirm_start_probe_stop_with_fake_core",
+    "tests/test_stage7p5_discord_tunnel_guided.py::test_stage8a_launch_through_socks_accepts_flatpak_command_string",
+    "tests/test_stage7p5_discord_tunnel_guided.py::test_stage8b_launch_is_blocked_when_tunnel_session_is_stopped",
+    "tests/test_stage7p5_discord_tunnel_guided.py::test_stage8c_launch_preflight_blocks_discord_before_spawn",
+    "tests/test_stage7p5_discord_tunnel_guided.py::test_vesktop_launch_uses_socks_flag_and_disables_quic",
+    "tests/test_stage7z_launch_composer.py::test_stage7z_can_start_and_stop_vless_only_with_fake_core"
+  ],
+  "environmentProbe": {
+    "selfPid": 6,
+    "procSelf": "75387",
+    "childPid": 7,
+    "childProcExists": true
+  },
+  "nativeArchPackage": "NOT_RUN; source package inputs and DESTDIR fixtures verified, no makepkg/pacman invoked",
+  "nativeCoreBuild": "NOT_RUN; staged build provenance fixtures verified; no receipt fabricated for actual runtime",
+  "visualQA": [
+    "light",
+    "dark",
+    "custom blue",
+    "custom blue with VLESS selected"
+  ],
+  "scope": "actual container run; all 22 failing real-process fixtures reproduced on unchanged input; no exclusions or PASS inference from prior host",
+  "summary": {
+    "mode": "candidate",
+    "applicationAllowed": false,
+    "acceptanceResult": "FAIL",
+    "schemaVersion": 1,
+    "patch": "v1.1",
+    "version": "1.1.0",
+    "deterministicResult": "FAIL",
+    "qualificationResult": "BLOCKED",
+    "readiness": "BLOCKED",
+    "promotionAllowed": false,
+    "scope": "partitioned qualification; no automatic native/live probes or version/tag mutation",
+    "steps": [
+      {
+        "step": "Candidate PC/source/profile authority freeze",
+        "returncode": 0,
+        "command": [
+          "/tmp/p07-fix-venv/bin/python",
+          "tools/gui_checks/p07_qualification.py",
+          "--check"
+        ]
+      },
+      {
+        "step": "Generated current reference",
+        "returncode": 0,
+        "command": [
+          "/tmp/p07-fix-venv/bin/python",
+          "meta_tools/generate_p06_reference.py",
+          "--check"
+        ]
+      },
+      {
+        "step": "Generated ActionContract bindings",
+        "returncode": 0,
+        "command": [
+          "/tmp/p07-fix-venv/bin/python",
+          "meta_tools/generate_p04d_action_bindings.py",
+          "--check"
+        ]
+      },
+      {
+        "step": "P07 composition/migration/support/falsifiers",
+        "returncode": 0,
+        "command": [
+          "/tmp/p07-fix-venv/bin/python",
+          "tools/gui_checks/check_p07_focused.py"
+        ]
+      },
+      {
+        "step": "P03 generation identity and semantic corpus",
+        "returncode": 0,
+        "command": [
+          "/tmp/p07-fix-venv/bin/python",
+          "tools/gui_checks/check_p03_core_generation.py"
+        ]
+      },
+      {
+        "step": "Structural current/history gate",
+        "returncode": 0,
+        "command": [
+          "/tmp/p07-fix-venv/bin/python",
+          "tools/gui_checks/check_project_tree.py"
+        ]
+      },
+      {
+        "step": "Bounded complete isolated regression L0-L2",
+        "returncode": 1,
+        "command": [
+          "/tmp/p07-fix-venv/bin/python",
+          "tools/gui_checks/check_p07_regression.py"
+        ]
+      }
+    ]
+  }
+}

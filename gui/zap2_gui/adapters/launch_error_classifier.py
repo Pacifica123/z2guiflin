@@ -44,6 +44,7 @@ def classify_launch_issue(
     error: str = "",
     selected_status: str = "",
     all_selected_running: bool | None = None,
+    selected_components: tuple[str, ...] | None = None,
 ) -> LaunchIssue | None:
     """Classify launch/start output into a compact GUI issue code.
 
@@ -53,8 +54,19 @@ def classify_launch_issue(
     """
 
     combined = "\n".join(part for part in (action, text, error, selected_status) if part)
-    lower = combined.lower()
     details = combined.strip()
+    # The final registry lists unselected components too. They are context,
+    # never failure evidence for this action. Keep them in copied details only.
+    evidence = "\n".join(line for line in combined.splitlines() if not line.lstrip().startswith("[ ]"))
+    lower = evidence.lower()
+    tunnel_selected = selected_components is None or "tunnel-vless" in selected_components
+    if any(token in lower for token in ("whole-generation build receipt", "needs verified core build", "core generation gate:", "mixed_generation", "core generation build receipt")):
+        return LaunchIssue(
+            code="Z2-ZAPRET-BUILD-PROVENANCE",
+            severity="warning",
+            message="Запуск Zapret заблокирован: нужна чистая сборка ядра. Нажмите «Собрать ядро».",
+            details=details,
+        )
 
     if "strategy file dependencies не готовы" in lower or "missing strategy files" in lower:
         return LaunchIssue(
@@ -70,42 +82,42 @@ def classify_launch_issue(
             message="Zapret не запущен: nfqws2 не собран или не executable.",
             details=details,
         )
-    if "unknown transport protocol: xhttp" in lower:
+    if tunnel_selected and ("unknown transport protocol: xhttp" in lower):
         return LaunchIssue(
             code="Z2-TUNNEL-XHTTP-CORE",
             severity="warning",
             message="VLESS profile использует xhttp, а выбранный core его не принял.",
             details=details,
         )
-    if "discord tunnel start: blocked" in lower and ("xhttp" in lower or "splithttp" in lower):
+    if tunnel_selected and ("discord tunnel start: blocked" in lower and ("xhttp" in lower or "splithttp" in lower)):
         return LaunchIssue(
             code="Z2-TUNNEL-CORE-INCOMPATIBLE",
             severity="warning",
             message="Выбранный tunnel core несовместим с transport этого VLESS profile.",
             details=details,
         )
-    if "needs core binary" in lower or "core binary missing" in lower or "core binary отсутств" in lower:
+    if tunnel_selected and ("needs core binary" in lower or "core binary missing" in lower or "core binary отсутств" in lower):
         return LaunchIssue(
             code="Z2-TUNNEL-CORE-MISSING",
             severity="warning",
             message="Для VLESS tunnel не выбран рабочий core binary.",
             details=details,
         )
-    if "needs vless profile" in lower or "active connection: none" in lower or "tunnel connection не найден" in lower:
+    if tunnel_selected and ("needs vless profile" in lower or "active connection: none" in lower or "tunnel connection не найден" in lower):
         return LaunchIssue(
             code="Z2-TUNNEL-PROFILE-MISSING",
             severity="warning",
             message="VLESS tunnel выбран, но активный VLESS profile не найден.",
             details=details,
         )
-    if "tunnel core не running" in lower or "t0_core_failed" in lower:
+    if tunnel_selected and ("tunnel core не running" in lower or "t0_core_failed" in lower):
         return LaunchIssue(
             code="Z2-TUNNEL-NOT-RUNNING",
             severity="warning",
             message="Tunnel core не запущен, поэтому VLESS часть набора не работает.",
             details=details,
         )
-    if "upstream preflight не прошёл" in lower or "t1_https_through_socks_failed" in lower:
+    if tunnel_selected and ("upstream preflight не прошёл" in lower or "t1_https_through_socks_failed" in lower):
         return LaunchIssue(
             code="Z2-TUNNEL-UPSTREAM-PREFLIGHT",
             severity="warning",
@@ -119,7 +131,7 @@ def classify_launch_issue(
             message="Проверка не смогла прочитать nft counters без повышенных прав.",
             details=details,
         )
-    if "execution disabled in stage 10" in lower and "runtime-default-discord-tunnel-socks-start-plan" in lower:
+    if tunnel_selected and ("execution disabled in stage 10" in lower and "runtime-default-discord-tunnel-socks-start-plan" in lower):
         return LaunchIssue(
             code="Z2-LAUNCH-PLAN-ONLY",
             severity="info",
@@ -138,7 +150,7 @@ def classify_launch_issue(
         if any(token in lower for token in tokens):
             return LaunchIssue(code, "warning", cause, details)
 
-    start_like = any(token in lower for token in ("start", "запустить", "combined toggle start", "launch composer start"))
+    start_like = any(token in action.lower() for token in ("start", "запустить", "combined toggle start", "launch composer start"))
     if start_like and all_selected_running is False:
         return LaunchIssue(
             code="Z2-LAUNCH-PARTIAL",

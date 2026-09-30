@@ -1,7 +1,5 @@
-# Инструменты приёмки
+# Инструменты проекта v1.1
 
-Единый профиль кандидата: bash meta_tools/hyperpatch_acceptance.sh --p07. Он воспроизводит общий run_step/fail-fast/log/archive workflow и сохраняет полные результаты. Генерация справочника и воспроизводимая сборка проверяются автоматически. Чистая Arch VM требует отдельного lifecycle receipt; container PASS не заменяет сетевую или системную проверку.
+Единый профиль: bash meta_tools/hyperpatch_acceptance.sh --v11. Freeze, generated references, bindings, focused fixtures, P03 identity, structural gate и полный isolated regression выполняются в одном fail-fast/log/archive workflow. Исторические P07 checks остаются доступными для своего профиля; текущие результаты не переоткрывают закрытую владельцем v1.0.
 
-Текущая версия 1.0.0rc7 — кандидат P07. Финальное повышение зависит от полного подтверждения поддерживаемой установки, обновления и удаления.
-
-Финальная квалификация выполняется тем же runner через --p07-release; missing owner receipts сохраняют BLOCKED для final v1, но не запрещают deterministic PASS кандидата --p07.
+bash meta_tools/build_local_package.sh создаёт archive/PKGBUILD из checkout в dist/arch/1.1.0. --install явно добавляет makepkg -si в том же output directory. Без --install пакет не устанавливается; скрытой native/system/network mutation нет.

@@ -73,8 +73,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     title = QtWidgets.QLabel("Обзор")
     title.setObjectName("pageTitle")
     intro = QtWidgets.QLabel(
-        "Overview ведёт Default workflow как GUI-first сценарий: выбранная стратегия, подготовленный plan, "
-        "running session и firewall/NFQUEUE показываются таблицей. Подробный текст действий перенесён во вкладку «Логи»."
+        "Выберите компоненты и запустите их. Если ядро ещё не готово, сначала соберите его. "
+        "Причина блокировки показана здесь, подробный вывод — в логах."
     )
     intro.setWordWrap(True)
 
@@ -86,7 +86,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     initial_theme = theme_profile_from_settings(settings)
     toggle_button.setIcon(tinted_misc_icon("toggle-start", initial_theme.colors["accent"], 30) or misc_icon("toggle-start"))
     toggle_button.setIconSize(_QtCore.QSize(30, 30))
-    toggle_button.setFixedSize(46, 46)
+    toggle_button.setMinimumSize(142, 42)
     toggle_button.setObjectName("primaryRunButton")
     toggle_button.setToolTip(action_contract("default.workflow.start").short_help + " / " + action_contract("default.workflow.stop").short_help)
 
@@ -159,6 +159,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         overview_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
     overview_table.setAlternatingRowColors(True)
     overview_table.setMinimumHeight(210)
+    overview_table.verticalHeader().setVisible(False)
     try:
         overview_table.horizontalHeader().setStretchLastSection(False)
         overview_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
@@ -184,13 +185,14 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     overview_table_layout.addLayout(table_actions)
     overview_table_layout.addWidget(overview_table)
 
-    composer_box = QtWidgets.QGroupBox("Комбинированный запуск")
+    composer_box = QtWidgets.QGroupBox("Компоненты запуска")
+    composer_box.setToolTip("Комбинированный запуск: выполняются только отмеченные компоненты")
     composer_layout = QtWidgets.QVBoxLayout(composer_box)
     composer_layout.setSpacing(8)
 
     composer_hint = QtWidgets.QLabel(
-        "Отметь компоненты, которые нужно пробовать вместе. Supported сейчас: Zapret default и VLESS tunnel. "
-        "План/статус ничего не запускают. Start запускает только отмеченные supported-компоненты в понятном порядке."
+        "Отмеченные компоненты запускаются вместе. Неотмеченный VLESS не требует профиля или core. "
+        "Просмотр статуса и плана ничего не запускает."
     )
     composer_hint.setWordWrap(True)
 
@@ -219,11 +221,24 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
 
     component_grid.addWidget(zapret_check, 0, 0)
     component_grid.addWidget(vless_check, 0, 1)
-    component_grid.addWidget(socks5_check, 0, 2)
-    component_grid.addWidget(mtproto_check, 1, 0)
-    component_grid.addWidget(custom_check, 1, 1)
+    zapret_readiness = QtWidgets.QLabel()
+    zapret_readiness.setObjectName("zapretReadiness")
+    zapret_readiness.setWordWrap(True)
+    vless_readiness = QtWidgets.QLabel("Не выбран")
+    vless_readiness.setObjectName("vlessReadiness")
+    vless_readiness.setWordWrap(True)
+    component_grid.addWidget(zapret_readiness, 1, 0)
+    component_grid.addWidget(vless_readiness, 1, 1)
+    future_components = QtWidgets.QWidget()
+    future_layout = QtWidgets.QHBoxLayout(future_components)
+    future_layout.setContentsMargins(0, 0, 0, 0)
+    for check in (socks5_check, mtproto_check, custom_check):
+        future_layout.addWidget(check)
+    future_layout.addStretch(1)
 
-    core_row = QtWidgets.QHBoxLayout()
+    core_inputs = QtWidgets.QWidget()
+    core_row = QtWidgets.QHBoxLayout(core_inputs)
+    core_row.setContentsMargins(0, 0, 0, 0)
     core_label = QtWidgets.QLabel("VLESS core binary:")
     core_input = QtWidgets.QLineEdit()
     core_input.setObjectName("launchComposerCoreBinary")
@@ -239,6 +254,12 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     composer_plan_button = QtWidgets.QPushButton("План выбранного")
     composer_start_button = QtWidgets.QPushButton("Запустить выбранное")
     composer_stop_button = QtWidgets.QPushButton("Остановить выбранное")
+    composer_start_button.setObjectName("composerStartButton")
+    composer_stop_button.setObjectName("composerStopButton")
+    build_button = QtWidgets.QPushButton("Собрать ядро")
+    build_button.setObjectName("overviewBuildButton")
+    build_button.setToolTip("Проверить зависимости, просмотреть план и подтвердить чистую сборку nfqws2")
+    composer_buttons.addWidget(build_button)
     for button in (composer_status_button, composer_plan_button, composer_start_button, composer_stop_button):
         composer_buttons.addWidget(button)
     composer_buttons.addStretch(1)
@@ -262,6 +283,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         return value or None
 
     def selected_component_rows():
+        if not selected_components():
+            return ()
         return tuple(
             row
             for row in launch_component_views(
@@ -342,7 +365,8 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
 
     composer_layout.addWidget(composer_hint)
     composer_layout.addLayout(component_grid)
-    composer_layout.addLayout(core_row)
+    composer_layout.addWidget(core_inputs)
+    composer_layout.addWidget(future_components)
     composer_layout.addLayout(composer_buttons)
 
     details_box = QtWidgets.QGroupBox("Developer mode: ручные детали Default workflow")
@@ -416,6 +440,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
                 error=error,
                 selected_status=selected_components_status_summary(),
                 all_selected_running=selected_components_all_running(),
+                selected_components=tuple(filter(None, selected_components().split(","))),
             )
         except Exception:
             return None
@@ -425,7 +450,27 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
             overview = gui_first_runtime_overview(root=root)
             all_selected_running = selected_components_all_running()
             selected_summary = selected_components_status_summary()
-            toggle_button.setText("")
+            rows = selected_component_rows()
+            blockers = [row for row in rows if row.status != "running" and row.ready != "ready"]
+            selected = bool(rows)
+            can_start = selected and not blockers
+            has_running = any(row.status == "running" or row.status.startswith("partial:") for row in rows)
+            toggle_button.setText("Остановить" if all_selected_running else "Запустить")
+            toggle_button.setEnabled(selected and (all_selected_running or can_start))
+            composer_status_button.setEnabled(selected)
+            composer_plan_button.setEnabled(selected)
+            composer_start_button.setEnabled(can_start and not all_selected_running)
+            composer_stop_button.setEnabled(selected and (has_running or overview.has_mismatch))
+            core_inputs.setVisible(vless_check.isChecked())
+            future_components.setVisible(developer_mode.isChecked())
+            by_id = {row.spec.component_id: row for row in rows}
+            zapret = by_id.get(COMPONENT_ZAPRET_DEFAULT)
+            vless = by_id.get(COMPONENT_TUNNEL_VLESS)
+            needs_build = bool(zapret and any(token in zapret.ready for token in ("nfqws2 build", "nfqws2 not executable", "verified core build")))
+            build_button.setVisible(needs_build)
+            build_button.setEnabled(needs_build and not has_running)
+            zapret_readiness.setText("Не выбран" if zapret is None else "Запущен" if zapret.status == "running" else "Нужна сборка ядра" if needs_build else "Готов к запуску" if zapret.ready == "ready" else zapret.ready)
+            vless_readiness.setText("Не выбран" if vless is None else "Запущен" if vless.status == "running" else "Нужен импорт VLESS-профиля" if vless.ready == "needs VLESS profile" else "Готов к запуску" if vless.ready == "ready" else "Укажите рабочий xray / v2ray")
             current_theme = theme_profile_from_settings(settings)
             toggle_button.setIcon(
                 tinted_misc_icon(
@@ -440,6 +485,16 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
                 indicator.setProperty("state", "running")
                 toggle_button.setToolTip("Остановить выбранные компоненты")
                 status_text.setText("Выбранные компоненты running: " + selected_summary)
+            elif not selected:
+                indicator.setText("○ Нет выбора")
+                indicator.setProperty("state", "stopped")
+                status_text.setText("Отметьте хотя бы один компонент для запуска.")
+            elif blockers:
+                indicator.setText("! Не готов")
+                indicator.setProperty("state", "mismatch")
+                toggle_button.setToolTip("Сначала устраните указанную причину блокировки")
+                issue = classify_current_action("Launch readiness", text="\n".join(row.ready for row in blockers))
+                status_text.setText(issue.message if issue else "; ".join(row.ready for row in blockers))
             elif overview.has_mismatch:
                 indicator.setText("! Требует внимания")
                 indicator.setProperty("state", "mismatch")
@@ -452,7 +507,9 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
                 status_text.setText("Выбранные компоненты не все running: " + selected_summary)
             render_overview_table()
         except Exception:
-            toggle_button.setText("")
+            toggle_button.setText("Запустить")
+            toggle_button.setEnabled(False)
+            composer_start_button.setEnabled(False)
             current_theme = theme_profile_from_settings(settings)
             toggle_button.setIcon(tinted_misc_icon("toggle-start", current_theme.colors["accent"], 30) or misc_icon("toggle-start"))
             indicator.setText("? Неизвестно")
@@ -488,6 +545,30 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
                 hide_launch_issue()
             if message:
                 status_text.setText(message)
+
+    def run_build() -> None:
+        try:
+            deps = gui_default_build_deps(root=root)
+            plan = gui_prepare_default_build(root=root)
+            preview = deps + "\n\n" + plan
+            write_gui_overview_action_output(root, "default", "План сборки ядра", preview)
+            question = QtWidgets.QMessageBox(page)
+            question.setWindowTitle("Чистая сборка ядра")
+            question.setText("Собрать ядро по подготовленному плану? Сборка не запускает стратегию и не меняет firewall.")
+            question.setInformativeText("Проверьте зависимости и план в подробностях. Сборка может занять несколько минут; дождитесь её завершения.")
+            question.setDetailedText(preview)
+            question.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+            question.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+            if question.exec() != QtWidgets.QMessageBox.StandardButton.Yes:
+                return
+            def execute():
+                confirmation = gui_confirm_default_build(root=root)
+                return preview + "\n\n" + confirmation + "\n\n" + gui_execute_default_build(root=root)
+            run_action("Сборка ядра", execute)
+        except Exception as exc:
+            run_action("Сборка ядра", lambda: "Сборка ядра: ошибка\n" + str(exc))
+
+    build_button.clicked.connect(lambda _checked=False: run_build())
 
     def run_toggle() -> None:
         all_selected_running = selected_components_all_running()
@@ -594,9 +675,9 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
         """
         QLabel#pageTitle { font-size: 20px; font-weight: 700; }
         QPushButton#primaryRunButton {
-            font-size: 24px;
+            font-size: 14px;
             font-weight: 700;
-            padding: 0;
+            padding: 8px 12px;
             background: transparent;
         }
         QTabBar::tab {

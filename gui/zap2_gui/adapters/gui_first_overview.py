@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .runtime_default import default_workflow_status
+from .core_provenance import verify_core_bundle
 from .runtime_nft_state import runtime_nft_state_snapshot
 from .runtime_state import ensure_runtime_store
 from .strategy_file_inputs import strategy_file_dependency_blockers
@@ -287,6 +288,14 @@ def gui_first_runtime_overview(root: Path | None = None, profile_id: str = "defa
             primary_label = "Пересобрать план и включить"
         elif plan_state == "ready-unconfirmed":
             issues.append("Start-plan подготовлен, но ещё не подтверждён; GUI подтвердит его перед privileged start.")
+
+    if state == "stopped":
+        provenance = verify_core_bundle(layout.root, required_binary=layout.root / "core/zapret2/nfq2/nfqws2")
+        if not provenance.runtime_ready:
+            primary_action = "build"
+            primary_label = "Собрать ядро"
+            next_gui_action = "Нажать «Собрать ядро» в Overview, проверить план и подтвердить чистую сборку."
+            issues.append("Ядро не готово: " + provenance.message)
 
     if strategy_file_blockers:
         preview = ", ".join(item.value for item in strategy_file_blockers[:3])

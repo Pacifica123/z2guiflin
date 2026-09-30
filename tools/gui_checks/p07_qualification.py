@@ -3,9 +3,10 @@ from pathlib import Path
 from datetime import datetime,timezone,timedelta
 import argparse,ast,hashlib,importlib.util,json,os,re,sys,xml.etree.ElementTree as ET
 ROOT=Path(__file__).resolve().parents[2]
-CONTRACT='docs/developer/p07-contract.json'
-PC='docs/developer/P07_PATCH_CONTRACT.md'
-FREEZE='runtime/p07/candidate-freeze.json'
+CURRENT_V11=(ROOT/'docs/developer/v11-contract.json').exists()
+CONTRACT='docs/developer/v11-contract.json' if CURRENT_V11 else 'docs/developer/p07-contract.json'
+PC='docs/developer/V11_PATCH_CONTRACT.md' if CURRENT_V11 else 'docs/developer/P07_PATCH_CONTRACT.md'
+FREEZE='runtime/v11/candidate-freeze.json' if CURRENT_V11 else 'runtime/p07/candidate-freeze.json'
 
 def digest(value):return hashlib.sha256(value).hexdigest()
 def canonical(value):return json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()
@@ -36,13 +37,13 @@ def validate_contract(root=ROOT):
         for rel in item['probes']:
             path=Path(rel)
             if path.is_absolute() or '..' in path.parts or not rel.startswith('tests/test_') or not (root/path).is_file():raise ValueError('missing/unsafe probe: '+rel)
-    pre=json.loads((root/'runtime/p07/pre-forensics.json').read_text())
+    pre=json.loads((root/c.get('preForensics','runtime/p07/pre-forensics.json')).read_text())
     for rel,expected in pre['preservedAuthorities'].items():
         if digest((root/rel).read_bytes())!=expected:raise ValueError('preserved authority drift: '+rel)
     sys.path.insert(0,str(root/'gui'))
     from zap2_gui import __version__
     version=re.search(r'^version\s*=\s*"([^"]+)"',(root/'pyproject.toml').read_text(),re.M).group(1)
-    if version!=c['candidateVersion'] or __version__!=version or version==c['targetVersion']:raise ValueError('candidate/final version inference')
+    if version!=c['candidateVersion'] or __version__!=version or (c['patch']=='P07' and version==c['targetVersion']):raise ValueError('candidate/final version inference')
     return c
 
 def verify_freeze(root=ROOT):
@@ -52,7 +53,7 @@ def verify_freeze(root=ROOT):
 
 def freeze(root=ROOT):
     validate_contract(root)
-    result={'schemaVersion':1,'baseSnapshot':'65b60b2','candidateCommit':None,'commitState':'UNASSIGNED_PRE_APPLY; freeze identifies source snapshot, not a fabricated commit','binding':candidate_binding(root),'files':source_inventory(root),'reviewStatus':'NOT_RUN','meaning':'immutable candidate source/profile/PC binding; not runtime or acceptance evidence'}
+    result={'schemaVersion':1,'baseSnapshot':load_contract(root)['baseSnapshot'],'candidateCommit':None,'commitState':'UNASSIGNED_PRE_APPLY; freeze identifies source snapshot, not a fabricated commit','binding':candidate_binding(root),'files':source_inventory(root),'reviewStatus':'NOT_RUN','meaning':'immutable candidate source/profile/PC binding; not runtime or acceptance evidence'}
     path=root/FREEZE;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n');return result
 
 def junit_outcomes(paths):

@@ -14,7 +14,9 @@ def acceptance_passed(floor,report,*,release=False):
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--release',action='store_true',help='Require all G01-G21/J1-J7 partitions and independent review')
+    parser.add_argument('--v11',action='store_true',help='Current v1.1 deterministic acceptance; archive compatibility audit separately')
     args=parser.parse_args(argv)
+    if args.v11 and args.release:parser.error('--v11 and --release are separate acceptance modes')
     install_signal_cleanup()
     logs=ROOT/'.zap2/runtime/acceptance'/('p07-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ'));logs.mkdir(parents=True)
     env=os.environ.copy()
@@ -44,7 +46,7 @@ def main(argv=None):
     # Review index carries digests and artifact refs, not source URI/raw network config.
     (logs/'owner-evidence-index.json').write_text(json.dumps({'acceptedClaims':[{'claimId':r['claimId'],'partition':r['partition'],'result':r['result'],'producer':r['producer'],'artifactSha256':[a['sha256'] for a in r['artifacts']]} for r in records],'rejectedRecords':issues},ensure_ascii=False,indent=2)+'\n')
     accepted=acceptance_passed(floor,report,release=args.release)
-    summary={'mode':'release' if args.release else 'candidate','applicationAllowed':acceptance_passed(floor,report),'acceptanceResult':'PASS' if accepted else 'FAIL','schemaVersion':1,'patch':'P07','version':'1.0.0rc7','deterministicResult':floor,'qualificationResult':report['result'],'readiness':'READY_FOR_V1_REVIEW' if report['promotionAllowed'] else 'BLOCKED','promotionAllowed':report['promotionAllowed'],'scope':'partitioned qualification; no automatic native/live probes or version/tag mutation','steps':results}
+    summary={'mode':'release' if args.release else 'candidate','applicationAllowed':acceptance_passed(floor,report),'acceptanceResult':'PASS' if accepted else 'FAIL','schemaVersion':1,'patch':'v1.1' if args.v11 else 'P07','version':load_contract()['candidateVersion'],'deterministicResult':floor,'qualificationResult':report['result'],'readiness':('READY_FOR_V11_REVIEW' if accepted else 'BLOCKED') if args.v11 else ('READY_FOR_V1_REVIEW' if report['promotionAllowed'] else 'BLOCKED'),'promotionAllowed':report['promotionAllowed'],'scope':'partitioned qualification; no automatic native/live probes or version/tag mutation','steps':results}
     (logs/'summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n')
     archive=logs.with_suffix('.zip')
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
@@ -52,7 +54,7 @@ def main(argv=None):
             if p.is_file():z.write(p,p.relative_to(logs))
     print('P07 deterministic floor: '+floor)
     for row in report.get('gateMatrix',[])+report.get('journeyMatrix',[]):print(row['id']+': '+row['result'])
-    print('P07 v1 qualification: '+report['result']);print('HYPERPATCH ACCEPTANCE: '+('PASS' if accepted else 'FAIL'));print('readiness: '+summary['readiness']);print('evidence archive: '+str(archive))
+    print(('v1.1 compatibility owner audit: ' if args.v11 else 'P07 v1 qualification: ')+report['result']);print('HYPERPATCH ACCEPTANCE: '+('PASS' if accepted else 'FAIL'));print('readiness: '+summary['readiness']);print('evidence archive: '+str(archive))
     print('P07 acceptance mode: '+summary['mode'])
     return 0 if accepted else 1
 if __name__=='__main__':raise SystemExit(main())

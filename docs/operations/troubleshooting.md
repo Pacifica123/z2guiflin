@@ -19,3 +19,7 @@ Support export: `zap2-gui --support-bundle /path/new-support.zip`. В нём т�
 [Установка](../user/getting-started.md) · [Жизненный цикл](lifecycle.md) · [Справочник](../generated/reference.md).
 
 P07 добавляет в support разрешённые Plan/Run summaries и typed log event projections, а также nextAction для ownership class. Все динамические ID/hash значения дополнительно хешируются; argv/message/detail не сериализуются. Полезность такого контекста при намеренно вызванной ошибке и отсутствие секретов оценивает отдельный reviewer: наличие ZIP не равно успешной оценке.
+
+## Невыбранный VLESS и сборка ядра (v1.1)
+
+При выборе только Zapret отсутствие VLESS profile не является ошибкой. Если start отклонён из-за whole-generation build receipt, нажмите «Собрать ядро» в Overview, проверьте зависимости/план и подтвердите. Не создавайте receipt вручную. Package build через makepkg собирает GUI-пакет, а nfqws2 staged build выполняется отдельно в конкретном workspace. После успешной сборки обновите статус; запуск станет доступен при готовности остальных inputs.

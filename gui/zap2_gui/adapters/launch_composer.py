@@ -32,12 +32,13 @@ from .gui_runtime_controls import (
     gui_privileged_default_stop,
 )
 from .runtime_default import default_workflow_status
+from .core_provenance import verify_core_bundle
 from .strategy_file_inputs import strategy_file_dependency_blockers
 from .workspace_profiles import load_workspace_catalog
 from .runtime_state import confirm_runtime_plan
 from ..project_paths import discover_layout
 
-LAUNCH_COMPOSER_STAGE = "v0.4-alpha_stage7z"
+LAUNCH_COMPOSER_STAGE = "v1.1"
 COMPONENT_ZAPRET_DEFAULT = "zapret-default"
 COMPONENT_TUNNEL_VLESS = "tunnel-vless"
 COMPONENT_SOCKS5 = "socks5"
@@ -183,6 +184,9 @@ def _zapret_ready(root: Path | None, profile_id: str) -> str:
         blockers = strategy_file_dependency_blockers(layout.root, strategy.runtime_args)
         if blockers:
             return f"missing strategy files ({len(blockers)}): {blockers[0].value}"
+        provenance = verify_core_bundle(layout.root, required_binary=binary)
+        if not provenance.runtime_ready:
+            return "needs verified core build: " + provenance.message
         return "ready"
     except Exception as exc:  # pragma: no cover - defensive GUI path
         return f"unknown:{exc}"

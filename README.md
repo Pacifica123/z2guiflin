@@ -1,11 +1,42 @@
-# Zap2 GUI Linux — v1.0 RC7 (P07 candidate)
+# Zap2 GUI Linux — v1.1
 
-GUI PyQt6 управляет zapret2, immutable execution Plan, owned runtime и диагностикой сетевых возможностей. Он предоставляет не универсальную стратегию и не обещает работоспособность по одному HTTP ответу, локальному listener или наличию процесса. Доступность зависит от сети, core, приложения и доказательств конкретного запуска.
+GUI PyQt6 управляет zapret2, immutable Plan, owned runtime и диагностикой. Он предоставляет не универсальную стратегию и не обещает работоспособность только по HTTP ответу или наличию процесса: доступность зависит от сети, core и приложения.
 
-Текущий кандидат: **1.0.0rc7 / v1.0 RC7**, этап P07. Финальная версия **1.0.0 не назначена**: G01–G21 и J1–J7 требуют текущих evidence partitions и независимого review. Вход — применённый post-P06 snapshot **65b60b2**. В нём нет новых owner receipts для native clean install/privilege/live VLESS/Vesktop; контейнерная приёмка P06 сохраняла BLOCKED. Историческая финальная опора — 0.8.0: P04 закрыт (P04a, P04b, P04c, P04d), `READY_FOR_USE_WITHIN_P04D`; P03 имеет исторический marker `READY_FOR_USE_WITHIN_P03`. Историческое принятие не переносится на текущий кандидат автоматически.
+**v1.0 закрыта владельцем проекта. Текущая версия — 1.1.0:** исправлены ложная ошибка невыбранного VLESS, готовность сборки и визуал Overview. Исторические P07 receipts сохраняют свою область действия и не подменяют реальные проверки нового запуска.
 
-Начните с [установки](docs/user/getting-started.md), [текущей документации](docs/README.md) и [квалификации v1](docs/operations/v1-qualification.md). [Диагностика](docs/operations/troubleshooting.md), [обновление и удаление](docs/operations/lifecycle.md), [справочник](docs/generated/reference.md), [история](docs/history/README.md).
+## Запуск автором из исходников
 
-Поддерживаемый installation target — Arch-like Linux x86_64, локальный source release + SHA-pinned PKGBUILD + pacman. Installed GUI-код, resources и bounded root-helper принадлежат пакету; writable compatibility workspace — пользователю. Service unit не устанавливается: plan-only. Voice/media, TUN, все core/transport combinations не объявлены supported по bootstrap.
+Из корня checkout, где находятся run.sh и pyproject.toml:
 
-Применение кандидата devctl: `bash meta_tools/hyperpatch_acceptance.sh --p07` проверяет freeze, проекции и полный L0–L2 corpus. Финальная квалификация: `bash meta_tools/hyperpatch_acceptance.sh --p07-release` выполняет тот же pipeline и требует все G01–G21/J1–J7 partitions. Отсутствующая owner evidence сохраняет qualification BLOCKED и запрещает final v1; применение RC допускается при успешных проверках кандидата. Версия/tag автоматически не присваиваются.
+```bash
+bash ./run.sh
+```
+
+Это штатный запуск без установки пакета. run.sh написан для Bash; если ваш терминал использует zsh, всё равно выполняйте `bash ./run.sh`, а не `zsh ./run.sh`. Нужны Python ≥ 3.10 и PyQt6. Не запускайте GUI через sudo.
+
+## Создание и установка собственного пакета
+
+Готовый опубликованный release не требуется: archive и PKGBUILD создаются из вашего текущего checkout. На Arch/Manjaro/EndeavourOS установите инструменты, затем из корня проекта:
+
+```bash
+sudo pacman -S --needed base-devel python python-pyqt6
+bash meta_tools/build_local_package.sh
+cd dist/arch/1.1.0
+makepkg -si
+```
+
+**makepkg выполняется в dist/arch/1.1.0**, где предыдущий шаг создал PKGBUILD и zap2gui-linux-1.1.0.tar.gz. SHA закрепляет соответствие архива рецепту, а не требует внешнего одобрения вашего кода. Скрипт можно вызвать из любого каталога по абсолютному пути; output по умолчанию остаётся внутри checkout. Один workflow создания и установки: `bash meta_tools/build_local_package.sh --install`. После установки запустите `zap2-gui` из меню или терминала.
+
+Пакетный и исходный запуск используют разные writable workspaces. Сборка пакета не является сборкой nfqws2. В Overview нажмите «Собрать ядро», проверьте зависимости и план, подтвердите сборку. Наличие старого бинарника без актуального whole-generation receipt не означает готовность; receipt создаётся настоящей staged сборкой. Автоматической установки native build dependencies или запуска стратегии здесь нет.
+
+[Первые действия](docs/user/getting-started.md) · [Документация](docs/README.md) · [Диагностика](docs/operations/troubleshooting.md) · [Обновление/удаление](docs/operations/lifecycle.md) · [История](docs/history/README.md).
+
+Единая приёмка v1.1: `bash meta_tools/hyperpatch_acceptance.sh --v11`. Freeze, проекции и полный L0–L2 corpus обязательны; полные logs/JUnit и compatibility matrix сохраняются. Проверки native package/live network требуют фактической owner среды и не выполняются скрытно.
+
+Для сборки nfqws2 нужны native зависимости (пакет GUI сам ядро не компилирует):
+
+```bash
+sudo pacman -S --needed base-devel pkgconf zlib libnetfilter_queue libnfnetlink libmnl luajit
+```
+
+Overview проверяет их перед сборкой; при отсутствии показывает подробности, автоматически пакеты не устанавливает.

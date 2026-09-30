@@ -92,7 +92,11 @@ QLineEdit:focus,QPlainTextEdit:focus,QTextEdit:focus,QComboBox:focus,QSpinBox:fo
 QLineEdit:disabled,QPlainTextEdit:disabled,QTextEdit:disabled,QComboBox:disabled,QSpinBox:disabled,QDoubleSpinBox:disabled,QTableView:disabled,QTreeView:disabled,QListView:disabled {{ color:{c['muted']}; background:{c['surface']}; }}
 QComboBox::drop-down,QAbstractSpinBox::up-button,QAbstractSpinBox::down-button {{ background:{c['card']}; border-color:{c['border']}; }}
 QComboBox QAbstractItemView,QTableView::viewport,QTreeView::viewport,QListView::viewport {{ background:{c['input']}; color:{c['text']}; selection-background-color:{c['selection']}; selection-color:{c['selectionText']}; }}
-QCheckBox,QRadioButton {{ color:{c['text']}; background:transparent; }}
+QCheckBox,QRadioButton {{ color:{c['text']}; background:transparent; spacing:8px; }}
+QCheckBox::indicator {{ width:18px; height:18px; border:2px solid {c['muted']}; border-radius:4px; background:{c['input']}; image:none; }}
+QCheckBox::indicator:checked {{ background:{c['accent']}; border:2px solid {c['accent']}; image:none; }}
+QCheckBox::indicator:hover {{ border-color:{c['accent']}; }}
+QCheckBox::indicator:disabled {{ background:{c['surface']}; border-color:{c['border']}; }}
 QTabBar::tab {{ color:{c['text']}; background:{c['control']}; border-color:{c['border']}; }}
 QTabBar::tab:selected {{ color:{c['selectionText']}; background:{c['selection']}; }}
 QTabBar::tab:disabled {{ color:{c['muted']}; background:{c['surface']}; }}

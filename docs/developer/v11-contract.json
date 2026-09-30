@@ -1,0 +1,553 @@
+{
+  "schemaVersion": 1,
+  "patch": "v1.1",
+  "candidateVersion": "1.1.0",
+  "targetVersion": "1.1.0",
+  "baseSnapshot": "a0bd474",
+  "evidenceMaxAgeDays": 30,
+  "partitions": [
+    "deterministic",
+    "privilegedOS",
+    "liveNetwork",
+    "targetApp",
+    "package",
+    "migration/provenance",
+    "review"
+  ],
+  "gates": [
+    {
+      "id": "G01",
+      "claim": "Truth-state",
+      "probes": [
+        "tests/test_p01_network_truth_evidence.py",
+        "tests/test_p05_discovery.py"
+      ],
+      "requiredPartitions": [
+        "deterministic"
+      ],
+      "falsifier": "local PASS promoted to route/app",
+      "must": true
+    },
+    {
+      "id": "G02",
+      "claim": "VLESS live advertised lane",
+      "probes": [
+        "tests/test_p01_network_truth_evidence.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "liveNetwork"
+      ],
+      "falsifier": "import fidelity/core validate/current-run TLS+HTTP not all PASS",
+      "must": true
+    },
+    {
+      "id": "G03",
+      "claim": "Vesktop aggregate",
+      "probes": [
+        "tests/test_p01_network_truth_evidence.py",
+        "tests/test_p05_discovery.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "targetApp"
+      ],
+      "falsifier": "mandatory HTTP/gateway/navigation missing or bypass promoted",
+      "must": true
+    },
+    {
+      "id": "G04",
+      "claim": "Ownership and crash recovery",
+      "probes": [
+        "tests/test_p02_runtime_lifecycle_privilege.py",
+        "tests/test_default_workflow.py",
+        "tests/test_runtime_apply_revert.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "privilegedOS"
+      ],
+      "falsifier": "foreign resource cleanup, partial unrecoverable state or unsynchronized race",
+      "must": true
+    },
+    {
+      "id": "G05",
+      "claim": "Finite privilege and TOCTOU",
+      "probes": [
+        "tests/test_p02_runtime_lifecycle_privilege.py",
+        "tests/test_consolidated_runtime_security_patch.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "privilegedOS",
+        "package"
+      ],
+      "falsifier": "writable app imported root, mutable Plan/env/path authority or helper drift",
+      "must": true
+    },
+    {
+      "id": "G06",
+      "claim": "Persistence/migration/downgrade",
+      "probes": [
+        "tests/test_runtime_state_and_confirmation.py",
+        "tests/test_p06_productization.py",
+        "tests/test_p07_qualification.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "migration/provenance"
+      ],
+      "falsifier": "data loss, changed normalized semantics, unknown-newer write or silent downgrade",
+      "must": true
+    },
+    {
+      "id": "G07",
+      "claim": "Whole-generation provenance",
+      "probes": [
+        "tests/test_p03_core_generation.py",
+        "tests/test_p03_generation_build_adapter.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "privilegedOS",
+        "migration/provenance"
+      ],
+      "falsifier": "mixed source/overlay/build/Lua/binary generation",
+      "must": true
+    },
+    {
+      "id": "G08",
+      "claim": "Shipping semantics/rollback",
+      "probes": [
+        "tests/test_p03_core_generation.py",
+        "tests/test_p03_generation_build_adapter.py",
+        "tests/test_p04b_execution_plan.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "migration/provenance"
+      ],
+      "falsifier": "unclassified shipping item or partial generation published",
+      "must": true
+    },
+    {
+      "id": "G09",
+      "claim": "Canonical ontology",
+      "probes": [
+        "tests/test_p04a_re_forensics.py"
+      ],
+      "requiredPartitions": [
+        "deterministic"
+      ],
+      "falsifier": "legacy alias silently becomes distinct meaning",
+      "must": true
+    },
+    {
+      "id": "G10",
+      "claim": "One immutable execution Plan",
+      "probes": [
+        "tests/test_p04b_execution_plan.py",
+        "tests/test_runtime_state_and_confirmation.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "privilegedOS"
+      ],
+      "falsifier": "source/argv drift changes executed semantics without new confirmation",
+      "must": true
+    },
+    {
+      "id": "G11",
+      "claim": "Executable ActionContract projections",
+      "probes": [
+        "tests/test_action_dispatcher.py",
+        "tests/test_p04d_action_contract_closure.py",
+        "tests/test_p05_discovery.py",
+        "tests/test_v11_launch_overview.py"
+      ],
+      "requiredPartitions": [
+        "deterministic"
+      ],
+      "falsifier": "third registry or incomplete action/setting/concept projection",
+      "must": true
+    },
+    {
+      "id": "G12",
+      "claim": "Context help and actionable errors",
+      "probes": [
+        "tests/test_p05_discovery.py",
+        "tests/test_launch_error_classifier_banner.py",
+        "tests/test_v11_launch_overview.py"
+      ],
+      "requiredPartitions": [
+        "deterministic"
+      ],
+      "falsifier": "WHAT/WHEN/effect/preconditions or cause/evidence/nextAction absent",
+      "must": true
+    },
+    {
+      "id": "G13",
+      "claim": "Explicit CLI contradictions",
+      "probes": [
+        "tests/test_action_dispatcher.py",
+        "tests/test_p04d_action_contract_closure.py",
+        "tests/test_v11_launch_overview.py"
+      ],
+      "requiredPartitions": [
+        "deterministic"
+      ],
+      "falsifier": "first-match silently ignores contradictory input",
+      "must": true
+    },
+    {
+      "id": "G14",
+      "claim": "Current docs and generated freshness",
+      "probes": [
+        "tests/test_documentation_language.py",
+        "tests/test_p06_productization.py",
+        "tests/test_p07_qualification.py"
+      ],
+      "requiredPartitions": [
+        "deterministic"
+      ],
+      "falsifier": "unlabeled historical instructions or stale generated reference",
+      "must": true
+    },
+    {
+      "id": "G15",
+      "claim": "Clean Arch distribution lifecycle",
+      "probes": [
+        "tests/test_p06_productization.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "package"
+      ],
+      "falsifier": "checkout/PYTHONPATH dependency, helper writable or user data deleted",
+      "must": true
+    },
+    {
+      "id": "G16",
+      "claim": "Bounded partitioned evidence floor",
+      "probes": [
+        "tests/test_p07_qualification.py",
+        "tests/test_v11_launch_overview.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "privilegedOS",
+        "liveNetwork",
+        "targetApp",
+        "package",
+        "migration/provenance"
+      ],
+      "falsifier": "unbounded child, missing MUST partition or scope promoted",
+      "must": true
+    },
+    {
+      "id": "G17",
+      "claim": "Independent identity axes",
+      "probes": [
+        "tests/test_p06_productization.py",
+        "tests/test_p07_qualification.py"
+      ],
+      "requiredPartitions": [
+        "deterministic"
+      ],
+      "falsifier": "product/version used as evidence/schema/core identity",
+      "must": true
+    },
+    {
+      "id": "G18",
+      "claim": "SOCKS containment",
+      "probes": [
+        "tests/test_p01_network_truth_evidence.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "privilegedOS",
+        "targetApp"
+      ],
+      "falsifier": "loopback/random port treated as authentication; bind/auth/UDP/app-access undeclared",
+      "must": true
+    },
+    {
+      "id": "G19",
+      "claim": "Deliberate-failure support assessment",
+      "probes": [
+        "tests/test_p06_productization.py",
+        "tests/test_p07_qualification.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "review"
+      ],
+      "falsifier": "raw credential, missing plan/run/evidence/verdict context or independent actionability assessment",
+      "must": true
+    },
+    {
+      "id": "G20",
+      "claim": "Compositional golden journeys",
+      "probes": [
+        "tests/test_p07_qualification.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "privilegedOS",
+        "liveNetwork",
+        "targetApp",
+        "package",
+        "migration/provenance"
+      ],
+      "falsifier": "any mandatory J branch incomplete or failure undeclared",
+      "must": true
+    },
+    {
+      "id": "G21",
+      "claim": "Review/PC/SA/current freeze integrity",
+      "probes": [
+        "tests/test_p07_qualification.py",
+        "tests/test_v11_launch_overview.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "review"
+      ],
+      "falsifier": "criterion weakening, stale candidate binding or self-issued final review",
+      "must": true
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J1",
+      "claim": "Clean install → launch → plan → owned privilege → status/revert/exit",
+      "probes": [
+        "tests/test_p06_productization.py",
+        "tests/test_default_workflow.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "package",
+        "privilegedOS"
+      ],
+      "must": true,
+      "boundedFailureAllowed": false
+    },
+    {
+      "id": "J2",
+      "claim": "Preset → immutable Plan → confirm → apply → observe → revert",
+      "probes": [
+        "tests/test_p04b_execution_plan.py",
+        "tests/test_default_workflow.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "privilegedOS"
+      ],
+      "must": true,
+      "boundedFailureAllowed": false
+    },
+    {
+      "id": "J3",
+      "claim": "Crash cutpoint → restart → ownership → safe reconcile; foreign survives",
+      "probes": [
+        "tests/test_p02_runtime_lifecycle_privilege.py",
+        "tests/test_default_workflow.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "privilegedOS"
+      ],
+      "must": true,
+      "boundedFailureAllowed": false
+    },
+    {
+      "id": "J4",
+      "claim": "VLESS import → fidelity → core → graph → supported launch OR declared bounded failure",
+      "probes": [
+        "tests/test_p01_network_truth_evidence.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "liveNetwork"
+      ],
+      "must": true,
+      "boundedFailureAllowed": true
+    },
+    {
+      "id": "J5",
+      "claim": "Diagnostic → typed evidence, no hidden persistent/system mutation",
+      "probes": [
+        "tests/test_p05_discovery.py",
+        "tests/test_runtime_state_and_confirmation.py"
+      ],
+      "requiredPartitions": [
+        "deterministic"
+      ],
+      "must": true,
+      "boundedFailureAllowed": false
+    },
+    {
+      "id": "J6",
+      "claim": "RU/EN/technical unknown concept → help → pre/effect → safe action",
+      "probes": [
+        "tests/test_p05_discovery.py"
+      ],
+      "requiredPartitions": [
+        "deterministic"
+      ],
+      "must": true,
+      "boundedFailureAllowed": false
+    },
+    {
+      "id": "J7",
+      "claim": "Predecessor → backup/migration receipt → same promised normalized capability",
+      "probes": [
+        "tests/test_p06_productization.py",
+        "tests/test_p07_qualification.py"
+      ],
+      "requiredPartitions": [
+        "deterministic",
+        "migration/provenance",
+        "package"
+      ],
+      "must": true,
+      "boundedFailureAllowed": false
+    }
+  ],
+  "supportCells": [
+    {
+      "id": "arch.package",
+      "support": "UNKNOWN",
+      "scope": {
+        "platform": "Arch-like Linux x86_64",
+        "install": "pacman/local pinned PKGBUILD"
+      },
+      "requirements": [
+        "G05",
+        "G06",
+        "G15"
+      ],
+      "evidenceRefs": [],
+      "falsifier": "clean installed lifecycle fails",
+      "expiry": "30 days; source/recipe/helper/kernel change invalidates"
+    },
+    {
+      "id": "vless.xray.tcp-tls",
+      "support": "UNKNOWN",
+      "scope": {
+        "core": "Xray",
+        "coreVersion": "owner must pin observed version",
+        "transport": "tcp",
+        "security": "tls",
+        "platform": "Arch-like Linux x86_64"
+      },
+      "requirements": [
+        "G02",
+        "G18"
+      ],
+      "evidenceRefs": [],
+      "falsifier": "any current-run fidelity/coreValidate/target TLS/HTTP predicate fails",
+      "expiry": "30 days; core/config/connection/run/environment change invalidates"
+    },
+    {
+      "id": "vesktop.bootstrap",
+      "support": "UNKNOWN",
+      "scope": {
+        "app": "Vesktop",
+        "appVersion": "owner must pin observed version",
+        "subsystems": [
+          "updates.discord.com HTTP",
+          "discord.com HTTP",
+          "Gateway WebSocket",
+          "Electron navigation"
+        ]
+      },
+      "requirements": [
+        "G03",
+        "G18"
+      ],
+      "evidenceRefs": [],
+      "falsifier": "any aggregate mandatory predicate missing/failed",
+      "expiry": "30 days; app/core/config/run/environment change invalidates"
+    },
+    {
+      "id": "discord.voice",
+      "support": "EXPERIMENTAL",
+      "scope": {
+        "media": "separate UDP/Voice evidence, not bootstrap"
+      },
+      "requirements": [],
+      "evidenceRefs": [],
+      "falsifier": "bootstrap incorrectly advertised as Voice proof",
+      "expiry": "no v1 supported media promise"
+    },
+    {
+      "id": "service.autostart",
+      "support": "UNSUPPORTED",
+      "scope": {
+        "unit": "not installed; plan-only"
+      },
+      "requirements": [],
+      "evidenceRefs": [],
+      "falsifier": "unit installed/enabled without lifecycle qualification",
+      "expiry": "until explicit amendment"
+    }
+  ],
+  "migrationMatrix": [
+    {
+      "from": "v0.8/P04 schema state",
+      "to": "P07 candidate",
+      "policy": "explicit receipt-backed supported runtime migration only; no automatic checkout import",
+      "proof": [
+        "J7",
+        "G06"
+      ]
+    },
+    {
+      "from": "P05 checkout",
+      "to": "Arch package",
+      "policy": "new workspace; explicit preset import; no live state adoption",
+      "proof": [
+        "J1",
+        "J7"
+      ]
+    },
+    {
+      "from": "P06 workspace schema1/0.10.0rc6",
+      "to": "P07 schema1/1.0.0rc7",
+      "policy": "stop/reconcile before upgrade, managed copies conflict gate, preserve seeds/state, retain backup",
+      "proof": [
+        "J7",
+        "G06"
+      ]
+    },
+    {
+      "from": "same release active runtime",
+      "to": "same release",
+      "policy": "bootstrap idempotent; status/stop remain available",
+      "proof": [
+        "G04",
+        "G15"
+      ]
+    },
+    {
+      "from": "unknown-newer schema",
+      "to": "current",
+      "policy": "fail closed, no writes to workspace",
+      "proof": [
+        "G06"
+      ]
+    },
+    {
+      "from": "newer product workspace",
+      "to": "older product",
+      "policy": "refuse downgrade; explicit retained backup/new data root",
+      "proof": [
+        "G06"
+      ]
+    }
+  ],
+  "meaning": "current compatibility audit; v1.0 accepted by owner, historical receipts remain scoped",
+  "preForensics": "runtime/v11/pre-forensics.json"
+}

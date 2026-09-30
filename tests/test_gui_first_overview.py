@@ -27,7 +27,7 @@ def test_gui_first_overview_starts_as_user_mode_no_shell_commands(tmp_path: Path
     text = overview.to_text()
 
     assert overview.state == "stopped"
-    assert overview.primary_action == "start"
+    assert overview.primary_action == "build"
     assert "selected strategy:" in text
     assert "prepared start plan: none" in text
     assert "user mode: no shell commands are required" in text
@@ -46,7 +46,7 @@ def test_gui_first_overview_detects_stale_plan_after_strategy_change(tmp_path: P
     assert overview.prepared_start_plan_state == "stale"
     assert overview.prepared_start_plan_strategy_id == "manual-local"
     assert overview.selected_strategy_id == "windows-all-tcp-udp-v3-2-linux-bridge"
-    assert "Пересобрать план и включить" in text
+    assert "Собрать ядро" in text
     assert "Developer details:" in text
 
 
