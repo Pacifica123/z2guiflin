@@ -13,9 +13,9 @@ P03f owner-host acceptance завершён с `HYPERPATCH ACCEPTANCE: PASS` и 
 ```text
 P03f accepted / v0.7
   ↓
-P04a  freeze evidence + version/docs sync + ontology/ActionContract foundation
+P04a  ACCEPTED: freeze evidence + version/docs sync + ontology/ActionContract foundation
   ↓
-P04b  resource-location contract + normalized immutable Plan materializer
+P04b  CURRENT: resource-location contract + normalized immutable Plan materializer
       + runtimeContext/preset compatibility migration
   ↓
 P04c  executable ActionContract dispatcher + GUI projection
@@ -59,17 +59,29 @@ Legacy parser имеет большой flat-flag surface и current main исп
 
 Это не откладывается автоматически до P06: resource-location contract теперь dependency P04b, потому что Plan/ActionContract не должны навсегда кодировать repository-relative paths.
 
+## P04b implemented boundary
+
+Frozen evidence: `runtime/p04/p04b-frozen-evidence.json`. Checker: `tools/gui_checks/check_p04b_execution_plan.py`.
+
+P04b establishes an explicit resource-root provenance contract (`root` → `ZAP2_RESOURCE_ROOT` → verified source checkout → fail-closed), then materializes runtime semantics into one location-independent `ImmutableExecutionPlan`. The Plan hash contains ordered argv and logical resource paths with SHA-256, not physical checkout/install paths.
+
+Shipping `runtimeArgs` duplicates are not deleted yet because they remain compatibility data for older readers. When `presetPath` exists they are no longer execution authority: intentional drift is reported as a compatibility warning and cannot change Plan hash. Active-selection state reads `runtimeContextId/presetId` or legacy `profileId/strategyId`; disagreement is rejected.
+
+S-INSTALL is only partially resolved: an external resource-root contract exists, but package-data bundling and writable-state separation remain open and must not be advertised as complete installation support.
+
 ## Assumptions delta
 
 Confirmed:
 
 - P03 target-core generation/provenance semantics присутствуют в новой базе.
-- Shipping preset execution order round-trips без потерь исполнения.
-- Legacy aliases можно вводить boundary-only без немедленного destructive storage rewrite.
+- На P04a shipping preset execution order round-tripped без потерь исполнения; P04b материализует эти semantics в immutable execution Plan.
+- P04b resource-root contract отделяет semantic resource identity от physical checkout path.
+- Legacy aliases можно вводить boundary-only без немедленного destructive storage rewrite; canonical/legacy disagreement fail-closed.
 
 Falsified:
 
-- S-INSTALL нельзя считать уже решённым.
+- Full S-INSTALL всё ещё нельзя считать решённым: external resource-root contract есть, package-data bundling и writable-state separation ещё нет.
+- `runtimeArgs` нельзя считать независимым execution authority рядом с `presetPath`; на P04b это compatibility-only projection.
 - Current legacy CLI не отвергает противоречивые action selectors до handler.
 
 Deferred by evidence:
@@ -77,12 +89,22 @@ Deferred by evidence:
 - TXT vs structured canonical authoring source.
 - Typed subcommands vs validated legacy compatibility grammar как канонический CLI surface.
 
-## Acceptance текущего hyperpatch
+## P04a historical acceptance
 
-P04a acceptance является deterministic/read-only gate: он не запускает `nfqws2`, не меняет nftables и не требует повторного P03 network canary. Один orchestration entrypoint:
+P04a acceptance являлся deterministic/read-only gate: он не запускает `nfqws2`, не меняет nftables и не требует повторного P03 network canary. Один orchestration entrypoint:
 
 ```bash
 bash meta_tools/hyperpatch_acceptance.sh --p04a
 ```
 
 PASS marker: `READY_FOR_USE_WITHIN_P04A`.
+
+## P04b acceptance
+
+P04b также проверяется read-only orchestration без root/network mutation:
+
+```bash
+bash meta_tools/hyperpatch_acceptance.sh --p04b
+```
+
+PASS marker: `READY_FOR_USE_WITHIN_P04B`. После него следующий bounded node — P04c.

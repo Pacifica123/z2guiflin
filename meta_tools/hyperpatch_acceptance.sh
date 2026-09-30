@@ -3,8 +3,7 @@ set -Eeuo pipefail
 
 # Owner-host acceptance runner for an applied hyperpatch.
 # P03 mode deliberately exercises the real local lifecycle.
-# P04a mode is a deterministic/read-only acceptance profile for the frozen
-# re-forensics/ontology foundation and does not repeat the network canary.
+# P04a/P04b modes are deterministic/read-only acceptance profiles and do not repeat the network canary.
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
@@ -22,6 +21,7 @@ usage() {
   bash meta_tools/hyperpatch_acceptance.sh
   bash meta_tools/hyperpatch_acceptance.sh --p03
   bash meta_tools/hyperpatch_acceptance.sh --p04a
+  bash meta_tools/hyperpatch_acceptance.sh --p04b
   bash meta_tools/hyperpatch_acceptance.sh --profile default
   bash meta_tools/hyperpatch_acceptance.sh --canary-seconds 3
   bash meta_tools/hyperpatch_acceptance.sh --p03 --recover-root /path/to/previous/UTS/project
@@ -55,6 +55,14 @@ PASS НЕ доказывает эффективность конкретной D
   - P03 generation identity сохранена;
   - structural gate и полный pytest regression проходят;
   - никаких nft/NFQUEUE/network/root mutations не выполняется.
+
+Смысл PASS для --p04b:
+  - explicit resource-root contract и fail-closed installed fallback подтверждены;
+  - shipping preset/legacy projections materialize один location-independent immutable Plan;
+  - legacy runtimeArgs drift не меняет execution Plan;
+  - runtimeContext/preset aliases дают эквивалентный Plan и conflict fail-closed;
+  - P03 generation identity, structural gate и полный pytest regression проходят;
+  - никаких nft/NFQUEUE/network/root mutations не выполняется.
 USAGE
 }
 
@@ -66,6 +74,10 @@ while (($#)); do
       ;;
     --p04a)
       HYPERPATCH="p04a"
+      shift
+      ;;
+    --p04b)
+      HYPERPATCH="p04b"
       shift
       ;;
     --profile)
@@ -99,11 +111,11 @@ while (($#)); do
   esac
 done
 
-if [[ "${HYPERPATCH}" != "p03" && "${HYPERPATCH}" != "p04a" ]]; then
-  echo "Поддерживаются P03 и P04a acceptance profiles." >&2
+if [[ "${HYPERPATCH}" != "p03" && "${HYPERPATCH}" != "p04a" && "${HYPERPATCH}" != "p04b" ]]; then
+  echo "Поддерживаются P03, P04a и P04b acceptance profiles." >&2
   exit 2
 fi
-if [[ "${HYPERPATCH}" == "p04a" && -n "${RECOVER_ROOT}" ]]; then
+if [[ "${HYPERPATCH}" != "p03" && -n "${RECOVER_ROOT}" ]]; then
   echo "--recover-root относится только к P03 owner-host lifecycle acceptance." >&2
   exit 2
 fi
@@ -155,7 +167,7 @@ ERR
   fi
 else
   if ! PYTHON_BIN="$(zap2_pick_python "${PROJECT_ROOT}" pytest)"; then
-    echo "Не найден совместимый Python >= 3.10 с pytest для P04a deterministic acceptance." >&2
+    echo "Не найден совместимый Python >= 3.10 с pytest для deterministic P04 acceptance." >&2
     exit 2
   fi
   HOST_SETUP=0
@@ -166,6 +178,9 @@ ACCEPTANCE_LABEL="P03 owner-host hyperpatch acceptance"
 if [[ "${HYPERPATCH}" == "p04a" ]]; then
   READINESS_MARKER="READY_FOR_USE_WITHIN_P04A"
   ACCEPTANCE_LABEL="P04a deterministic hyperpatch acceptance"
+elif [[ "${HYPERPATCH}" == "p04b" ]]; then
+  READINESS_MARKER="READY_FOR_USE_WITHIN_P04B"
+  ACCEPTANCE_LABEL="P04b deterministic hyperpatch acceptance"
 fi
 
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -339,6 +354,22 @@ if [[ "${HYPERPATCH}" == "p04a" ]]; then
 
   run_step "Full deterministic regression" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p04a_regression.py
   require_last '^P04a regression: PASS \(.*\)$' "P04a full regression не PASS"
+
+  FINAL_PASS=1
+  exit 0
+fi
+
+if [[ "${HYPERPATCH}" == "p04b" ]]; then
+  run_step "P04b immutable execution Plan" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p04b_execution_plan.py
+  require_last '^P04b execution Plan: PASS$' "P04b resource/Plan/compatibility evidence не совпадает"
+
+  run_step "P03 generation identity preserved" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p03_core_generation.py
+  require_last '^P03 core generation: PASS$' "P04b не должен ломать принятую P03 generation identity"
+
+  run_step "Project tree structural gate" "${PYTHON_BIN}" tools/gui_checks/check_project_tree.py
+
+  run_step "Full deterministic regression" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p04b_regression.py
+  require_last '^P04b regression: PASS \(.*\)$' "P04b full regression не PASS"
 
   FINAL_PASS=1
   exit 0

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import subprocess
+import hashlib
 from pathlib import Path
 
 from zap2_gui import DEVELOPMENT_LINE, PRODUCT_LABEL, __version__
@@ -14,19 +14,19 @@ from zap2_gui.models.domain_semantics import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-CHECKER = ROOT / "tools/gui_checks/check_p04a_re_forensics.py"
 BASELINE = ROOT / "runtime/p04/p04a-frozen-evidence.json"
 
 
 def test_p03f_acceptance_promotes_product_baseline_before_p04() -> None:
     assert PRODUCT_LABEL == "v0.7"
     assert __version__ == "0.7.0"
-    assert DEVELOPMENT_LINE == "P04a evidence/ontology foundation toward v0.8"
+    assert DEVELOPMENT_LINE == "P04b immutable execution Plan foundation toward v0.8"
     status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
     versioning = (ROOT / "docs/VERSIONING.md").read_text(encoding="utf-8")
     assert "READY_FOR_USE_WITHIN_P03" in status
     assert "v0.7" in versioning
     assert "P04a" in versioning
+    assert "P04b" in versioning
 
 
 def test_p04_ontology_names_core_domain_concepts() -> None:
@@ -86,18 +86,11 @@ def test_runtime_context_and_preset_aliases_are_boundary_only() -> None:
     assert strategy.preset_id == strategy.strategy_id
 
 
-def test_frozen_p04a_decision_evidence_matches_current_tree() -> None:
-    result = subprocess.run(
-        ["python", str(CHECKER)],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "P04a re-forensics: PASS" in result.stdout
-
-    frozen = json.loads(BASELINE.read_text(encoding="utf-8"))
+def test_frozen_p04a_decision_evidence_is_preserved_as_p04b_parent() -> None:
+    frozen_bytes = BASELINE.read_bytes()
+    frozen = json.loads(frozen_bytes.decode("utf-8"))
+    p04b = json.loads((ROOT / "runtime/p04/p04b-frozen-evidence.json").read_text(encoding="utf-8"))
+    assert p04b["parentP04aEvidenceSha256"] == hashlib.sha256(frozen_bytes).hexdigest()
     assert frozen["representation"]["exactExecutionRoundTrips"] == frozen["representation"]["strategyCount"] == 18
     assert frozen["representation"]["strategyJsonWithPresetPathAndRuntimeArgs"] > 0
     contradiction = frozen["cli"]["representativeContradiction"]

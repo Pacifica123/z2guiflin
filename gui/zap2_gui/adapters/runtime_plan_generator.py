@@ -11,8 +11,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from .execution_plan import materialize_execution_plan
 from .local_build import BuildArtifact, create_local_build_plan, inspect_artifacts
 from .workspace_profiles import load_workspace_catalog
+from ..models.execution_plan import ImmutableExecutionPlan
 from ..models.lifecycle import RUNTIME_CONTRACT_STAGE
 from ..models.runtime_plan import (
     RuntimePlanCommandPreview,
@@ -52,6 +54,7 @@ class GeneratedRuntimePlan:
     session_files: tuple[RuntimePlanFileRef, ...]
     log_files: tuple[RuntimePlanFileRef, ...]
     contract: RuntimePlanContract
+    execution_plan: ImmutableExecutionPlan
 
     @property
     def plan_id(self) -> str:
@@ -118,7 +121,7 @@ class GeneratedRuntimePlan:
         log_file_lines = "\n".join(self._format_files(self.log_files))
         apply_lines = "\n".join(self._format_apply_steps())
         rollback_lines = "\n".join(self._format_rollback_notes())
-        runtime_arg_lines = "\n".join(f"  - {arg}" for arg in self.strategy.runtime_args) or "  - нет"
+        runtime_arg_lines = "\n".join(f"  - {arg}" for arg in self.execution_plan.runtime_args) or "  - нет"
         source = self.strategy.source_preset or {}
         source_name = str(source.get("name", "не указан"))
         source_level = str(source.get("portingLevel", "не указан"))
@@ -128,6 +131,7 @@ class GeneratedRuntimePlan:
                 f"plan id: {self.plan_id}",
                 f"profile: {self.profile.profile_id}",
                 f"strategy: {self.strategy.strategy_id}",
+                f"normalized execution plan: {self.execution_plan.plan_hash}",
                 f"strategy source: {source_name} ({source_level})",
                 f"build target: {self.profile.build_target}",
                 f"binary: {self.binary_relative_path}",
@@ -341,6 +345,12 @@ def create_runtime_plan(root: Path | None = None, action: str = "start", profile
     if profile.strategy_id not in strategies:
         raise ValueError(f"Профиль {profile.profile_id} ссылается на неизвестную стратегию: {profile.strategy_id}")
     strategy = strategies[profile.strategy_id]
+    execution_materialization = materialize_execution_plan(layout.root, runtime_context_id=profile.runtime_context_id)
+    execution_plan = execution_materialization.plan
+    if execution_plan.preset_id != strategy.preset_id:
+        raise ValueError(
+            f"Normalized Plan preset mismatch: {execution_plan.preset_id} != {strategy.preset_id}"
+        )
 
     build_plan = create_local_build_plan(layout.root, target=profile.build_target)
     artifact_statuses = inspect_artifacts(build_plan)
@@ -399,6 +409,7 @@ def create_runtime_plan(root: Path | None = None, action: str = "start", profile
         session_files=session_files,
         log_files=log_files,
         contract=contract,
+        execution_plan=execution_plan,
     )
 
 

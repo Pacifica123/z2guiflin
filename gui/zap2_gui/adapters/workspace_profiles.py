@@ -46,7 +46,11 @@ class WorkspaceCatalog:
     def strategy_by_id(self) -> dict[str, WorkspaceStrategy]:
         return {strategy.strategy_id: strategy for strategy in self.strategies}
 
+    def runtime_context_by_id(self) -> dict[str, WorkspaceProfile]:
+        return self.profile_by_id()
 
+    def preset_by_id(self) -> dict[str, WorkspaceStrategy]:
+        return self.strategy_by_id()
 
 
 ACTIVE_STRATEGY_SELECTION_SCHEMA_VERSION = 1
@@ -63,6 +67,18 @@ class ActiveStrategySelection:
     reason: str
     path: Path
     previous_strategy_id: str | None = None
+
+    @property
+    def runtime_context_id(self) -> str:
+        return self.profile_id
+
+    @property
+    def preset_id(self) -> str:
+        return self.strategy_id
+
+    @property
+    def previous_preset_id(self) -> str | None:
+        return self.previous_strategy_id
 
     def to_text(self) -> str:
         previous = self.previous_strategy_id or "не указан"
@@ -90,6 +106,18 @@ class StrategySelectionResult:
     path: Path
     selected_at: str
 
+    @property
+    def runtime_context_id(self) -> str:
+        return self.profile_id
+
+    @property
+    def preset_id(self) -> str:
+        return self.strategy_id
+
+    @property
+    def previous_preset_id(self) -> str:
+        return self.previous_strategy_id
+
     def to_text(self) -> str:
         return "\n".join(
             [
@@ -110,6 +138,17 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def _compat_value(data: dict[str, Any], canonical: str, legacy: str, *, required: bool = True) -> str:
+    canonical_value = str(data.get(canonical) or "").strip()
+    legacy_value = str(data.get(legacy) or "").strip()
+    if canonical_value and legacy_value and canonical_value != legacy_value:
+        raise ValueError(f"Conflicting compatibility fields: {canonical}={canonical_value!r} != {legacy}={legacy_value!r}")
+    value = canonical_value or legacy_value
+    if required and not value:
+        raise ValueError(f"Missing required field: {canonical} (legacy alias: {legacy})")
+    return value
+
+
 def active_strategy_selection_path(root: Path | None = None, profile_id: str = "default") -> Path:
     layout = discover_layout(root)
     safe_profile = "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "_" for ch in profile_id)
@@ -123,15 +162,17 @@ def load_active_strategy_selection(root: Path | None = None, profile_id: str = "
     data = _read_json(path)
     if int(data.get("schemaVersion", 0)) != ACTIVE_STRATEGY_SELECTION_SCHEMA_VERSION:
         return None
-    if str(data.get("profileId", "")) != profile_id:
+    stored_context_id = _compat_value(data, "runtimeContextId", "profileId")
+    if stored_context_id != profile_id:
         return None
+    previous_preset_id = _compat_value(data, "previousPresetId", "previousStrategyId", required=False) or None
     return ActiveStrategySelection(
         schema_version=int(data["schemaVersion"]),
-        profile_id=str(data["profileId"]),
-        strategy_id=str(data["strategyId"]),
+        profile_id=stored_context_id,
+        strategy_id=_compat_value(data, "presetId", "strategyId"),
         selected_at=str(data.get("selectedAt", "")),
         reason=str(data.get("reason", "owner-selected")),
-        previous_strategy_id=str(data["previousStrategyId"]) if data.get("previousStrategyId") else None,
+        previous_strategy_id=previous_preset_id,
         path=path,
     )
 
@@ -160,6 +201,9 @@ def select_workspace_strategy(
     selected_at = _utc_now()
     payload = {
         "schemaVersion": ACTIVE_STRATEGY_SELECTION_SCHEMA_VERSION,
+        "runtimeContextId": profile_id,
+        "presetId": strategy_id,
+        "previousPresetId": previous_strategy_id,
         "profileId": profile_id,
         "strategyId": strategy_id,
         "previousStrategyId": previous_strategy_id,
@@ -231,6 +275,7 @@ def _parse_strategy(path: Path, root: Path) -> WorkspaceStrategy:
     legacy_runtime_args = tuple(str(item) for item in data.get("runtimeArgs", []))
     preset_path = str(data.get("presetPath") or "").strip()
     runtime_args = legacy_runtime_args
+    compatibility_warnings: list[str] = []
     if preset_path:
         resolved = (root / preset_path).resolve()
         try:
@@ -252,7 +297,9 @@ def _parse_strategy(path: Path, root: Path) -> WorkspaceStrategy:
         )
         runtime_args = parsed.to_runtime_args()
         if legacy_runtime_args and runtime_args != legacy_runtime_args:
-            raise ValueError(f"presetPath и runtimeArgs расходятся для {data['id']}")
+            compatibility_warnings.append(
+                f"legacy runtimeArgs drift ignored for {data['id']}; presetPath is execution authority"
+            )
 
     return WorkspaceStrategy(
         schema_version=int(data["schemaVersion"]),
@@ -270,6 +317,7 @@ def _parse_strategy(path: Path, root: Path) -> WorkspaceStrategy:
         service_target=dict(data["serviceTarget"]) if isinstance(data.get("serviceTarget"), dict) else None,
         capture_policy=dict(data["capturePolicy"]) if isinstance(data.get("capturePolicy"), dict) else None,
         diagnostic_hints=dict(data["diagnosticHints"]) if isinstance(data.get("diagnosticHints"), dict) else None,
+        compatibility_warnings=tuple(compatibility_warnings),
     )
 
 
@@ -328,10 +376,10 @@ def _parse_profile(path: Path) -> WorkspaceProfile:
     )
     return WorkspaceProfile(
         schema_version=int(data["schemaVersion"]),
-        profile_id=str(data["id"]),
+        profile_id=_compat_value(data, "runtimeContextId", "id"),
         title=str(data["title"]),
         description=str(data["description"]),
-        strategy_id=str(data["strategyId"]),
+        strategy_id=_compat_value(data, "presetId", "strategyId"),
         build_target=str(data["buildTarget"]),
         hostlists=hostlists,
         safety=safety,
@@ -378,6 +426,23 @@ def load_workspace_profile(root: Path | None = None, profile_id: str = "default"
     return profiles[profile_id]
 
 
+def load_runtime_context(root: Path | None = None, runtime_context_id: str = "default") -> WorkspaceProfile:
+    """Canonical P04 alias for ``load_workspace_profile``."""
+
+    return load_workspace_profile(root, runtime_context_id)
+
+
+def select_workspace_preset(
+    root: Path | None = None,
+    preset_id: str = "",
+    runtime_context_id: str = "default",
+    reason: str = "owner-selected",
+) -> StrategySelectionResult:
+    """Canonical P04 alias; storage keeps legacy fields for compatibility."""
+
+    return select_workspace_strategy(root, preset_id, runtime_context_id, reason)
+
+
 def validate_workspace_catalog(root: Path | None = None) -> tuple[ProfileValidationIssue, ...]:
     layout = discover_layout(root)
     catalog = load_strategy_catalog(layout.root)
@@ -392,6 +457,8 @@ def validate_workspace_catalog(root: Path | None = None) -> tuple[ProfileValidat
     for strategy in catalog.strategies:
         if not strategy.is_plan_only:
             issues.append(ProfileValidationIssue("error", f"Стратегия {strategy.strategy_id} не является plan-only"))
+        for warning in strategy.compatibility_warnings:
+            issues.append(ProfileValidationIssue("warning", warning))
 
     for profile in load_workspace_profiles(layout.root):
         if profile.strategy_id not in strategies:

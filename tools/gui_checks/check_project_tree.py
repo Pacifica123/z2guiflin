@@ -34,6 +34,8 @@ REQUIRED_PATHS = [
     "tools/core_generation_build.py",
     "tools/gui_checks/check_p03_core_generation.py",
     "docs/P03_ZAPRET2_GENERATION.md",
+    "docs/P04_REFORENSICS.md",
+    "docs/P04B_EXECUTION_PLAN.md",
     "profiles/README.md",
     "profiles/default.json",
     "profiles/hostlists/default.hosts",
@@ -62,6 +64,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/build_dependencies.py",
     "gui/zap2_gui/adapters/workspace_profiles.py",
     "gui/zap2_gui/adapters/runtime_contracts.py",
+    "gui/zap2_gui/adapters/execution_plan.py",
     "gui/zap2_gui/adapters/runtime_plan_generator.py",
     "gui/zap2_gui/adapters/runtime_state.py",
     "gui/zap2_gui/adapters/runtime_session.py",
@@ -77,6 +80,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/models/lifecycle.py",
     "gui/zap2_gui/models/runtime_plan.py",
     "gui/zap2_gui/models/runtime_events.py",
+    "gui/zap2_gui/models/execution_plan.py",
     "gui/zap2_gui/windows/main_window.py",
     "gui/zap2_gui/widgets/placeholders.py",
     "docs/DEVELOPMENT_STRATEGY.md",
@@ -137,6 +141,7 @@ REQUIRED_PATHS = [
     "tools/gui_checks/inventory_core.py",
     "tools/gui_checks/check_local_build_adapter.py",
     "tools/gui_checks/check_workspace_profiles.py",
+    "tools/gui_checks/check_p04b_execution_plan.py",
     "tools/gui_checks/check_runtime_lifecycle.py",
     "tools/gui_checks/check_runtime_plan_generator.py",
     "tools/gui_checks/check_runtime_state.py",
@@ -149,6 +154,7 @@ REQUIRED_PATHS = [
     "tests/test_core_inventory_and_build_map.py",
     "tests/test_local_build_adapter.py",
     "tests/test_workspace_profiles_and_strategies.py",
+    "tests/test_p04b_execution_plan.py",
     "tests/test_runtime_lifecycle_contracts.py",
     "tests/test_runtime_plan_generator.py",
     "tests/test_runtime_state_and_confirmation.py",
@@ -189,6 +195,8 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/RUNTIME_SESSION_INPUTS.md",
     "docs/NFQUEUE_PRIVILEGE_ORDER.md",
     "docs/P03_ZAPRET2_GENERATION.md",
+    "docs/P04_REFORENSICS.md",
+    "docs/P04B_EXECUTION_PLAN.md",
     "docs/RUNTIME_APPLY_REVERT.md",
     "docs/RUNTIME_SERVICE_PLANS.md",
     "docs/DEFAULT_WORKFLOW.md",
@@ -529,7 +537,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.7 + P04a корректно: P03f принят, PyQt-интерфейс, русская документация, инвентаризация ядра, карта сборки, адаптеры и runtime-контракты зафиксированы")
+    print("Дерево v0.7 + P04b корректно: P03f принят, PyQt-интерфейс, русская документация, инвентаризация ядра, карта сборки, адаптеры и runtime-контракты зафиксированы")
     return 0
 
 

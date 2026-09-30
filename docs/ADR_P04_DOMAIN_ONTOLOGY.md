@@ -1,6 +1,6 @@
 # ADR P04 — domain ontology и ActionContract boundary
 
-Статус: **accepted for P04a foundation; execution migration not yet complete**.
+Статус: **P04a foundation accepted; P04b immutable Plan boundary implemented; ActionContract execution migration not yet complete**.
 
 ## Решение
 
@@ -56,7 +56,7 @@ many source/import representations
 → execution
 ```
 
-P04a не выбирает TXT/JSON/новый IR «по вкусу». Выбор authoring/canonical representation разрешён только после roundtrip/loss evidence. Исполнимый порядок аргументов уже доказан как значимый и должен сохраняться.
+P04a не выбирал TXT/JSON/новый IR «по вкусу». P04b оставляет authoring forms множественными, но фиксирует execution authority: `presetPath -> normalized semantics -> ImmutableExecutionPlan`. Legacy `runtimeArgs` при наличии `presetPath` является только compatibility projection; source provenance не входит в Plan hash.
 
 ## Safety projection
 

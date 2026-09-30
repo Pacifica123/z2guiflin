@@ -113,7 +113,7 @@ def runtime_artifact_inventory(root: Path, plan: GeneratedRuntimePlan) -> dict[s
     for hostlist in plan.hostlists:
         add("profile-hostlist", _resolve_workspace_file(root, hostlist.path))
 
-    for raw_arg in plan.strategy.runtime_args:
+    for raw_arg in plan.execution_plan.runtime_args:
         arg = str(raw_arg)
         ref = _runtime_arg_file_ref(arg)
         if ref is None:

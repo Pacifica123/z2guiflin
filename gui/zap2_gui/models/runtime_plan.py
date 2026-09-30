@@ -99,6 +99,14 @@ class RuntimePlanContract:
     source_path: Path | None = None
 
     @property
+    def runtime_context_id(self) -> str:
+        return self.profile_id
+
+    @property
+    def preset_id(self) -> str:
+        return self.strategy_id
+
+    @property
     def section_kinds(self) -> tuple[str, ...]:
         return tuple(section.kind for section in self.sections)
 

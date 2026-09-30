@@ -5,10 +5,10 @@
 ```text
 v0.7
 Python package: 0.7.0
-Development line: P04a evidence/ontology foundation toward v0.8
+Development line: P04b immutable execution Plan foundation toward v0.8
 ```
 
-`v0.7` — последняя принятая продуктовая версия. P03f owner-host acceptance подтвердил runnable generation/build/parser/privilege/runtime lifecycle для pinned zapret2 `1.0.6@00f5aaa` и завершился `READY_FOR_USE_WITHIN_P03`. Текущий HEAD начинает P04a; `v0.8` не присваивается до завершения всего P04/RC4. Универсальная сетевая стратегия по-прежнему не является обещанием версии.
+`v0.7` — последняя принятая продуктовая версия. P03f owner-host acceptance подтвердил runnable generation/build/parser/privilege/runtime lifecycle для pinned zapret2 `1.0.6@00f5aaa` и завершился `READY_FOR_USE_WITHIN_P03`. P04a принят с `READY_FOR_USE_WITHIN_P04A`; текущий HEAD реализует P04b. `v0.8` не присваивается до завершения всего P04/RC4. Универсальная сетевая стратегия по-прежнему не является обещанием версии.
 
 ## Формат
 
@@ -63,9 +63,9 @@ Blockcheck -> AVAILABLE -> generated strategy -> selection -> Default workflow -
 
 Принят P03/P03f: pinned zapret2 `1.0.6@00f5aaa`, LuaCompat 6, explicit overlays/source transform, whole-generation receipt и bounded drop-identity recovery. Owner-host `hyperpatch_acceptance.sh --p03` завершён с `READY_FOR_USE_WITHIN_P03`.
 
-### P04a -> v0.8 candidate
+### P04a/P04b -> v0.8 candidate
 
-P04a синхронизирует post-P03f baseline, фиксирует ontology/ActionContract foundation и замораживает REP/CLI/S-INSTALL decision evidence. Это ещё не `v0.8`: единый Plan materializer, dispatcher/legacy translator и 100% contract coverage относятся к следующим bounded P04 hyperpatches.
+P04a синхронизировал post-P03f baseline, зафиксировал ontology/ActionContract foundation и REP/CLI/S-INSTALL evidence. P04b добавляет explicit resource-root contract и один location-independent immutable execution Plan; legacy `runtimeArgs` становится compatibility-only projection, а `runtimeContext/preset` aliases мигрируются без смены Plan hash. Это ещё не `v0.8`: executable ActionContract dispatcher, legacy CLI contradiction gate и 100% coverage остаются P04c/P04d.
 
 ## Исторические stage ID
 

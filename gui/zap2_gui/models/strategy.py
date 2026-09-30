@@ -38,6 +38,7 @@ class WorkspaceStrategy:
     service_target: dict[str, Any] | None = None
     capture_policy: dict[str, Any] | None = None
     diagnostic_hints: dict[str, Any] | None = None
+    compatibility_warnings: tuple[str, ...] = ()
 
     @property
     def preset_id(self) -> str:

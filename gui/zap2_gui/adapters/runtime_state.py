@@ -271,6 +271,8 @@ def generated_runtime_plan_to_payload(plan: GeneratedRuntimePlan, root: Path | N
         "stage": RUNTIME_STATE_STAGE,
         "planId": plan.plan_id,
         "action": plan.action,
+        "runtimeContextId": plan.profile.runtime_context_id,
+        "presetId": plan.strategy.preset_id,
         "profileId": plan.profile.profile_id,
         "strategyId": plan.strategy.strategy_id,
         "buildTarget": plan.profile.build_target,
@@ -283,7 +285,8 @@ def generated_runtime_plan_to_payload(plan: GeneratedRuntimePlan, root: Path | N
             }
             for hostlist in plan.hostlists
         ],
-        "strategyRuntimeArgs": list(plan.strategy.runtime_args),
+        "normalizedExecutionPlan": plan.execution_plan.to_record(),
+        "strategyRuntimeArgs": list(plan.execution_plan.runtime_args),
         "strategySourcePreset": plan.strategy.source_preset or {},
         "requiredArtifacts": [
             {

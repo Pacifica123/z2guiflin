@@ -13,7 +13,8 @@
 ## Архитектура и правила
 
 - `DEVELOPMENT_STRATEGY.md` — порядок развития и принятия решений.
-- `VERSIONING.md` — правила версий, принятый v0.7 baseline и P04a toward v0.8.
+- `P04B_EXECUTION_PLAN.md` — resource-location contract, immutable execution Plan и compatibility aliases.
+- `VERSIONING.md` — правила версий, принятый v0.7 baseline и P04b toward v0.8.
 - `DOCUMENTATION_LANGUAGE.md` — язык и границы перевода.
 - `SOURCE_ALIGNMENT.md` — связь с bol-van, loop-uh, Flowseal и другими reference-снимками.
 - `ADR_P04_DOMAIN_ONTOLOGY.md` — canonical nouns, legacy aliases и ActionContract boundary.

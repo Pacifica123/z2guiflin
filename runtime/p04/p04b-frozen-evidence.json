@@ -1,0 +1,74 @@
+{
+  "assumptionsDelta": {
+    "confirmed": [
+      "resource resolution now has explicit provenance and an external-root contract",
+      "equivalent source/legacy projections materialize the same location-independent immutable Plan",
+      "legacy runtimeArgs drift cannot alter execution when presetPath exists",
+      "runtimeContext/preset aliases preserve Plan hash and conflicting aliases fail closed"
+    ],
+    "stillOpen": [
+      "normal site-packages install does not yet bundle all project resources",
+      "writable .zap2 state is not yet separated from the resource tree",
+      "legacy CLI contradiction gate and ActionContract dispatcher remain P04c"
+    ]
+  },
+  "compatibilityAliases": {
+    "conflictingAliasesRejected": true,
+    "legacyAndCanonicalSelectionSamePlanHash": true,
+    "writerPolicy": "new state writes canonical and legacy aliases with equal values; readers accept either and reject disagreement"
+  },
+  "inputSha256": {
+    "gui/zap2_gui/adapters/execution_plan.py": "efd1560577bdaa114274f9c47ed978261acbc08082408da41dfcfa44d421af00",
+    "gui/zap2_gui/adapters/runtime_apply.py": "3e2b15a004a5354550ed3958f26f12c560ef32bca92a4dc4e298d0d0546af056",
+    "gui/zap2_gui/adapters/runtime_artifacts.py": "9f6d6525852244ae3734f08909a766f843d162b46eb82bea32bb6c5a4d9fd938",
+    "gui/zap2_gui/adapters/runtime_plan_generator.py": "c390f26c07d13eb648484b9215102a0c6c93dc946626225fcdb584ae104ce552",
+    "gui/zap2_gui/adapters/runtime_session.py": "26b5b60746315b0b4fe33b0c58b81eed34756c3a6f8cb3876b351d42d9bfc2d4",
+    "gui/zap2_gui/adapters/runtime_state.py": "079d175bf2e269b596bab853598e72a292afef92ef830ab94ca2af5d5c95fd8e",
+    "gui/zap2_gui/adapters/workspace_profiles.py": "70440033822c469ffce76436dcfd06b955e6cee3add8da12342576a0e7b230c7",
+    "gui/zap2_gui/models/execution_plan.py": "4b70918e45b59da9c8842ea6a7bf12b41fb674edbde104bdaecae5ec9b1aef4b",
+    "gui/zap2_gui/models/runtime_plan.py": "a258ed7562650492343f575454c4bed6aa428022d0b5666e27b3b4e29752027c",
+    "gui/zap2_gui/models/strategy.py": "30808859e8e6843b4efce8267590a5c8aba0c535c449556c49f8006b7ef87135",
+    "gui/zap2_gui/project_paths.py": "8dcd9c237e156bb719ac8905dbe26acb3fa9440c9086226466515b4234f507a7",
+    "pyproject.toml": "a0933303c0e1059e531efb399ba9c84ad22c73911a3b9cf1c5c5eb11d56acc7d"
+  },
+  "normalizedPlan": {
+    "canonicalIdsEmbedded": true,
+    "defaultPlanHash": "19be6c73d0127c97152e91f8e8ddfe8d0eaa4b30bfae4dc5c566a35d3bb1a385",
+    "defaultResourceCount": 3,
+    "defaultResourcesReady": true,
+    "defaultRuntimeArgCount": 10,
+    "locationIndependent": true,
+    "runtimeArgProjectionMatchesPlan": true,
+    "runtimePlanEmbedsNormalizedPlan": true
+  },
+  "parentP04aEvidenceSha256": "7ca62922c68b1fdecdea65df7bf6c455ce3806611f485b5e651c127b5eb7e23b",
+  "patch": "P04b",
+  "recompiledDag": [
+    "P04b accepted -> P04c executable ActionContract dispatcher + legacy CLI translator/conflict gate + GUI projection",
+    "P04c -> P04d migration/coverage/lint/roundtrip acceptance",
+    "P04d -> RC4/v0.8 candidate",
+    "P05 waits for P04d"
+  ],
+  "representation": {
+    "authority": "presetPath -> normalized immutable Plan; runtimeArgs is compatibility-only metadata when presetPath exists",
+    "legacyDriftCannotChangePlan": true,
+    "legacyProjectionFailures": [],
+    "legacyProjectionHashMatches": 17,
+    "legacyRuntimeArgsFieldCount": 17,
+    "presetPathCount": 18,
+    "strategyCount": 18
+  },
+  "resourceLocation": {
+    "allResolveSameRoot": true,
+    "decision": "P04b establishes an explicit resource-root contract but does not claim final S-INSTALL packaging/state separation",
+    "defaultOrigin": "source-checkout",
+    "environmentContract": "ZAP2_RESOURCE_ROOT",
+    "environmentOrigin": "environment",
+    "explicitOrigin": "explicit",
+    "externalResourceRootContractReady": true,
+    "fullInstalledBundleReady": false,
+    "projectResourcePackageDataDeclared": false,
+    "writableStateSeparated": false
+  },
+  "schemaVersion": 1
+}

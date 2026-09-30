@@ -1,32 +1,39 @@
-# Итог hyperpatch — P04a re-forensics / version sync / ontology foundation
+# Итог hyperpatch — P04b resource-location / immutable execution Plan
 
-База: owner-accepted post-P03f HEAD (`17b2b8b` archive lineage), acceptance marker `READY_FOR_USE_WITHIN_P03`.
+База: owner-accepted P04a (`READY_FOR_USE_WITHIN_P04A`), post-P04a HEAD `3fd28c6` lineage. Product baseline остаётся `v0.7`; `v0.8` ещё не присваивается.
 
-## Почему P04 разбит
+## Что делает P04b
 
-Повторная форензика показала scope overflow исходного P04. Вместо одной большой переписи зафиксирован bounded DAG P04a→P04b→P04c→P04d. Это сохраняет RA-инвариант: новый HEAD сначала меняет assumptions/evidence, затем перекомпилирует оставшуюся работу.
+- вводит explicit resource-location contract: caller root → `ZAP2_RESOURCE_ROOT` → verified source-checkout → fail-closed;
+- убирает ложное предположение, что `Path(__file__).parents[...]` является install layout;
+- добавляет location-independent `ImmutableExecutionPlan` с ordered argv и logical resource SHA-256;
+- встраивает normalized Plan в runtime start payload и сохраняет его hash;
+- переводит runtime session input staging, P02 artifact inventory и nft port derivation на argv normalized Plan;
+- демонтирует `runtimeArgs` как вторую execution authority: при наличии `presetPath` legacy field только compatibility metadata; drift даёт warning, но не меняет Plan;
+- добавляет canonical aliases `runtimeContextId` / `presetId` в active-selection state и fail-closed проверку противоречащих legacy aliases;
+- фиксирует P04b evidence в `runtime/p04/p04b-frozen-evidence.json`;
+- добавляет deterministic checker и `hyperpatch_acceptance.sh --p04b` с полным regression в изолированных worker-копиях.
 
-## Что делает P04a
+## Frozen evidence
 
-- повышает принятую продуктовую baseline `v0.6 -> v0.7` после завершённого P03f owner-host acceptance;
-- переводит development line на `P04a ... toward v0.8`, не присваивая `v0.8` преждевременно;
-- добавляет canonical domain ontology и тип `ActionContract` с validation invariants;
-- добавляет compatibility-only aliases `runtime_context_id` / `preset_id`, не выполняя destructive storage migration;
-- замораживает decision evidence в `runtime/p04/p04a-frozen-evidence.json`;
-- добавляет deterministic checker `tools/gui_checks/check_p04a_re_forensics.py`;
-- фиксирует REP experiment: shipping preset execution roundtrip должен оставаться exact, а `presetPath + runtimeArgs` признаются временной duplicate execution representation;
-- фиксирует CLI experiment: representative contradictory selectors принимаются legacy argparse и требуют pre-handler conflict gate;
-- фиксирует S-INSTALL: repository-relative resource discovery пока не поддерживает outside-checkout contract и переносится в dependency P04b, а не откладывается молча до P06;
-- расширяет `meta_tools/hyperpatch_acceptance.sh` режимом `--p04a`, который выполняет весь read-only acceptance одним orchestration command и упаковывает evidence.
+- 18 shipping presets / 18 `presetPath`;
+- 17 legacy `runtimeArgs` projections дают тот же Plan hash;
+- intentional legacy drift не изменяет execution Plan;
+- одинаковый resource tree в двух разных каталогах даёт одинаковый Plan payload/hash;
+- canonical-only и legacy-only active selection дают одинаковый Plan hash;
+- conflicting canonical/legacy aliases отклоняются;
+- default normalized Plan resources готовы;
+- final installed package bundle и writable-state separation **не** объявлены готовыми.
 
-## Что P04a намеренно НЕ делает
+## Что P04b намеренно НЕ делает
 
-- не выбирает TXT/JSON/новый IR как canonical authoring source без fidelity evidence;
-- не переписывает 163-option legacy CLI сразу;
-- не объявляет ActionContract registry authority, пока handlers не мигрированы;
-- не меняет nftables/NFQUEUE/runtime execution semantics;
-- не доказывает censorship-resistance конкретной стратегии.
+- не меняет network/DPI semantics P03;
+- не выполняет root/network canary;
+- не удаляет legacy fields массовым storage rewrite;
+- не вводит ActionContract dispatcher/CLI conflict gate — это P04c;
+- не присваивает `v0.8` и не объявляет P04 завершённым;
+- не заявляет полный S-INSTALL PASS.
 
 ## Следующий DAG
 
-`P04b(resource location + immutable Plan materializer) -> P04c(ActionContract dispatcher + CLI translator/conflict gate) -> P04d(coverage/migration/lint) -> RC4/v0.8 candidate -> P05`.
+`P04c(ActionContract dispatcher + legacy CLI translator/conflict gate + GUI projection) -> P04d(coverage/migration/lint/roundtrip acceptance) -> RC4/v0.8 candidate -> P05`.

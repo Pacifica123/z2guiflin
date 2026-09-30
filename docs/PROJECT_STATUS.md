@@ -2,7 +2,7 @@
 
 ## Статус релиза
 
-Последняя принятая версия: `v0.7` (`0.7.0`). P03f owner-host acceptance завершён с `READY_FOR_USE_WITHIN_P03`. Текущий HEAD: P04a evidence/ontology foundation toward `v0.8`.
+Последняя принятая версия: `v0.7` (`0.7.0`). P03f owner-host acceptance завершён с `READY_FOR_USE_WITHIN_P03`. P04a принят с `READY_FOR_USE_WITHIN_P04A`. Текущий HEAD: P04b immutable execution Plan foundation toward `v0.8`.
 
 Это рабочий персональный инструмент для исследования и запуска стратегий обхода DPI на Arch-family Linux (включая Arch, EndeavourOS и Manjaro). Версия фиксирует зрелость приложения и его диагностического/runtime-контура. Она не фиксирует одну универсальную рабочую стратегию.
 
@@ -53,11 +53,15 @@
 Следующая архитектурная задача — не очередная стратегия, а устранение semantic/command drift:
 
 1. P04a фиксирует re-forensics, REP/CLI/S-INSTALL evidence и canonical ontology;
-2. P04b должен решить resource-location contract и материализовать один immutable Plan из разных source/import representations;
-3. P04c переводит executable actions на ActionContract/dispatcher и ставит conflict gate перед legacy handlers;
+2. P04b вводит resource-location contract и материализует один immutable Plan из разных source/import representations;
+3. после P04b acceptance P04c переводит executable actions на ActionContract/dispatcher и ставит conflict gate перед legacy handlers;
 4. P04d закрывает coverage/lint/migration/roundtrip acceptance перед P05.
 
 Подробно: `P04_REFORENSICS.md`. Остальные продуктовые пробелы остаются в `KNOWN_GAPS_CHECKLISTS.md`.
+
+### P04b execution authority
+
+Runtime recipe теперь materialize как `ImmutableExecutionPlan`: ordered argv + logical runtime resources с SHA-256, без абсолютного checkout path в hash. `presetPath` является execution source для shipping strategies; legacy `runtimeArgs` остаётся compatibility metadata и не может изменить Plan при drift. Resource discovery имеет явный provenance (`root` / `ZAP2_RESOURCE_ROOT` / verified checkout), но полный installed bundle и writable-state separation ещё открыты.
 
 ### P03d portability contract (Arch-family)
 

@@ -162,3 +162,21 @@ def test_p04a_acceptance_is_read_only_orchestrated_and_archives_evidence() -> No
     assert "--runtime-apply" not in p04_block
     assert "nft" not in p04_block.lower()
     assert "FINAL_PASS=1" in p04_block
+
+
+def test_p04b_acceptance_is_read_only_orchestrated_and_archives_evidence() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "--p04b" in text
+    assert 'READINESS_MARKER="READY_FOR_USE_WITHIN_P04B"' in text
+    assert "check_p04b_execution_plan.py" in text
+    assert "check_p04b_regression.py" in text
+    assert "P04b immutable execution Plan" in text
+    assert "P03 generation identity preserved" in text
+    start = text.rindex('\nif [[ "${HYPERPATCH}" == "p04b" ]]; then') + 1
+    end = text.index("\nfi", start)
+    block = text[start:end]
+    assert "sudo" not in block
+    assert "--default-start" not in block
+    assert "--runtime-apply" not in block
+    assert "nft" not in block.lower()
+    assert "FINAL_PASS=1" in block

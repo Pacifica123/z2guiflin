@@ -715,14 +715,14 @@ def build_runtime_session_config(
     debug_log_path = paths.logs_dir / f"{profile_id}.nfqws2.debug.log"
     drop_identity = _detect_drop_identity(paths.root)
     public_session_inputs_dir = _public_session_inputs_dir(paths.root, profile_id, plan.plan_id, plan_hash) if prepare_public_inputs else None
-    strategy_dependency_error = strategy_file_dependency_error_text(paths.root, tuple(plan.strategy.runtime_args))
+    strategy_dependency_error = strategy_file_dependency_error_text(paths.root, tuple(plan.execution_plan.runtime_args))
     if strategy_dependency_error:
         raise ValueError(strategy_dependency_error)
     if prepare_public_inputs:
         assert public_session_inputs_dir is not None
         hostlist_input_paths = _prepare_runtime_hostlist_inputs(paths.root, plan, profile_id, plan_hash, public_session_inputs_dir)
         strategy_runtime_args, strategy_file_input_paths = _prepare_runtime_strategy_file_inputs(
-            paths.root, tuple(plan.strategy.runtime_args), public_session_inputs_dir
+            paths.root, tuple(plan.execution_plan.runtime_args), public_session_inputs_dir
         )
         strategy_runtime_args, lua_input_paths = _prepare_runtime_lua_inputs(paths.root, strategy_runtime_args, public_session_inputs_dir)
         strategy_runtime_args, blob_input_paths = _prepare_runtime_blob_inputs(paths.root, strategy_runtime_args, public_session_inputs_dir)
@@ -732,7 +732,7 @@ def build_runtime_session_config(
         # Bounded P02 launcher stages the exact plan-bound bytes inside a
         # root-owned /run bundle.  Do not create mutable /tmp copies first.
         hostlist_input_paths = tuple((paths.root / item.path).resolve() for item in plan.hostlists)
-        strategy_runtime_args = tuple(plan.strategy.runtime_args)
+        strategy_runtime_args = tuple(plan.execution_plan.runtime_args)
         strategy_file_input_paths = ()
         lua_input_paths = ()
         blob_input_paths = ()

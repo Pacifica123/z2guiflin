@@ -127,3 +127,14 @@ readiness: READY_FOR_USE_WITHIN_P04A
 ### Legacy v0.4 nft collision during P03 acceptance
 
 `hyperpatch_acceptance.sh --p03` также проверяет старую generic table `inet zap2_default`. Если она осталась после старой v0.4, скрипт не делает blind delete: `prepare_legacy_v04_migration.py` через bounded helper проверяет известный Zap2 fingerprint и отсутствие живого NFQUEUE listener, после чего пишет одноразовый consent receipt. Фактическое удаление происходит только внутри следующего confirmed atomic owner-rules apply. Active/foreign/unknown legacy state даёт FAIL без удаления.
+
+
+## P04b: immutable execution Plan acceptance
+
+После owner-accepted P04a следующий bounded gate остаётся read-only:
+
+```bash
+bash meta_tools/hyperpatch_acceptance.sh --p04b
+```
+
+Он проверяет frozen resource-location/Plan/compatibility evidence, сохраняет P03 generation identity, запускает structural gate и полный pytest corpus в четырёх изолированных project-copy workers. Никаких `sudo`, `nftables`, NFQUEUE или `nfqws2` действий. PASS marker: `READY_FOR_USE_WITHIN_P04B`.
