@@ -1,8 +1,8 @@
-# Zap2 GUI Linux — v0.7 + P04b toward v0.8
+# Zap2 GUI Linux — v0.7 + P04c toward v0.8
 
 `z2guiflin` — персональный GUI и набор диагностических инструментов для Arch Linux вокруг vendored-копии `zapret2` от bol-van. Проект помогает исследовать блокировки, собирать и запускать стратегии `nfqws2`, работать с `nftables`, а также проверять отдельную ветку SOCKS5/VLESS.
 
-Последняя принятая продуктовая версия — `v0.7`: P03f завершил pinned zapret2 1.0.6 generation migration и прошёл owner-host hyperpatch acceptance (`READY_FOR_USE_WITHIN_P03`). P04a принят владельцем (`READY_FOR_USE_WITHIN_P04A`). Текущий HEAD — bounded P04b: explicit resource-location contract, location-independent immutable execution Plan и compatibility migration `runtimeContext/preset` без переписывания CLI/dispatcher. Как и раньше, версия фиксирует рабочую платформу, а не универсальную стратегию обхода. В целевой среде владельца отдельные стратегии уже помогают YouTube и запуску/сообщениям Discord. Другие комбинации могут не давать результата даже для YouTube. Это зависит от провайдера, DPI, маршрута, DNS, приложения и конкретной стратегии; приложение не может гарантировать одинаковый результат во всех сетях.
+Последняя принятая продуктовая версия — `v0.7`: P03f завершил pinned zapret2 1.0.6 generation migration и прошёл owner-host hyperpatch acceptance (`READY_FOR_USE_WITHIN_P03`). P04a и P04b приняты владельцем (`READY_FOR_USE_WITHIN_P04A`, `READY_FOR_USE_WITHIN_P04B`). Текущий HEAD — bounded P04c: executable ActionContract dispatcher для runtime/default slice и единый pre-handler contradiction gate для всего legacy CLI. Как и раньше, версия фиксирует рабочую платформу, а не универсальную стратегию обхода. В целевой среде владельца отдельные стратегии уже помогают YouTube и запуску/сообщениям Discord. Другие комбинации могут не давать результата даже для YouTube. Это зависит от провайдера, DPI, маршрута, DNS, приложения и конкретной стратегии; приложение не может гарантировать одинаковый результат во всех сетях.
 
 ## Быстрый запуск
 
@@ -34,7 +34,7 @@
 ./run.sh --help
 ```
 
-## Что входит в текущую линию v0.7 + P04b
+## Что входит в текущую линию v0.7 + P04c
 
 Рабочая база включает:
 
@@ -49,6 +49,9 @@
 - P02 privilege boundary: GUI остаётся unprivileged; `sudo -A` вызывает только root-owned bounded executor с finite action IDs и confirmed PlanHash; пароль не хранится;
 - P04b execution authority: `presetPath -> ImmutableExecutionPlan`; runtime argv и file inputs связаны location-independent Plan hash, а legacy `runtimeArgs` остаётся compatibility-only metadata;
 - P04b resource location: explicit root / `ZAP2_RESOURCE_ROOT` / verified checkout fallback; обычный installed package без resource tree fail-closed, полный S-INSTALL packaging ещё не заявлен;
+- P04c action authority: canonical `--action <contract-id>` + executable dispatcher для 28 runtime/default actions; 26 legacy selector destinations переводятся в те же contracts;
+- P04c CLI safety: все 117 legacy top-level action selectors проходят единый contradiction gate до любого handler; 91 selector пока остаётся legacy-only до P04d;
+- P04c GUI projection: основные Default workflow tooltips читаются из тех же ActionContracts, а не из отдельного help registry;
 - светлую и тёмную тему с полной семантической привязкой настраиваемых цветов;
 - опциональную изолированную security IP blocklist policy с validated last-known-good cache и явным periodic systemd timer.
 

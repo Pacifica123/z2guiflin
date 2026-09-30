@@ -22,7 +22,7 @@ def test_current_docs_define_environment_dependent_release_boundary() -> None:
     release = (ROOT / "docs" / "V04_RELEASE.md").read_text(encoding="utf-8")
     status = (ROOT / "docs" / "PROJECT_STATUS.md").read_text(encoding="utf-8")
 
-    assert "Zap2 GUI Linux — v0.7 + P04b toward v0.8" in readme
+    assert "Zap2 GUI Linux — v0.7 + P04c toward v0.8" in readme
     assert "не универсальную стратегию" in readme
     assert "не обещает" in readme
     assert "рабочая платформа" in release
@@ -30,6 +30,7 @@ def test_current_docs_define_environment_dependent_release_boundary() -> None:
     assert "0.7.0" in status
     assert "P04a" in status
     assert "P04b" in status
+    assert "P04c" in status
 
 
 def test_horizontal_gap_checklists_cover_reference_projects() -> None:

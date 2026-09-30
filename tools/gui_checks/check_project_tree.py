@@ -36,6 +36,8 @@ REQUIRED_PATHS = [
     "docs/P03_ZAPRET2_GENERATION.md",
     "docs/P04_REFORENSICS.md",
     "docs/P04B_EXECUTION_PLAN.md",
+    "docs/P04C_ACTION_DISPATCHER.md",
+    "runtime/p04/p04c-frozen-evidence.json",
     "profiles/README.md",
     "profiles/default.json",
     "profiles/hostlists/default.hosts",
@@ -65,6 +67,8 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/adapters/workspace_profiles.py",
     "gui/zap2_gui/adapters/runtime_contracts.py",
     "gui/zap2_gui/adapters/execution_plan.py",
+    "gui/zap2_gui/adapters/action_dispatcher.py",
+    "gui/zap2_gui/adapters/legacy_cli.py",
     "gui/zap2_gui/adapters/runtime_plan_generator.py",
     "gui/zap2_gui/adapters/runtime_state.py",
     "gui/zap2_gui/adapters/runtime_session.py",
@@ -81,6 +85,7 @@ REQUIRED_PATHS = [
     "gui/zap2_gui/models/runtime_plan.py",
     "gui/zap2_gui/models/runtime_events.py",
     "gui/zap2_gui/models/execution_plan.py",
+    "gui/zap2_gui/models/action_catalog.py",
     "gui/zap2_gui/windows/main_window.py",
     "gui/zap2_gui/widgets/placeholders.py",
     "docs/DEVELOPMENT_STRATEGY.md",
@@ -142,6 +147,8 @@ REQUIRED_PATHS = [
     "tools/gui_checks/check_local_build_adapter.py",
     "tools/gui_checks/check_workspace_profiles.py",
     "tools/gui_checks/check_p04b_execution_plan.py",
+    "tools/gui_checks/check_p04c_action_dispatcher.py",
+    "tools/gui_checks/check_p04c_regression.py",
     "tools/gui_checks/check_runtime_lifecycle.py",
     "tools/gui_checks/check_runtime_plan_generator.py",
     "tools/gui_checks/check_runtime_state.py",
@@ -155,6 +162,7 @@ REQUIRED_PATHS = [
     "tests/test_local_build_adapter.py",
     "tests/test_workspace_profiles_and_strategies.py",
     "tests/test_p04b_execution_plan.py",
+    "tests/test_action_dispatcher.py",
     "tests/test_runtime_lifecycle_contracts.py",
     "tests/test_runtime_plan_generator.py",
     "tests/test_runtime_state_and_confirmation.py",
@@ -197,6 +205,7 @@ PROJECT_DOCUMENTATION_PATHS = [
     "docs/P03_ZAPRET2_GENERATION.md",
     "docs/P04_REFORENSICS.md",
     "docs/P04B_EXECUTION_PLAN.md",
+    "docs/P04C_ACTION_DISPATCHER.md",
     "docs/RUNTIME_APPLY_REVERT.md",
     "docs/RUNTIME_SERVICE_PLANS.md",
     "docs/DEFAULT_WORKFLOW.md",
@@ -505,6 +514,23 @@ def main() -> int:
         print("CLI Stage 13 должен иметь service-plan и service-apply commands")
         return 1
 
+    p04c_doc = (ROOT / "docs/P04C_ACTION_DISPATCHER.md").read_text(encoding="utf-8")
+    action_catalog = (ROOT / "gui/zap2_gui/models/action_catalog.py").read_text(encoding="utf-8")
+    action_dispatcher = (ROOT / "gui/zap2_gui/adapters/action_dispatcher.py").read_text(encoding="utf-8")
+    legacy_cli = (ROOT / "gui/zap2_gui/adapters/legacy_cli.py").read_text(encoding="utf-8")
+    if "--action" not in app_py or "resolve_cli_action" not in app_py or "dispatch_action" not in app_py:
+        print("P04c canonical action selector/dispatcher boundary отсутствует в CLI")
+        return 1
+    if "P04C_ACTION_CONTRACTS" not in action_catalog or "ACTION_HANDLERS" not in action_dispatcher:
+        print("P04c ActionContract catalog/handler dispatcher не зафиксирован")
+        return 1
+    if "LEGACY_SELECTOR_DESTS" not in legacy_cli or "Contradictory action selectors" not in legacy_cli:
+        print("P04c legacy CLI contradiction gate не зафиксирован")
+        return 1
+    if "117" not in p04c_doc or "READY_FOR_USE_WITHIN_P04C" not in p04c_doc:
+        print("P04c documentation/acceptance boundary не зафиксирована")
+        return 1
+
     language_doc = (ROOT / "docs/DOCUMENTATION_LANGUAGE.md").read_text(encoding="utf-8")
     if "русском" not in language_doc or "проектная документация" not in language_doc:
         print("Правило русского языка документации не зафиксировано")
@@ -537,7 +563,7 @@ def main() -> int:
     if not _run_inventory_check():
         return 1
 
-    print("Дерево v0.7 + P04b корректно: P03f принят, PyQt-интерфейс, русская документация, инвентаризация ядра, карта сборки, адаптеры и runtime-контракты зафиксированы")
+    print("Дерево v0.7 + P04c корректно: P03f принят, PyQt-интерфейс, русская документация, инвентаризация ядра, карта сборки, адаптеры и runtime-контракты зафиксированы")
     return 0
 
 

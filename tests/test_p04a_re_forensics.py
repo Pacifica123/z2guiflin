@@ -20,13 +20,14 @@ BASELINE = ROOT / "runtime/p04/p04a-frozen-evidence.json"
 def test_p03f_acceptance_promotes_product_baseline_before_p04() -> None:
     assert PRODUCT_LABEL == "v0.7"
     assert __version__ == "0.7.0"
-    assert DEVELOPMENT_LINE == "P04b immutable execution Plan foundation toward v0.8"
+    assert DEVELOPMENT_LINE == "P04c ActionContract dispatcher foundation toward v0.8"
     status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
     versioning = (ROOT / "docs/VERSIONING.md").read_text(encoding="utf-8")
     assert "READY_FOR_USE_WITHIN_P03" in status
     assert "v0.7" in versioning
     assert "P04a" in versioning
     assert "P04b" in versioning
+    assert "P04c" in versioning
 
 
 def test_p04_ontology_names_core_domain_concepts() -> None:

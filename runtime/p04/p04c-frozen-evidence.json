@@ -1,0 +1,138 @@
+{
+  "actionContracts": {
+    "canonicalIds": [
+      "runtime.contracts.show",
+      "runtime.contracts.validate",
+      "runtime.plan.start",
+      "runtime.plan.stop",
+      "runtime.plan.status",
+      "runtime.logs.show",
+      "runtime.logs.snapshot",
+      "runtime.owner-rules.plan.apply",
+      "runtime.owner-rules.plan.revert",
+      "runtime.owner-rules.apply",
+      "runtime.owner-rules.revert",
+      "runtime.owner-rules.reconcile",
+      "runtime.session.start",
+      "runtime.session.status",
+      "runtime.session.stop",
+      "runtime.nft-state.show",
+      "runtime.kernel.status",
+      "default.build.dependencies.inspect",
+      "default.build.plan",
+      "default.build.apply",
+      "default.workflow.plan.start",
+      "default.workflow.plan.stop",
+      "default.workflow.start",
+      "default.workflow.status",
+      "default.workflow.stop",
+      "privileged.executor.status",
+      "privileged.executor.install-plan",
+      "gui.overview.show"
+    ],
+    "catalogValid": true,
+    "contractCount": 28,
+    "dispatcherClosed": true,
+    "handlerCount": 28,
+    "handlerIdsMatchContracts": true
+  },
+  "assumptionsDelta": {
+    "confirmed": [
+      "all 117 post-P04b legacy top-level action selectors are covered by one pre-handler contradiction gate",
+      "the bounded runtime/default workflow slice executes through ActionContract -> handler dispatcher",
+      "canonical --action and migrated legacy aliases converge on the same dispatcher output",
+      "GUI runtime tooltips project metadata from the same ActionContracts instead of a duplicate help registry"
+    ],
+    "stillOpen": [
+      "91 legacy selector destinations remain legacy-only and require P04d contract migration/coverage",
+      "generated CLI/help/search/documentation projections and lint remain P04d/P05 work",
+      "full S-INSTALL package-data bundling and writable-state separation remain unresolved"
+    ]
+  },
+  "canonicalLegacyParity": {
+    "canonicalRc": 0,
+    "legacyRc": 0,
+    "normalizedPlanVisible": true,
+    "outputSha256Canonical": "21fe49394e5271f1f92b673908e3c406e92e9bd260712ecb9b3ea9cf05f28b88",
+    "outputSha256Legacy": "21fe49394e5271f1f92b673908e3c406e92e9bd260712ecb9b3ea9cf05f28b88",
+    "outputsEqual": true,
+    "stderrEmpty": true
+  },
+  "contradictionGate": {
+    "canonicalPlusLegacyRejected": true,
+    "conflictErrorMentionsSelectors": true,
+    "conflictExitCode": 2,
+    "conflictStdoutEmpty": true,
+    "handlerCalledOnConflict": false,
+    "legacyOnlyConflictRejected": true,
+    "migratedConflictRejected": true
+  },
+  "guiProjection": {
+    "allFromCanonicalCatalog": true,
+    "projectedActionIds": [
+      "default.workflow.start",
+      "default.workflow.status",
+      "default.workflow.stop"
+    ],
+    "widgetConsumesActionContract": true
+  },
+  "inputSha256": {
+    "gui/zap2_gui/adapters/action_dispatcher.py": "f55d69757a500c8d1e792267ab4731fbd6b176491c589b8ffec01a9213348878",
+    "gui/zap2_gui/adapters/legacy_cli.py": "930961d37ee6de7508eb14b64d91daac82a4b4f0b6898937acf29b2b9c31a510",
+    "gui/zap2_gui/app.py": "d3fc105ae005ae899fecbe519288a2423c0a0e7288d628737e08072caaa6752a",
+    "gui/zap2_gui/models/action_catalog.py": "aabcbb805305a66033bf72055b91b82d047c1a977114f87efea63c2946b86427",
+    "gui/zap2_gui/models/domain_semantics.py": "2c9c90c5ca23c0b15c0647e3c539d98cae1e0aac7d888fc4dce3a6cae3fb66bf",
+    "gui/zap2_gui/widgets/runtime_controls.py": "82c9467c1a9eda117d11b5b1e4859788ddd1293291a0d54ef9a870114c1e2422",
+    "tests/test_action_dispatcher.py": "a9d87fee5ca702e7d4d3bbdebd843bdbf907afec89b5bff290148d4508756423"
+  },
+  "legacyCompatibilityGrammar": {
+    "astSelectorCount": 117,
+    "inventoryMatchesActualLegacyBranches": true,
+    "migratedSelectorCount": 26,
+    "remainingLegacyOnlySelectorCount": 91,
+    "selectorCount": 117,
+    "selectorInventoryUnique": true
+  },
+  "parentP04bEvidenceSha256": "b4fa01253a8b5bdcc8f53a5d117a4ad6023b5b04b9d23afab54f60229f877f11",
+  "parser": {
+    "canonicalActionChoiceCount": 28,
+    "canonicalActionChoices": [
+      "runtime.contracts.show",
+      "runtime.contracts.validate",
+      "runtime.plan.start",
+      "runtime.plan.stop",
+      "runtime.plan.status",
+      "runtime.logs.show",
+      "runtime.logs.snapshot",
+      "runtime.owner-rules.plan.apply",
+      "runtime.owner-rules.plan.revert",
+      "runtime.owner-rules.apply",
+      "runtime.owner-rules.revert",
+      "runtime.owner-rules.reconcile",
+      "runtime.session.start",
+      "runtime.session.status",
+      "runtime.session.stop",
+      "runtime.nft-state.show",
+      "runtime.kernel.status",
+      "default.build.dependencies.inspect",
+      "default.build.plan",
+      "default.build.apply",
+      "default.workflow.plan.start",
+      "default.workflow.plan.stop",
+      "default.workflow.start",
+      "default.workflow.status",
+      "default.workflow.stop",
+      "privileged.executor.status",
+      "privileged.executor.install-plan",
+      "gui.overview.show"
+    ],
+    "optionStringCount": 166
+  },
+  "patch": "P04c",
+  "recompiledDag": [
+    "P04c accepted -> P04d 100% meaningful action coverage + migration + lint + roundtrip acceptance",
+    "P04d -> RC4/v0.8 candidate",
+    "P05 waits for P04d ActionContract coverage authority"
+  ],
+  "schemaVersion": 1
+}

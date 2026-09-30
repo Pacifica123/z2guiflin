@@ -1,6 +1,6 @@
 # ADR P04 — domain ontology и ActionContract boundary
 
-Статус: **P04a foundation accepted; P04b immutable Plan boundary implemented; ActionContract execution migration not yet complete**.
+Статус: **P04a/P04b accepted; P04c executable ActionContract dispatcher implemented for bounded runtime/default slice; full coverage remains P04d**.
 
 ## Решение
 
@@ -34,7 +34,7 @@ Evidence / Verdict / Capability
 
 ## ActionContract
 
-`ActionContract` является декларацией **исполняемого** action и одновременно источником projection metadata. Видимый action без handler недопустим; internal/debug action должен быть помечен явно. В P04a добавлен тип и validation invariants, но legacy 163-option CLI **ещё не объявлен migrated**.
+`ActionContract` является декларацией **исполняемого** action и одновременно источником projection metadata. Видимый action без handler недопустим; internal/debug action должен быть помечен явно. P04c добавляет executable catalog/dispatcher для 28 действий и canonical `--action`; 26 legacy selector destinations переводятся в эти contracts. Весь legacy CLI ещё не объявлен migrated: 91 selector destination остаётся P04d scope.
 
 ```text
 ActionContract
@@ -61,3 +61,7 @@ P04a не выбирал TXT/JSON/новый IR «по вкусу». P04b ост
 ## Safety projection
 
 `safeInvoke=true` нельзя ставить на mutating/start/stop/launch action без отдельного prepare/confirm flow. Privilege class должна быть одной из `none | owner | bounded-root`.
+
+## P04c CLI decision
+
+CLI experiment подтвердил, что flat compatibility grammar можно оставить временно только при явном global contradiction gate. Поэтому canonical selector для contract-backed slice — `--action <contract-id>`, а legacy flags являются translator input. Canonical+legacy или несколько legacy action selectors одновременно reject pre-handler.

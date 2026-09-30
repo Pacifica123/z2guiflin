@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 # Owner-host acceptance runner for an applied hyperpatch.
 # P03 mode deliberately exercises the real local lifecycle.
-# P04a/P04b modes are deterministic/read-only acceptance profiles and do not repeat the network canary.
+# P04a/P04b/P04c modes are deterministic/read-only acceptance profiles and do not repeat the network canary.
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
@@ -22,6 +22,7 @@ usage() {
   bash meta_tools/hyperpatch_acceptance.sh --p03
   bash meta_tools/hyperpatch_acceptance.sh --p04a
   bash meta_tools/hyperpatch_acceptance.sh --p04b
+  bash meta_tools/hyperpatch_acceptance.sh --p04c
   bash meta_tools/hyperpatch_acceptance.sh --profile default
   bash meta_tools/hyperpatch_acceptance.sh --canary-seconds 3
   bash meta_tools/hyperpatch_acceptance.sh --p03 --recover-root /path/to/previous/UTS/project
@@ -63,6 +64,14 @@ PASS НЕ доказывает эффективность конкретной D
   - runtimeContext/preset aliases дают эквивалентный Plan и conflict fail-closed;
   - P03 generation identity, structural gate и полный pytest regression проходят;
   - никаких nft/NFQUEUE/network/root mutations не выполняется.
+
+Смысл PASS для --p04c:
+  - actual inventory из 117 legacy top-level action selectors полностью покрыт pre-handler contradiction gate;
+  - bounded runtime/default slice имеет valid executable ActionContracts и closed handler dispatcher;
+  - canonical --action и migrated legacy aliases сходятся на одном dispatcher;
+  - GUI Default workflow projection использует ту же ActionContract metadata;
+  - P03 generation identity, structural gate и полный pytest regression проходят;
+  - никаких nft/NFQUEUE/network/root mutations не выполняется.
 USAGE
 }
 
@@ -78,6 +87,10 @@ while (($#)); do
       ;;
     --p04b)
       HYPERPATCH="p04b"
+      shift
+      ;;
+    --p04c)
+      HYPERPATCH="p04c"
       shift
       ;;
     --profile)
@@ -111,8 +124,8 @@ while (($#)); do
   esac
 done
 
-if [[ "${HYPERPATCH}" != "p03" && "${HYPERPATCH}" != "p04a" && "${HYPERPATCH}" != "p04b" ]]; then
-  echo "Поддерживаются P03, P04a и P04b acceptance profiles." >&2
+if [[ "${HYPERPATCH}" != "p03" && "${HYPERPATCH}" != "p04a" && "${HYPERPATCH}" != "p04b" && "${HYPERPATCH}" != "p04c" ]]; then
+  echo "Поддерживаются P03, P04a, P04b и P04c acceptance profiles." >&2
   exit 2
 fi
 if [[ "${HYPERPATCH}" != "p03" && -n "${RECOVER_ROOT}" ]]; then
@@ -181,6 +194,9 @@ if [[ "${HYPERPATCH}" == "p04a" ]]; then
 elif [[ "${HYPERPATCH}" == "p04b" ]]; then
   READINESS_MARKER="READY_FOR_USE_WITHIN_P04B"
   ACCEPTANCE_LABEL="P04b deterministic hyperpatch acceptance"
+elif [[ "${HYPERPATCH}" == "p04c" ]]; then
+  READINESS_MARKER="READY_FOR_USE_WITHIN_P04C"
+  ACCEPTANCE_LABEL="P04c deterministic hyperpatch acceptance"
 fi
 
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -370,6 +386,23 @@ if [[ "${HYPERPATCH}" == "p04b" ]]; then
 
   run_step "Full deterministic regression" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p04b_regression.py
   require_last '^P04b regression: PASS \(.*\)$' "P04b full regression не PASS"
+
+  FINAL_PASS=1
+  exit 0
+fi
+
+
+if [[ "${HYPERPATCH}" == "p04c" ]]; then
+  run_step "P04c ActionContract dispatcher" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p04c_action_dispatcher.py
+  require_last '^P04c ActionContract dispatcher: PASS$' "P04c ActionContract/CLI contradiction evidence не совпадает"
+
+  run_step "P03 generation identity preserved" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p03_core_generation.py
+  require_last '^P03 core generation: PASS$' "P04c не должен ломать принятую P03 generation identity"
+
+  run_step "Project tree structural gate" "${PYTHON_BIN}" tools/gui_checks/check_project_tree.py
+
+  run_step "Full deterministic regression" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="${PROJECT_ROOT}/gui${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" tools/gui_checks/check_p04c_regression.py
+  require_last '^P04c regression: PASS \(.*\)$' "P04c full regression не PASS"
 
   FINAL_PASS=1
   exit 0

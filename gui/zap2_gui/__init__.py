@@ -2,6 +2,6 @@
 
 PRODUCT_LABEL = "v0.7"
 __version__ = "0.7.0"
-DEVELOPMENT_LINE = "P04b immutable execution Plan foundation toward v0.8"
+DEVELOPMENT_LINE = "P04c ActionContract dispatcher foundation toward v0.8"
 
 __all__ = ["PRODUCT_LABEL", "__version__", "DEVELOPMENT_LINE"]

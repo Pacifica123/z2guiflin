@@ -138,3 +138,13 @@ bash meta_tools/hyperpatch_acceptance.sh --p04b
 ```
 
 Он проверяет frozen resource-location/Plan/compatibility evidence, сохраняет P03 generation identity, запускает structural gate и полный pytest corpus в четырёх изолированных project-copy workers. Никаких `sudo`, `nftables`, NFQUEUE или `nfqws2` действий. PASS marker: `READY_FOR_USE_WITHIN_P04B`.
+
+## P04c: ActionContract dispatcher acceptance
+
+После owner-accepted P04b следующий bounded gate остаётся read-only:
+
+```bash
+bash meta_tools/hyperpatch_acceptance.sh --p04c
+```
+
+Он сверяет frozen ActionContract/legacy-CLI evidence: actual inventory из 117 legacy top-level selectors должен полностью совпасть с compatibility grammar; contradiction gate обязан reject migrated, legacy-only и canonical+legacy conflicts до handler; 28 ActionContracts должны иметь 28 executable handlers; canonical/legacy parity и GUI projection проверяются из той же authority. Затем сохраняется P03 generation identity, запускаются structural gate и полный pytest corpus в изолированных project-copy workers. `sudo`, `nftables`, NFQUEUE, network probes и `nfqws2` не запускаются. PASS marker: `READY_FOR_USE_WITHIN_P04C`.

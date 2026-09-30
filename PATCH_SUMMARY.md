@@ -1,39 +1,38 @@
-# Итог hyperpatch — P04b resource-location / immutable execution Plan
+# Итог hyperpatch — P04c ActionContract dispatcher / CLI contradiction gate
 
-База: owner-accepted P04a (`READY_FOR_USE_WITHIN_P04A`), post-P04a HEAD `3fd28c6` lineage. Product baseline остаётся `v0.7`; `v0.8` ещё не присваивается.
+База: owner-accepted P04b (`READY_FOR_USE_WITHIN_P04B`), post-P04b lineage `ac813de`. Product baseline остаётся `v0.7`; `v0.8` ещё не присваивается.
 
-## Что делает P04b
+## Что делает P04c
 
-- вводит explicit resource-location contract: caller root → `ZAP2_RESOURCE_ROOT` → verified source-checkout → fail-closed;
-- убирает ложное предположение, что `Path(__file__).parents[...]` является install layout;
-- добавляет location-independent `ImmutableExecutionPlan` с ordered argv и logical resource SHA-256;
-- встраивает normalized Plan в runtime start payload и сохраняет его hash;
-- переводит runtime session input staging, P02 artifact inventory и nft port derivation на argv normalized Plan;
-- демонтирует `runtimeArgs` как вторую execution authority: при наличии `presetPath` legacy field только compatibility metadata; drift даёт warning, но не меняет Plan;
-- добавляет canonical aliases `runtimeContextId` / `presetId` в active-selection state и fail-closed проверку противоречащих legacy aliases;
-- фиксирует P04b evidence в `runtime/p04/p04b-frozen-evidence.json`;
-- добавляет deterministic checker и `hyperpatch_acceptance.sh --p04b` с полным regression в изолированных worker-копиях.
+- добавляет pure `ActionContract` catalog для bounded runtime/default workflow slice;
+- добавляет canonical `--action <contract-id>` selector;
+- переводит 26 legacy selector destinations в 28 canonical ActionContracts (включая три значения `--runtime-plan`);
+- вводит единый pre-handler contradiction gate для всех 117 post-P04b legacy top-level selectors;
+- migrated legacy aliases и canonical `--action` идут через один executable dispatcher;
+- сохраняет одиночные пока ещё unmigrated legacy actions, но запрещает им конкурировать с другими selectors;
+- GUI Default workflow tooltips проецируются из тех же ActionContracts;
+- фиксирует P04c evidence в `runtime/p04/p04c-frozen-evidence.json`;
+- добавляет deterministic checker и `hyperpatch_acceptance.sh --p04c`.
 
 ## Frozen evidence
 
-- 18 shipping presets / 18 `presetPath`;
-- 17 legacy `runtimeArgs` projections дают тот же Plan hash;
-- intentional legacy drift не изменяет execution Plan;
-- одинаковый resource tree в двух разных каталогах даёт одинаковый Plan payload/hash;
-- canonical-only и legacy-only active selection дают одинаковый Plan hash;
-- conflicting canonical/legacy aliases отклоняются;
-- default normalized Plan resources готовы;
-- final installed package bundle и writable-state separation **не** объявлены готовыми.
+- legacy selector inventory: 117/117 совпадает с actual top-level branch AST;
+- ActionContracts: 28, handlers: 28, catalog/dispatcher closed;
+- migrated legacy selector destinations: 26;
+- remaining legacy-only selector destinations: 91;
+- representative migrated/unmigrated/canonical+legacy contradictions fail before handler;
+- canonical `runtime.plan.status` и legacy `--runtime-plan status` дают идентичный output hash;
+- GUI start/status/stop projection использует canonical contract metadata.
 
-## Что P04b намеренно НЕ делает
+## Что P04c намеренно НЕ делает
 
-- не меняет network/DPI semantics P03;
+- не меняет P03 network/DPI semantics или P04b immutable Plan authority;
 - не выполняет root/network canary;
-- не удаляет legacy fields массовым storage rewrite;
-- не вводит ActionContract dispatcher/CLI conflict gate — это P04c;
+- не заявляет 100% contract coverage: 91 selector destination ещё legacy-only;
+- не завершает generated help/search/docs projections;
 - не присваивает `v0.8` и не объявляет P04 завершённым;
 - не заявляет полный S-INSTALL PASS.
 
 ## Следующий DAG
 
-`P04c(ActionContract dispatcher + legacy CLI translator/conflict gate + GUI projection) -> P04d(coverage/migration/lint/roundtrip acceptance) -> RC4/v0.8 candidate -> P05`.
+`P04d(100% meaningful ActionContract coverage + remaining migration + lint/generated metadata + projection roundtrip) -> RC4/v0.8 candidate -> P05`.

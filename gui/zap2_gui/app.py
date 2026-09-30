@@ -7,6 +7,9 @@ import json
 import sys
 
 from . import PRODUCT_LABEL
+from .models.action_catalog import action_contract_ids
+from .adapters.action_dispatcher import dispatch_action
+from .adapters.legacy_cli import resolve_cli_action
 from .adapters.blockcheck_gui import (
     SUPPORTED_BLOCKCHECK_DEAD_TARGET_GUARDS,
     SUPPORTED_BLOCKCHECK_IPVS,
@@ -258,13 +261,19 @@ def describe_project() -> str:
             "launch composer: Stage 7z GUI panel for combining Zapret and tunnel components",
             f"gui shell: PyQt skeleton ({pyqt_state})",
             f"navigation: {sections}",
-            "status: v0.7 accepted baseline; P04a evidence/ontology foundation toward v0.8; strategy results remain environment-dependent",
+            "status: v0.7 accepted baseline; P04c ActionContract dispatcher foundation toward v0.8; strategy results remain environment-dependent",
         ]
     )
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Zap2 GUI Linux bootstrap shell")
+    parser.add_argument(
+        "--action",
+        choices=action_contract_ids(),
+        metavar="ACTION_ID",
+        help="P04c canonical ActionContract selector; legacy action flags remain compatibility aliases",
+    )
     parser.add_argument(
         "--gui",
         action="store_true",
@@ -1108,6 +1117,13 @@ def _blockcheck_options_from_args(args: argparse.Namespace) -> BlockcheckOptions
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    try:
+        action_resolution = resolve_cli_action(args)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if action_resolution.migrated:
+        return dispatch_action(action_resolution.canonical_action_id or "", args)
     if args.gui:
         try:
             from .qt_app import run_gui

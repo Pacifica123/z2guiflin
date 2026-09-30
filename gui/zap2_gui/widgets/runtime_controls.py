@@ -41,6 +41,7 @@ from ..adapters.launch_composer import (
 from ..qt_compat import require_pyqt
 from ..ui_icons import misc_icon, section_icon, tinted_misc_icon
 from ..theme_profiles import theme_profile_from_settings
+from ..models.action_catalog import action_contract
 
 
 def _is_started(root: Path | None) -> bool:
@@ -87,7 +88,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     toggle_button.setIconSize(_QtCore.QSize(30, 30))
     toggle_button.setFixedSize(46, 46)
     toggle_button.setObjectName("primaryRunButton")
-    toggle_button.setToolTip("Включить/выключить Default workflow")
+    toggle_button.setToolTip(action_contract("default.workflow.start").short_help + " / " + action_contract("default.workflow.stop").short_help)
 
     indicator = QtWidgets.QLabel()
     indicator.setObjectName("runtimeStatusIndicator")
@@ -99,7 +100,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     refresh_button = QtWidgets.QPushButton(misc_icon("refresh"), "")
     refresh_button.setIconSize(_QtCore.QSize(16, 16))
     refresh_button.setFixedWidth(38)
-    refresh_button.setToolTip("Обновить статус")
+    refresh_button.setToolTip(action_contract("default.workflow.status").short_help)
 
     probe_button = QtWidgets.QPushButton(misc_icon("probe"), "Проверить Discord")
     probe_button.setIconSize(_QtCore.QSize(16, 16))

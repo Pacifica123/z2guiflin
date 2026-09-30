@@ -15,10 +15,10 @@ P03f accepted / v0.7
   ↓
 P04a  ACCEPTED: freeze evidence + version/docs sync + ontology/ActionContract foundation
   ↓
-P04b  CURRENT: resource-location contract + normalized immutable Plan materializer
+P04b  ACCEPTED: resource-location contract + normalized immutable Plan materializer
       + runtimeContext/preset compatibility migration
   ↓
-P04c  executable ActionContract dispatcher + GUI projection
+P04c  CURRENT: executable ActionContract dispatcher + GUI projection
       + legacy CLI translator + contradiction gate
   ↓
 P04d  100% action coverage / migration / roundtrip / lint acceptance
@@ -69,6 +69,14 @@ Shipping `runtimeArgs` duplicates are not deleted yet because they remain compat
 
 S-INSTALL is only partially resolved: an external resource-root contract exists, but package-data bundling and writable-state separation remain open and must not be advertised as complete installation support.
 
+## P04c implemented boundary
+
+Frozen evidence: `runtime/p04/p04c-frozen-evidence.json`. Checker: `tools/gui_checks/check_p04c_action_dispatcher.py`.
+
+P04c introduces canonical `--action <contract-id>` and an executable dispatcher for 28 runtime/default ActionContracts. Twenty-six legacy selector destinations translate to those contracts; `--runtime-plan` projects one selector destination into three canonical action IDs. The full post-P04b inventory of 117 top-level legacy selectors is checked before any handler, so contradictory migrated or unmigrated selectors fail closed instead of relying on first-match branch order.
+
+GUI runtime controls consume ActionContract help metadata for Default workflow start/status/stop. This is a real shared projection, but not yet complete generated GUI/help/search metadata authority. Ninety-one selector destinations remain legacy-only and are explicitly P04d scope.
+
 ## Assumptions delta
 
 Confirmed:
@@ -82,7 +90,7 @@ Falsified:
 
 - Full S-INSTALL всё ещё нельзя считать решённым: external resource-root contract есть, package-data bundling и writable-state separation ещё нет.
 - `runtimeArgs` нельзя считать независимым execution authority рядом с `presetPath`; на P04b это compatibility-only projection.
-- Current legacy CLI не отвергает противоречивые action selectors до handler.
+- Post-P04b legacy CLI first-match ambiguity была реальной; P04c закрывает её единым pre-handler contradiction gate.
 
 Deferred by evidence:
 
@@ -108,3 +116,11 @@ bash meta_tools/hyperpatch_acceptance.sh --p04b
 ```
 
 PASS marker: `READY_FOR_USE_WITHIN_P04B`. После него следующий bounded node — P04c.
+
+## P04c acceptance
+
+```bash
+bash meta_tools/hyperpatch_acceptance.sh --p04c
+```
+
+PASS marker: `READY_FOR_USE_WITHIN_P04C`. После него следующий bounded node — P04d.

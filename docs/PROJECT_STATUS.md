@@ -2,7 +2,7 @@
 
 ## Статус релиза
 
-Последняя принятая версия: `v0.7` (`0.7.0`). P03f owner-host acceptance завершён с `READY_FOR_USE_WITHIN_P03`. P04a принят с `READY_FOR_USE_WITHIN_P04A`. Текущий HEAD: P04b immutable execution Plan foundation toward `v0.8`.
+Последняя принятая версия: `v0.7` (`0.7.0`). P03f owner-host acceptance завершён с `READY_FOR_USE_WITHIN_P03`. P04a и P04b приняты (`READY_FOR_USE_WITHIN_P04A`, `READY_FOR_USE_WITHIN_P04B`). Текущий HEAD: P04c ActionContract dispatcher foundation toward `v0.8`.
 
 Это рабочий персональный инструмент для исследования и запуска стратегий обхода DPI на Arch-family Linux (включая Arch, EndeavourOS и Manjaro). Версия фиксирует зрелость приложения и его диагностического/runtime-контура. Она не фиксирует одну универсальную рабочую стратегию.
 
@@ -54,10 +54,15 @@
 
 1. P04a фиксирует re-forensics, REP/CLI/S-INSTALL evidence и canonical ontology;
 2. P04b вводит resource-location contract и материализует один immutable Plan из разных source/import representations;
-3. после P04b acceptance P04c переводит executable actions на ActionContract/dispatcher и ставит conflict gate перед legacy handlers;
-4. P04d закрывает coverage/lint/migration/roundtrip acceptance перед P05.
+3. P04c переводит bounded runtime/default slice на executable ActionContract/dispatcher и ставит contradiction gate перед всеми 117 legacy action selectors;
+4. P04d мигрирует оставшиеся 91 legacy-only selector destination и закрывает 100% coverage/lint/generated projection/roundtrip acceptance перед P05.
 
 Подробно: `P04_REFORENSICS.md`. Остальные продуктовые пробелы остаются в `KNOWN_GAPS_CHECKLISTS.md`.
+
+
+### P04c action authority
+
+Canonical `--action <contract-id>` и 26 legacy selector destinations сходятся в одном dispatcher для 28 ActionContracts. Все 117 post-P04b legacy top-level action selectors проходят единый contradiction gate до handler; first-match ordering больше не может молча выбирать действие при противоречивом argv. Основные GUI Default workflow tooltips проецируются из тех же contracts. Полная миграция ещё не завершена: 91 selector destination остаётся legacy-only до P04d.
 
 ### P04b execution authority
 
