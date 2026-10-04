@@ -491,6 +491,7 @@
     "gui/zap2_gui/adapters/gui_runtime_controls.py",
     "gui/zap2_gui/adapters/gui_state.py",
     "gui/zap2_gui/adapters/har_discovery.py",
+    "gui/zap2_gui/adapters/har_sanitizer.py",
     "gui/zap2_gui/adapters/har_workbench.py",
     "gui/zap2_gui/adapters/import_source_root.py",
     "gui/zap2_gui/adapters/launch_composer.py",

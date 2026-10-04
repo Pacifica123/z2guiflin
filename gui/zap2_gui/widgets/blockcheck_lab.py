@@ -43,6 +43,13 @@ from ..adapters.discord_endpoint_discovery import (
     discord_endpoint_report_to_text,
     discord_netlog_plan_to_text,
 )
+from ..adapters.har_sanitizer import (
+    PROFILE_BALANCED,
+    PROFILE_STRICT,
+    SanitizeOptions,
+    default_output_path,
+    sanitize_har_file,
+)
 from ..adapters.har_workbench import (
     build_har_workbench,
     get_har_workbench_group,
@@ -69,6 +76,55 @@ BLOCKCHECK_LAB_CONTENT_WIDTH = 1160
 BLOCKCHECK_LAB_SECTION_MIN_WIDTH = 560
 BLOCKCHECK_LAB_SIDE_MIN_WIDTH = 360
 BLOCKCHECK_LAB_OUTPUT_MIN_HEIGHT = 300
+HAR_SANITIZE_PROFILE_CHOICES = (
+    ("balanced — максимум пользы для анализа", PROFILE_BALANCED),
+    ("strict — максимум очистки", PROFILE_STRICT),
+)
+
+
+def run_har_sanitize_dialog(QtWidgets: Any, parent: Any, start_dir: Path) -> tuple[str, str] | None:
+    """Ask for a HAR, a profile and a target file, then write the sanitized copy.
+
+    Returns ``(output text, status text)`` or ``None`` when the owner cancels a
+    dialog. The source HAR is never modified and nothing is sent anywhere.
+    """
+
+    source, _selected_filter = QtWidgets.QFileDialog.getOpenFileName(
+        parent,
+        "HAR для очистки чувствительных данных",
+        str(start_dir),
+        "HAR files (*.har *.zip *.gz);;All files (*)",
+    )
+    if not source:
+        return None
+    labels = [label for label, _profile in HAR_SANITIZE_PROFILE_CHOICES]
+    choice, accepted = QtWidgets.QInputDialog.getItem(
+        parent,
+        "Профиль очистки HAR",
+        "Что оставить в очищенной копии:",
+        labels,
+        0,
+        False,
+    )
+    if not accepted:
+        return None
+    destination, _selected_filter = QtWidgets.QFileDialog.getSaveFileName(
+        parent,
+        "Сохранить очищенную копию HAR",
+        str(default_output_path(Path(source))),
+        "HAR files (*.har);;All files (*)",
+    )
+    if not destination:
+        return None
+    profile = dict(HAR_SANITIZE_PROFILE_CHOICES).get(str(choice), PROFILE_BALANCED)
+    try:
+        reports = sanitize_har_file(source, destination, options=SanitizeOptions(profile=profile), overwrite=True)
+    except Exception as exc:  # GUI diagnostic path: show the reason instead of closing the page
+        return f"HAR sanitize: ошибка\n{exc}", "Статус: HAR sanitize завершился ошибкой"
+    text = "\n\n".join(report.to_text() for report in reports)
+    text += "\n\nДалее: очищенную копию можно открыть кнопкой «HAR import» или передать для анализа вместо исходного HAR."
+    clean = all(report.clean for report in reports)
+    return text, "Статус: HAR очищен" if clean else "Статус: HAR очищен, нужна ручная проверка"
 
 
 def make_blockcheck_lab_page(root: Path | None = None) -> Any:
@@ -305,6 +361,11 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     har_import_button = QtWidgets.QPushButton("HAR import")
     har_report_button = QtWidgets.QPushButton("HAR report")
     har_load_button = QtWidgets.QPushButton("Load HAR group")
+    har_sanitize_button = QtWidgets.QPushButton("HAR sanitize")
+    har_sanitize_button.setObjectName("blockcheckHarSanitizeButton")
+    har_sanitize_button.setToolTip(
+        "Сохранить очищенную копию HAR без cookie, токенов, тел запросов и личных идентификаторов; исходный файл не меняется"
+    )
     voice_profiles_button = QtWidgets.QPushButton("Voice profiles")
     har_group_combo = QtWidgets.QComboBox()
     har_group_combo.setObjectName("blockcheckHarGroupCombo")
@@ -313,7 +374,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     for action_button in (
         preflight_button, build_plan_button, build_button, plan_button, run_button, stop_button,
         export_button, coverage_button, policy_button, tournament_button, verify_button, endpoint_button, log_button,
-        har_import_button, har_report_button, har_load_button, voice_profiles_button,
+        har_import_button, har_report_button, har_load_button, voice_profiles_button, har_sanitize_button,
     ):
         action_button.setMinimumHeight(30)
         action_button.setMinimumWidth(86)
@@ -353,6 +414,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         (har_group_combo, 7, 0, 1, 2),
         (har_load_button, 8, 0, 1, 1),
         (voice_profiles_button, 8, 1, 1, 1),
+        (har_sanitize_button, 9, 0, 1, 2),
     )
     for button, row, column, row_span, column_span in action_grid:
         actions_layout.addWidget(button, row, column, row_span, column_span)
@@ -680,7 +742,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         for button in (
             preflight_button, build_plan_button, build_button, plan_button, run_button, export_button, coverage_button,
             policy_button, tournament_button, verify_button, endpoint_button, log_button, har_import_button,
-            har_report_button, har_load_button, voice_profiles_button,
+            har_report_button, har_load_button, voice_profiles_button, har_sanitize_button,
         ):
             button.setEnabled(not running)
         har_group_combo.setEnabled(not running)
@@ -752,6 +814,17 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             status.setText("Статус: HAR workbench создан; выберите группу")
         except Exception as exc:  # pragma: no cover - GUI diagnostic path
             output.setPlainText(f"HAR workbench: ошибка\n{exc}")
+
+    def sanitize_har_copy() -> None:
+        if state.get("process") is not None:
+            output.setPlainText("Blockcheck уже выполняется. Сначала остановите текущий run или дождитесь завершения.")
+            return
+        result = run_har_sanitize_dialog(QtWidgets, page, root or Path.home())
+        if result is None:
+            return
+        report_text, status_text = result
+        output.setPlainText(report_text)
+        status.setText(status_text)
 
     def load_selected_har_group() -> None:
         group_id = str(har_group_combo.currentData() or "")
@@ -1262,6 +1335,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     har_import_button.clicked.connect(lambda _checked=False: import_har_workbench())
     har_report_button.clicked.connect(lambda _checked=False: run_action("HAR workbench", lambda: har_workbench_report_to_text(root=root)))
     har_load_button.clicked.connect(lambda _checked=False: load_selected_har_group())
+    har_sanitize_button.clicked.connect(lambda _checked=False: sanitize_har_copy())
     voice_profiles_button.clicked.connect(lambda _checked=False: run_action("Discord Voice profiles", lambda: discord_voice_profiles_to_text(root=root)))
     refresh_har_groups()
 

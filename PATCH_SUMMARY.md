@@ -1,3 +1,7 @@
-# v1.1 — launch diagnostics, Overview и авторская установка
+# v1.1 — HAR sanitize в диагностике GUI
 
-База a0bd474, product 1.1.0. v1.0 закрыта владельцем; исторические receipts сохранены. Устранён ложный VLESS banner из unchecked registry row. Core provenance проверяется до composer start; Overview показывает чистую сборку как следующее действие. Видимые checkbox indicators, подписанная основная кнопка, скрытые невыбранные VLESS inputs и Developer-only placeholders. Archive/PKGBUILD создаются автором из checkout; makepkg cwd явно документирован. Actual native package/live probes в контейнере не выдумываются.
+База d58c8cd, product 1.1.0 (версия не меняется). В «Диагностика → Blockcheck lab» добавлена кнопка «HAR sanitize»: выбор HAR (.har, .har.gz, .zip), профиля balanced/strict и файла результата; исходный HAR не изменяется, сеть/sudo/firewall/hostlists не затрагиваются. Новый adapter `gui/zap2_gui/adapters/har_sanitizer.py` использует только стандартную библиотеку и тот же файл работает как независимый скрипт.
+
+Очистка default-deny: cookie, авторизация, значения query, тела запросов/ответов, WebSocket payloads, фрагменты и логины в URL, нестандартные поля удаляются или заменяются redacted-метками `REDACTED_<id>`; идентификаторы в путях получают псевдонимы той же формы. Остаются хосты, маршруты, методы, статусы, версии HTTP, тайминги, размеры, коды ошибок, имена заголовков и транспортные/CDN-заголовки. Контрольный проход повторно ищет в результате всё скрытое и известные форматы токенов.
+
+ActionContract, CLI parser, dispatcher и generated reference не менялись: новой CLI-опции и нового действия нет. Обновлены shipping allowlist и v1.1 source freeze. Реальный PyQt6-клик проверяется тестом при наличии PyQt6; в контейнере без PyQt6 этот тест помечается skip и не объявляется PASS.
