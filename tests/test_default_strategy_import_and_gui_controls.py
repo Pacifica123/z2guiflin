@@ -178,8 +178,11 @@ def test_gui_build_execute_reports_status_with_confirmed_fake_build(tmp_path: Pa
     fake_make = fake_bin / "make"
     fake_make.write_text(
         "#!/usr/bin/env python3\n"
-        "import pathlib, stat\n"
-        "p = pathlib.Path.cwd() / 'nfqws2'\n"
+        "import pathlib, stat, sys\n"
+        "args = sys.argv[1:]\n"
+        "base = pathlib.Path(args[args.index('-C') + 1]) if '-C' in args else pathlib.Path.cwd()\n"
+        f"assert {str(tmp_path)!r} in str(base.resolve()), base\n"
+        "p = base / 'nfqws2'\n"
         "p.parent.mkdir(parents=True, exist_ok=True)\n"
         "p.write_text('#!/bin/sh\\nsleep 30\\n')\n"
         "p.chmod(p.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)\n",

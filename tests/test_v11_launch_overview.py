@@ -72,7 +72,7 @@ def test_verified_generation_is_ready_and_changed_binary_blocks(project):
 def qt_app(tmp_path,monkeypatch):
     monkeypatch.setenv('QT_QPA_PLATFORM','offscreen')
     monkeypatch.setenv('XDG_CONFIG_HOME',str(tmp_path/'config'))
-    from PyQt6 import QtWidgets
+    QtWidgets=pytest.importorskip('PyQt6.QtWidgets',reason='PyQt6 не установлен: GUI-тест пропущен (pacman -S python-pyqt6)')
     app=QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     yield app
 

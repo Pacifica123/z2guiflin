@@ -11,6 +11,7 @@ authors = [
 
 [project.optional-dependencies]
 gui = ["PyQt6>=6.6"]
+dev = ["pytest>=7"]
 
 [project.scripts]
 zap2-gui = "zap2_gui.distribution:main"

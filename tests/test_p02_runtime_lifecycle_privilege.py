@@ -27,6 +27,29 @@ from zap2_gui.adapters.runtime_state import confirm_runtime_plan, prepare_runtim
 ROOT = Path(__file__).resolve().parents[1]
 
 
+
+def _wait_for_exec(proc, binary, timeout=5.0):
+    """Ждать, пока дочерний процесс выполнит exec и опубликует argv.
+
+    До exec /proc/<pid>/exe указывает на python, а сразу после exec /proc/<pid>/cmdline
+    ещё короткое время пуст (гонка fork→exec→argv). Продуктовый код законно отказывает
+    в такой момент, поэтому тест ждёт устойчивого состояния.
+    """
+    import os, time
+    target = os.path.realpath(str(binary))
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            exe_ok = os.path.realpath(os.readlink(f"/proc/{proc.pid}/exe")) == target
+            with open(f"/proc/{proc.pid}/cmdline", "rb") as handle:
+                argv_ok = bool(handle.read().split(b"\0")[0])
+            if exe_ok and argv_ok:
+                return
+        except OSError:
+            pass
+        time.sleep(0.01)
+    raise AssertionError(f"process {proc.pid} did not exec {target} within {timeout}s")
+
 def _copy_project(tmp_path: Path) -> Path:
     project = tmp_path / "project"
     shutil.copytree(
@@ -192,6 +215,7 @@ def test_read_only_status_requires_explicit_legacy_migration(tmp_path: Path) -> 
     pidfile = sessions / "default.pid"
     import subprocess
     proc = subprocess.Popen([str(binary), "30"])
+    _wait_for_exec(proc, binary)
     try:
         pidfile.write_text(str(proc.pid), encoding="utf-8")
         legacy = {
@@ -409,6 +433,7 @@ def test_backfill_bounded_drop_identity_requires_plan_helper_and_live_identity(t
     shutil.copyfile("/bin/sleep", binary)
     binary.chmod(0o755)
     proc = subprocess.Popen([str(binary), "30"])
+    _wait_for_exec(proc, binary)
     try:
         identity = None
         for _ in range(20):

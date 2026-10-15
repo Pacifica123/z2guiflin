@@ -14,7 +14,7 @@
         "boards": 1,
         "columns": 8,
         "cards": 31,
-        "comments": 32,
+        "comments": 33,
         "checklists": 3,
         "attachments": 0
       },
@@ -32,8 +32,8 @@
   "origin": {
     "generatedAt": "2026-10-15T06:00:00Z",
     "selfHosted": true,
-    "boardRevision": 2,
-    "lastPatchId": "2026-10-15-devctl-external-board",
+    "boardRevision": 3,
+    "lastPatchId": "2026-10-15-reproducible-tests",
     "rules": "board/README.md"
   },
   "includes": {
@@ -172,11 +172,11 @@
       {
         "id": "01a13ca4-dda5-726e-857c-8eae97d9db",
         "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
-        "columnId": "01a13ca4-dd86-724b-8977-facb1855fe",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
         "title": "Тестовый контур не запускается без pytest — «all-green» не воспроизводим из чистой среды",
         "description": "Зачем: 93 файла tests/, многие импортируют pytest напрямую; unittest discover даёт 81 import error. Приёмка v1.1 опирается на hyperpatch_acceptance, но новый участник/агент не может повторить зелёный прогон.\n\nГотово, когда: есть один документированный вход (например meta_tools/test.sh) с явной проверкой зависимостей; тесты либо работают под stdlib unittest, либо pytest зафиксирован как dev-зависимость в pyproject с понятной ошибкой; devctl checkProfile вызывает именно его.",
         "priority": "high",
-        "position": 2048,
+        "position": 7168,
         "archivedAt": null
       },
       {
@@ -1061,6 +1061,12 @@
         "cardId": "01a13ca4-ddad-71ab-8b73-d24599a084",
         "body": "patch 2026-10-15-devctl-external-board: доска закоммичена как board/board.json с правилами board/README.md и проверкой tools/gui_checks/check_board.py; docs/KNOWN_GAPS_CHECKLISTS.md ссылается на неё.",
         "createdAt": "2026-10-15T12:00:00Z"
+      },
+      {
+        "id": "7662798e-7284-77bd-8182-8ae994920361",
+        "cardId": "01a13ca4-dda5-726e-857c-8eae97d9db",
+        "body": "patch 2026-10-15-reproducible-tests: PyQt6-тесты пропускаются с причиной вместо падения; загрязнение корня файлом nfqws2 устранено (fake make учитывает -C); единый вход bash meta_tools/run_tests.sh с проверкой pytest (код 3) и чистоты дерева (код 4); pytest объявлен в optional-dependencies.dev. Устранена гонка fork→exec в тестах миграции runtime-сессии (5 мест ожидают exec и непустой /proc/<pid>/cmdline): тесты падали в полном прогоне, когда /proc читался до exec.",
+        "createdAt": "2026-10-15T08:00:00Z"
       }
     ],
     "boardAppearanceSettings": [],

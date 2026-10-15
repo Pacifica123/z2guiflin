@@ -24,6 +24,29 @@ from zap2_gui.theme_profiles import LIGHT_COLORS, builtin_theme_profile, custom_
 ROOT = Path(__file__).resolve().parents[1]
 
 
+
+def _wait_for_exec(proc, binary, timeout=5.0):
+    """Ждать, пока дочерний процесс выполнит exec и опубликует argv.
+
+    До exec /proc/<pid>/exe указывает на python, а сразу после exec /proc/<pid>/cmdline
+    ещё короткое время пуст (гонка fork→exec→argv). Продуктовый код законно отказывает
+    в такой момент, поэтому тест ждёт устойчивого состояния.
+    """
+    import os, time
+    target = os.path.realpath(str(binary))
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            exe_ok = os.path.realpath(os.readlink(f"/proc/{proc.pid}/exe")) == target
+            with open(f"/proc/{proc.pid}/cmdline", "rb") as handle:
+                argv_ok = bool(handle.read().split(b"\0")[0])
+            if exe_ok and argv_ok:
+                return
+        except OSError:
+            pass
+        time.sleep(0.01)
+    raise AssertionError(f"process {proc.pid} did not exec {target} within {timeout}s")
+
 def _copy_project(tmp_path: Path, name: str = "project") -> Path:
     target = tmp_path / name
     shutil.copytree(ROOT, target, ignore=shutil.ignore_patterns(".git", ".zap2", "__pycache__", "*.pyc", ".pytest_cache"))
@@ -86,6 +109,7 @@ def test_session_identity_fails_closed_for_legacy_and_wrong_starttime(tmp_path: 
     shutil.copyfile("/bin/sleep", binary)
     binary.chmod(0o755)
     proc = subprocess.Popen([str(binary), "30"])
+    _wait_for_exec(proc, binary)
     try:
         identity = None
         for _ in range(20):
@@ -109,6 +133,7 @@ def test_session_identity_accepts_kernel_hidden_exe_only_for_expected_drop_ident
     shutil.copyfile("/bin/sleep", binary)
     binary.chmod(0o755)
     proc = subprocess.Popen([str(binary), "30"])
+    _wait_for_exec(proc, binary)
     try:
         identity = None
         for _ in range(20):
@@ -286,6 +311,7 @@ def test_legacy_runtime_session_is_adopted_only_after_exact_pidfile_exe_argv_mat
     pidfile = sessions / "default.pid"
     session_path = sessions / "default.session.json"
     proc = subprocess.Popen([str(binary), "30"])
+    _wait_for_exec(proc, binary)
     try:
         pidfile.write_text(str(proc.pid), encoding="utf-8")
         session_path.write_text(

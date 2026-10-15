@@ -60,6 +60,7 @@ def test_installed_cli_outside_checkout_without_pythonpath(release,tmp_path,args
     if args==['--package-preflight']:assert not (tmp_path/'data').exists()
     else:assert (tmp_path/'data/zap2gui/workspace/.zap2/installation/receipt.json').exists()
 
+@pytest.mark.skipif(importlib.util.find_spec('PyQt6') is None,reason='PyQt6 не установлен: GUI-тест пропущен (pacman -S python-pyqt6)')
 def test_installed_gui_code_and_identity_button(release,tmp_path):
     before=records(release.target)
     code=f"import sys;sys.dont_write_bytecode=True;sys.path.insert(0,{str(release.target/'lib/zap2gui/python')!r});from pathlib import Path;from zap2_gui.distribution import prepare_installed;root=prepare_installed(Path({str(release.target/'share/zap2gui')!r}));from PyQt6.QtWidgets import QApplication,QPushButton;from zap2_gui.windows.main_window import create_main_window;app=QApplication([]);w=create_main_window(root);assert w.findChild(QPushButton,'productIdentityButton');w.show();app.processEvents();w.close();print('installed GUI: PASS')"
