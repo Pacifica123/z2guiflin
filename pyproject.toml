@@ -26,3 +26,7 @@ where = ["gui"]
 testpaths = ["tests"]
 pythonpath = ["gui"]
 addopts = "-q"
+# Тесты копируют проект в tmp_path; на tmpfs-/tmp (Arch) три сохранённых прогона
+# исчерпывали место (ENOSPC в пачке r2). Храним только каталоги упавших тестов последнего прогона.
+tmp_path_retention_count = 1
+tmp_path_retention_policy = "failed"

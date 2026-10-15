@@ -62,6 +62,7 @@ from ..adapters.har_workbench import (
     latest_har_workbench,
 )
 from ..adapters.discord_voice_profiles import discord_voice_profiles_to_text
+from .net_verdict_panel import make_net_verdict_button
 from ..models.service_targets import (
     DEFAULT_BLOCKCHECK_TARGET_STRING,
     SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
@@ -1360,6 +1361,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     har_report_button.clicked.connect(lambda _checked=False: run_action("HAR workbench", lambda: har_workbench_report_to_text(root=root)))
     har_load_button.clicked.connect(lambda _checked=False: load_selected_har_group())
     har_sanitize_button.clicked.connect(lambda _checked=False: sanitize_har_copy())
+    net_verdict_button = make_net_verdict_button(
+        QtCore, QtWidgets, output, status, root=root, is_busy=lambda: state.get("process") is not None
+    )
+    actions_layout.addWidget(net_verdict_button, 10, 0, 1, 2)
     voice_profiles_button.clicked.connect(lambda _checked=False: run_action("Discord Voice profiles", lambda: discord_voice_profiles_to_text(root=root)))
     refresh_har_groups()
 

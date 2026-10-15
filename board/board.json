@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 35,
-        "comments": 38,
+        "cards": 37,
+        "comments": 39,
         "checklists": 3,
         "attachments": 0
       },
@@ -32,8 +32,8 @@
   "origin": {
     "generatedAt": "2026-10-15T06:00:00Z",
     "selfHosted": true,
-    "boardRevision": 6,
-    "lastPatchId": "2026-10-15-circular-orchestrator",
+    "boardRevision": 7,
+    "lastPatchId": "2026-10-15-net-verdict",
     "rules": "board/README.md"
   },
   "includes": {
@@ -468,6 +468,26 @@
         "priority": "medium",
         "position": 3072,
         "archivedAt": null
+      },
+      {
+        "id": "97d6542b-95a4-72af-8e0f-69c474ae6226",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "title": "Диагностика сети с вердиктом: роутер / провайдер / DNS / DPI / IP-блок",
+        "description": "Зачем: владелец пользовался netdiag.sh (ping шлюза и внешних адресов, маршруты, DNS, тайминги HTTPS), но выводы делал вручную. Нужен один вердикт — в какую сторону думать дальше.\n\nГотово, когда: GUI и отдельный скрипт сводят замеры к вердикту LOCAL_NO_ROUTE / LOCAL_LINK_OR_ROUTER / ISP_UPLINK / DNS / DPI_SELECTIVE / IP_BLOCK / OK / INCONCLUSIVE с evidence, уверенностью и шагами «что проверить дальше».\n\nИсточник: netdiag.sh владельца (15.10.2026).",
+        "priority": "high",
+        "position": 11264,
+        "archivedAt": null
+      },
+      {
+        "id": "cdca8005-28cc-72fd-892c-a0564f94cdb4",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "title": "Приёмка: вердикт сети на реальной сети владельца (с zapret и без)",
+        "description": "Зачем: классификатор проверен на фикстурах; сборщики (ping/ip/dig/curl/сокеты) на живой сети не запускались. Пороги (шлюз: потери ≥3%, mdev ≥15 мс; внешние: потери ≥5%, RTT ≥250 мс) — стартовые.\n\nГотово, когда: несколько прогонов в разных состояниях (норма, плохой Wi-Fi, zapret выкл/вкл на заблокированных целях) дают ожидаемые вердикты; пороги откалиброваны и записаны с датой.",
+        "priority": "medium",
+        "position": 4096,
+        "archivedAt": null
       }
     ],
     "labels": [
@@ -833,6 +853,14 @@
       {
         "cardId": "cc6e0f6c-83c6-7613-8400-8db4d0c05677",
         "labelId": "01a13ca4-dd8b-7376-8852-5373cf256d"
+      },
+      {
+        "cardId": "97d6542b-95a4-72af-8e0f-69c474ae6226",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "cdca8005-28cc-72fd-892c-a0564f94cdb4",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
       }
     ],
     "checklists": [
@@ -1169,6 +1197,12 @@
         "cardId": "01a13ca4-ddaf-7040-8069-985a1298a1",
         "body": "patch 2026-10-15-circular-orchestrator: OrchestratedProfile (models/orchestrator.py): 2..N кандидатов, strategy=N, final, fails/time/nld/reqhost/key; синтаксис из zapret-auto.lua:312 и manual (circular перед --payload, --in-range=-s5556 только для экземпляра circular, zapret-auto.lua подключается автоматически). Режим «Оркестратор (circular, эксперимент)» в конструкторе, разбор debug-лога переключений, пример orchestrated-circular-example в каталоге. Нужна проверка на реальном трафике.",
         "createdAt": "2026-10-15T08:00:00Z"
+      },
+      {
+        "id": "f1610e38-fe70-7242-8821-a64ea9bdd7dd",
+        "cardId": "97d6542b-95a4-72af-8e0f-69c474ae6226",
+        "body": "patch 2026-10-15-net-verdict: adapters/net_verdict.py (stdlib, standalone) + кнопка в Blockcheck lab; ключевое различие — «TCP есть, TLS нет» (SNI-DPI) против «TCP нет» (IP-блок); шлюз, режущий ICMP целиком, не считается неисправным; при работающем zapret вердикт OK понижается до medium.",
+        "createdAt": "2026-10-15T15:00:00Z"
       }
     ],
     "boardAppearanceSettings": [],
