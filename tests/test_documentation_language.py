@@ -21,10 +21,6 @@ def _project_markdown_files(root: Path) -> list[Path]:
         if rel_text.startswith("core/zapret2/") and rel_text != "core/zapret2/UPSTREAM_IMPORT.md":
             continue
 
-        # Это исходный README devctl, а не документация продукта z2guiflin.
-        if rel_text == "meta_tools/devctl/README.upstream.md":
-            continue
-
         files.append(path)
     return sorted(files)
 

@@ -1,0 +1,1074 @@
+{
+  "manifest.json": {
+    "format": "p2p_planner_bundle",
+    "formatVersion": 1,
+    "bundleKind": "portable_export",
+    "scopeKind": "board",
+    "workspaceId": "01a13ca4-dd81-7246-8dd6-122265b1f5",
+    "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+    "includesLocalMetadata": false,
+    "summary": {
+      "scopeKind": "board",
+      "entityCounts": {
+        "workspaces": 1,
+        "boards": 1,
+        "columns": 8,
+        "cards": 31,
+        "comments": 32,
+        "checklists": 3,
+        "attachments": 0
+      },
+      "includesActivityHistory": false,
+      "includesAppearance": false,
+      "includesArchived": false,
+      "includesAttachments": false
+    }
+  },
+  "scope": {
+    "scopeKind": "board",
+    "workspaceId": "01a13ca4-dd81-7246-8dd6-122265b1f5",
+    "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
+  },
+  "origin": {
+    "generatedAt": "2026-10-15T06:00:00Z",
+    "selfHosted": true,
+    "boardRevision": 2,
+    "lastPatchId": "2026-10-15-devctl-external-board",
+    "rules": "board/README.md"
+  },
+  "includes": {
+    "appearance": false,
+    "activityHistory": false,
+    "archived": false,
+    "attachments": false,
+    "localMetadata": false
+  },
+  "payload": {
+    "workspaces": [
+      {
+        "id": "01a13ca4-dd81-7246-8dd6-122265b1f5",
+        "name": "TheGrayNetwork"
+      }
+    ],
+    "boards": [
+      {
+        "id": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "workspaceId": "01a13ca4-dd81-7246-8dd6-122265b1f5",
+        "name": "z2guiflin — выравнивание после v1.1",
+        "description": "Доска из исследования 15.10.2026: что хотели и не сделали (KNOWN_GAPS v0.4), где отстали от win-референса zapretgui и апстрима zapret2, что лежит не так, как требуют инварианты проекта.",
+        "archivedAt": null
+      }
+    ],
+    "columns": [
+      {
+        "id": "01a13ca4-dd83-725e-8dd4-243ceb3ffd",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "Идеи",
+        "description": "Сырые наблюдения из исследования. Не обязательство.",
+        "position": 1024
+      },
+      {
+        "id": "01a13ca4-dd84-7136-893e-7f3c6da5d7",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "Обдумать",
+        "description": "Нужно решение владельца/ADR до кода: архитектура, граница продукта, безопасность.",
+        "position": 2048
+      },
+      {
+        "id": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "Запланировано",
+        "description": "Объём и порядок известны; стартует после предшественника из описания.",
+        "position": 2560
+      },
+      {
+        "id": "01a13ca4-dd86-724b-8977-facb1855fe",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "Готово к патчу",
+        "description": "Понятны направление, объём, проверка и критерий готовности. Можно отдавать в devctl.",
+        "position": 3072
+      },
+      {
+        "id": "01a13ca4-dd87-73ca-89d3-7952e6b438",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "В работе",
+        "description": "Текущая серия патчей. Не больше двух карточек.",
+        "position": 4096,
+        "wipLimit": 2
+      },
+      {
+        "id": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "Ждёт хоста",
+        "description": "Код и детерминированные проверки есть; нужна приёмка на реальном Arch/сети владельца.",
+        "position": 5120
+      },
+      {
+        "id": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "Сделано",
+        "description": "Принято. В комментарии — patch/версия, сделавшая это истинным.",
+        "position": 6144
+      },
+      {
+        "id": "01a13ca4-dd8a-7021-85df-ac924770d3",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "Отложено",
+        "description": "Сознательно не делаем сейчас. В описании — почему и когда вернуться.",
+        "position": 7168
+      }
+    ],
+    "cards": [
+      {
+        "id": "01a13ca4-dd96-73a1-823e-02f54d35bf",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "title": "Ядро: zapret2 1.0.6 запинено, overlay вне дерева, staged-сборка с receipt",
+        "description": "Зачем: держать ядро byte-exact к upstream и не смешивать локальные Lua-правки с vendored деревом.\n\nГотово, когда: core/zapret2 = 1.0.6@00f5aaa, LUA_COMPAT_VER=6, overlay в core/overlays, сборка через core_generation_build.py.",
+        "priority": "high",
+        "position": 1024,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-dd98-7188-80ca-00b65c1c28",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "title": "Пакет Arch: PKGBUILD из checkout, .desktop, иконка",
+        "description": "Зачем: закрыть пункты v0.4 «нет PKGBUILD» и «нет .desktop».\n\nГотово, когда: bash meta_tools/build_local_package.sh → dist/arch/1.1.0 → makepkg -si.",
+        "priority": "medium",
+        "position": 2048,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-dd9a-73a0-87e6-c3bf4e7af6",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "title": "Support bundle, health-панель, generated CLI reference, HAR sanitize",
+        "description": "Зачем: закрыть пункты v0.4 §10–§13: единая страница здоровья, безопасный bundle, автогенерация reference.\n\nГотово, когда: support_bundle.py, widgets/health_panel.py, docs/generated/reference.md, adapters/har_sanitizer.py.",
+        "priority": "medium",
+        "position": 3072,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-dd9c-72f8-82ba-3e1ceac2cc",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "title": "v1.1 выпущена: owned runtime, immutable Plan, apply/revert, hot-swap пресетов",
+        "description": "Зачем: фиксировать текущую точку: платформа зрелая, диагностическая глубина выше win-референса.\n\nГотово, когда: PROJECT_STATUS.md: v1.0 закрыта 01.10.2026, текущая 1.1.0.",
+        "priority": "high",
+        "position": 4096,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-dd9d-704d-8f15-ab8c5187c1",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd86-724b-8977-facb1855fe",
+        "title": "SOCKS5-inbound туннеля без аутентификации на 127.0.0.1:10808",
+        "description": "Зачем: discord_tunnel.py генерирует inbound {auth: noauth} на дефолтном порту v2rayN. Это ровно класс уязвимости из wiki (VLESS-SOCKS5-vulnerability, 07.04.2026): любое локальное приложение находит прокси сканом loopback и раскрывает IP сервера. Нарушает инвариант localhost ≠ private.\n\nГотово, когда: inbound генерируется с auth=password и случайными кредами на сессию (или unix-socket/рандомный порт), probe/launcher используют креды, тест запрещает noauth в генерируемом конфиге, в UI показан статус защиты.\n\nИсточник: wiki.zapret.moe/VLESS-SOCKS5-vulnerability, VLESS-localhost-protection-guide",
+        "priority": "high",
+        "position": 1024,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-dda5-726e-857c-8eae97d9db",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd86-724b-8977-facb1855fe",
+        "title": "Тестовый контур не запускается без pytest — «all-green» не воспроизводим из чистой среды",
+        "description": "Зачем: 93 файла tests/, многие импортируют pytest напрямую; unittest discover даёт 81 import error. Приёмка v1.1 опирается на hyperpatch_acceptance, но новый участник/агент не может повторить зелёный прогон.\n\nГотово, когда: есть один документированный вход (например meta_tools/test.sh) с явной проверкой зависимостей; тесты либо работают под stdlib unittest, либо pytest зафиксирован как dev-зависимость в pyproject с понятной ошибкой; devctl checkProfile вызывает именно его.",
+        "priority": "high",
+        "position": 2048,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-dda7-7109-8e54-c135b8cfae",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "title": "Вендоренная копия devctl 0.6.7 удалена; devctl — внешний инструмент ≥0.9.0",
+        "description": "Зачем: в проекте лежал devctl.py 0.6.7, а рабочий инструмент — 0.9.0 (batch, expectedHead, base.after, workspace registry). Две версии — риск, что патч проверяется не тем, чем применяется.\n\nСделано: meta_tools/devctl удалён; docs/developer/devctl.md фиксирует внешний devctl ≥0.9.0, workspace id thegraynetwork, формат пачек (expectedHead только у первого патча, далее base.after). .devctl/workspace.json живёт в корне workspace уровнем выше проекта — это не дефект, в репозиторий проекта он не коммитится.",
+        "priority": "high",
+        "position": 5120,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-dda9-7154-832b-be618a9261",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd84-7136-893e-7f3c6da5d7",
+        "title": "Discord-перекос: доменная логика размазана по ~12 адаптерам",
+        "description": "Зачем: discord_* адаптеры (endpoint/HAR/DNS-edge/machine/matrix/pretls/tunnel/voice/verification) — исторические рецепты под один сервис. Это противоречит META (mechanisms > recipes) и делает tunnel-слой «Discord-туннелем», хотя он общий.\n\nГотово, когда: ADR: какие механизмы обобщаются в service-agnostic модули (tunnel, endpoint discovery, pre-TLS probe, observation matrix), что уходит в данные service pack 'discord', что архивируется. Затем серия переименований без смены поведения.",
+        "priority": "high",
+        "position": 1024,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddab-7124-8f34-0509de8895",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd84-7136-893e-7f3c6da5d7",
+        "title": "Документационный шум: ~90 файлов в docs/, большинство — заглушки «исторический документ»",
+        "description": "Зачем: текущие инструкции тонут среди stub-файлов совместимости; агенту/человеку трудно найти правду.\n\nГотово, когда: docs/ содержит только живые разделы (user/operations/developer/reference/generated) + history/; совместимые заглушки заменены одним индексом redirects; DOCUMENTATION_AUDIT проходит.",
+        "priority": "medium",
+        "position": 2048,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddad-71ab-8b73-d24599a084",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "title": "Нет живого реестра долга: KNOWN_GAPS заморожен на v0.4",
+        "description": "Зачем: единственный горизонтальный список «что не сделано» стал историческим после v0.4; P01–v1.1 закрыли часть пунктов, но открытые нигде не отслеживаются.\n\nГотово, когда: эта доска коммитится в репозиторий (board/board.json) и обновляется каждым devctl-патчем (как в p2pKanban); KNOWN_GAPS ссылается на неё.",
+        "priority": "high",
+        "position": 6144,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddaf-7040-8069-985a1298a1",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd86-724b-8977-facb1855fe",
+        "title": "Live-оркестратор через upstream `circular`, а не собственный перебор",
+        "description": "Зачем: главный незакрытый пункт v0.4 (§3, §4). В zapret2 уже есть Lua-оркестратор circular (fail/success детекторы, autostate per host, nld, final). Windows GUI убрал собственный тип «оркестратор Zapret 2» (21.0.0.15) — механизм живёт в ядре. Наш код circular не использует вообще.\n\nГотово, когда: конструктор пресетов умеет собрать профиль circular из N проверенных стратегий (strategy=N, final), включает --in-range для детекторов, UI показывает текущий номер стратегии по хосту из лога; приёмка на реальном трафике.\n\nИсточник: wiki.zapret.moe/Zapret2/circular; changelog ZapretGUI 21.0.0.15-16",
+        "priority": "high",
+        "position": 5120,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddb6-73ea-8fdd-0ce9e4817a",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "title": "Редактор hostlist/ipset с валидацией (include/exclude)",
+        "description": "Зачем: v0.4 §8 «нет редактора листов»; в zapretgui есть вкладка Editor с номерами строк и блокировкой сохранения при ошибках (21.0.0.79).\n\nГотово, когда: в GUI есть редактор файлов листов профиля: валидация доменов/CIDR, diff перед сохранением, атомарная запись, привязка к профилям, HAR workbench может добавить хосты через тот же diff.",
+        "priority": "medium",
+        "position": 1024,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddb8-7364-8ac1-c0f7467ac9",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "title": "Автозапуск и health-monitor: systemd unit из GUI, restart/backoff, восстановление stale nft",
+        "description": "Зачем: v0.4 §2 всё ещё открыт: service plans есть, но установки/управления сервисом, автозапуска, восстановления после краха GUI и смены сети нет. В zapretgui автозапуск — штатная функция.\n\nГотово, когда: GUI ставит/снимает systemd unit (plan+confirm, owned), сервис переживает logout/reboot, supervisor перезапускает nfqws2 с backoff, при старте GUI обнаруживает stale owned-таблицу и предлагает recovery.",
+        "priority": "high",
+        "position": 2048,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddba-70c9-8e38-2994ac807a",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "title": "Миграция strat_collection: winws1 .bat (2025) → пресеты winws2 с --lua-init",
+        "description": "Зачем: presets/collections/strat_collection — 135 файлов: Flowseal/YTDisBystro/alt*.bat для winws1, датированы 2025. Win-референс ушёл на генерируемые сборщиком пресеты winws2 1.9.9 с полным --lua-init блоком, где текст пресета — источник истины.\n\nГотово, когда: коллекция пересобрана из актуальных winws2-пресетов через существующий txt-import (преобразование WinDivert-фильтров → nft-профили), устаревшие winws1 помечены legacy; у каждого пресета provenance (коммит референса, дата).\n\nИсточник: git.zapret.moe/zapretdiscordyoutube/zapretgui",
+        "priority": "medium",
+        "position": 3072,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddbc-7122-8391-3e4ecc6c7f",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "title": "Многоветочные профили (несколько payload-веток) и выбор ветки в GUI",
+        "description": "Зачем: zapretgui 21.0.0.128: профиль хранит несколько payload-веток, сравнение стратегий проще. У нас профиль = одна стратегия.\n\nГотово, когда: модель профиля допускает именованные ветки; переключение без пересборки всего пресета; экспорт в txt сохраняет активную ветку.",
+        "priority": "low",
+        "position": 4096,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddbe-724d-811f-2eed90dafc",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd84-7136-893e-7f3c6da5d7",
+        "title": "DNS-слой: выбор DoH/DoT, проверка подмены и leak, откат",
+        "description": "Зачем: v0.4 §8: DNS у нас только диагностический. Летом 2026 зафиксированы DNAT/перехват DNS Google/Cloudflare на ТСПУ (wiki, авг. 2026) и блок 8.8.8.8 по TCP (03.07.2026). В zapretgui — custom DNS.\n\nГотово, когда: ADR: что GUI делает с резолвером на Linux (systemd-resolved/NetworkManager/dnscrypt-proxy), как откатывает; затем модуль проверки подмены (сравнение ответов, TTL, DNAT-признаки) в health.\n\nИсточник: wiki DPI/tspu-dns-nsdi-dnat-august-2026, google-dns-8888-block-july-2026",
+        "priority": "medium",
+        "position": 3072,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddc0-707f-8d8f-0079e58218",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd83-725e-8dd4-243ceb3ffd",
+        "title": "Редактор /etc/hosts с откатом (geo-ошибки ChatGPT/Gemini/Notion)",
+        "description": "Зачем: в zapretgui есть hosts-профили по сервисам; у нас — нет (v0.4 §8 «нет rollback для /etc/hosts»).\n\nГотово, когда: owned-блок в /etc/hosts с маркерами, plan+confirm, откат одной кнопкой; источники профилей с датой.",
+        "priority": "low",
+        "position": 1024,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddc2-713f-8796-03122088a5",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd86-724b-8977-facb1855fe",
+        "title": "Учесть новинки zapret2 1.0.5–1.0.6 в конструкторе и Blockcheck",
+        "description": "Зачем: ядро уже 1.0.6, но GUI не знает о новых возможностях: --filter-mark (fwmark), инверсия SSID/NLM, blockcheck2 CURL_PAD (16-KB block), секция COVERAGE, fallback space-separated в 10-list.sh.\n\nГотово, когда: конструктор/валидатор принимает --filter-mark; Blockcheck Lab имеет переключатель CURL_PAD и парсит COVERAGE в таблицу «сколько доменов прошло на стратегию».",
+        "priority": "medium",
+        "position": 6144,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddc8-7320-8fb7-5012cc16df",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd83-725e-8dd4-243ceb3ffd",
+        "title": "fwmark-интеграция: исключать трафик туннельного ядра из NFQUEUE через --filter-mark",
+        "description": "Зачем: при совместном запуске zapret + xray пакеты ядра можно маркировать и фильтровать, вместо доменных исключений.\n\nГотово, когда: launch composer ставит mark на outbound туннельного ядра, nfqws2-профили фильтруют по mark; проверено на свежем соединении.",
+        "priority": "low",
+        "position": 2048,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddca-7271-8479-a4dc1729ca",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "title": "Upstream-drift проверка: уведомление о новом теге/коммите zapret2 и diff c пином",
+        "description": "Зачем: v0.4 §12 «нет CI-проверки upstream drift». Сейчас мы актуальны случайно — по ручному импорту 23.09.\n\nГотово, когда: meta_tool сравнивает пин с git ls-remote, показывает changes.txt-дельту и breaking-маркеры (LUA_COMPAT_VER), в GUI — статус «ядро отстаёт на N».",
+        "priority": "medium",
+        "position": 5120,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddcc-71da-8603-ef5edcccc1",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd84-7136-893e-7f3c6da5d7",
+        "title": "Секреты туннеля в keyring вместо файлов",
+        "description": "Зачем: v0.4 §9/§11: нет системного хранилища секретов; vless-профили лежат в workspace.\n\nГотово, когда: UUID/ключи хранятся через Secret Service (libsecret) с fallback 0600-файлом; проверка прав на всех файлах с секретами в health.",
+        "priority": "medium",
+        "position": 4096,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddce-70c0-8299-73d081a3d4",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd83-725e-8dd4-243ceb3ffd",
+        "title": "Retention для HAR/reports/logs",
+        "description": "Зачем: v0.4 §11: нет политики очистки; HAR — потенциально чувствительные данные даже после sanitize.\n\nГотово, когда: настраиваемый срок хранения, отчёт о размере .zap2/, кнопка безопасной очистки; sanitize-копии отделены от оригиналов.",
+        "priority": "low",
+        "position": 3072,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddd0-7193-8652-8d4580711b",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd84-7136-893e-7f3c6da5d7",
+        "title": "Валидатор конфликтов профилей и симулятор «кто сработает первым»",
+        "description": "Зачем: v0.4 §3: nfqws2 выбирает первый подходящий профиль — shadowing между filters/ranges не проверяется. Это частая причина «пресет не работает».\n\nГотово, когда: по пресету и (proto, port, host, ssid, mark) GUI показывает выбранный профиль и затенённые профили; предупреждение при сохранении.",
+        "priority": "high",
+        "position": 5120,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddd2-7313-8dc6-3f250c67f3",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd83-725e-8dd4-243ceb3ffd",
+        "title": "Повторная проверка рабочей стратегии при смене сети/DPI и статистика стабильности",
+        "description": "Зачем: v0.4 §4: нет ре-теста и истории успеха по времени/сети; one successful test ≠ robust strategy.\n\nГотово, когда: по событию смены сети (NetworkManager) или расписанию — тихий probe targets, история в health, деградация видна до жалобы пользователя.",
+        "priority": "medium",
+        "position": 4096,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddd4-7122-864e-85bb459fdf",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "title": "Discord Voice: подтверждённый Linux-workflow (STUN/media 19294–19344)",
+        "description": "Зачем: v0.4 §7 «нет подтверждённого стабильного voice workflow». Upstream 1.0.3 расширил Discord media UDP до 19294–19344; wiki рекомендует категорию STUN с обычным fake.\n\nГотово, когда: voice-профиль на основе upstream init.d-фильтров проверен владельцем на нативном Discord и Vesktop: вход в канал, 10+ минут звонка, повторный вход.\n\nИсточник: zapret2 changes 1.0.3; wiki Zapret/discord",
+        "priority": "medium",
+        "position": 1024,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddd6-731c-87d3-a3caa1718e",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "title": "Трей, уведомления, быстрый режим «выбрать пресет и включить»",
+        "description": "Зачем: v0.4 §10: нет tray/notifications/quick mode; zapretgui сильнее в повседневном UX.\n\nГотово, когда: QSystemTrayIcon со статусом и вкл/выкл, уведомление о падении runtime, компактный режим главного окна.",
+        "priority": "medium",
+        "position": 6144,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddd8-73e5-8179-2d65c1d4b4",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd83-725e-8dd4-243ceb3ffd",
+        "title": "Анализатор лога nfqws2 (аналог log-analyzer winws2)",
+        "description": "Зачем: wiki ведёт отдельную страницу анализа лога winws2; у нас логи copy-friendly, но без разбора: какой профиль, какая стратегия, сработал ли fake/split.\n\nГотово, когда: панель разбирает debug-лог в таблицу соединений → профиль → действия → вердикт; ссылки на соответствующий профиль пресета.\n\nИсточник: wiki Zapret2/log-analyzer",
+        "priority": "low",
+        "position": 5120,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddda-72da-8b92-c73423bf15",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd8a-7021-85df-ac924770d3",
+        "title": "TUN/TProxy и policy routing по UID/cgroup",
+        "description": "Зачем: v0.4 §9: только research plan. Большой объём, пересекается с mihomo/sing-box.\n\nГотово, когда: вернуться после ADR по Discord-перекосу и защиты SOCKS-inbound; вероятно — делегировать внешнему ядру (sing-box tun) а не писать своё.",
+        "priority": "low",
+        "position": 1024,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-dddc-7210-8941-d96bc9947a",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd8a-7021-85df-ac924770d3",
+        "title": "Встроенный updater приложения/списков",
+        "description": "Зачем: Arch-пакет обновляется pacman; списки — только после модели срока годности и доверенных источников.\n\nГотово, когда: вернуться, когда появится редактор листов и upstream-drift проверка.",
+        "priority": "low",
+        "position": 2048,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-ddde-70ba-8f04-a48bfb2fcf",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd8a-7021-85df-ac924770d3",
+        "title": "Privileged integration tests в network namespace/VM",
+        "description": "Зачем: v0.4 §12; p06_vm_acceptance.sh есть, но регулярного контура нет.\n\nГотово, когда: вернуться после восстановления воспроизводимого тестового входа.",
+        "priority": "medium",
+        "position": 3072,
+        "archivedAt": null
+      },
+      {
+        "id": "01a13ca4-dde0-7142-836f-885edf44c0",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd83-725e-8dd4-243ceb3ffd",
+        "title": "Новые классы блокировок 2026: JA4-отпечаток, «вечный HTTP/2», белые списки подсетей",
+        "description": "Зачем: wiki фиксирует датированные наблюдения (июнь–окт 2026). Это гипотезы, не законы — но диагностика должна уметь их различать (JA4 браузера vs SNI vs IP-whitelist).\n\nГотово, когда: в HAR/health добавлены классификаторы симптомов с пометкой 'hypothesis, dated' и ссылкой на источник; никаких авто-рецептов.\n\nИсточник: wiki DPI/browser-ja4-fingerprint-block, tspu-h2-h3-fingerprint-hypothesis, subnet-whitelist-blocking-2026",
+        "priority": "low",
+        "position": 6144,
+        "archivedAt": null
+      }
+    ],
+    "labels": [
+      {
+        "id": "01a13ca4-dd8b-7376-8852-5373cf256d",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "core",
+        "color": "#8e44ad",
+        "description": "Ядро zapret2/nfqws2, overlay, сборка"
+      },
+      {
+        "id": "01a13ca4-dd8c-7113-8736-9a797d76de",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "runtime",
+        "color": "#2f80ed",
+        "description": "nft/NFQUEUE, lifecycle, сервис, автозапуск"
+      },
+      {
+        "id": "01a13ca4-dd8d-7129-8bc6-22424e617b",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "presets",
+        "color": "#27ae60",
+        "description": "Пресеты, профили, стратегии, листы"
+      },
+      {
+        "id": "01a13ca4-dd8e-7276-8a8d-f91b591d75",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "diagnostics",
+        "color": "#f2994a",
+        "description": "Blockcheck, HAR, health, логи"
+      },
+      {
+        "id": "01a13ca4-dd8f-70d5-8fef-16f71a1bfc",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "tunnel",
+        "color": "#56ccf2",
+        "description": "VLESS/SOCKS/Tor, внешние ядра"
+      },
+      {
+        "id": "01a13ca4-dd90-71e0-87be-1b5c8cc1ab",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "security",
+        "color": "#eb5757",
+        "description": "Приватность, локальные поверхности атаки, секреты"
+      },
+      {
+        "id": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "ux",
+        "color": "#bb6bd9",
+        "description": "GUI и повседневный сценарий"
+      },
+      {
+        "id": "01a13ca4-dd92-707d-8c35-772e675fc7",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "packaging",
+        "color": "#828282",
+        "description": "Пакет, установка, обновление"
+      },
+      {
+        "id": "01a13ca4-dd93-702c-84ab-9bad581e57",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "process",
+        "color": "#333333",
+        "description": "devctl, тесты, документация, доска"
+      },
+      {
+        "id": "01a13ca4-dd94-72e4-825a-81e7d80068",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "win-parity",
+        "color": "#f2c94c",
+        "description": "Отставание от Windows-референса zapretgui"
+      },
+      {
+        "id": "01a13ca4-dd95-71ac-8068-702a3a2107",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "name": "misaligned",
+        "color": "#b00020",
+        "description": "Лежит не так, как требуют инварианты проекта"
+      }
+    ],
+    "cardLabels": [
+      {
+        "cardId": "01a13ca4-dd96-73a1-823e-02f54d35bf",
+        "labelId": "01a13ca4-dd8b-7376-8852-5373cf256d"
+      },
+      {
+        "cardId": "01a13ca4-dd98-7188-80ca-00b65c1c28",
+        "labelId": "01a13ca4-dd92-707d-8c35-772e675fc7"
+      },
+      {
+        "cardId": "01a13ca4-dd9a-73a0-87e6-c3bf4e7af6",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "01a13ca4-dd9a-73a0-87e6-c3bf4e7af6",
+        "labelId": "01a13ca4-dd90-71e0-87be-1b5c8cc1ab"
+      },
+      {
+        "cardId": "01a13ca4-dd9a-73a0-87e6-c3bf4e7af6",
+        "labelId": "01a13ca4-dd93-702c-84ab-9bad581e57"
+      },
+      {
+        "cardId": "01a13ca4-dd9c-72f8-82ba-3e1ceac2cc",
+        "labelId": "01a13ca4-dd8c-7113-8736-9a797d76de"
+      },
+      {
+        "cardId": "01a13ca4-dd9d-704d-8f15-ab8c5187c1",
+        "labelId": "01a13ca4-dd8f-70d5-8fef-16f71a1bfc"
+      },
+      {
+        "cardId": "01a13ca4-dd9d-704d-8f15-ab8c5187c1",
+        "labelId": "01a13ca4-dd90-71e0-87be-1b5c8cc1ab"
+      },
+      {
+        "cardId": "01a13ca4-dd9d-704d-8f15-ab8c5187c1",
+        "labelId": "01a13ca4-dd95-71ac-8068-702a3a2107"
+      },
+      {
+        "cardId": "01a13ca4-dda5-726e-857c-8eae97d9db",
+        "labelId": "01a13ca4-dd93-702c-84ab-9bad581e57"
+      },
+      {
+        "cardId": "01a13ca4-dda5-726e-857c-8eae97d9db",
+        "labelId": "01a13ca4-dd95-71ac-8068-702a3a2107"
+      },
+      {
+        "cardId": "01a13ca4-dda7-7109-8e54-c135b8cfae",
+        "labelId": "01a13ca4-dd93-702c-84ab-9bad581e57"
+      },
+      {
+        "cardId": "01a13ca4-dda7-7109-8e54-c135b8cfae",
+        "labelId": "01a13ca4-dd95-71ac-8068-702a3a2107"
+      },
+      {
+        "cardId": "01a13ca4-dda9-7154-832b-be618a9261",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "01a13ca4-dda9-7154-832b-be618a9261",
+        "labelId": "01a13ca4-dd8f-70d5-8fef-16f71a1bfc"
+      },
+      {
+        "cardId": "01a13ca4-dda9-7154-832b-be618a9261",
+        "labelId": "01a13ca4-dd95-71ac-8068-702a3a2107"
+      },
+      {
+        "cardId": "01a13ca4-ddab-7124-8f34-0509de8895",
+        "labelId": "01a13ca4-dd93-702c-84ab-9bad581e57"
+      },
+      {
+        "cardId": "01a13ca4-ddab-7124-8f34-0509de8895",
+        "labelId": "01a13ca4-dd95-71ac-8068-702a3a2107"
+      },
+      {
+        "cardId": "01a13ca4-ddad-71ab-8b73-d24599a084",
+        "labelId": "01a13ca4-dd93-702c-84ab-9bad581e57"
+      },
+      {
+        "cardId": "01a13ca4-ddaf-7040-8069-985a1298a1",
+        "labelId": "01a13ca4-dd8d-7129-8bc6-22424e617b"
+      },
+      {
+        "cardId": "01a13ca4-ddaf-7040-8069-985a1298a1",
+        "labelId": "01a13ca4-dd8b-7376-8852-5373cf256d"
+      },
+      {
+        "cardId": "01a13ca4-ddaf-7040-8069-985a1298a1",
+        "labelId": "01a13ca4-dd94-72e4-825a-81e7d80068"
+      },
+      {
+        "cardId": "01a13ca4-ddb6-73ea-8fdd-0ce9e4817a",
+        "labelId": "01a13ca4-dd8d-7129-8bc6-22424e617b"
+      },
+      {
+        "cardId": "01a13ca4-ddb6-73ea-8fdd-0ce9e4817a",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "01a13ca4-ddb6-73ea-8fdd-0ce9e4817a",
+        "labelId": "01a13ca4-dd94-72e4-825a-81e7d80068"
+      },
+      {
+        "cardId": "01a13ca4-ddb8-7364-8ac1-c0f7467ac9",
+        "labelId": "01a13ca4-dd8c-7113-8736-9a797d76de"
+      },
+      {
+        "cardId": "01a13ca4-ddb8-7364-8ac1-c0f7467ac9",
+        "labelId": "01a13ca4-dd94-72e4-825a-81e7d80068"
+      },
+      {
+        "cardId": "01a13ca4-ddba-70c9-8e38-2994ac807a",
+        "labelId": "01a13ca4-dd8d-7129-8bc6-22424e617b"
+      },
+      {
+        "cardId": "01a13ca4-ddba-70c9-8e38-2994ac807a",
+        "labelId": "01a13ca4-dd94-72e4-825a-81e7d80068"
+      },
+      {
+        "cardId": "01a13ca4-ddbc-7122-8391-3e4ecc6c7f",
+        "labelId": "01a13ca4-dd8d-7129-8bc6-22424e617b"
+      },
+      {
+        "cardId": "01a13ca4-ddbc-7122-8391-3e4ecc6c7f",
+        "labelId": "01a13ca4-dd94-72e4-825a-81e7d80068"
+      },
+      {
+        "cardId": "01a13ca4-ddbe-724d-811f-2eed90dafc",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "01a13ca4-ddbe-724d-811f-2eed90dafc",
+        "labelId": "01a13ca4-dd90-71e0-87be-1b5c8cc1ab"
+      },
+      {
+        "cardId": "01a13ca4-ddbe-724d-811f-2eed90dafc",
+        "labelId": "01a13ca4-dd94-72e4-825a-81e7d80068"
+      },
+      {
+        "cardId": "01a13ca4-ddc0-707f-8d8f-0079e58218",
+        "labelId": "01a13ca4-dd8d-7129-8bc6-22424e617b"
+      },
+      {
+        "cardId": "01a13ca4-ddc0-707f-8d8f-0079e58218",
+        "labelId": "01a13ca4-dd94-72e4-825a-81e7d80068"
+      },
+      {
+        "cardId": "01a13ca4-ddc2-713f-8796-03122088a5",
+        "labelId": "01a13ca4-dd8b-7376-8852-5373cf256d"
+      },
+      {
+        "cardId": "01a13ca4-ddc2-713f-8796-03122088a5",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "01a13ca4-ddc8-7320-8fb7-5012cc16df",
+        "labelId": "01a13ca4-dd8c-7113-8736-9a797d76de"
+      },
+      {
+        "cardId": "01a13ca4-ddc8-7320-8fb7-5012cc16df",
+        "labelId": "01a13ca4-dd8f-70d5-8fef-16f71a1bfc"
+      },
+      {
+        "cardId": "01a13ca4-ddc8-7320-8fb7-5012cc16df",
+        "labelId": "01a13ca4-dd8b-7376-8852-5373cf256d"
+      },
+      {
+        "cardId": "01a13ca4-ddca-7271-8479-a4dc1729ca",
+        "labelId": "01a13ca4-dd8b-7376-8852-5373cf256d"
+      },
+      {
+        "cardId": "01a13ca4-ddca-7271-8479-a4dc1729ca",
+        "labelId": "01a13ca4-dd93-702c-84ab-9bad581e57"
+      },
+      {
+        "cardId": "01a13ca4-ddcc-71da-8603-ef5edcccc1",
+        "labelId": "01a13ca4-dd8f-70d5-8fef-16f71a1bfc"
+      },
+      {
+        "cardId": "01a13ca4-ddcc-71da-8603-ef5edcccc1",
+        "labelId": "01a13ca4-dd90-71e0-87be-1b5c8cc1ab"
+      },
+      {
+        "cardId": "01a13ca4-ddce-70c0-8299-73d081a3d4",
+        "labelId": "01a13ca4-dd90-71e0-87be-1b5c8cc1ab"
+      },
+      {
+        "cardId": "01a13ca4-ddce-70c0-8299-73d081a3d4",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "01a13ca4-ddd0-7193-8652-8d4580711b",
+        "labelId": "01a13ca4-dd8d-7129-8bc6-22424e617b"
+      },
+      {
+        "cardId": "01a13ca4-ddd0-7193-8652-8d4580711b",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "01a13ca4-ddd2-7313-8dc6-3f250c67f3",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "01a13ca4-ddd2-7313-8dc6-3f250c67f3",
+        "labelId": "01a13ca4-dd8c-7113-8736-9a797d76de"
+      },
+      {
+        "cardId": "01a13ca4-ddd4-7122-864e-85bb459fdf",
+        "labelId": "01a13ca4-dd8d-7129-8bc6-22424e617b"
+      },
+      {
+        "cardId": "01a13ca4-ddd4-7122-864e-85bb459fdf",
+        "labelId": "01a13ca4-dd8b-7376-8852-5373cf256d"
+      },
+      {
+        "cardId": "01a13ca4-ddd6-731c-87d3-a3caa1718e",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "01a13ca4-ddd6-731c-87d3-a3caa1718e",
+        "labelId": "01a13ca4-dd94-72e4-825a-81e7d80068"
+      },
+      {
+        "cardId": "01a13ca4-ddd8-73e5-8179-2d65c1d4b4",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "01a13ca4-ddd8-73e5-8179-2d65c1d4b4",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "01a13ca4-ddd8-73e5-8179-2d65c1d4b4",
+        "labelId": "01a13ca4-dd94-72e4-825a-81e7d80068"
+      },
+      {
+        "cardId": "01a13ca4-ddda-72da-8b92-c73423bf15",
+        "labelId": "01a13ca4-dd8f-70d5-8fef-16f71a1bfc"
+      },
+      {
+        "cardId": "01a13ca4-dddc-7210-8941-d96bc9947a",
+        "labelId": "01a13ca4-dd92-707d-8c35-772e675fc7"
+      },
+      {
+        "cardId": "01a13ca4-ddde-70ba-8f04-a48bfb2fcf",
+        "labelId": "01a13ca4-dd93-702c-84ab-9bad581e57"
+      },
+      {
+        "cardId": "01a13ca4-ddde-70ba-8f04-a48bfb2fcf",
+        "labelId": "01a13ca4-dd8c-7113-8736-9a797d76de"
+      },
+      {
+        "cardId": "01a13ca4-dde0-7142-836f-885edf44c0",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      }
+    ],
+    "checklists": [
+      {
+        "id": "01a13ca4-dd9e-733b-8789-108a013fda",
+        "cardId": "01a13ca4-dd9d-704d-8f15-ab8c5187c1",
+        "title": "Шаги",
+        "position": 1024
+      },
+      {
+        "id": "01a13ca4-ddb0-7143-8064-5c8c541241",
+        "cardId": "01a13ca4-ddaf-7040-8069-985a1298a1",
+        "title": "Шаги",
+        "position": 1024
+      },
+      {
+        "id": "01a13ca4-ddc3-7076-8e12-aa1325af10",
+        "cardId": "01a13ca4-ddc2-713f-8796-03122088a5",
+        "title": "Пункты",
+        "position": 1024
+      }
+    ],
+    "checklistItems": [
+      {
+        "id": "01a13ca4-dd9f-71e0-8d91-af0324aac3",
+        "checklistId": "01a13ca4-dd9e-733b-8789-108a013fda",
+        "title": "Креды на сессию в generated config (xray accounts)",
+        "isDone": false,
+        "position": 1024
+      },
+      {
+        "id": "01a13ca4-dda0-73b4-8bbc-7013d1e9e3",
+        "checklistId": "01a13ca4-dd9e-733b-8789-108a013fda",
+        "title": "SOCKS probe с RFC1929 auth",
+        "isDone": false,
+        "position": 2048
+      },
+      {
+        "id": "01a13ca4-dda1-70ab-8449-1792010b38",
+        "checklistId": "01a13ca4-dd9e-733b-8789-108a013fda",
+        "title": "Порт не из публичного списка (1080/10808/9000/16000-16100)",
+        "isDone": false,
+        "position": 3072
+      },
+      {
+        "id": "01a13ca4-dda2-716d-8a44-f387684f34",
+        "checklistId": "01a13ca4-dd9e-733b-8789-108a013fda",
+        "title": "Регресс-тест: noauth запрещён",
+        "isDone": false,
+        "position": 4096
+      },
+      {
+        "id": "01a13ca4-dda3-7157-86b2-e38c773fe6",
+        "checklistId": "01a13ca4-dd9e-733b-8789-108a013fda",
+        "title": "Проверить host-route leak (/proc/net/route) при запуске ядра",
+        "isDone": false,
+        "position": 5120
+      },
+      {
+        "id": "01a13ca4-ddb1-7160-8980-3a111f4efd",
+        "checklistId": "01a13ca4-ddb0-7143-8064-5c8c541241",
+        "title": "Модель профиля circular в execution plan",
+        "isDone": false,
+        "position": 1024
+      },
+      {
+        "id": "01a13ca4-ddb2-736c-83b6-907f5e8e61",
+        "checklistId": "01a13ca4-ddb0-7143-8064-5c8c541241",
+        "title": "Выбор стратегий-кандидатов из результатов Blockcheck",
+        "isDone": false,
+        "position": 2048
+      },
+      {
+        "id": "01a13ca4-ddb3-735a-89d3-6f3e572e0f",
+        "checklistId": "01a13ca4-ddb0-7143-8064-5c8c541241",
+        "title": "Захват входящих (in-range) только для нужных профилей",
+        "isDone": false,
+        "position": 3072
+      },
+      {
+        "id": "01a13ca4-ddb4-7112-8c1a-ebfa7576c5",
+        "checklistId": "01a13ca4-ddb0-7143-8064-5c8c541241",
+        "title": "Отображение переключений из debug-лога",
+        "isDone": false,
+        "position": 4096
+      },
+      {
+        "id": "01a13ca4-ddc4-71dd-88f2-13bdde03f1",
+        "checklistId": "01a13ca4-ddc3-7076-8e12-aa1325af10",
+        "title": "--filter-mark в parser preflight",
+        "isDone": false,
+        "position": 1024
+      },
+      {
+        "id": "01a13ca4-ddc5-7026-8332-dfaf2a6a52",
+        "checklistId": "01a13ca4-ddc3-7076-8e12-aa1325af10",
+        "title": "CURL_PAD в blockcheck_gui",
+        "isDone": false,
+        "position": 2048
+      },
+      {
+        "id": "01a13ca4-ddc6-7079-846a-48e8e6a305",
+        "checklistId": "01a13ca4-ddc3-7076-8e12-aa1325af10",
+        "title": "парсер COVERAGE",
+        "isDone": false,
+        "position": 3072
+      }
+    ],
+    "comments": [
+      {
+        "id": "01a13ca4-dd97-731e-8167-ebecc3f80c",
+        "cardId": "01a13ca4-dd96-73a1-823e-02f54d35bf",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): upstream после пина — 3 коммита без новой версии (docs, spelling, 'rare partial root environment'). Ядро фактически актуально.",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-dd99-7312-8ee2-57608099f6",
+        "cardId": "01a13ca4-dd98-7188-80ca-00b65c1c28",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): закрыто в P06/v1.1. Из KNOWN_GAPS §1 закрыты 2 пункта из 4 открытых.",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-dd9b-71eb-8662-9ca603e9e1",
+        "cardId": "01a13ca4-dd9a-73a0-87e6-c3bf4e7af6",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): P05/P06/v1.1 (последний патч — HAR sanitize, d58c8cd→aab420c).",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-dda4-703b-8c54-845425b7b2",
+        "cardId": "01a13ca4-dd9d-704d-8f15-ab8c5187c1",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): grep discord_tunnel.py строки 57-58, 1285, 2254, 2272, 2658, 2799 ('Verify that the loopback listener speaks no-auth SOCKS5').",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-dda6-71af-83be-aca3b48c4a",
+        "cardId": "01a13ca4-dda5-726e-857c-8eae97d9db",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): python3 -m unittest discover -s tests → Ran 81, errors=81 (ModuleNotFoundError: pytest).",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-dda8-7251-8653-6275673fca",
+        "cardId": "01a13ca4-dda7-7109-8e54-c135b8cfae",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): meta_tools/devctl/devctl.py DEVCTL_VERSION=0.6.7; архив devctl → 0.9.0.",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddaa-7072-800c-5fa3b1799d",
+        "cardId": "01a13ca4-dda9-7154-832b-be618a9261",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): ls gui/zap2_gui/adapters — 12 из 56 модулей discord_*; туннель = discord_tunnel.py (2800+ строк).",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddac-7214-8804-046895cea8",
+        "cardId": "01a13ca4-ddab-7124-8f34-0509de8895",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): docs/*.md верхнего уровня ≈ 90, PROJECT_STATUS/KNOWN_GAPS/SOURCE_ALIGNMENT — stub'ы на history/.",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddae-704e-8376-9ce3658966",
+        "cardId": "01a13ca4-ddad-71ab-8b73-d24599a084",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): docs/history/stages/KNOWN_GAPS_CHECKLISTS.md — снимок v0.4-alpha_stage8f-r3.",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddb5-7369-8aed-589dfcfbd4",
+        "cardId": "01a13ca4-ddaf-7040-8069-985a1298a1",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): grep circular по gui/tools = 0 совпадений.",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddb7-73f3-897a-7517208331",
+        "cardId": "01a13ca4-ddb6-73ea-8fdd-0ce9e4817a",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): grep редактор листов — нет. После карточки «живой реестр долга».",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddb9-7178-8940-900ae59635",
+        "cardId": "01a13ca4-ddb8-7364-8ac1-c0f7467ac9",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): grep autostart = 0; runtime_service.py — только планы (тесты не вызывают systemctl).",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddbb-7056-8a3d-2339643825",
+        "cardId": "01a13ca4-ddba-70c9-8e38-2994ac807a",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): zapretgui HEAD 9037a009 (2026-10-10), 21.1.1.5; strat_collection.json updated 2025-04.",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddbd-70ba-810e-cb7e96ba87",
+        "cardId": "01a13ca4-ddbc-7122-8391-3e4ecc6c7f",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddbf-71c6-8e40-5871f4a4e4",
+        "cardId": "01a13ca4-ddbe-724d-811f-2eed90dafc",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddc1-7127-8c6d-846a2ca9a3",
+        "cardId": "01a13ca4-ddc0-707f-8d8f-0079e58218",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddc7-7208-8aa1-f752e17fd9",
+        "cardId": "01a13ca4-ddc2-713f-8796-03122088a5",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): grep filter-mark/CURL_PAD в gui = 0; COVERAGE встречается только в своём смысле.",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddc9-707d-824b-ee47a1fca7",
+        "cardId": "01a13ca4-ddc8-7320-8fb7-5012cc16df",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddcb-7256-8d56-0a736a9625",
+        "cardId": "01a13ca4-ddca-7271-8479-a4dc1729ca",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddcd-7102-8cb4-00cc92d33d",
+        "cardId": "01a13ca4-ddcc-71da-8603-ef5edcccc1",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddcf-71c0-800d-a32534c02d",
+        "cardId": "01a13ca4-ddce-70c0-8299-73d081a3d4",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddd1-735b-8c60-4d81854f8a",
+        "cardId": "01a13ca4-ddd0-7193-8652-8d4580711b",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddd3-7360-80b6-e27f041728",
+        "cardId": "01a13ca4-ddd2-7313-8dc6-3f250c67f3",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddd5-72ce-8234-9633183edb",
+        "cardId": "01a13ca4-ddd4-7122-864e-85bb459fdf",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): профили discord-voice-* есть; приёмки владельца нет.",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddd7-72f3-8a00-20255d4b38",
+        "cardId": "01a13ca4-ddd6-731c-87d3-a3caa1718e",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt): grep QSystemTrayIcon = 0.",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-ddd9-7312-8417-0214c25b99",
+        "cardId": "01a13ca4-ddd8-73e5-8179-2d65c1d4b4",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-dddb-725c-8c8e-cd156199d0",
+        "cardId": "01a13ca4-ddda-72da-8b92-c73423bf15",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-dddd-7365-8886-25e98f559d",
+        "cardId": "01a13ca4-dddc-7210-8941-d96bc9947a",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-dddf-7220-89fb-3ac299f156",
+        "cardId": "01a13ca4-ddde-70ba-8f04-a48bfb2fcf",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-dde1-71b7-8426-8d31cd3165",
+        "cardId": "01a13ca4-dde0-7142-836f-885edf44c0",
+        "body": "research 2026-10-15 (срез aab420c + devctl 0.9.0 + upstream a1adf7b + zapretgui 9037a009 + wiki llms.txt)",
+        "createdAt": "2026-10-15T06:00:00Z"
+      },
+      {
+        "id": "01a13ca4-de1e-7000-8000-c135b8cfae",
+        "cardId": "01a13ca4-dda7-7109-8e54-c135b8cfae",
+        "body": "patch 2026-10-15-devctl-external-board: вендоренная копия meta_tools/devctl удалена, добавлен docs/developer/devctl.md; структурные проверки требуют отсутствия meta_tools/devctl.",
+        "createdAt": "2026-10-15T12:00:00Z"
+      },
+      {
+        "id": "01a13ca4-de1f-7000-8000-d24599a084",
+        "cardId": "01a13ca4-ddad-71ab-8b73-d24599a084",
+        "body": "patch 2026-10-15-devctl-external-board: доска закоммичена как board/board.json с правилами board/README.md и проверкой tools/gui_checks/check_board.py; docs/KNOWN_GAPS_CHECKLISTS.md ссылается на неё.",
+        "createdAt": "2026-10-15T12:00:00Z"
+      }
+    ],
+    "boardAppearanceSettings": [],
+    "activityEntries": []
+  },
+  "restoreHints": {
+    "recommendedStrategy": "create_copy",
+    "requiresManualReview": false,
+    "destructiveRestoreAllowed": false
+  }
+}

@@ -40,5 +40,7 @@ def test_tools_and_meta_tools_layout() -> None:
     assert (root / "tools/gui_checks/check_project_tree.py").exists()
     assert (root / "tools/experimental/README.md").exists()
     assert (root / "tools/lowlevel/README.md").exists()
-    assert (root / "meta_tools/devctl/devctl.py").exists()
+    assert (root / "docs/developer/devctl.md").exists()
+    assert (root / "board/board.json").exists()
+    assert not (root / "meta_tools/devctl").exists()
     assert not (root / "tools/check_project_tree.py").exists()

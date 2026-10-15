@@ -134,10 +134,9 @@ REQUIRED_PATHS = [
     "tools/experimental/README.md",
     "tools/lowlevel/README.md",
     "meta_tools/README.md",
-    "meta_tools/devctl/README.md",
-    "meta_tools/devctl/devctl.py",
-    "meta_tools/devctl/install.sh",
-    "meta_tools/devctl/docs/patch-manifest.example.json",
+    "docs/developer/devctl.md",
+    "board/README.md",
+    "board/board.json",
     "docs/reference/windows_gui_feature_digest.md",
     "docs/reference/legacy_project_digest.md",
     "strategies/imported/windows-default-v1-game-filter.txt",
@@ -240,7 +239,8 @@ PROJECT_DOCUMENTATION_PATHS = [
     "tools/experimental/README.md",
     "tools/lowlevel/README.md",
     "meta_tools/README.md",
-    "meta_tools/devctl/README.md",
+    "docs/developer/devctl.md",
+    "board/README.md",
     "docs/VERSIONING.md",
     "docs/reference/legacy_project_digest.md",
     "docs/reference/windows_gui_feature_digest.md",
@@ -274,6 +274,10 @@ def main() -> int:
         print("Отсутствуют обязательные пути:")
         for path in missing:
             print(f" - {path}")
+        return 1
+
+    if (ROOT / "meta_tools/devctl").exists():
+        print("meta_tools/devctl не должен существовать: devctl — внешний инструмент (docs/developer/devctl.md)")
         return 1
 
     manifest_path = ROOT / "core/zapret2/UPSTREAM_IMPORT.json"

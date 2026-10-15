@@ -1,7 +1,9 @@
-# v1.1 — HAR sanitize в диагностике GUI
+# Внешний devctl ≥0.9.0 и живая доска долга
 
-База d58c8cd, product 1.1.0 (версия не меняется). В «Диагностика → Blockcheck lab» добавлена кнопка «HAR sanitize»: выбор HAR (.har, .har.gz, .zip), профиля balanced/strict и файла результата; исходный HAR не изменяется, сеть/sudo/firewall/hostlists не затрагиваются. Новый adapter `gui/zap2_gui/adapters/har_sanitizer.py` использует только стандартную библиотеку и тот же файл работает как независимый скрипт.
+База aab420c, product 1.1.0 (версия не меняется). Первый патч пачки `2026-10-15-ready-to-patch-r1`.
 
-Очистка default-deny: cookie, авторизация, значения query, тела запросов/ответов, WebSocket payloads, фрагменты и логины в URL, нестандартные поля удаляются или заменяются redacted-метками `REDACTED_<id>`; идентификаторы в путях получают псевдонимы той же формы. Остаются хосты, маршруты, методы, статусы, версии HTTP, тайминги, размеры, коды ошибок, имена заголовков и транспортные/CDN-заголовки. Контрольный проход повторно ищет в результате всё скрытое и известные форматы токенов.
+Вендоренная копия devctl 0.6.7 (`meta_tools/devctl`) удалена: devctl — внешний инструмент ≥0.9.0, его конфигурация `.devctl/` живёт в корне workspace уровнем выше, а не в проекте. Правила применения патчей и пачек описаны в `docs/developer/devctl.md`. Две версии devctl создавали риск, что патч проверяется не тем инструментом, которым применяется.
 
-ActionContract, CLI parser, dispatcher и generated reference не менялись: новой CLI-опции и нового действия нет. Обновлены shipping allowlist и v1.1 source freeze. Реальный PyQt6-клик проверяется тестом при наличии PyQt6; в контейнере без PyQt6 этот тест помечается skip и не объявляется PASS.
+Добавлена доска `board/board.json` (формат p2p_planner_bundle, импортируется в p2pKanban) — живой реестр долга вместо замороженного KNOWN_GAPS v0.4. Её источник — глобальное исследование 15.10.2026: upstream zapret2, wiki.zapret.moe, Windows-референс zapretgui. Каждый патч обязан обновлять доску и оставлять комментарий с patchId. Целостность доски проверяет `tools/gui_checks/check_board.py`, его вызывает `tests/test_board.py`.
+
+Структурные проверки (`test_bootstrap_structure`, `check_project_tree`) теперь требуют `docs/developer/devctl.md` и `board/board.json` и запрещают `meta_tools/devctl`. v1.1 source freeze пересчитан (`p07_qualification.py --freeze`), потому что изменился набор файлов.
