@@ -41,6 +41,35 @@ if "version" in sys.argv:
     print("Xray fake-p01")
     raise SystemExit(0)
 port = int(json.loads(config.read_text(encoding="utf-8"))["inbounds"][0]["port"])
+def _socks_settings():
+    try:
+        return json.loads(config.read_text(encoding="utf-8"))["inbounds"][0].get("settings", {})
+    except Exception:
+        return {}
+SOCKS_SETTINGS = _socks_settings()
+def handle(conn):
+    # RFC1928/RFC1929 fake: honour the generated inbound auth mode.
+    head = conn.recv(2)
+    if len(head) < 2 or head[0] != 5:
+        return
+    methods = conn.recv(head[1])
+    if SOCKS_SETTINGS.get("auth") == "password":
+        if 2 not in methods:
+            conn.sendall(b"\x05\xff"); return
+        conn.sendall(b"\x05\x02")
+        ver_len = conn.recv(2); user = conn.recv(ver_len[1]); plen = conn.recv(1)[0]; pw = conn.recv(plen)
+        ok = any(a.get("user") == user.decode() and a.get("pass") == pw.decode() for a in SOCKS_SETTINGS.get("accounts", []))
+        conn.sendall(b"\x01\x00" if ok else b"\x01\x01")
+        if not ok:
+            return
+    else:
+        if 0 not in methods:
+            conn.sendall(b"\x05\xff"); return
+        conn.sendall(b"\x05\x00")
+    try:
+        conn.recv(4096)
+    except OSError:
+        pass
 server = socket.socket(); server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(("127.0.0.1", port)); server.listen(16); server.settimeout(0.2)
 started=time.time()
@@ -48,8 +77,10 @@ while time.time()-started < 30:
     try: conn,_=server.accept()
     except socket.timeout: continue
     with conn:
-        data=conn.recv(3)
-        if data == b"\x05\x01\x00": conn.sendall(b"\x05\x00")
+        try:
+            handle(conn)
+        except Exception:
+            pass
 '''
 
 
@@ -212,7 +243,9 @@ def test_socks_plan_records_containment_not_fake_auth(tmp_path: Path) -> None:
     plan = json.loads((tmp_path / ".zap2" / "runtime" / "plans" / "runtime-default-discord-tunnel-socks-start-plan.json").read_text(encoding="utf-8"))
 
     assert plan["localSocks"]["host"] == "127.0.0.1"
-    assert plan["localSocks"]["auth"] == "noauth"
+    assert plan["localSocks"]["auth"] == "password"
+    assert len(plan["localSocks"]["credentialFingerprint"]) == 16
+    assert "pass" not in json.dumps(plan["localSocks"]).replace("password", "")
     assert plan["localSocks"]["udp"] is False
     assert plan["localSocks"]["randomPortIsAuthentication"] is False
     assert plan["safety"]["socksContainment"]["loopbackOnly"] is True

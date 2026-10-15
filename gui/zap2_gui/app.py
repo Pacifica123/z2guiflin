@@ -509,7 +509,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--tunnel-socks-port",
         type=int,
         default=DEFAULT_SOCKS_PORT,
-        help="локальный loopback SOCKS port для tunnel lane; по умолчанию 10808",
+        help="локальный loopback SOCKS port для tunnel lane; 0 (по умолчанию) = случайный свободный порт 20000-60999",
+    )
+    parser.add_argument(
+        "--tunnel-socks-legacy-noauth",
+        action="store_true",
+        help="НЕБЕЗОПАСНО: SOCKS inbound без пароля (только для Chromium/Electron --proxy-server, который не умеет SOCKS auth); localhost ≠ private",
     )
     parser.add_argument("--tor-backend", choices=SUPPORTED_TOR_BACKENDS, default=DEFAULT_TOR_BACKEND, help="Tor backend: системный C Tor или отдельный Arti")
     parser.add_argument("--tor-binary", default=None, help="явный путь к tor/arti binary")
@@ -1392,7 +1397,7 @@ def dispatch_legacy_compat(args: argparse.Namespace, expected_selector: str) -> 
 
     if args.discord_tunnel_plan:
         try:
-            print(discord_tunnel_plan_to_text(profile_id=args.profile, core_binary=args.tunnel_core_binary, core_kind=args.tunnel_core_kind, socks_port=args.tunnel_socks_port))
+            print(discord_tunnel_plan_to_text(profile_id=args.profile, core_binary=args.tunnel_core_binary, core_kind=args.tunnel_core_kind, socks_port=args.tunnel_socks_port, socks_auth_mode="legacy-noauth" if args.tunnel_socks_legacy_noauth else "password"))
             return 0
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
@@ -1459,6 +1464,7 @@ def dispatch_legacy_compat(args: argparse.Namespace, expected_selector: str) -> 
                 updater_result=str(args.discord_updater_result),
                 interactive=not args.tunnel_guided_no_wait,
                 emit=print,
+                socks_auth_mode="legacy-noauth" if args.tunnel_socks_legacy_noauth else "password",
             )
             print(text)
             return 0

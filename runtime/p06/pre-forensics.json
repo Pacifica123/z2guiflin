@@ -9,7 +9,7 @@
     "gui/zap2_gui/models/action_bindings_generated.py": "1b22bf6f06f8dfebe10b2f45042bd20c058b31f1c6ea0191c9f1a4dfb9c7bc34",
     "gui/zap2_gui/adapters/action_dispatcher.py": "1e49ba135934e7cd5fd7bb3ec957609ec8257a58daa12c2368d986368d9896e2",
     "gui/zap2_gui/adapters/legacy_cli.py": "5f4e318db8233cf0586fa1a0c91ceae1847ffdca1c9d1f6a896bf4e5130e9297",
-    "gui/zap2_gui/app.py": "2d11274035d2bb87aafe102db5d30f06c43d22eae3abaf611a71b2c39b52fd93",
+    "gui/zap2_gui/app.py": "ee656cdb4a65a9628f1e68991c488b48c423154bcc4f17119634755b8afe4378",
     "core/zapret2/UPSTREAM_IMPORT.json": "8e31eb82e3c06f5803d60e95eb27f2c80b513b98530443927c33770447a7f8c1"
   },
   "preservedActionContracts": 119,

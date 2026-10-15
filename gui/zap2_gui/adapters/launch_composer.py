@@ -330,7 +330,8 @@ def launch_composer_plan_to_text(
                 "VLESS tunnel inputs:",
                 f"- core kind: {core_kind}",
                 f"- core binary: {'set' if core_binary else 'not set'}",
-                f"- socks port: {socks_port}",
+                f"- socks port: {socks_port if socks_port else 'auto (random 20000-60999)'}",
+                "- socks auth: password (per-session random credentials)",
                 f"- readiness: {ready}",
                 "- route: local SOCKS listener only; client apps must be launched/configured to use it",
             ]

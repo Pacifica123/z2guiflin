@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 31,
-        "comments": 33,
+        "cards": 33,
+        "comments": 34,
         "checklists": 3,
         "attachments": 0
       },
@@ -32,8 +32,8 @@
   "origin": {
     "generatedAt": "2026-10-15T06:00:00Z",
     "selfHosted": true,
-    "boardRevision": 3,
-    "lastPatchId": "2026-10-15-reproducible-tests",
+    "boardRevision": 4,
+    "lastPatchId": "2026-10-15-tunnel-socks-auth",
     "rules": "board/README.md"
   },
   "includes": {
@@ -162,11 +162,11 @@
       {
         "id": "01a13ca4-dd9d-704d-8f15-ab8c5187c1",
         "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
-        "columnId": "01a13ca4-dd86-724b-8977-facb1855fe",
-        "title": "SOCKS5-inbound туннеля без аутентификации на 127.0.0.1:10808",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "title": "Локальный SOCKS5 туннеля защищён паролем и случайным портом",
         "description": "Зачем: discord_tunnel.py генерирует inbound {auth: noauth} на дефолтном порту v2rayN. Это ровно класс уязвимости из wiki (VLESS-SOCKS5-vulnerability, 07.04.2026): любое локальное приложение находит прокси сканом loopback и раскрывает IP сервера. Нарушает инвариант localhost ≠ private.\n\nГотово, когда: inbound генерируется с auth=password и случайными кредами на сессию (или unix-socket/рандомный порт), probe/launcher используют креды, тест запрещает noauth в генерируемом конфиге, в UI показан статус защиты.\n\nИсточник: wiki.zapret.moe/VLESS-SOCKS5-vulnerability, VLESS-localhost-protection-guide",
         "priority": "high",
-        "position": 1024,
+        "position": 8192,
         "archivedAt": null
       },
       {
@@ -426,6 +426,26 @@
         "title": "Новые классы блокировок 2026: JA4-отпечаток, «вечный HTTP/2», белые списки подсетей",
         "description": "Зачем: wiki фиксирует датированные наблюдения (июнь–окт 2026). Это гипотезы, не законы — но диагностика должна уметь их различать (JA4 браузера vs SNI vs IP-whitelist).\n\nГотово, когда: в HAR/health добавлены классификаторы симптомов с пометкой 'hypothesis, dated' и ссылкой на источник; никаких авто-рецептов.\n\nИсточник: wiki DPI/browser-ja4-fingerprint-block, tspu-h2-h3-fingerprint-hypothesis, subnet-whitelist-blocking-2026",
         "priority": "low",
+        "position": 6144,
+        "archivedAt": null
+      },
+      {
+        "id": "6759594e-d560-73f0-844d-cd2f56950202",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "title": "Приёмка: туннель с паролем на реальном Xray и Vesktop/Discord",
+        "description": "Зачем: патч 2026-10-15-tunnel-socks-auth проверен фейковыми ядрами; реальное поведение Xray с accounts и приложений через ALL_PROXY не подтверждено.\n\nГотово, когда: на хосте владельца xray run -test принимает конфиг, probe проходит с паролем, socks-env-only запуск работает, сторонний noauth-скан порта получает отказ.",
+        "priority": "high",
+        "position": 2048,
+        "archivedAt": null
+      },
+      {
+        "id": "fe3210c7-7908-742f-8e8a-e5ee6f23f82e",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd84-7136-893e-7f3c6da5d7",
+        "title": "Electron/Chromium-приложения и SOCKS без пароля: чем заменить --proxy-server",
+        "description": "Зачем: Chromium не поддерживает SOCKS-аутентификацию, поэтому режимы socks-updater-window/socks-full-session/socks-flag-only теперь работают только с явным --tunnel-socks-legacy-noauth. В GUI переключателя нет.\n\nГотово, когда: ADR выбрал путь — локальный HTTP CONNECT-прокси с токеном в пути/заголовке, unix-socket + per-UID nft-фильтр на loopback-порт, или tun для приложения — и GUI показывает режим и риск.",
+        "priority": "medium",
         "position": 6144,
         "archivedAt": null
       }
@@ -761,6 +781,26 @@
       {
         "cardId": "01a13ca4-dde0-7142-836f-885edf44c0",
         "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "6759594e-d560-73f0-844d-cd2f56950202",
+        "labelId": "01a13ca4-dd8f-70d5-8fef-16f71a1bfc"
+      },
+      {
+        "cardId": "6759594e-d560-73f0-844d-cd2f56950202",
+        "labelId": "01a13ca4-dd90-71e0-87be-1b5c8cc1ab"
+      },
+      {
+        "cardId": "fe3210c7-7908-742f-8e8a-e5ee6f23f82e",
+        "labelId": "01a13ca4-dd8f-70d5-8fef-16f71a1bfc"
+      },
+      {
+        "cardId": "fe3210c7-7908-742f-8e8a-e5ee6f23f82e",
+        "labelId": "01a13ca4-dd90-71e0-87be-1b5c8cc1ab"
+      },
+      {
+        "cardId": "fe3210c7-7908-742f-8e8a-e5ee6f23f82e",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
       }
     ],
     "checklists": [
@@ -1066,6 +1106,12 @@
         "id": "7662798e-7284-77bd-8182-8ae994920361",
         "cardId": "01a13ca4-dda5-726e-857c-8eae97d9db",
         "body": "patch 2026-10-15-reproducible-tests: PyQt6-тесты пропускаются с причиной вместо падения; загрязнение корня файлом nfqws2 устранено (fake make учитывает -C); единый вход bash meta_tools/run_tests.sh с проверкой pytest (код 3) и чистоты дерева (код 4); pytest объявлен в optional-dependencies.dev. Устранена гонка fork→exec в тестах миграции runtime-сессии (5 мест ожидают exec и непустой /proc/<pid>/cmdline): тесты падали в полном прогоне, когда /proc читался до exec.",
+        "createdAt": "2026-10-15T08:00:00Z"
+      },
+      {
+        "id": "58a8549c-c2d8-7510-8ac2-223db02a22d4",
+        "cardId": "01a13ca4-dd9d-704d-8f15-ab8c5187c1",
+        "body": "patch 2026-10-15-tunnel-socks-auth: inbound auth=password (RFC1929) со случайными кредами на сессию (0600, redacted); порт по умолчанию — случайный 20000–60999 вне сканируемых; probe помечает NO_AUTH как T0_SOCKS_INSECURE_NOAUTH; запуск через Chromium --proxy-server только с явным --tunnel-socks-legacy-noauth. Нужна приёмка на хосте с реальным Xray.",
         "createdAt": "2026-10-15T08:00:00Z"
       }
     ],

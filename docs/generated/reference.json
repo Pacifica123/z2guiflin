@@ -449,6 +449,14 @@
       "required": false
     },
     {
+      "destination": "tunnel_socks_legacy_noauth",
+      "nargs": 0,
+      "options": [
+        "--tunnel-socks-legacy-noauth"
+      ],
+      "required": false
+    },
+    {
       "destination": "tor_backend",
       "nargs": null,
       "options": [

@@ -13,6 +13,7 @@ import binascii
 import hashlib
 import re
 import json
+import secrets
 import os
 import shlex
 import shutil
@@ -55,7 +56,21 @@ TUNNEL_SCHEMA_VERSION = 2
 TUNNEL_MARKER = "zap2-discord-tunnel-v1"
 DEFAULT_PROFILE_ID = "default"
 DEFAULT_SOCKS_HOST = "127.0.0.1"
-DEFAULT_SOCKS_PORT = 10808
+# 0 = выбрать случайный свободный loopback-порт при создании plan/session.
+# Хорошо известные порты (10808/1080/9000/16000-16100) сканируются локальными
+# приложениями и сайтами-помощниками, см. wiki.zapret.moe/VLESS-SOCKS5-vulnerability.
+DEFAULT_SOCKS_PORT = 0
+SOCKS_AUTO_PORT_RANGE = (20000, 60999)
+SOCKS_SCANNED_PORTS = frozenset({1080, 9000, 10808, *range(16000, 16101)})
+SOCKS_AUTH_PASSWORD = "password"
+SOCKS_AUTH_LEGACY_NOAUTH = "legacy-noauth"
+SUPPORTED_SOCKS_AUTH_MODES = (SOCKS_AUTH_PASSWORD, SOCKS_AUTH_LEGACY_NOAUTH)
+SOCKS_REDACTED = "<redacted>"
+LEGACY_NOAUTH_WARNING = (
+    "ВНИМАНИЕ: legacy noauth SOCKS включён явно. Любое локальное приложение или сайт-сканер "
+    "может использовать loopback SOCKS без пароля и узнать IP VPN-сервера (localhost ≠ private). "
+    "Режим нужен только для Chromium/Electron --proxy-server, который не умеет SOCKS-аутентификацию."
+)
 DEFAULT_CORE_KIND = "auto"
 SUPPORTED_CORE_KINDS = ("auto", "xray", "v2ray", "sing-box")
 SUPPORTED_LAUNCH_MODES = ("socks-updater-window", "socks-full-session", "socks-env-only", "socks-flag-only")
@@ -829,6 +844,112 @@ def _generated_config_path(paths: TunnelStorePaths, profile_id: str) -> Path:
     return paths.generated_dir / f"{profile_id}.core.json"
 
 
+def _plan_socks_auth_path(paths: TunnelStorePaths, profile_id: str) -> Path:
+    return paths.runtime_dir / f"{profile_id}.plan-socks-auth.json"
+
+
+def _session_socks_auth_path(paths: TunnelStorePaths, profile_id: str) -> Path:
+    return paths.runtime_dir / f"{profile_id}.session-socks-auth.json"
+
+
+def new_socks_credentials() -> tuple[str, str]:
+    """Per-session random RFC1929 credentials for the loopback SOCKS inbound."""
+
+    return f"zap2-{secrets.token_urlsafe(9)}", secrets.token_urlsafe(24)
+
+
+def _socks_credential_fingerprint(credentials: tuple[str, str] | None) -> str:
+    if not credentials:
+        return ""
+    return hashlib.sha256(f"{credentials[0]}\0{credentials[1]}".encode("utf-8")).hexdigest()[:16]
+
+
+def _write_socks_credentials(path: Path, credentials: tuple[str, str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps({"user": credentials[0], "pass": credentials[1], "createdAt": _utc_now()}, ensure_ascii=False, indent=2) + "\n"
+    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.write(fd, payload.encode("utf-8"))
+    finally:
+        os.close(fd)
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+
+
+def _read_socks_credentials(path: Path) -> tuple[str, str] | None:
+    try:
+        data = _read_json(path)
+    except (OSError, ValueError):
+        return None
+    user, password = str(data.get("user", "")), str(data.get("pass", ""))
+    if not user or not password:
+        return None
+    return user, password
+
+
+def _session_socks_auth_mode(session: dict[str, Any]) -> str:
+    mode = str(session.get("socksAuth", ""))
+    if mode in SUPPORTED_SOCKS_AUTH_MODES:
+        return mode
+    # Сессии до этого исправления запускались с noauth inbound.
+    return SOCKS_AUTH_LEGACY_NOAUTH
+
+
+def _session_socks_credentials(paths: TunnelStorePaths, profile_id: str, session: dict[str, Any]) -> tuple[str, str] | None:
+    if _session_socks_auth_mode(session) != SOCKS_AUTH_PASSWORD:
+        return None
+    return _read_socks_credentials(_session_socks_auth_path(paths, profile_id))
+
+
+def socks_proxy_url(host: str, port: int, credentials: tuple[str, str] | None, *, redact: bool = True, scheme: str = "socks5h") -> str:
+    if not credentials:
+        return f"{scheme}://{host}:{port}"
+    from urllib.parse import quote
+
+    password = SOCKS_REDACTED if redact else quote(credentials[1], safe="")
+    return f"{scheme}://{quote(credentials[0], safe='')}:{password}@{host}:{port}"
+
+
+def _socks_port_is_scanned(port: int) -> bool:
+    return int(port) in SOCKS_SCANNED_PORTS
+
+
+def pick_random_socks_port(host: str = "127.0.0.1", *, attempts: int = 64) -> int:
+    rng = secrets.SystemRandom()
+    low, high = SOCKS_AUTO_PORT_RANGE
+    for _ in range(attempts):
+        port = rng.randint(low, high)
+        if _socks_port_is_scanned(port):
+            continue
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.bind((host, port))
+        except OSError:
+            continue
+        finally:
+            sock.close()
+        return port
+    raise ValueError("Не удалось подобрать свободный loopback-порт для SOCKS в диапазоне 20000-60999")
+
+
+def _resolve_socks_port(socks_port: int, host: str = "127.0.0.1") -> int:
+    port = int(socks_port or 0)
+    if port == 0:
+        return pick_random_socks_port(host)
+    if port < 0 or port > 65535:
+        raise ValueError("--tunnel-socks-port должен быть 0 (auto) или 1..65535")
+    return port
+
+
+def _normalize_socks_auth_mode(value: str | None) -> str:
+    mode = (value or SOCKS_AUTH_PASSWORD).strip().lower()
+    if mode not in SUPPORTED_SOCKS_AUTH_MODES:
+        raise ValueError(f"Неизвестный режим SOCKS auth: {value}; допустимо: {', '.join(SUPPORTED_SOCKS_AUTH_MODES)}")
+    return mode
+
+
 def _log_path(paths: TunnelStorePaths, profile_id: str) -> Path:
     return paths.logs_dir / f"{profile_id}.tunnel.jsonl"
 
@@ -1254,8 +1375,27 @@ def generate_xray_vless_socks_config(
     socks_port: int = DEFAULT_SOCKS_PORT,
     udp: bool = False,
     core_kind: str = "xray",
+    socks_credentials: tuple[str, str] | None = None,
+    legacy_noauth: bool = False,
 ) -> dict[str, Any]:
+    """Build Xray/V2Ray JSON with a loopback SOCKS inbound.
+
+    By default the inbound requires RFC1929 username/password auth. Without
+    explicit credentials a fresh random pair is generated, so a default config
+    never contains ``noauth``. ``legacy_noauth`` is an explicit opt-in only.
+    """
+
     kind = (core_kind or "xray").lower()
+    if legacy_noauth:
+        inbound_settings: dict[str, Any] = {"auth": "noauth", "udp": bool(udp), "userLevel": 8}
+    else:
+        user_name, user_pass = socks_credentials or new_socks_credentials()
+        inbound_settings = {
+            "auth": "password",
+            "accounts": [{"user": user_name, "pass": user_pass}],
+            "udp": bool(udp),
+            "userLevel": 8,
+        }
     user: dict[str, Any] = {"id": profile.user_id, "encryption": profile.encryption or "none", "level": 8}
     if profile.flow:
         user["flow"] = profile.flow
@@ -1282,7 +1422,7 @@ def generate_xray_vless_socks_config(
                 "listen": socks_host,
                 "port": socks_port,
                 "protocol": "socks",
-                "settings": {"auth": "noauth", "udp": bool(udp), "userLevel": 8},
+                "settings": inbound_settings,
                 "sniffing": {"enabled": True, "destOverride": ["http", "tls"]},
             }
         ],
@@ -1960,6 +2100,10 @@ def _graph_summary_lines(graph: EvidenceGraph) -> list[str]:
 
 def _redact_core_config(config: dict[str, Any]) -> dict[str, Any]:
     redacted = json.loads(json.dumps(config))
+    for inbound in redacted.get("inbounds", []) or []:
+        for account in (inbound.get("settings", {}) or {}).get("accounts", []) or []:
+            if isinstance(account, dict) and "pass" in account:
+                account["pass"] = SOCKS_REDACTED
     try:
         settings = redacted["outbounds"][0]["settings"]
         if "vnext" in settings:
@@ -2037,8 +2181,9 @@ def discord_tunnel_core_preflight_to_text(
     config with mode 0600 so the exact file intended for runtime is validated.
     """
 
-    if socks_port <= 0 or socks_port > 65535:
-        raise ValueError("--tunnel-socks-port должен быть 1..65535")
+    if socks_port < 0 or socks_port > 65535:
+        raise ValueError("--tunnel-socks-port должен быть 0 (auto) или 1..65535")
+    socks_port = _resolve_socks_port(socks_port)
     if timeout_seconds <= 0 or timeout_seconds > 120:
         raise ValueError("tunnel core preflight timeout должен быть >0 и <=120 секунд")
 
@@ -2177,6 +2322,8 @@ class TunnelPlan:
     rollback_path: Path
     log_path: Path
     core_exists: bool
+    socks_auth_mode: str = SOCKS_AUTH_PASSWORD
+    socks_credentials: tuple[str, str] | None = None
 
     def to_text(self) -> str:
         redacted = self.connection.redacted_dict()
@@ -2193,7 +2340,9 @@ class TunnelPlan:
             f"core binary: {self.core_binary or 'not found'} ({self.core_binary_source})",
             f"core kind: {self.core_kind}",
             f"core binary exists/executable: {'yes' if self.core_exists else 'no'}",
-            f"local socks: socks5://{self.socks_host}:{self.socks_port}",
+            f"local socks: {socks_proxy_url(self.socks_host, self.socks_port, self.socks_credentials)}",
+            f"socks auth: {'password (RFC1929, per-session random credentials, pass redacted)' if self.socks_auth_mode == SOCKS_AUTH_PASSWORD else 'LEGACY NOAUTH (explicit opt-in)'}",
+            f"socks port scanned-list: {'yes' if _socks_port_is_scanned(self.socks_port) else 'no'}",
             f"generated config: {self.config_path}",
             f"plan file: {self.plan_path}",
             f"rollback notes: {self.rollback_path}",
@@ -2205,6 +2354,12 @@ class TunnelPlan:
             "starts tunnel now: no",
             "executes Discord now: no",
         ]
+        if self.socks_auth_mode == SOCKS_AUTH_LEGACY_NOAUTH:
+            lines.append(LEGACY_NOAUTH_WARNING)
+        else:
+            lines.append("note: Chromium/Electron --proxy-server не поддерживает SOCKS-аутентификацию; запуск Discord/Vesktop через флаг требует явного --tunnel-socks-legacy-noauth")
+        if _socks_port_is_scanned(self.socks_port):
+            lines.append("ВНИМАНИЕ: выбранный SOCKS-порт входит в список портов, которые сканируют локальные приложения/сайты")
         if not self.core_exists:
             lines.extend(
                 [
@@ -2231,7 +2386,8 @@ def _tunnel_plan_id(profile_id: str) -> str:
     return f"runtime-{profile_id}-discord-tunnel-socks-start-plan"
 
 
-def _build_plan_payload(*, root: Path, profile_id: str, connection: VlessConnectionProfile, core_binary: str, core_kind: str, socks_host: str, socks_port: int, config_path: Path, core_config_hash: str) -> dict[str, Any]:
+def _build_plan_payload(*, root: Path, profile_id: str, connection: VlessConnectionProfile, core_binary: str, core_kind: str, socks_host: str, socks_port: int, config_path: Path, core_config_hash: str, socks_auth_mode: str = SOCKS_AUTH_PASSWORD, credential_fingerprint: str = "") -> dict[str, Any]:
+    auth = "password" if socks_auth_mode == SOCKS_AUTH_PASSWORD else "noauth"
     return {
         "schemaVersion": TUNNEL_SCHEMA_VERSION,
         "stage": TUNNEL_STAGE,
@@ -2251,7 +2407,9 @@ def _build_plan_payload(*, root: Path, profile_id: str, connection: VlessConnect
             "host": socks_host,
             "port": socks_port,
             "udp": False,
-            "auth": "noauth",
+            "auth": auth,
+            "authMode": socks_auth_mode,
+            "credentialFingerprint": credential_fingerprint,
             "accessScope": "loopback-explicit-app-proxy",
             "randomPortIsAuthentication": False,
         },
@@ -2269,7 +2427,7 @@ def _build_plan_payload(*, root: Path, profile_id: str, connection: VlessConnect
             "downloadsExternalBinaries": False,
             "socksContainment": {
                 "loopbackOnly": socks_host == DEFAULT_SOCKS_HOST,
-                "auth": "noauth",
+                "auth": auth,
                 "udp": False,
                 "appAccess": "explicit proxy env/flags only",
                 "randomPortIsAuthentication": False,
@@ -2279,9 +2437,10 @@ def _build_plan_payload(*, root: Path, profile_id: str, connection: VlessConnect
     }
 
 
-def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_binary: str | None = None, core_kind: str = DEFAULT_CORE_KIND, socks_port: int = DEFAULT_SOCKS_PORT, root: Path | None = None) -> str:
-    if socks_port <= 0 or socks_port > 65535:
-        raise ValueError("--tunnel-socks-port должен быть 1..65535")
+def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_binary: str | None = None, core_kind: str = DEFAULT_CORE_KIND, socks_port: int = DEFAULT_SOCKS_PORT, root: Path | None = None, socks_auth_mode: str = SOCKS_AUTH_PASSWORD) -> str:
+    if socks_port < 0 or socks_port > 65535:
+        raise ValueError("--tunnel-socks-port должен быть 0 (auto) или 1..65535")
+    auth_mode = _normalize_socks_auth_mode(socks_auth_mode)
     paths = ensure_tunnel_store(root)
     connection = _load_active_connection(paths, profile_id)
     resolved_binary, source = _resolve_core_binary(core_binary)
@@ -2292,7 +2451,25 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
             "а sing-box использует другую config schema. Нужен отдельный native sing-box generator + `sing-box check`."
         )
     core_exists = bool(resolved_binary and Path(resolved_binary).exists() and os.access(resolved_binary, os.X_OK))
-    config = generate_xray_vless_socks_config(connection, socks_host=DEFAULT_SOCKS_HOST, socks_port=socks_port, core_kind=kind)
+    socks_port = _resolve_socks_port(socks_port, DEFAULT_SOCKS_HOST)
+    plan_auth_path = _plan_socks_auth_path(paths, profile_id)
+    credentials: tuple[str, str] | None = None
+    if auth_mode == SOCKS_AUTH_PASSWORD:
+        credentials = new_socks_credentials()
+        _write_socks_credentials(plan_auth_path, credentials)
+    else:
+        try:
+            plan_auth_path.unlink()
+        except OSError:
+            pass
+    config = generate_xray_vless_socks_config(
+        connection,
+        socks_host=DEFAULT_SOCKS_HOST,
+        socks_port=socks_port,
+        core_kind=kind,
+        socks_credentials=credentials,
+        legacy_noauth=auth_mode == SOCKS_AUTH_LEGACY_NOAUTH,
+    )
     config_hash = _sha256_json(config)
     config_path = _generated_config_path(paths, profile_id)
     receipt_path, receipt = _write_generated_connection_receipt(
@@ -2309,6 +2486,8 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
         socks_port=socks_port,
         config_path=config_path,
         core_config_hash=config_hash,
+        socks_auth_mode=auth_mode,
+        credential_fingerprint=_socks_credential_fingerprint(credentials),
     )
     payload["connectionReceipt"] = {
         "receiptId": receipt.get("receiptId"),
@@ -2363,6 +2542,8 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
         rollback_path=rollback_path,
         log_path=log_path,
         core_exists=core_exists,
+        socks_auth_mode=auth_mode,
+        socks_credentials=credentials,
     ).to_text()
     text += "\n" + f"connection receipt: {receipt_path}"
     text += "\n" + f"semantic fidelity: {generation.get('semanticFidelity', 'unbound')}"
@@ -2456,7 +2637,8 @@ def discord_tunnel_status_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root:
                 f"pid: {pid if pid else 'нет'}",
                 f"core running: {'yes' if running else 'no'}",
                 f"connection: {session.get('connectionId', 'нет')}",
-                f"local socks: socks5://{session.get('socksHost', DEFAULT_SOCKS_HOST)}:{session.get('socksPort', DEFAULT_SOCKS_PORT)}",
+                f"local socks: {socks_proxy_url(str(session.get('socksHost', DEFAULT_SOCKS_HOST)), int(session.get('socksPort', DEFAULT_SOCKS_PORT) or 0), _session_socks_credentials(paths, profile_id, session))}",
+                f"socks auth: {_session_socks_auth_mode(session)}",
                 f"config: {session.get('configPath', 'нет')}",
                 f"stdout: {session.get('stdoutLog', 'нет')}",
                 f"stderr: {session.get('stderrLog', 'нет')}",
@@ -2580,12 +2762,33 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
     socks = dict(plan.get("localSocks", {}))
     socks_host = str(socks.get("host", DEFAULT_SOCKS_HOST))
     socks_port = int(socks.get("port", DEFAULT_SOCKS_PORT))
-    config = generate_xray_vless_socks_config(connection, socks_host=socks_host, socks_port=socks_port, core_kind=core_kind)
+    auth_mode = SOCKS_AUTH_PASSWORD if str(socks.get("auth", "")) == "password" else SOCKS_AUTH_LEGACY_NOAUTH
+    credentials: tuple[str, str] | None = None
+    if auth_mode == SOCKS_AUTH_PASSWORD:
+        credentials = _read_socks_credentials(_plan_socks_auth_path(paths, profile_id))
+        if credentials is None or _socks_credential_fingerprint(credentials) != str(socks.get("credentialFingerprint", "")):
+            raise ValueError("SOCKS credentials для plan отсутствуют или изменились. Re-run --discord-tunnel-plan and --runtime-confirm.")
+    config = generate_xray_vless_socks_config(
+        connection,
+        socks_host=socks_host,
+        socks_port=socks_port,
+        core_kind=core_kind,
+        socks_credentials=credentials,
+        legacy_noauth=auth_mode == SOCKS_AUTH_LEGACY_NOAUTH,
+    )
     config_hash = _sha256_json(config)
     if config_hash != str(plan.get("generatedConfigHash", "")):
         raise ValueError("Generated tunnel config changed after plan confirmation. Re-run --discord-tunnel-plan and --runtime-confirm.")
     config_path = _generated_config_path(paths, profile_id)
     _write_json(config_path, config, secret=True)
+    session_auth_path = _session_socks_auth_path(paths, profile_id)
+    if credentials:
+        _write_socks_credentials(session_auth_path, credentials)
+    else:
+        try:
+            session_auth_path.unlink()
+        except OSError:
+            pass
     run_id = new_run_id("tunnel")
     stdout_path = _stdout_path(paths, profile_id)
     stderr_path = _stderr_path(paths, profile_id)
@@ -2604,7 +2807,7 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         finally:
             stdout_handle.close()
             stderr_handle.close()
-        socks_probe = _wait_for_socks5_handshake(socks_host, socks_port, deadline_seconds=3.0, timeout=0.35)
+        socks_probe = _wait_for_socks5_handshake(socks_host, socks_port, deadline_seconds=3.0, timeout=0.35, credentials=credentials)
         process_alive = process.poll() is None
         running = process_alive and bool(socks_probe.get("ok"))
         if running:
@@ -2653,9 +2856,11 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         "startedAt": _utc_now(),
         "socksHost": socks_host,
         "socksPort": socks_port,
+        "socksAuth": auth_mode,
+        "socksCredentialFingerprint": _socks_credential_fingerprint(credentials),
         "containment": {
             "loopbackOnly": socks_host == DEFAULT_SOCKS_HOST,
-            "auth": "noauth",
+            "auth": "password" if credentials else "noauth",
             "udp": False,
             "appAccess": "explicit proxy env/flags only",
             "randomPortIsAuthentication": False,
@@ -2700,7 +2905,7 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         kind="socks_method",
         result=PASS if bool(socks_probe.get("ok")) else FAIL,
         deps=(listener_span.span_id,),
-        detail={"method": "noauth", "message": socks_probe.get("message", "")},
+        detail={"method": "password" if credentials else "noauth", "insecureNoAuth": bool(socks_probe.get("insecureNoAuth")), "message": socks_probe.get("message", "")},
         limits=("SOCKS method PASS proves only local proxy protocol readiness, not remote route/TLS/app capability",),
     )
     graph.add_span(method_span)
@@ -2722,7 +2927,8 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
             f"connection: {connection.connection_id}",
             f"pid: {process.pid}",
             f"core: {core_binary} ({core_kind})",
-            f"local socks: socks5://{socks_host}:{socks_port}",
+            f"local socks: {socks_proxy_url(socks_host, socks_port, credentials)}",
+            f"socks auth: {auth_mode}",
             f"config: {config_path}",
             f"session file: {session_path}",
             f"stdout: {stdout_path}",
@@ -2737,6 +2943,7 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
             "mutates firewall/services: no",
             f"parallel with zapret allowed: {'yes' if allow_parallel_with_zapret else 'no'}",
             "executes Discord now: no",
+            *([LEGACY_NOAUTH_WARNING] if auth_mode == SOCKS_AUTH_LEGACY_NOAUTH else []),
             "NEXT: PYTHONPATH=gui python -m zap2_gui.app --discord-tunnel-probe" if running else "NEXT: inspect core stderr/config, fix profile/core compatibility, then start again",
         ]
     if not running:
@@ -2795,21 +3002,68 @@ def _connect_loopback(host: str, port: int, timeout: float = 2.0) -> bool:
         return False
 
 
-def _socks5_handshake_probe(host: str, port: int, timeout: float = 2.0) -> dict[str, Any]:
-    """Verify that the loopback listener speaks no-auth SOCKS5.
+def _socks5_negotiate(sock: socket.socket, credentials: tuple[str, str] | None) -> dict[str, Any]:
+    """SOCKS5 method negotiation (+ RFC1929 username/password when credentials are given).
+
+    With credentials the client offers both NO_AUTH (0x00) and USERNAME/PASSWORD
+    (0x02): a listener that picks 0x00 accepts unauthenticated clients and is
+    reported as an insecure finding instead of a ready proxy.
+    """
+
+    if credentials:
+        sock.sendall(b"\x05\x02\x00\x02")
+    else:
+        sock.sendall(b"\x05\x01\x00")
+    hello = _read_exact(sock, 2)
+    if hello[0:1] != b"\x05":
+        return {"ok": False, "methodOk": False, "stage": "socks5-greeting", "responseHex": hello.hex(), "insecureNoAuth": False,
+                "message": "loopback port did not return a SOCKS5 greeting"}
+    method = hello[1]
+    if method == 0x00:
+        if credentials:
+            return {"ok": False, "methodOk": False, "stage": "socks5-greeting", "responseHex": hello.hex(), "insecureNoAuth": True,
+                    "message": "INSECURE: SOCKS5 listener accepts NO_AUTH (0x00); любой локальный процесс может использовать proxy"}
+        return {"ok": True, "methodOk": True, "stage": "socks5-greeting", "responseHex": hello.hex(), "insecureNoAuth": True,
+                "message": "SOCKS5 no-auth greeting accepted (legacy noauth, insecure)"}
+    if method == 0x02 and credentials:
+        user = credentials[0].encode("utf-8")
+        password = credentials[1].encode("utf-8")
+        if len(user) > 255 or len(password) > 255:
+            raise ValueError("SOCKS credentials are too long for RFC1929")
+        sock.sendall(b"\x01" + bytes([len(user)]) + user + bytes([len(password)]) + password)
+        reply = _read_exact(sock, 2)
+        ok = reply == b"\x01\x00"
+        return {"ok": ok, "methodOk": ok, "stage": "socks5-auth", "responseHex": hello.hex() + reply.hex(), "insecureNoAuth": False,
+                "message": "SOCKS5 username/password auth accepted" if ok else "SOCKS5 username/password auth rejected"}
+    return {"ok": False, "methodOk": False, "stage": "socks5-greeting", "responseHex": hello.hex(), "insecureNoAuth": False,
+            "message": f"SOCKS5 listener did not accept offered auth method (got 0x{method:02x})"}
+
+
+def _socks5_handshake_probe(host: str, port: int, timeout: float = 2.0, *, credentials: tuple[str, str] | None = None) -> dict[str, Any]:
+    """Verify that the loopback listener speaks SOCKS5 with the expected auth.
 
     A plain TCP connect followed by close makes v2ray/xray log
     `proxy/socks: insufficient header > EOF`, which looks scarier than it is.
-    The handshake probe sends the minimal SOCKS5 greeting instead, so the report
-    can separate "port is open" from "this is a usable SOCKS listener".
+    The handshake probe sends a real SOCKS5 greeting (and RFC1929 auth when the
+    session has credentials) so the report can separate "port is open" from
+    "this is a usable, authenticated SOCKS listener".
     """
 
     started = time.monotonic()
     try:
         with socket.create_connection((host, port), timeout=timeout) as sock:
             sock.settimeout(timeout)
-            sock.sendall(b"\x05\x01\x00")
-            response = sock.recv(2)
+            try:
+                result = _socks5_negotiate(sock, credentials)
+            except (OSError, ValueError) as exc:
+                return {
+                    "ok": False,
+                    "portOpen": True,
+                    "stage": "socks5-greeting",
+                    "insecureNoAuth": False,
+                    "message": f"SOCKS5 negotiation failed: {exc}",
+                    "elapsedMs": int((time.monotonic() - started) * 1000),
+                }
     except OSError as exc:
         return {
             "ok": False,
@@ -2818,23 +3072,16 @@ def _socks5_handshake_probe(host: str, port: int, timeout: float = 2.0) -> dict[
             "message": str(exc),
             "elapsedMs": int((time.monotonic() - started) * 1000),
         }
-    ok = response == b"\x05\x00"
-    return {
-        "ok": ok,
-        "portOpen": True,
-        "stage": "socks5-greeting",
-        "responseHex": response.hex(),
-        "message": "SOCKS5 no-auth greeting accepted" if ok else "loopback port did not return SOCKS5 no-auth greeting",
-        "elapsedMs": int((time.monotonic() - started) * 1000),
-    }
+    result.pop("methodOk", None)
+    return {**result, "portOpen": True, "authMethod": "password" if credentials else "noauth", "elapsedMs": int((time.monotonic() - started) * 1000)}
 
 
-def _wait_for_socks5_handshake(host: str, port: int, *, deadline_seconds: float = 5.0, timeout: float = 0.5) -> dict[str, Any]:
+def _wait_for_socks5_handshake(host: str, port: int, *, deadline_seconds: float = 5.0, timeout: float = 0.5, credentials: tuple[str, str] | None = None) -> dict[str, Any]:
     deadline = time.monotonic() + max(0.1, deadline_seconds)
     last: dict[str, Any] = {"ok": False, "message": "probe not started"}
     while time.monotonic() < deadline:
-        last = _socks5_handshake_probe(host, port, timeout=timeout)
-        if bool(last.get("ok")):
+        last = _socks5_handshake_probe(host, port, timeout=timeout, credentials=credentials)
+        if bool(last.get("ok")) or bool(last.get("insecureNoAuth")):
             return last
         time.sleep(0.1)
     return last
@@ -2853,10 +3100,13 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
     running = stored_state == "running" and _pid_running(pid)
     socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
     socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
-    socks_probe = _socks5_handshake_probe(socks_host, socks_port)
+    socks_credentials = _session_socks_credentials(paths, profile_id, session)
+    socks_probe = _socks5_handshake_probe(socks_host, socks_port, credentials=socks_credentials)
     port_open = bool(socks_probe.get("portOpen"))
     handshake_ok = bool(socks_probe.get("ok"))
-    if running and handshake_ok:
+    if running and socks_probe.get("insecureNoAuth") and socks_credentials:
+        verdict = "T0_SOCKS_INSECURE_NOAUTH"
+    elif running and handshake_ok:
         verdict = "T0_SOCKS_READY"
     elif running and port_open:
         verdict = "T0_PORT_OPEN_NOT_SOCKS"
@@ -2900,7 +3150,7 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
                 result=PASS if handshake_ok else FAIL,
                 deps=(listener_span.span_id,),
                 input_hashes=input_hashes,
-                detail={"method": "NO_AUTH", "probeStage": socks_probe.get("stage", ""), "message": socks_probe.get("message", "")},
+                detail={"method": "USERNAME_PASSWORD" if socks_credentials else "NO_AUTH", "insecureNoAuth": bool(socks_probe.get("insecureNoAuth")), "probeStage": socks_probe.get("stage", ""), "message": socks_probe.get("message", "")},
                 limits=("SOCKS method negotiation is local-only evidence; it cannot satisfy remote route/TLS/application predicates",),
             )
             graph.add_span(method_span)
@@ -2925,6 +3175,8 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
         "socksPort": socks_port,
         "socksPortOpen": port_open,
         "socksHandshakeOk": handshake_ok,
+        "socksAuth": _session_socks_auth_mode(session),
+        "socksInsecureNoAuth": bool(socks_probe.get("insecureNoAuth")),
         "socksHandshake": socks_probe,
         "upstreamTested": False,
         "localVerdict": verdict,
@@ -2943,10 +3195,12 @@ def discord_tunnel_probe_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, root: 
             f"stored state: {stored_state}",
             f"proc state: {_proc_state(pid) if pid else 'none'}",
             f"core running: {'yes' if running else 'no'}",
-            f"local socks: socks5://{socks_host}:{socks_port}",
+            f"local socks: {socks_proxy_url(socks_host, socks_port, socks_credentials)}",
+            f"socks auth: {_session_socks_auth_mode(session)}",
             f"socks port open: {'yes' if port_open else 'no'}",
             f"socks handshake: {'ok' if handshake_ok else 'no'}",
             f"probe message: {socks_probe.get('message', 'n/a')}",
+            *(["insecure finding: SOCKS listener accepts NO_AUTH (localhost ≠ private)"] if socks_probe.get("insecureNoAuth") else []),
             "upstream tested: no",
             f"verdict: {verdict}",
             "verdict scope: local compatibility status only; remote/application capability is separate",
@@ -3118,6 +3372,8 @@ def discord_proxy_route_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, ro
     socks_host = DEFAULT_SOCKS_HOST
     socks_port = DEFAULT_SOCKS_PORT
     state = "not-started"
+    credentials: tuple[str, str] | None = None
+    auth_mode = SOCKS_AUTH_PASSWORD
     if session_path.exists():
         session = _read_json(session_path)
         socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
@@ -3125,7 +3381,10 @@ def discord_proxy_route_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, ro
         pid = int(session.get("pid", 0) or 0)
         stored_state = str(session.get("state", "running" if pid else "not-started"))
         state = "running" if stored_state == "running" and _pid_running(pid) else stored_state if stored_state in {"stopped", "failed"} else "stale"
-    proxy = f"socks5://{socks_host}:{socks_port}"
+        auth_mode = _session_socks_auth_mode(session)
+        credentials = _session_socks_credentials(paths, profile_id, session)
+    proxy = socks_proxy_url(socks_host, socks_port, credentials)
+    curl_proxy = socks_proxy_url(socks_host, socks_port, credentials) if credentials else f"socks5h://{socks_host}:{socks_port}"
     return "\n".join(
         [
             "Discord proxy route plan",
@@ -3143,10 +3402,14 @@ def discord_proxy_route_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, ro
             f"- Auto (Vesktop first): PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks --discord-binary auto",
             f"- Flatpak Vesktop: PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks --discord-binary \"{FLATPAK_VESKTOP_COMMAND}\"",
             f"- Flatpak Discord: PYTHONPATH=gui python -m zap2_gui.app --discord-launch-through-socks --discord-binary \"{FLATPAK_DISCORD_COMMAND}\"",
-            f"- Curl check:      curl --socks5-hostname {socks_host}:{socks_port} -I https://updates.discord.com/",
+            f"- Curl check:      curl --proxy '{curl_proxy}' -I https://updates.discord.com/",
+            f"- SOCKS auth: {auth_mode}" + (" (пароль хранится в .zap2/tunnel/runtime/<profile>.session-socks-auth.json, 0600; здесь скрыт)" if credentials else ""),
+            "- Chromium/Electron --proxy-server не поддерживает SOCKS-аутентификацию: запуск через флаг требует явного --tunnel-socks-legacy-noauth (небезопасно).",
+            *([LEGACY_NOAUTH_WARNING] if auth_mode == SOCKS_AUTH_LEGACY_NOAUTH and state != "not-started" else []),
             "",
             "Firefox/web Discord:",
             f"- Set manual SOCKS v5 host={socks_host}, port={socks_port}, and enable remote DNS through SOCKS if available.",
+            "- Firefox не задаёт логин/пароль SOCKS в настройках; для password-режима используйте приложение с поддержкой socks5h://user:pass@ или HTTP-прокси-обёртку.",
             "- Browser windows opened without that proxy setting will keep using the normal direct route.",
             "",
             "Telegram note:",
@@ -3195,7 +3458,19 @@ def discord_launch_through_socks_to_text(
         raise ValueError(message)
     socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
     socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
-    socks_probe = _wait_for_socks5_handshake(socks_host, socks_port)
+    socks_auth_mode = _session_socks_auth_mode(session)
+    socks_credentials = _session_socks_credentials(paths, profile_id, session)
+    if socks_auth_mode == SOCKS_AUTH_PASSWORD and socks_credentials is None:
+        raise ValueError("SOCKS credentials для tunnel session не найдены. Перезапустите tunnel (plan → confirm → start).")
+    if socks_auth_mode == SOCKS_AUTH_PASSWORD and launch_mode != "socks-env-only":
+        raise ValueError(
+            "Chromium/Electron (Discord/Vesktop) флаг --proxy-server не поддерживает SOCKS-аутентификацию, "
+            "а tunnel запущен в безопасном режиме с паролем. Варианты: launch mode socks-env-only "
+            "(proxy с логином/паролем передаётся через env), или явно пересоздать plan с "
+            "--tunnel-socks-legacy-noauth (небезопасно: localhost ≠ private, любой локальный процесс сможет "
+            "использовать SOCKS и узнать IP VPN-сервера)."
+        )
+    socks_probe = _wait_for_socks5_handshake(socks_host, socks_port, credentials=socks_credentials)
     if not bool(socks_probe.get("ok")):
         raise ValueError(
             "Tunnel core process найден, но SOCKS handshake не прошёл: "
@@ -3214,6 +3489,7 @@ def discord_launch_through_socks_to_text(
                 target_host=preflight_host,
                 target_path=preflight_path,
                 timeout=float(preflight_timeout),
+                credentials=socks_credentials,
             )
         except Exception as exc:  # captured into report so the owner can attach it
             preflight_result = {
@@ -3277,10 +3553,11 @@ def discord_launch_through_socks_to_text(
                 "Для ручного эксперимента можно повторить с --discord-launch-allow-failed-preflight."
             )
 
-    proxy = f"socks5://{socks_host}:{socks_port}"
+    env_proxy = socks_proxy_url(socks_host, socks_port, socks_credentials, redact=False) if socks_credentials else f"socks5://{socks_host}:{socks_port}"
+    proxy = socks_proxy_url(socks_host, socks_port, socks_credentials) if socks_credentials else f"socks5://{socks_host}:{socks_port}"
     env = dict(os.environ)
     if launch_mode != "socks-flag-only":
-        env.update({"ALL_PROXY": proxy, "HTTPS_PROXY": proxy, "HTTP_PROXY": proxy, "all_proxy": proxy, "https_proxy": proxy, "http_proxy": proxy})
+        env.update({"ALL_PROXY": env_proxy, "HTTPS_PROXY": env_proxy, "HTTP_PROXY": env_proxy, "all_proxy": env_proxy, "https_proxy": env_proxy, "http_proxy": env_proxy})
     argv, raw_command = _discord_launch_argv(discord_binary, socks_host, socks_port, launch_mode)
     client_kind = _client_kind_from_command(argv, raw_command)
     flatpak = _is_flatpak_command(argv)
@@ -3342,6 +3619,8 @@ def discord_launch_through_socks_to_text(
             f"discord running after grace: {'yes' if discord_running else 'no'}",
             f"argv: {shlex.join(argv)}",
             f"proxy env: {proxy}",
+            f"socks auth: {socks_auth_mode}",
+            *([LEGACY_NOAUTH_WARNING] if socks_auth_mode == SOCKS_AUTH_LEGACY_NOAUTH else []),
             f"flatpak command: {'yes' if flatpak else 'no'}",
             f"discord session: {discord_session_path}",
             f"discord stdout: {stdout_path}",
@@ -3448,20 +3727,20 @@ def _read_exact(sock: socket.socket, count: int) -> bytes:
     return data
 
 
-def _socks5_connect(sock: socket.socket, host: str, port: int) -> dict[str, Any]:
+def _socks5_connect(sock: socket.socket, host: str, port: int, credentials: tuple[str, str] | None = None) -> dict[str, Any]:
     host_bytes = host.encode("idna")
     if len(host_bytes) > 255:
         raise ValueError("SOCKS target host is too long")
-    sock.sendall(b"\x05\x01\x00")
-    hello = _read_exact(sock, 2)
-    if hello != b"\x05\x00":
+    negotiation = _socks5_negotiate(sock, credentials)
+    if not negotiation.get("ok"):
         return {
             "ok": False,
             "methodOk": False,
             "connectOk": False,
             "stage": "socks-auth",
-            "replyHex": hello.hex(),
-            "message": "SOCKS5 no-auth was not accepted",
+            "replyHex": negotiation.get("responseHex", ""),
+            "insecureNoAuth": bool(negotiation.get("insecureNoAuth")),
+            "message": str(negotiation.get("message", "SOCKS5 auth was not accepted")),
         }
     request = b"\x05\x01\x00\x03" + bytes([len(host_bytes)]) + host_bytes + int(port).to_bytes(2, "big")
     sock.sendall(request)
@@ -3512,7 +3791,7 @@ def _socks5_connect(sock: socket.socket, host: str, port: int) -> dict[str, Any]
     }
 
 
-def _https_head_through_socks(*, socks_host: str, socks_port: int, target_host: str, target_path: str, timeout: float) -> dict[str, Any]:
+def _https_head_through_socks(*, socks_host: str, socks_port: int, target_host: str, target_path: str, timeout: float, credentials: tuple[str, str] | None = None) -> dict[str, Any]:
     """Probe SOCKS method/connect, TLS and HTTP as distinct evidence stages."""
 
     started = time.monotonic()
@@ -3533,7 +3812,7 @@ def _https_head_through_socks(*, socks_host: str, socks_port: int, target_host: 
     with raw_sock:
         raw_sock.settimeout(timeout)
         try:
-            socks_result = _socks5_connect(raw_sock, target_host, 443)
+            socks_result = _socks5_connect(raw_sock, target_host, 443, credentials)
         except (OSError, ValueError) as exc:
             return {
                 "ok": False,
@@ -3723,6 +4002,7 @@ def discord_tunnel_https_probe_to_text(
     session = _load_running_tunnel_session(paths, profile_id)
     socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
     socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
+    socks_credentials = _session_socks_credentials(paths, profile_id, session)
     report_base = {
         "schemaVersion": TUNNEL_SCHEMA_VERSION,
         "stage": TUNNEL_STAGE,
@@ -3741,6 +4021,7 @@ def discord_tunnel_https_probe_to_text(
             target_host=target_host,
             target_path=target_path,
             timeout=float(timeout_seconds),
+            credentials=socks_credentials,
         )
     except Exception as exc:  # deliberately captured into report for owner diagnosis
         result = {"ok": False, "stage": "exception", "message": str(exc), "elapsedMs": None}
@@ -3860,7 +4141,8 @@ def discord_tunnel_route_diagnose_to_text(*, profile_id: str = DEFAULT_PROFILE_I
         socks_host = str(session.get("socksHost", DEFAULT_SOCKS_HOST))
         socks_port = int(session.get("socksPort", DEFAULT_SOCKS_PORT))
         tunnel_state = "running" if stored == "running" and _pid_running(tunnel_pid) else stored if stored in {"stopped", "failed"} else "stale"
-        socks_probe = _socks5_handshake_probe(socks_host, socks_port)
+        diag_credentials = _session_socks_credentials(paths, profile_id, session)
+        socks_probe = _socks5_handshake_probe(socks_host, socks_port, credentials=diag_credentials) if diag_credentials else _socks5_handshake_probe(socks_host, socks_port)
 
     discord_state = "not-started"
     discord_pid = 0
@@ -4029,6 +4311,7 @@ def discord_tunnel_guided_run_to_text(
     interactive: bool = True,
     root: Path | None = None,
     emit: Any | None = None,
+    socks_auth_mode: str = SOCKS_AUTH_PASSWORD,
 ) -> str:
     """One-command owner-phase for the Discord tunnel experiment.
 
@@ -4048,6 +4331,7 @@ def discord_tunnel_guided_run_to_text(
         core_kind=core_kind,
         socks_port=socks_port,
         root=paths.root,
+        socks_auth_mode=socks_auth_mode,
     )
     plan_id = _tunnel_plan_id(profile_id)
     confirmation = confirm_runtime_plan(root=paths.root, plan_id=plan_id)

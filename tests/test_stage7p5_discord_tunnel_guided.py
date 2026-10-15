@@ -39,6 +39,35 @@ if config and config.exists():
     data = json.loads(config.read_text(encoding="utf-8"))
     port = int(data["inbounds"][0]["port"])
 
+def _socks_settings():
+    try:
+        return json.loads(config.read_text(encoding="utf-8"))["inbounds"][0].get("settings", {})
+    except Exception:
+        return {}
+SOCKS_SETTINGS = _socks_settings()
+def handle(conn):
+    # RFC1928/RFC1929 fake: honour the generated inbound auth mode.
+    head = conn.recv(2)
+    if len(head) < 2 or head[0] != 5:
+        return
+    methods = conn.recv(head[1])
+    if SOCKS_SETTINGS.get("auth") == "password":
+        if 2 not in methods:
+            conn.sendall(b"\x05\xff"); return
+        conn.sendall(b"\x05\x02")
+        ver_len = conn.recv(2); user = conn.recv(ver_len[1]); plen = conn.recv(1)[0]; pw = conn.recv(plen)
+        ok = any(a.get("user") == user.decode() and a.get("pass") == pw.decode() for a in SOCKS_SETTINGS.get("accounts", []))
+        conn.sendall(b"\x01\x00" if ok else b"\x01\x01")
+        if not ok:
+            return
+    else:
+        if 0 not in methods:
+            conn.sendall(b"\x05\xff"); return
+        conn.sendall(b"\x05\x00")
+    try:
+        conn.recv(4096)
+    except OSError:
+        pass
 server = socket.socket()
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(("127.0.0.1", port))
@@ -51,13 +80,10 @@ while time.time() - started < 30:
     except socket.timeout:
         continue
     with conn:
-        data = conn.recv(3)
-        if data == b"\x05\x01\x00":
-            conn.sendall(b"\x05\x00")
-            try:
-                conn.recv(4096)
-            except OSError:
-                pass
+        try:
+            handle(conn)
+        except Exception:
+            pass
 '''
 
 
@@ -138,7 +164,7 @@ def test_stage8a_launch_through_socks_accepts_flatpak_command_string(tmp_path: P
     old_path = __import__("os").environ.get("PATH", "")
     __import__("os").environ["PATH"] = f"{tmp_path}:{old_path}"
     try:
-        discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=socks_port)
+        discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=socks_port, socks_auth_mode="legacy-noauth")
         plan_id = "runtime-default-discord-tunnel-socks-start-plan"
         confirm_runtime_plan(root=tmp_path, plan_id=plan_id)
         discord_tunnel_start_to_text(root=tmp_path, confirm_plan_id=plan_id)
@@ -219,7 +245,7 @@ def test_stage8c_route_diagnose_classifies_routed_tls_closed(tmp_path: Path, mon
     import zap2_gui.adapters.discord_tunnel as discord_tunnel_module
 
     monkeypatch.setattr(discord_tunnel_module, "_pid_running", lambda pid: bool(pid))
-    monkeypatch.setattr(discord_tunnel_module, "_socks5_handshake_probe", lambda host, port: {"ok": True, "portOpen": True, "message": "SOCKS5 no-auth greeting accepted"})
+    monkeypatch.setattr(discord_tunnel_module, "_socks5_handshake_probe", lambda host, port, **kw: {"ok": True, "portOpen": True, "message": "SOCKS5 no-auth greeting accepted"})
 
     text = discord_tunnel_route_diagnose_to_text(root=root)
 
@@ -279,7 +305,7 @@ def test_vesktop_launch_uses_socks_flag_and_disables_quic(tmp_path: Path) -> Non
     old_path = os.environ.get("PATH", "")
     os.environ["PATH"] = f"{tmp_path}:{old_path}"
     try:
-        discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=socks_port)
+        discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=socks_port, socks_auth_mode="legacy-noauth")
         plan_id = "runtime-default-discord-tunnel-socks-start-plan"
         confirm_runtime_plan(root=tmp_path, plan_id=plan_id)
         assert "Discord tunnel start: started" in discord_tunnel_start_to_text(root=tmp_path, confirm_plan_id=plan_id)

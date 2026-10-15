@@ -43,6 +43,35 @@ for index, arg in enumerate(sys.argv):
 if "-test" in sys.argv:
     raise SystemExit(0)
 port = int(json.loads(config.read_text(encoding="utf-8"))["inbounds"][0]["port"])
+def _socks_settings():
+    try:
+        return json.loads(config.read_text(encoding="utf-8"))["inbounds"][0].get("settings", {})
+    except Exception:
+        return {}
+SOCKS_SETTINGS = _socks_settings()
+def handle(conn):
+    # RFC1928/RFC1929 fake: honour the generated inbound auth mode.
+    head = conn.recv(2)
+    if len(head) < 2 or head[0] != 5:
+        return
+    methods = conn.recv(head[1])
+    if SOCKS_SETTINGS.get("auth") == "password":
+        if 2 not in methods:
+            conn.sendall(b"\x05\xff"); return
+        conn.sendall(b"\x05\x02")
+        ver_len = conn.recv(2); user = conn.recv(ver_len[1]); plen = conn.recv(1)[0]; pw = conn.recv(plen)
+        ok = any(a.get("user") == user.decode() and a.get("pass") == pw.decode() for a in SOCKS_SETTINGS.get("accounts", []))
+        conn.sendall(b"\x01\x00" if ok else b"\x01\x01")
+        if not ok:
+            return
+    else:
+        if 0 not in methods:
+            conn.sendall(b"\x05\xff"); return
+        conn.sendall(b"\x05\x00")
+    try:
+        conn.recv(4096)
+    except OSError:
+        pass
 server = socket.socket(); server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(("127.0.0.1", port)); server.listen(8); server.settimeout(0.2)
 started=time.time()
@@ -50,7 +79,10 @@ while time.time()-started < 30:
     try: conn,_=server.accept()
     except socket.timeout: continue
     with conn:
-        if conn.recv(3) == b"\x05\x01\x00": conn.sendall(b"\x05\x00")
+        try:
+            handle(conn)
+        except Exception:
+            pass
 '''
 
 
@@ -224,3 +256,143 @@ def test_stage7y_tunnel_gui_source_exposes_clipboard_import_without_runtime_laun
     assert "preview_vless_import_text_to_text" in source
     assert "tunnel_connection_import_vless_text_to_text" in source
     assert "GUI не скачивает core" in source
+
+
+# --- loopback SOCKS auth hardening (wiki.zapret.moe/VLESS-SOCKS5-vulnerability, 07.04.2026) ---
+
+import json as _json
+import socket as _socket
+import threading as _threading
+
+from zap2_gui.adapters import discord_tunnel as _tunnel
+
+
+def _noauth_only_socks_server():
+    """Tiny 127.0.0.1 SOCKS5 server that only offers NO_AUTH (insecure)."""
+
+    server = _socket.socket()
+    server.setsockopt(_socket.SOL_SOCKET, _socket.SO_REUSEADDR, 1)
+    server.bind(("127.0.0.1", 0))
+    server.listen(4)
+    server.settimeout(5)
+
+    def serve() -> None:
+        try:
+            conn, _ = server.accept()
+        except OSError:
+            return
+        with conn:
+            head = conn.recv(2)
+            if len(head) == 2:
+                conn.recv(head[1])
+                conn.sendall(b"\x05\x00")
+
+    thread = _threading.Thread(target=serve, daemon=True)
+    thread.start()
+    return server, thread
+
+
+def test_default_generated_config_never_contains_noauth() -> None:
+    profile = parse_vless_uri(SAMPLE_VLESS)
+    config = generate_xray_vless_socks_config(profile, socks_port=23456)
+    settings = config["inbounds"][0]["settings"]
+    assert settings["auth"] == "password"
+    assert settings["accounts"][0]["user"] and len(settings["accounts"][0]["pass"]) >= 24
+    assert "noauth" not in _json.dumps(config)
+    other = generate_xray_vless_socks_config(profile, socks_port=23456)
+    assert other["inbounds"][0]["settings"]["accounts"] != settings["accounts"]
+    legacy = generate_xray_vless_socks_config(profile, socks_port=23456, legacy_noauth=True)
+    assert legacy["inbounds"][0]["settings"]["auth"] == "noauth"
+
+
+def test_default_socks_port_is_random_high_and_not_scanned(tmp_path: Path) -> None:
+    assert DEFAULT_SOCKS_PORT == 0
+    for _ in range(20):
+        port = _tunnel.pick_random_socks_port()
+        assert port != 10808
+        assert not 16000 <= port <= 16100
+        assert 20000 <= port <= 60999
+    tunnel_connection_import_vless_to_text(SAMPLE_VLESS, root=tmp_path)
+    fake_core = tmp_path / "xray"
+    fake_core.write_text(FAKE_SOCKS_CORE, encoding="utf-8")
+    fake_core.chmod(fake_core.stat().st_mode | stat.S_IXUSR)
+    discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core))
+    plan = _json.loads((tmp_path / ".zap2" / "runtime" / "plans" / "runtime-default-discord-tunnel-socks-start-plan.json").read_text(encoding="utf-8"))
+    port = plan["localSocks"]["port"]
+    assert port != 10808 and not 16000 <= port <= 16100 and 20000 <= port <= 60999
+
+
+def test_credentials_are_private_and_redacted_in_plan_and_reports(tmp_path: Path) -> None:
+    tunnel_connection_import_vless_to_text(SAMPLE_VLESS, root=tmp_path)
+    fake_core = tmp_path / "xray"
+    fake_core.write_text(FAKE_SOCKS_CORE, encoding="utf-8")
+    fake_core.chmod(fake_core.stat().st_mode | stat.S_IXUSR)
+    plan_text = discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=_tunnel.pick_random_socks_port())
+    auth_file = tmp_path / ".zap2" / "tunnel" / "runtime" / "default.plan-socks-auth.json"
+    assert stat.S_IMODE(auth_file.stat().st_mode) == 0o600
+    password = _json.loads(auth_file.read_text(encoding="utf-8"))["pass"]
+    assert password not in plan_text
+    assert "<redacted>" in plan_text and "socks5h://" in plan_text
+    plan_id = "runtime-default-discord-tunnel-socks-start-plan"
+    plan_file = tmp_path / ".zap2" / "runtime" / "plans" / f"{plan_id}.json"
+    assert password not in plan_file.read_text(encoding="utf-8")
+    confirm_runtime_plan(root=tmp_path, plan_id=plan_id)
+    try:
+        start_text = discord_tunnel_start_to_text(root=tmp_path, confirm_plan_id=plan_id)
+        assert "Discord tunnel start: started" in start_text
+        probe_text = discord_tunnel_probe_to_text(root=tmp_path)
+        assert "socks handshake: ok" in probe_text
+        assert "verdict: T0_SOCKS_READY" in probe_text
+        route_text = discord_proxy_route_plan_to_text(root=tmp_path)
+        session_auth = tmp_path / ".zap2" / "tunnel" / "runtime" / "default.session-socks-auth.json"
+        assert stat.S_IMODE(session_auth.stat().st_mode) == 0o600
+        for text in (start_text, probe_text, route_text):
+            assert password not in text
+        for path in (tmp_path / ".zap2").rglob("*"):
+            if path.is_file() and path.name not in {"default.plan-socks-auth.json", "default.session-socks-auth.json", "default.core.json"}:
+                assert password not in path.read_text(encoding="utf-8", errors="replace"), path
+    finally:
+        discord_tunnel_stop_to_text(root=tmp_path)
+
+
+def test_probe_rejects_listener_that_offers_only_noauth() -> None:
+    server, thread = _noauth_only_socks_server()
+    try:
+        port = server.getsockname()[1]
+        result = _tunnel._socks5_handshake_probe("127.0.0.1", port, timeout=2.0, credentials=("u", "p"))
+    finally:
+        thread.join(timeout=5)
+        server.close()
+    assert result["ok"] is False
+    assert result["insecureNoAuth"] is True
+    assert "INSECURE" in result["message"]
+
+
+def test_launch_via_proxy_server_flag_refused_in_password_mode(tmp_path: Path) -> None:
+    tunnel_connection_import_vless_to_text(SAMPLE_VLESS, root=tmp_path)
+    fake_core = tmp_path / "xray"
+    fake_core.write_text(FAKE_SOCKS_CORE, encoding="utf-8")
+    fake_core.chmod(fake_core.stat().st_mode | stat.S_IXUSR)
+    discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=_tunnel.pick_random_socks_port())
+    plan_id = "runtime-default-discord-tunnel-socks-start-plan"
+    confirm_runtime_plan(root=tmp_path, plan_id=plan_id)
+    try:
+        discord_tunnel_start_to_text(root=tmp_path, confirm_plan_id=plan_id)
+        try:
+            _tunnel.discord_launch_through_socks_to_text(root=tmp_path, discord_binary=str(fake_core), launch_mode="socks-flag-only")
+        except ValueError as exc:
+            assert "legacy-noauth" in str(exc)
+        else:  # pragma: no cover
+            raise AssertionError("expected --proxy-server launch to be refused without legacy opt-in")
+    finally:
+        discord_tunnel_stop_to_text(root=tmp_path)
+
+
+def test_legacy_noauth_plan_is_explicit_and_warns(tmp_path: Path) -> None:
+    tunnel_connection_import_vless_to_text(SAMPLE_VLESS, root=tmp_path)
+    fake_core = tmp_path / "xray"
+    fake_core.write_text(FAKE_SOCKS_CORE, encoding="utf-8")
+    fake_core.chmod(fake_core.stat().st_mode | stat.S_IXUSR)
+    text = discord_tunnel_plan_to_text(root=tmp_path, core_binary=str(fake_core), socks_port=_tunnel.pick_random_socks_port(), socks_auth_mode="legacy-noauth")
+    assert "LEGACY NOAUTH" in text
+    assert "localhost ≠ private" in text
