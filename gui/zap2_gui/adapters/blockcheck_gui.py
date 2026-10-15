@@ -139,6 +139,62 @@ def current_blockcheck_worker_identity() -> BlockcheckWorkerIdentity:
     return BlockcheckWorkerIdentity(uid=uid, gid=gid, source="current process uid/gid")
 
 
+# blockcheck2 1.0.6 CURL_PAD: junk "X-Pad-NNNN:" headers grow every curl
+# request so a TSPU-style "16 KB" block (total bytes per flow) can be
+# triggered without a large page on the target. Bounded: 0 = off.
+BLOCKCHECK_CURL_PAD_MIN = 1024
+BLOCKCHECK_CURL_PAD_MAX = 65536
+BLOCKCHECK_CURL_PAD_SUGGESTED = 20000
+
+_COVERAGE_ROW_RE = re.compile(r"^(\d+)/(\d+) : (.+)$")
+
+
+@dataclass(frozen=True)
+class BlockcheckCoverageRow:
+    """One line of the blockcheck2 1.0.6 ``* COVERAGE`` section."""
+
+    strategy: str
+    worked: int
+    total: int
+
+    def to_dict(self) -> dict[str, object]:
+        return {"strategy": self.strategy, "worked": self.worked, "total": self.total}
+
+
+def parse_blockcheck_coverage(stdout: str) -> tuple[BlockcheckCoverageRow, ...]:
+    """Parse ``* COVERAGE`` lines (``worked/total : strategy``) from blockcheck2 output.
+
+    Format comes from ``result_coverage_print`` in core/zapret2/blockcheck2.sh.
+    The section is printed only when more than one domain was tested.
+    """
+
+    rows: list[BlockcheckCoverageRow] = []
+    in_section = False
+    for raw in stdout.splitlines():
+        line = raw.strip()
+        if line == "* COVERAGE":
+            in_section = True
+            rows = []
+            continue
+        if not in_section:
+            continue
+        match = _COVERAGE_ROW_RE.match(line)
+        if match is None:
+            if rows or line.startswith("* "):
+                in_section = False
+            continue
+        rows.append(BlockcheckCoverageRow(strategy=match.group(3).strip(), worked=int(match.group(1)), total=int(match.group(2))))
+    return tuple(rows)
+
+
+def blockcheck_coverage_rows_to_text(rows: tuple[BlockcheckCoverageRow, ...]) -> str:
+    if not rows:
+        return ""
+    lines = ["COVERAGE (стратегия сработала для N из M доменов; надёжно только при SCANLEVEL=force):"]
+    lines.extend(f"- {row.worked}/{row.total} : {row.strategy}" for row in rows)
+    return "\n".join(lines)
+
+
 @dataclass(frozen=True)
 class BlockcheckOptions:
     """Owner-selected blockcheck2 scan parameters."""
@@ -159,6 +215,7 @@ class BlockcheckOptions:
     timeout_seconds: int = 0
     dead_target_guard: str = BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP
     custom_list_env: tuple[tuple[str, str], ...] = ()
+    curl_pad: int = 0
 
     def normalized_domains(self) -> tuple[str, ...]:
         try:
@@ -207,6 +264,7 @@ class BlockcheckOptions:
             timeout_seconds=self.timeout_seconds,
             dead_target_guard=self.dead_target_guard,
             custom_list_env=self.custom_list_env,
+            curl_pad=self.curl_pad,
         )
 
     def validate(self) -> None:
@@ -228,6 +286,10 @@ class BlockcheckOptions:
             raise ValueError("curl timeout должен быть в диапазоне 1..15 секунд")
         if self.timeout_seconds != 0 and not 30 <= self.timeout_seconds <= 3600:
             raise ValueError("overall timeout должен быть 0 (без общего лимита) или в диапазоне 30..3600 секунд")
+        if self.curl_pad != 0 and not BLOCKCHECK_CURL_PAD_MIN <= self.curl_pad <= BLOCKCHECK_CURL_PAD_MAX:
+            raise ValueError(
+                f"CURL_PAD должен быть 0 (выкл.) или в диапазоне {BLOCKCHECK_CURL_PAD_MIN}..{BLOCKCHECK_CURL_PAD_MAX} байт"
+            )
         if self.dead_target_guard not in SUPPORTED_BLOCKCHECK_DEAD_TARGET_GUARDS:
             raise ValueError(f"Неподдерживаемый dead-target guard: {self.dead_target_guard}")
         allowed_custom_keys = {"LIST_HTTP", "LIST_HTTPS_TLS12", "LIST_HTTPS_TLS13", "LIST_QUIC", "ZAP2_TOURNAMENT_STRATEGY_ID"}
@@ -261,6 +323,8 @@ class BlockcheckOptions:
             "CURL_MAX_TIME": str(self.curl_max_time),
             "CURL_MAX_TIME_QUIC": str(self.curl_max_time),
         }
+        if self.curl_pad > 0:
+            env["CURL_PAD"] = str(self.curl_pad)
         env.update({key: value for key, value in self.custom_list_env})
         return env
 
@@ -581,6 +645,9 @@ class BlockcheckResult:
         stats = parse_blockcheck_run_stats(self.stdout, self.stderr)
         if stats.has_observations:
             lines.extend(["", stats.to_text()])
+        coverage_text = blockcheck_coverage_rows_to_text(parse_blockcheck_coverage(self.stdout))
+        if coverage_text:
+            lines.extend(["", coverage_text])
         if self.summary_lines:
             lines.extend(["", "Parsed SUMMARY / working strategy hints:"])
             lines.extend(f"- {line}" for line in self.summary_lines)
@@ -2187,6 +2254,10 @@ def parse_blockcheck_summary(stdout: str) -> tuple[str, ...]:
     return tuple(deduped[:40])
 
 
+def blockcheck_coverage_json_path(log_path: Path) -> Path:
+    return log_path.with_name(log_path.stem + "-coverage.json")
+
+
 def write_blockcheck_last_log(command: BlockcheckCommand, stdout: str, stderr: str, footer: str = "") -> None:
     if not command.log_path:
         return
@@ -2198,6 +2269,11 @@ def write_blockcheck_last_log(command: BlockcheckCommand, stdout: str, stderr: s
         stdout,
         "\n===== BLOCKCHECK RUN STATISTICS =====\n",
         stats.to_text(),
+    ]
+    coverage_rows = parse_blockcheck_coverage(stdout)
+    if coverage_rows:
+        parts.extend(["\n===== BLOCKCHECK COVERAGE =====\n", blockcheck_coverage_rows_to_text(coverage_rows), "\n"])
+    parts += [
         "\n===== STDERR =====\n",
         stderr,
     ]
@@ -2205,6 +2281,16 @@ def write_blockcheck_last_log(command: BlockcheckCommand, stdout: str, stderr: s
         parts.extend(["\n===== GUI FINISH =====\n", footer.rstrip(), "\n"])
     text = "".join(parts)
     command.log_path.write_text(text, encoding="utf-8")
+    if coverage_rows:
+        blockcheck_coverage_json_path(command.log_path).write_text(
+            json.dumps(
+                {"schemaVersion": 1, "source": "blockcheck2 * COVERAGE", "rows": [row.to_dict() for row in coverage_rows]},
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
     if command.candidate_log_path is not None:
         command.candidate_log_path.parent.mkdir(parents=True, exist_ok=True)
         command.candidate_log_path.write_text(text, encoding="utf-8")

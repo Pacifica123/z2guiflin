@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 from .workspace_profiles import load_workspace_catalog
+from .preset_editor import validate_new_filter_args
 from .runtime_queue import resolve_runtime_queue
 from .strategy_file_inputs import strategy_file_dependency_blockers
 from ..project_paths import discover_layout
@@ -98,6 +99,18 @@ def strategy_parser_preflight_to_text(
                 "verdict: MISSING_STRATEGY_FILE_DEPENDENCIES",
                 "next: добавьте referenced hostlist/ipset files или повторите TXT import с каталогом зависимостей",
                 "limitation: --dry-run не запускался, потому что обязательные file inputs отсутствуют",
+            ]
+        )
+        return "\n".join(lines)
+    filter_errors = validate_new_filter_args(strategy.runtime_args)
+    if filter_errors:
+        lines.append("filter option errors (nfqws2 1.0.5+ --filter-mark/--filter-ssid-neg):")
+        lines.extend(f"  - {item}" for item in filter_errors)
+        lines.extend(
+            [
+                "verdict: INVALID_FILTER_OPTIONS",
+                "next: исправьте --filter-mark=mark[/mask] или --filter-ssid-neg[=0|1] в стратегии",
+                "limitation: --dry-run не запускался, потому что статическая проверка фильтров не прошла",
             ]
         )
         return "\n".join(lines)

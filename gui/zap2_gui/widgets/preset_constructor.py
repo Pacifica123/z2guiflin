@@ -436,6 +436,8 @@ def edit_traffic_profile_dialog(
     l3_edit.setPlaceholderText("ipv4,ipv6 — необязательно")
     l7_edit = QtWidgets.QLineEdit(draft.l7)
     l7_edit.setPlaceholderText("tls, http, quic, stun, discord — необязательно")
+    mark_edit = QtWidgets.QLineEdit(draft.filter_mark)
+    mark_edit.setPlaceholderText("0x10 или 0x10/0xF0 — необязательно (nfqws2 --filter-mark, Linux fwmark)")
     target_combo = QtWidgets.QComboBox()
     target_combo.addItem("Домены / URI", PRESET_TARGET_DOMAINS)
     target_combo.addItem("Hostlist file", PRESET_TARGET_HOSTLIST)
@@ -452,6 +454,7 @@ def edit_traffic_profile_dialog(
     form.addRow("Порты", ports_edit)
     form.addRow("L3", l3_edit)
     form.addRow("L7", l7_edit)
+    form.addRow("fwmark", mark_edit)
     form.addRow("Тип цели", target_combo)
     form.addRow("Цель", target_edit)
     layout.addWidget(form_box)
@@ -547,6 +550,7 @@ def edit_traffic_profile_dialog(
             target_value=target_edit.toPlainText().strip(),
             strategy_args=strategy_args,
             enabled=enabled_check.isChecked(),
+            filter_mark=mark_edit.text().strip(),
         )
         if validate:
             result.validate()

@@ -1,0 +1,19 @@
+* SUMMARY
+ipv4 rutracker.org curl_test_https_tls12 : nfqws2 --payload=tls_client_hello --lua-desync=fake:blob=fake_default_tls:tcp_md5
+ipv4 rutracker.org curl_test_https_tls12 : nfqws2 --payload=tls_client_hello --lua-desync=multisplit:pos=1
+ipv4 example.org curl_test_https_tls12 : nfqws2 --payload=tls_client_hello --lua-desync=multisplit:pos=1
+
+* COMMON
+curl_test_https_tls12 ipv4 : nfqws2 --payload=tls_client_hello --lua-desync=multisplit:pos=1
+
+* COVERAGE
+2/2 : curl_test_https_tls12 ipv4 : nfqws2 --payload=tls_client_hello --lua-desync=multisplit:pos=1
+1/2 : curl_test_https_tls12 ipv4 : nfqws2 --payload=tls_client_hello --lua-desync=fake:blob=fake_default_tls:tcp_md5
+
+blockcheck optimizes test sequence. To save time some strategies can be skipped if their test is considered useless.
+That's why COMMON intersection can miss strategies that would work for all domains, and COVERAGE counts can undercount.
+Use "force" scan level to test all strategies and generate trustable results.
+Current scan level was "quick".
+
+Please note this SUMMARY does not guarantee a magic pill for you to copy/paste and be happy.
+Understanding how strategies work is very desirable.

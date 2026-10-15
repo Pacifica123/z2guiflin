@@ -107,6 +107,83 @@ _CYRILLIC_SLUG_MAP = str.maketrans(
 )
 
 
+# --- nfqws2 1.0.5+ profile filters ------------------------------------------
+# Static validation of nfqws2 1.0.5+ profile filters that the GUI composes.
+# 
+# Exact syntax (core/zapret2/nfq2/nfqws.c, docs/manual.md):
+# 
+# * ``--filter-mark=mark[/mask]`` (Linux only): mark and mask are decimal or
+#   ``0xHEX`` 32-bit values; without a mask the whole 32-bit value is compared.
+# * ``--filter-ssid-neg[=0|1]`` (Linux only): negates ``--filter-ssid``; a bare
+#   flag means ``1``.  The Windows-only ``--ssid-filter-neg``/``--nlm-filter-neg``
+#   are global winws2 options and are rejected for Linux profiles.
+_U32_RE = re.compile(r"^(?:0[xX][0-9A-Fa-f]{1,8}|[0-9]{1,10})$")
+_WINDOWS_ONLY_NEG = ("--ssid-filter-neg", "--nlm-filter-neg", "--ssid-filter=", "--nlm-filter=")
+
+
+def _parse_u32(token: str) -> int | None:
+    if not _U32_RE.fullmatch(token):
+        return None
+    value = int(token, 16) if token[:2].lower() == "0x" else int(token, 10)
+    return value if value <= 0xFFFFFFFF else None
+
+
+def validate_filter_mark(value: str) -> tuple[int, int]:
+    """Return ``(mark, mask)`` or raise ``ValueError`` for an invalid value."""
+
+    text = str(value).strip()
+    mark_text, sep, mask_text = text.partition("/")
+    mark = _parse_u32(mark_text)
+    if mark is None:
+        raise ValueError(f"Недопустимый filter-mark: {value!r} (ожидается mark[/mask], десятичное или 0xHEX, 32 бита)")
+    if not sep:
+        return mark, 0xFFFFFFFF
+    mask = _parse_u32(mask_text)
+    if mask is None or mask == 0:
+        raise ValueError(f"Недопустимая маска filter-mark: {value!r} (маска 0 совпадает с любым пакетом)")
+    if mark & ~mask:
+        raise ValueError(f"filter-mark {value!r}: в mark есть биты вне маски, профиль никогда не совпадёт")
+    return mark, mask
+
+
+def validate_filter_ssid_neg(arg: str) -> bool:
+    if arg == "--filter-ssid-neg":
+        return True
+    _, _, value = arg.partition("=")
+    if value not in {"0", "1"}:
+        raise ValueError(f"Недопустимый {arg!r}: допустимо --filter-ssid-neg, =0 или =1")
+    return value == "1"
+
+
+def validate_new_filter_args(args: Iterable[str]) -> tuple[str, ...]:
+    """Check 1.0.5+ filter args; return a tuple of Russian error messages."""
+
+    errors: list[str] = []
+    profile_has_ssid = False
+    profile_neg = False
+    for raw in list(args) + ["--new"]:
+        arg = str(raw).strip()
+        if arg == "--new":
+            if profile_neg and not profile_has_ssid:
+                errors.append("--filter-ssid-neg без --filter-ssid в том же профиле не имеет смысла")
+            profile_has_ssid = profile_neg = False
+            continue
+        try:
+            if arg.startswith("--filter-mark"):
+                if not arg.startswith("--filter-mark="):
+                    raise ValueError("--filter-mark требует значение mark[/mask]")
+                validate_filter_mark(arg.partition("=")[2])
+            elif arg.startswith("--filter-ssid-neg"):
+                profile_neg = validate_filter_ssid_neg(arg) or profile_neg
+            elif arg.startswith("--filter-ssid="):
+                profile_has_ssid = True
+            elif arg.startswith(_WINDOWS_ONLY_NEG):
+                raise ValueError(f"{arg!r} — опция только winws2 (Windows); в Linux используйте --filter-ssid/--filter-ssid-neg")
+        except ValueError as exc:
+            errors.append(str(exc))
+    return tuple(errors)
+
+
 @dataclass(frozen=True)
 class ProfileStrategyTemplate:
     template_id: str
@@ -144,6 +221,7 @@ class EditableTrafficProfile:
     target_value: str = ""
     strategy_args: tuple[str, ...] = ()
     enabled: bool = True
+    filter_mark: str = ""
 
     def validate(self) -> None:
         if not self.name.strip():
@@ -166,6 +244,8 @@ class EditableTrafficProfile:
             raise ValueError(f"Недопустимый filter-l3: {self.l3!r}")
         if self.l7.strip() and not _SAFE_L7_RE.fullmatch(self.l7.strip()):
             raise ValueError(f"Недопустимый filter-l7: {self.l7!r}")
+        if self.filter_mark.strip():
+            validate_filter_mark(self.filter_mark.strip())
         _validate_target(self.target_kind, self.target_value)
         validate_profile_strategy_args(self.strategy_args)
         if (
@@ -192,6 +272,8 @@ class EditableTrafficProfile:
             args.append(f"--filter-l3={self.l3.strip()}")
         if self.l7.strip():
             args.append(f"--filter-l7={self.l7.strip()}")
+        if self.filter_mark.strip():
+            args.append(f"--filter-mark={self.filter_mark.strip()}")
         args.extend(_target_args(self.target_kind, self.target_value))
         args.extend(self.strategy_args)
         return tuple(args)
@@ -1023,4 +1105,8 @@ def editable_profile_from_runtime(profile: TrafficProfile) -> EditableTrafficPro
         target_value=target_value,
         strategy_args=profile_strategy_args(profile),
         enabled=profile.enabled,
+        filter_mark=next(
+            (arg.partition("=")[2] for arg in profile.raw_args if arg.startswith("--filter-mark=")),
+            "",
+        ),
     )

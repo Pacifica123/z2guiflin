@@ -28,6 +28,10 @@ from ..adapters.blockcheck_gui import (
     last_blockcheck_log_to_text,
     parse_blockcheck_run_stats,
     parse_blockcheck_summary,
+    parse_blockcheck_coverage,
+    blockcheck_coverage_rows_to_text,
+    BLOCKCHECK_CURL_PAD_MAX,
+    BLOCKCHECK_CURL_PAD_SUGGESTED,
     prepare_blockcheck_execution,
     request_blockcheck_graceful_stop,
     write_blockcheck_last_log,
@@ -262,7 +266,21 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     timeout_spin.setRange(1, 15)
     timeout_spin.setValue(3)
     timeout_spin.setSuffix(" сек")
-    for compact_spin in (repeats_spin, timeout_spin, phase_budget_spin):
+    curl_pad_spin = QtWidgets.QSpinBox()
+    curl_pad_spin.setRange(0, BLOCKCHECK_CURL_PAD_MAX)
+    curl_pad_spin.setSingleStep(4096)
+    curl_pad_spin.setValue(0)
+    curl_pad_spin.setSpecialValueText("off")
+    curl_pad_spin.setSuffix(" байт")
+    curl_pad_spin.setToolTip(
+        "CURL_PAD (blockcheck2 1.0.6): добавляет к каждому запросу curl мусорные заголовки X-Pad-* "
+        "на указанное число байт. Нужно для проверки блокировки в стиле ТСПУ «16 КБ»: она срабатывает "
+        "по суммарному объёму переданных байт в соединении, а не по размеру настоящего ответа. "
+        "Без паддинга короткий запрос к сайту без большой страницы проходит до порога, и стратегия "
+        f"выглядит рабочей, хотя реальная загрузка оборвётся. Выкл. по умолчанию; разумно ~{BLOCKCHECK_CURL_PAD_SUGGESTED}. "
+        "Допустимо 0 или 1024..65536."
+    )
+    for compact_spin in (repeats_spin, timeout_spin, phase_budget_spin, curl_pad_spin):
         compact_spin.setMinimumHeight(28)
         compact_spin.setMinimumWidth(112)
 
@@ -315,6 +333,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     form.addWidget(http3_check, 7, 3)
     form.addWidget(dns_check, 8, 0, 1, 2)
     form.addWidget(dead_guard_check, 8, 2, 1, 2)
+    form.addWidget(form_label("CURL_PAD"), 9, 0)
+    form.addWidget(curl_pad_spin, 9, 1)
     form.setColumnMinimumWidth(0, 72)
     form.setColumnMinimumWidth(1, 128)
     form.setColumnMinimumWidth(2, 76)
@@ -634,6 +654,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             skip_dnscheck=not dns_check.isChecked(),
             repeats=int(repeats_spin.value()),
             curl_max_time=int(timeout_spin.value()),
+            curl_pad=int(curl_pad_spin.value()) if int(curl_pad_spin.value()) >= 1024 else 0,
             timeout_seconds=0,
             dead_target_guard=(
                 BLOCKCHECK_DEAD_TARGET_GUARD_AUTO_STOP
@@ -957,6 +978,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             footer.append(f"log path: {prepared.command.log_path or 'не задан'}")
         if stats.has_observations:
             footer.extend(["", stats.to_text()])
+        coverage_text = blockcheck_coverage_rows_to_text(parse_blockcheck_coverage(stdout))
+        if coverage_text:
+            footer.extend(["", coverage_text])
         if summary:
             footer.extend(["", "Parsed SUMMARY / working strategy hints:"])
             footer.extend(f"- {line}" for line in summary)

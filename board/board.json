@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 33,
-        "comments": 34,
+        "cards": 34,
+        "comments": 37,
         "checklists": 3,
         "attachments": 0
       },
@@ -32,8 +32,8 @@
   "origin": {
     "generatedAt": "2026-10-15T06:00:00Z",
     "selfHosted": true,
-    "boardRevision": 4,
-    "lastPatchId": "2026-10-15-tunnel-socks-auth",
+    "boardRevision": 5,
+    "lastPatchId": "2026-10-15-zapret2-106-features",
     "rules": "board/README.md"
   },
   "includes": {
@@ -292,11 +292,11 @@
       {
         "id": "01a13ca4-ddc2-713f-8796-03122088a5",
         "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
-        "columnId": "01a13ca4-dd86-724b-8977-facb1855fe",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
         "title": "Учесть новинки zapret2 1.0.5–1.0.6 в конструкторе и Blockcheck",
         "description": "Зачем: ядро уже 1.0.6, но GUI не знает о новых возможностях: --filter-mark (fwmark), инверсия SSID/NLM, blockcheck2 CURL_PAD (16-KB block), секция COVERAGE, fallback space-separated в 10-list.sh.\n\nГотово, когда: конструктор/валидатор принимает --filter-mark; Blockcheck Lab имеет переключатель CURL_PAD и парсит COVERAGE в таблицу «сколько доменов прошло на стратегию».",
         "priority": "medium",
-        "position": 6144,
+        "position": 9216,
         "archivedAt": null
       },
       {
@@ -363,8 +363,8 @@
         "id": "01a13ca4-ddd4-7122-864e-85bb459fdf",
         "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
         "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
-        "title": "Discord Voice: подтверждённый Linux-workflow (STUN/media 19294–19344)",
-        "description": "Зачем: v0.4 §7 «нет подтверждённого стабильного voice workflow». Upstream 1.0.3 расширил Discord media UDP до 19294–19344; wiki рекомендует категорию STUN с обычным fake.\n\nГотово, когда: voice-профиль на основе upstream init.d-фильтров проверен владельцем на нативном Discord и Vesktop: вход в канал, 10+ минут звонка, повторный вход.\n\nИсточник: zapret2 changes 1.0.3; wiki Zapret/discord",
+        "title": "Discord: voice работает от non-voice стратегий; актуальная боль — отправка медиа",
+        "description": "Зачем: строгой приёмки отдельного voice-workflow нет, но владелец наблюдает, что голос и демки обычно работают уже с обычными TCP-стратегиями. Реальная проблема сместилась на upload медиа (вложения), при стабильном чтении.\n\nГотово, когда: (1) зафиксировано, на каких стратегиях voice работает без UDP-профиля (наблюдение с датой); (2) upload медиа исследован по механизму: какие хосты/фаза (cdn/attachments upload, большие POST — кандидат на 16-KB-блок → проверить Blockcheck с CURL_PAD), и есть стратегия или вывод «не DPI».\n\nИсточник: zapret2 changes 1.0.3; wiki Zapret/discord; наблюдения владельца 15.10.2026.",
         "priority": "medium",
         "position": 1024,
         "archivedAt": null
@@ -445,6 +445,16 @@
         "columnId": "01a13ca4-dd84-7136-893e-7f3c6da5d7",
         "title": "Electron/Chromium-приложения и SOCKS без пароля: чем заменить --proxy-server",
         "description": "Зачем: Chromium не поддерживает SOCKS-аутентификацию, поэтому режимы socks-updater-window/socks-full-session/socks-flag-only теперь работают только с явным --tunnel-socks-legacy-noauth. В GUI переключателя нет.\n\nГотово, когда: ADR выбрал путь — локальный HTTP CONNECT-прокси с токеном в пути/заголовке, unix-socket + per-UID nft-фильтр на loopback-порт, или tun для приложения — и GUI показывает режим и риск.",
+        "priority": "medium",
+        "position": 6144,
+        "archivedAt": null
+      },
+      {
+        "id": "16feaf80-a93b-7018-867a-826945768475",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd86-724b-8977-facb1855fe",
+        "title": "Версия продукта не растёт вместе с патчами (всё ещё 1.1.0)",
+        "description": "Зачем: после пачек 15.10 продукт заметно изменился (SOCKS-auth, тестовый контур, circular, вердикт сети), а pyproject, __version__, v11-contract.json candidateVersion и тесты (frozen['binding']['candidateVersion']=='1.1.0') держат 1.1.0. Владелец видит «v1.1» и не понимает, что у него.\n\nГотово, когда: выбрана политика (например minor на пачку с фичами, patch на фиксы), версия поднята до 1.2.0 одним патчем со всеми привязками (pyproject, __init__, контракт, freeze, тесты, PKGBUILD-выход dist/arch/<ver>), и в docs/developer/devctl.md записано правило «пачка с фичами поднимает версию».",
         "priority": "medium",
         "position": 6144,
         "archivedAt": null
@@ -801,6 +811,10 @@
       {
         "cardId": "fe3210c7-7908-742f-8e8a-e5ee6f23f82e",
         "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "16feaf80-a93b-7018-867a-826945768475",
+        "labelId": "01a13ca4-dd93-702c-84ab-9bad581e57"
       }
     ],
     "checklists": [
@@ -1113,6 +1127,24 @@
         "cardId": "01a13ca4-dd9d-704d-8f15-ab8c5187c1",
         "body": "patch 2026-10-15-tunnel-socks-auth: inbound auth=password (RFC1929) со случайными кредами на сессию (0600, redacted); порт по умолчанию — случайный 20000–60999 вне сканируемых; probe помечает NO_AUTH как T0_SOCKS_INSECURE_NOAUTH; запуск через Chromium --proxy-server только с явным --tunnel-socks-legacy-noauth. Нужна приёмка на хосте с реальным Xray.",
         "createdAt": "2026-10-15T08:00:00Z"
+      },
+      {
+        "id": "2442730b-15f1-7243-8baf-847d16ab65b0",
+        "cardId": "01a13ca4-ddc2-713f-8796-03122088a5",
+        "body": "patch 2026-10-15-zapret2-106-features: --filter-mark=mark[/mask] в конструкторе и preflight (mask 0 и биты вне маски отклоняются); --filter-ssid-neg; winws2-only --ssid/nlm-filter-neg отклоняются для Linux; CURL_PAD в Blockcheck lab (выкл. по умолчанию, 1024..65536); COVERAGE разбирается в строки и сохраняется в last-blockcheck-coverage.json. Источники: nfqws.c, blockcheck2.sh result_coverage_print.",
+        "createdAt": "2026-10-15T08:00:00Z"
+      },
+      {
+        "id": "29916e03-c86b-7c2e-8432-740dd506b1fa",
+        "cardId": "01a13ca4-ddd4-7122-864e-85bb459fdf",
+        "body": "owner 2026-10-15: на практике обычные non-voice стратегии в большинстве случаев открывают дорогу и войсу, и демкам; механизм не выяснен (гипотеза: голос идёт после успешной TCP-фазы gateway/media-сессии, и отдельный UDP-обход не требуется). Текущая боль Discord — отправка медиа (upload), чтение в основном стабильно.",
+        "createdAt": "2026-10-15T15:00:00Z"
+      },
+      {
+        "id": "3963d98f-5177-7047-87f3-b73823b48b75",
+        "cardId": "6759594e-d560-73f0-844d-cd2f56950202",
+        "body": "owner 2026-10-15: владелец пока сидит на v1.1 со старым туннелем; приёмка произойдёт, когда понадобится туннель. Карточка остаётся в «Ждёт хоста» без срока — это осознанный режим работы проекта, а не забытый долг.",
+        "createdAt": "2026-10-15T15:00:00Z"
       }
     ],
     "boardAppearanceSettings": [],
