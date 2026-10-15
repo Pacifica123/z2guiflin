@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 34,
-        "comments": 37,
+        "cards": 35,
+        "comments": 38,
         "checklists": 3,
         "attachments": 0
       },
@@ -32,8 +32,8 @@
   "origin": {
     "generatedAt": "2026-10-15T06:00:00Z",
     "selfHosted": true,
-    "boardRevision": 5,
-    "lastPatchId": "2026-10-15-zapret2-106-features",
+    "boardRevision": 6,
+    "lastPatchId": "2026-10-15-circular-orchestrator",
     "rules": "board/README.md"
   },
   "includes": {
@@ -222,11 +222,11 @@
       {
         "id": "01a13ca4-ddaf-7040-8069-985a1298a1",
         "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
-        "columnId": "01a13ca4-dd86-724b-8977-facb1855fe",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
         "title": "Live-оркестратор через upstream `circular`, а не собственный перебор",
         "description": "Зачем: главный незакрытый пункт v0.4 (§3, §4). В zapret2 уже есть Lua-оркестратор circular (fail/success детекторы, autostate per host, nld, final). Windows GUI убрал собственный тип «оркестратор Zapret 2» (21.0.0.15) — механизм живёт в ядре. Наш код circular не использует вообще.\n\nГотово, когда: конструктор пресетов умеет собрать профиль circular из N проверенных стратегий (strategy=N, final), включает --in-range для детекторов, UI показывает текущий номер стратегии по хосту из лога; приёмка на реальном трафике.\n\nИсточник: wiki.zapret.moe/Zapret2/circular; changelog ZapretGUI 21.0.0.15-16",
         "priority": "high",
-        "position": 5120,
+        "position": 10240,
         "archivedAt": null
       },
       {
@@ -457,6 +457,16 @@
         "description": "Зачем: после пачек 15.10 продукт заметно изменился (SOCKS-auth, тестовый контур, circular, вердикт сети), а pyproject, __version__, v11-contract.json candidateVersion и тесты (frozen['binding']['candidateVersion']=='1.1.0') держат 1.1.0. Владелец видит «v1.1» и не понимает, что у него.\n\nГотово, когда: выбрана политика (например minor на пачку с фичами, patch на фиксы), версия поднята до 1.2.0 одним патчем со всеми привязками (pyproject, __init__, контракт, freeze, тесты, PKGBUILD-выход dist/arch/<ver>), и в docs/developer/devctl.md записано правило «пачка с фичами поднимает версию».",
         "priority": "medium",
         "position": 6144,
+        "archivedAt": null
+      },
+      {
+        "id": "cc6e0f6c-83c6-7613-8400-8db4d0c05677",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "title": "Приёмка: circular на реальном трафике (YouTube/Discord)",
+        "description": "Зачем: оркестратор проверен рендером аргументов и разбором лога; на живом nfqws2 не запускался.\n\nГотово, когда: на хосте владельца пресет с 2–3 кандидатами запускается, в debug-логе видны записи autostate и rotate при первом провале, хост остаётся на рабочей стратегии после закрытия соединения; зафиксировано, не ломает ли --in-range лишний трафик.",
+        "priority": "medium",
+        "position": 3072,
         "archivedAt": null
       }
     ],
@@ -815,6 +825,14 @@
       {
         "cardId": "16feaf80-a93b-7018-867a-826945768475",
         "labelId": "01a13ca4-dd93-702c-84ab-9bad581e57"
+      },
+      {
+        "cardId": "cc6e0f6c-83c6-7613-8400-8db4d0c05677",
+        "labelId": "01a13ca4-dd8d-7129-8bc6-22424e617b"
+      },
+      {
+        "cardId": "cc6e0f6c-83c6-7613-8400-8db4d0c05677",
+        "labelId": "01a13ca4-dd8b-7376-8852-5373cf256d"
       }
     ],
     "checklists": [
@@ -1145,6 +1163,12 @@
         "cardId": "6759594e-d560-73f0-844d-cd2f56950202",
         "body": "owner 2026-10-15: владелец пока сидит на v1.1 со старым туннелем; приёмка произойдёт, когда понадобится туннель. Карточка остаётся в «Ждёт хоста» без срока — это осознанный режим работы проекта, а не забытый долг.",
         "createdAt": "2026-10-15T15:00:00Z"
+      },
+      {
+        "id": "64ba189b-bf54-7b2f-8882-f7f603cb5ff0",
+        "cardId": "01a13ca4-ddaf-7040-8069-985a1298a1",
+        "body": "patch 2026-10-15-circular-orchestrator: OrchestratedProfile (models/orchestrator.py): 2..N кандидатов, strategy=N, final, fails/time/nld/reqhost/key; синтаксис из zapret-auto.lua:312 и manual (circular перед --payload, --in-range=-s5556 только для экземпляра circular, zapret-auto.lua подключается автоматически). Режим «Оркестратор (circular, эксперимент)» в конструкторе, разбор debug-лога переключений, пример orchestrated-circular-example в каталоге. Нужна проверка на реальном трафике.",
+        "createdAt": "2026-10-15T08:00:00Z"
       }
     ],
     "boardAppearanceSettings": [],

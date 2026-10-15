@@ -986,8 +986,20 @@ def remove_owner_preset(preset_id: str, root: Path | None = None) -> PresetDelet
     )
 
 
+_AUTO_LUA_INIT = "--lua-init=@core/zapret2/lua/zapret-auto.lua"
+
+
 def _replace_profiles(preset: ZapretPreset, raw_profiles: tuple[tuple[str, ...], ...]) -> ZapretPreset:
     args: list[str] = list(preset.global_args)
+    # Оркестратор circular определён в zapret-auto.lua; без него nfqws2 не
+    # найдёт функцию. Добавляем init только если профиль её использует.
+    uses_circular = any(
+        arg == "--lua-desync=circular" or arg.startswith("--lua-desync=circular:")
+        for raw_args in raw_profiles
+        for arg in raw_args
+    )
+    if uses_circular and _AUTO_LUA_INIT not in args:
+        args.append(_AUTO_LUA_INIT)
     for index, raw_args in enumerate(raw_profiles):
         if index:
             args.append("--new")

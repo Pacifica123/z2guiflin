@@ -33,6 +33,7 @@ from ..adapters.preset_editor import (
     split_blockcheck_profile_args,
     strategy_args_to_text,
 )
+from ..adapters.orchestrator_candidates import build_orchestrated_profile, list_orchestrator_candidates
 from ..models.service_targets import SERVICE_TARGET_CUSTOM, normalize_service_targets
 from ..qt_compat import require_pyqt
 
@@ -464,6 +465,7 @@ def edit_traffic_profile_dialog(
     mode_combo = QtWidgets.QComboBox()
     mode_combo.addItem("Известная стратегия", "known")
     mode_combo.addItem("Ручные nfqws2 args", "manual")
+    mode_combo.addItem("Оркестратор (circular, эксперимент)", "circular")
     template_combo = QtWidgets.QComboBox()
     template_combo.setMinimumContentsLength(50)
     for item in templates:
@@ -471,6 +473,42 @@ def edit_traffic_profile_dialog(
     manual_edit = QtWidgets.QPlainTextEdit(strategy_args_to_text(draft.strategy_args))
     manual_edit.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
     manual_edit.setMinimumHeight(180)
+    try:
+        orchestrator_candidates = list_orchestrator_candidates(root)
+    except (OSError, ValueError):
+        orchestrator_candidates = ()
+    circular_box = QtWidgets.QWidget()
+    circular_layout = QtWidgets.QVBoxLayout(circular_box)
+    circular_hint = QtWidgets.QLabel(
+        "Upstream circular из zapret-auto.lua: отметьте 2..N стратегий с одинаковым payload. "
+        "Порядок = порядок переключения. Входящий захват (--in-range) включается только для этого профиля. "
+        "Одно переключение не доказывает устойчивость стратегии."
+    )
+    circular_hint.setWordWrap(True)
+    circular_list = QtWidgets.QListWidget()
+    for candidate in orchestrator_candidates:
+        label = f"{candidate.title} [{candidate.payload or 'payload по умолчанию'}]"
+        item = QtWidgets.QListWidgetItem(label)
+        item.setData(_user_role(QtCore), candidate.strategy_id)
+        item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
+        item.setCheckState(QtCore.Qt.CheckState.Unchecked)
+        circular_list.addItem(item)
+    circular_params = QtWidgets.QHBoxLayout()
+    fails_spin = QtWidgets.QSpinBox()
+    fails_spin.setRange(1, 100)
+    fails_spin.setValue(3)
+    time_spin = QtWidgets.QSpinBox()
+    time_spin.setRange(1, 86400)
+    time_spin.setValue(60)
+    final_check = QtWidgets.QCheckBox("final на последней")
+    circular_params.addWidget(QtWidgets.QLabel("fails"))
+    circular_params.addWidget(fails_spin)
+    circular_params.addWidget(QtWidgets.QLabel("time, с"))
+    circular_params.addWidget(time_spin)
+    circular_params.addWidget(final_check)
+    circular_layout.addWidget(circular_hint)
+    circular_layout.addWidget(circular_list, 1)
+    circular_layout.addLayout(circular_params)
     blockcheck_button = QtWidgets.QPushButton("Подобрать Blockcheck и вставить")
     blockcheck_hint = QtWidgets.QLabel(
         "Blockcheck доступен для domain targets. Для Discord Voice/IP/UDP нужен отдельный probe; здесь остаются известная или ручная стратегия."
@@ -479,6 +517,7 @@ def edit_traffic_profile_dialog(
     strategy_layout.addWidget(mode_combo)
     strategy_layout.addWidget(template_combo)
     strategy_layout.addWidget(manual_edit, 1)
+    strategy_layout.addWidget(circular_box, 1)
     strategy_layout.addWidget(blockcheck_button)
     strategy_layout.addWidget(blockcheck_hint)
     layout.addWidget(strategy_box, 1)
@@ -502,9 +541,10 @@ def edit_traffic_profile_dialog(
         return next((item for item in templates if item.template_id == template_id), None)
 
     def sync_mode() -> None:
-        known = str(mode_combo.currentData()) == "known"
-        template_combo.setVisible(known)
-        manual_edit.setVisible(not known)
+        mode = str(mode_combo.currentData())
+        template_combo.setVisible(mode == "known")
+        manual_edit.setVisible(mode == "manual")
+        circular_box.setVisible(mode == "circular")
 
     def sync_protocol() -> None:
         ports_edit.setEnabled(str(protocol_combo.currentData()) != PRESET_PROTOCOL_ANY)
@@ -532,6 +572,23 @@ def edit_traffic_profile_dialog(
             strategy_args = template.strategy_args
             if not l7_edit.text().strip() and template.suggested_l7:
                 l7_edit.setText(",".join(template.suggested_l7))
+        elif str(mode_combo.currentData()) == "circular":
+            selected_ids = [
+                str(circular_list.item(row).data(_user_role(QtCore)))
+                for row in range(circular_list.count())
+                if circular_list.item(row).checkState() == QtCore.Qt.CheckState.Checked
+            ]
+            try:
+                strategy_args = build_orchestrated_profile(
+                    selected_ids,
+                    root=root,
+                    params={"fails": fails_spin.value(), "time": time_spin.value()},
+                    final_last=final_check.isChecked(),
+                ).to_strategy_args()
+            except ValueError:
+                if validate:
+                    raise
+                strategy_args = ("--lua-desync=multisplit:pos=1",)
         else:
             if validate:
                 strategy_args = parse_manual_strategy_text(manual_edit.toPlainText())

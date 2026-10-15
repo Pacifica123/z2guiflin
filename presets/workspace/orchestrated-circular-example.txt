@@ -1,0 +1,19 @@
+# z2guiflin Zapret2 preset
+# id: orchestrated-circular-example
+# title: Оркестратор circular (эксперимент)
+# Порядок profile-блоков важен: nfqws2 выбирает первое совпадение.
+--lua-init=@core/zapret2/lua/zapret-lib.lua
+--lua-init=@core/zapret2/lua/zapret-antidpi.lua
+--lua-init=@core/zapret2/lua/zapret-auto.lua
+--ctrack-disable=0
+--name=TLS circular
+--filter-tcp=443
+--filter-l7=tls
+--out-range=-s34228
+--in-range=-s5556
+--lua-desync=circular:fails=3:time=60:key=tls443
+--in-range=x
+--payload=tls_client_hello
+--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=1:strategy=1
+--lua-desync=fake:blob=fake_default_tls:tcp_md5:tcp_seq=-10000:strategy=2
+--lua-desync=multidisorder:pos=1,midsld:strategy=2

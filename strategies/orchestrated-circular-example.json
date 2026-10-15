@@ -1,0 +1,89 @@
+{
+  "capabilities": {
+    "executesAutomatically": false,
+    "mutatesServicesOrFirewallAtStage7": false,
+    "readsHostlists": true,
+    "readsProfiles": true,
+    "requiresSudoAtStage7": false,
+    "usesLocalBuildPlan": true
+  },
+  "capturePolicy": {
+    "dns53ForIpcache": "not-enabled-stage7o1",
+    "edgeIpScoped": false,
+    "edgeIps": [],
+    "kind": "external-reference-first-data-v1",
+    "ownerUidScoped": true,
+    "packetWindowHint": {
+      "enforcedByRuntime": false,
+      "tcpIn": "10",
+      "tcpOut": "30"
+    },
+    "queueInputFinRst": true,
+    "queueInputSynAck": true,
+    "tcpOutPorts": [
+      "443"
+    ],
+    "udpOutPorts": []
+  },
+  "experimental": true,
+  "id": "orchestrated-circular-example",
+  "intendedFor": [
+    "экспериментальный пример профиля с upstream-оркестратором circular",
+    "наблюдение переключений стратегий в debug-логе nfqws2; не включается автоматически"
+  ],
+  "notes": [
+    "Кандидаты взяты из reference-zapret2-generic-tls-fake (профиль 2) и reference-linux-general-multisplit-like (профиль 2) через adapters/orchestrator_candidates.py.",
+    "circular требует входящих пакетов начала потока: --in-range=-s5556 включён только для экземпляра circular, затем --in-range=x. Firewall/nft-захват входящих RST/SYN-ACK тоже должен быть включён (queueInputFinRst).",
+    "Одно переключение circular не доказывает устойчивость стратегии; см. docs/user/orchestrator.md."
+  ],
+  "orchestrator": {
+    "candidates": [
+      "reference-zapret2-generic-tls-fake#2",
+      "reference-linux-general-multisplit-like#2"
+    ],
+    "final": false,
+    "function": "circular",
+    "params": {
+      "fails": 3,
+      "key": "tls443",
+      "time": 60
+    },
+    "source": "core/zapret2/lua/zapret-auto.lua"
+  },
+  "philosophy": "upstream-circular-orchestration-experimental",
+  "presetPath": "presets/workspace/orchestrated-circular-example.txt",
+  "runtimeArgs": [
+    "--lua-init=@core/zapret2/lua/zapret-lib.lua",
+    "--lua-init=@core/zapret2/lua/zapret-antidpi.lua",
+    "--lua-init=@core/zapret2/lua/zapret-auto.lua",
+    "--ctrack-disable=0",
+    "--name=TLS circular",
+    "--filter-tcp=443",
+    "--filter-l7=tls",
+    "--out-range=-s34228",
+    "--in-range=-s5556",
+    "--lua-desync=circular:fails=3:time=60:key=tls443",
+    "--in-range=x",
+    "--payload=tls_client_hello",
+    "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000:repeats=1:strategy=1",
+    "--lua-desync=fake:blob=fake_default_tls:tcp_md5:tcp_seq=-10000:strategy=2",
+    "--lua-desync=multidisorder:pos=1,midsld:strategy=2"
+  ],
+  "schemaVersion": 1,
+  "serviceTarget": {
+    "nonVoice": true,
+    "presetId": "generic-tls",
+    "summary": "Экспериментальный пример circular для TLS/443; не привязан к конкретному сервису.",
+    "title": "Generic TLS (эксперимент circular)"
+  },
+  "summary": "Экспериментальный TLS-профиль: upstream circular переключает fake TLS → fake+multidisorder при детекте RST/ретрансмиссий/DPI-redirect по хосту.",
+  "title": "Оркестратор circular (эксперимент)",
+  "workflow": [
+    "inspect",
+    "owner-selects",
+    "plan",
+    "owner-confirms",
+    "execute-later",
+    "owner-observes-circular-log"
+  ]
+}

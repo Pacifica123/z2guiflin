@@ -99,7 +99,7 @@ def test_all_shipping_presets_materialize_same_plan_from_legacy_projection() -> 
         ).plan
         assert compatibility.plan_hash == canonical.plan_hash
         compared += 1
-    assert compared == 17
+    assert compared == 18
 
 
 def test_legacy_runtime_args_drift_cannot_change_execution_plan(tmp_path: Path) -> None:

@@ -24,6 +24,7 @@
     "strategies/windows-all-tcp-udp-v3-2-linux-bridge.json",
     "strategies/discord-voice-upstream-conservative.json",
     "strategies/discord-voice-flowseal-narrow.json",
-    "strategies/discord-voice-guiwin-wide.json"
+    "strategies/discord-voice-guiwin-wide.json",
+    "strategies/orchestrated-circular-example.json"
   ]
 }
