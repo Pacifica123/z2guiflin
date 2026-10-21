@@ -14,7 +14,7 @@
         "boards": 1,
         "columns": 8,
         "cards": 44,
-        "comments": 51,
+        "comments": 52,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-21T14:30:00Z",
+    "generatedAt": "2026-10-21T15:00:00Z",
     "selfHosted": true,
-    "boardRevision": 12,
-    "lastPatchId": "2026-10-21-self-update",
+    "boardRevision": 13,
+    "lastPatchId": "2026-10-21-strat-port-coverage",
     "rules": "board/README.md"
   },
   "includes": {
@@ -252,11 +252,11 @@
       {
         "id": "01a13ca4-ddba-70c9-8e38-2994ac807a",
         "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
-        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
         "title": "Миграция strat_collection: winws1 .bat (2025) → пресеты winws2 с --lua-init",
         "description": "Зачем: presets/collections/strat_collection — 135 файлов: Flowseal/YTDisBystro/alt*.bat для winws1, датированы 2025. Win-референс ушёл на генерируемые сборщиком пресеты winws2 1.9.9 с полным --lua-init блоком, где текст пресета — источник истины.\n\nГотово, когда: коллекция пересобрана из актуальных winws2-пресетов через существующий txt-import (преобразование WinDivert-фильтров → nft-профили), устаревшие winws1 помечены legacy; у каждого пресета provenance (коммит референса, дата).\n\nИсточник: git.zapret.moe/zapretdiscordyoutube/zapretgui",
         "priority": "medium",
-        "position": 3072,
+        "position": 6144,
         "archivedAt": null
       },
       {
@@ -1393,6 +1393,12 @@
         "cardId": "888a0fbe-b347-4c59-82f0-931b4e54fceb",
         "body": "patch 2026-10-21-self-update: adapters/self_update.py + widgets/update_dialog.py + кнопка внизу левой панели; автопроверка только у установленного пакета, не чаще раза в 20 ч, только git fetch, отключается галочкой. Детерминированно проверено на временных git-репозиториях; makepkg/pkexec на машине владельца не запускались.",
         "createdAt": "2026-10-21T14:30:00Z"
+      },
+      {
+        "id": "f3c3a3d2-22ff-45e3-8c00-4eabc6deec5f",
+        "cardId": "01a13ca4-ddba-70c9-8e38-2994ac807a",
+        "body": "patch 2026-10-21-strat-port-coverage: автопорт: 46 из 55 (было 2). hex-блобы (0xDEADBEEF…) идут прямо в blob=, а не ищутся как файлы; %BIN% снимается; split/disorder → fakedsplit/fakeddisorder, split2/disorder2 → multisplit/multidisorder (псевдонимы nfqws1); --wssize=W:S → wssize:wsize=W:scale=S без --filter-l7 (работает на SYN), значение «--wssize 1:6» через пробел больше не теряется; fake для неизвестного UDP — 64 нулевых байта, как по умолчанию в nfqws1. Не портируются --dup (5) и ipfrag2 (2) — у них нет однозначного аналога. Нужна проверка портированных стратегий на сети владельца.",
+        "createdAt": "2026-10-21T15:00:00Z"
       }
     ],
     "boardAppearanceSettings": [],

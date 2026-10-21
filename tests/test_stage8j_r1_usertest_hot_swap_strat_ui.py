@@ -50,15 +50,16 @@ def test_strat_port_is_conservative_and_uses_documented_zapret2_shapes() -> None
     assert multidisorder
     assert all("repeats=" not in arg and "tcp_md5" not in arg and "tcp_seq=" not in arg for arg in multidisorder)
 
-    # v1 has an any-protocol Discord UDP fake without an explicit payload/blob,
-    # therefore the automatic port must refuse to guess.
+    # v1 has an any-protocol Discord UDP fake without an explicit payload/blob:
+    # nfqws1 sends its documented default (64 zero bytes), and the port says so.
     v1 = analyze_strat_port(by_id["original_bolvan"], ROOT)
-    assert not v1.can_port
-    assert any("payload/blob mapping" in item for item in v1.unsupported)
+    assert v1.can_port
+    assert any("blob=0x" + "00" * 64 in arg for arg in v1.runtime_args)
+    assert any("64 нулевых байта" in item for item in v1.adaptations)
 
+    # Legacy split2 is an nfqws1 alias of multisplit.
     split2 = analyze_strat_port(by_id["bolvan3"], ROOT)
-    assert not split2.can_port
-    assert "--dpi-desync=split2" in split2.unsupported
+    assert any("split2 → multisplit" in item for item in split2.adaptations)
 
 
 def test_theme_backward_compat_fills_new_notice_and_status_colors() -> None:

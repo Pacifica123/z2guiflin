@@ -44,7 +44,12 @@ def _args(text:str):
     if not tail:return ()
     try: parts=shlex.split(tail.replace("^"," "),posix=False)
     except ValueError:parts=tail.split()
-    return tuple(x.strip() for x in parts if x.strip().startswith("--"))
+    out=[]
+    for x in (part.strip() for part in parts):
+        # `--wssize 1:6`: значение отдельным словом — склеиваем, иначе оно теряется.
+        if out and out[-1]=="--wssize" and x and not x.startswith("--"):out[-1]="--wssize="+x
+        elif x.startswith("--"):out.append(x)
+    return tuple(out)
 def _refs(args):
     out=set()
     for a in args:

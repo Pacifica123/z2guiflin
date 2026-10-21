@@ -22,8 +22,20 @@ _DIRECT_FILTER_PREFIXES = (
     "--hostlist-domains=", "--hostlist-exclude-domains=", "--ipset-ip=", "--ipset-exclude-ip=",
 )
 _FILE_FILTER_PREFIXES = ("--hostlist=", "--hostlist-exclude=", "--ipset=", "--ipset-exclude=")
-_UNSUPPORTED_PREFIXES = ("--dup", "--wssize")
-_UNSUPPORTED_MODES = {"split", "split2", "disorder", "disorder2", "ipfrag1", "ipfrag2"}
+_UNSUPPORTED_PREFIXES = ("--dup",)
+_UNSUPPORTED_MODES = {"ipfrag1", "ipfrag2"}
+# Устаревшие режимы nfqws1: split/disorder — с fake-сегментами, split2/disorder2 — без них.
+# В nfqws1 они давно стали псевдонимами fakedsplit/fakeddisorder и multisplit/multidisorder.
+_LEGACY_MODE_ALIASES = {
+    "split": "fakedsplit",
+    "disorder": "fakeddisorder",
+    "split2": "multisplit",
+    "disorder2": "multidisorder",
+}
+_HEX_BLOB = re.compile(r"0x[0-9A-Fa-f]{2,}")
+_ZERO_FAKE = "0x00000000000000000000000000000000"
+# Значение nfqws1 по умолчанию для --dpi-desync-fake-unknown-udp: 64 нулевых байта.
+_UNKNOWN_UDP_FAKE = "0x" + "00" * 64
 _DIRECT_MODES = {
     "fake": "fake",
     "syndata": "syndata",
@@ -120,8 +132,14 @@ def _blob_name(kind: str, value: str) -> str:
     return "strat_" + _SAFE_NAME.sub("_", f"{kind}_{stem}").strip("_").lower()
 
 
-def _blob_definition(collection_root: Path, project_root: Path, kind: str, value: str) -> tuple[str, str]:
+def _blob_definition(collection_root: Path, project_root: Path, kind: str, value: str) -> tuple[str, str | None]:
+    """(имя blob, --blob=…); hex-значение (0xDEADBEEF) zapret2 принимает прямо в blob=, определение не нужно."""
+
     clean = _strip_quotes(value).replace("\\", "/")
+    if _HEX_BLOB.fullmatch(clean):
+        return clean, None
+    # %BIN% в .bat — каталог bin рядом со стратегией.
+    clean = clean.replace("%BIN%", "")
     source = (collection_root / clean).resolve()
     source.relative_to(collection_root.resolve())
     if not source.is_file():
@@ -213,7 +231,10 @@ def _choose_fake_blob(options: dict[str, str], profile: tuple[str, ...], blobs: 
         return "fake_default_quic"
     if l7 and l7.issubset({"discord", "stun", "wireguard"}):
         # Exact payload form used by the bundled Zapret2 porting guide.
-        return "0x00000000000000000000000000000000"
+        return _ZERO_FAKE
+    if udp and not l7 and "--dpi-desync-any-protocol" in options:
+        # nfqws1 для неизвестного UDP шлёт fake из --dpi-desync-fake-unknown-udp, по умолчанию 64 нулевых байта.
+        return _UNKNOWN_UDP_FAKE
 
     unsupported.append("fake: для этого протокола нет однозначного payload/blob mapping")
     return None
@@ -250,6 +271,15 @@ def analyze_strat_port(entry: StratCollectionEntry, root: Path | None = None) ->
             if arg.startswith(_UNSUPPORTED_PREFIXES):
                 unsupported.append(arg)
                 continue
+            if key == "--wssize":
+                match = re.fullmatch(r"(\d+)(?::(\d+))?", options.get("--wssize", ""))
+                if match:
+                    wssize_args = f"wsize={match.group(1)}" + (f":scale={match.group(2)}" if match.group(2) else "")
+                    out.append("--lua-desync=wssize:" + wssize_args)
+                    adaptations.append(f"--wssize={options['--wssize']} → wssize:{wssize_args}")
+                else:
+                    unsupported.append(arg)
+                continue
             if key == "--ipcache-hostname":
                 if arg not in globals_out:
                     globals_out.append(arg)
@@ -261,11 +291,18 @@ def analyze_strat_port(entry: StratCollectionEntry, root: Path | None = None) ->
             unsupported.append(arg)
 
         for guard in _inferred_profile_guards(profile):
+            # wssize работает на SYN, когда L7 ещё не известен: --filter-l7 выключил бы его.
+            if "--wssize" in options and guard.startswith("--filter-l7="):
+                continue
             if guard not in out:
                 out.append(guard)
 
         mode_text = options.get("--dpi-desync", "")
-        modes = tuple(part.strip() for part in mode_text.split(",") if part.strip())
+        raw_modes = tuple(part.strip() for part in mode_text.split(",") if part.strip())
+        modes = tuple(_LEGACY_MODE_ALIASES.get(mode, mode) for mode in raw_modes)
+        for legacy in raw_modes:
+            if legacy in _LEGACY_MODE_ALIASES:
+                adaptations.append(f"--dpi-desync={legacy} → {_LEGACY_MODE_ALIASES[legacy]} (как в nfqws1)")
         if not modes:
             unsupported.append("профиль без --dpi-desync")
             profiles_out.append(out)
@@ -283,7 +320,8 @@ def analyze_strat_port(entry: StratCollectionEntry, root: Path | None = None) ->
             try:
                 name, definition = _blob_definition(entry.source_path.parent, layout.root, kind, options[option])
                 blobs[kind] = name
-                blob_defs.setdefault(name, definition)
+                if definition:
+                    blob_defs.setdefault(name, definition)
             except Exception as exc:
                 unsupported.append(str(exc))
 
@@ -320,6 +358,8 @@ def analyze_strat_port(entry: StratCollectionEntry, root: Path | None = None) ->
                     blob = blobs["syndata"]
                 else:
                     blob = _choose_fake_blob(options, profile, blobs, unsupported)
+                if blob == _UNKNOWN_UDP_FAKE:
+                    adaptations.append("fake для неизвестного UDP: 64 нулевых байта, как --dpi-desync-fake-unknown-udp в nfqws1")
                 if blob:
                     args.append(f"blob={blob}")
                 if tls_mod and (blob == blobs.get("tls") or blob == blobs.get("syndata") or (blob and "tls" in blob)):
