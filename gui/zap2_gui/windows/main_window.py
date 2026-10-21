@@ -8,6 +8,7 @@ from pathlib import Path
 from ..project_paths import discover_layout
 from ..widgets.discovery_palette import make_discovery_palette
 from ..widgets.health_panel import make_health_panel
+from ..widgets.home import make_home_page
 from .. import PRODUCT_LABEL
 from ..adapters.local_build import create_local_build_plan
 from ..core_inventory import load_core_build_map, load_core_inventory_snapshot
@@ -86,7 +87,9 @@ def create_main_window(root: object | None = None) -> Any:
                         header.setSizeHint(QtCore.QSize(0, 26))
                         self.navigation_list.addItem(header)
 
-                if section.key == "overview":
+                if section.key == "home":
+                    page = make_home_page(on_start=lambda: self.focus_discovery_target("diagnostics", None))
+                elif section.key == "overview":
                     page = make_runtime_control_page(root)
                 elif section.key == "core":
                     page = make_core_page(snapshot, build_map, build_plan)

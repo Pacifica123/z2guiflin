@@ -74,7 +74,7 @@ def custom_stylesheet(profile: ThemeProfile) -> str:
 /* z2guiflin semantic custom theme profile */
 QWidget {{ color:{c['text']}; font-size:{p.font_size_pt}pt; {family} }}
 QMainWindow, QWidget#appShell, QStackedWidget#contentStack {{ background:{c['window']}; }}
-QWidget#page-home,QWidget#page-overview,QWidget#page-core,QWidget#page-strategies,QWidget#page-diagnostics,QWidget#page-tunnel,QWidget#page-settings,QWidget#page-logs,QWidget#blockcheckLabContent {{ background:transparent; }}
+QWidget#page-home,QWidget#page-overview,QWidget#page-core,QWidget#page-strategies,QWidget#page-diagnostics,QWidget#page-tunnel,QWidget#page-settings,QWidget#page-logs,QWidget#blockcheckLabContent,QWidget#homeContent {{ background:transparent; }}
 QFrame#navigationRail {{ background:{c['control']}; border:1px solid {c['border']}; border-radius:{r}px; }}
 QFrame#contentSurface {{ background:{c['surface']}; border:1px solid {c['border']}; border-radius:{r}px; }}
 QGroupBox,QFrame#settingsCard,QGroupBox#discordMachineDiagnosticsBox,QFrame#discordMachineSummaryFrame {{ color:{c['text']}; background:{c['card']}; border:1px solid {c['border']}; border-radius:{r}px; }}

@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 38,
-        "comments": 40,
+        "cards": 40,
+        "comments": 42,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-21T12:00:00Z",
+    "generatedAt": "2026-10-21T12:30:00Z",
     "selfHosted": true,
-    "boardRevision": 8,
-    "lastPatchId": "2026-10-21-nav-remedies",
+    "boardRevision": 9,
+    "lastPatchId": "2026-10-21-home-showcase",
     "rules": "board/README.md"
   },
   "includes": {
@@ -498,6 +498,26 @@
         "priority": "medium",
         "position": 12288,
         "archivedAt": null
+      },
+      {
+        "id": "d4c96dd7-be81-4870-b11e-a04e3fc1eaed",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "title": "Главная-витрина: откуда программа и на чьих плечах стоит",
+        "description": "Зачем: при запуске пользователь попадал сразу в «Обзор» с кнопками запуска, без объяснения, что это за программа и почему в ней столько разных средств.\n\nГотово, когда: первая страница — витрина: короткий текст о том, что это сборная солянка средств и попытка разобраться в наследии bol-van и loop-uh, благодарности, рефрен «i just trying..» один раз в конце; текст в assets/showcase/showcase.json правится без кода; страница не ходит в сеть; кнопка «Начать с диагностики».",
+        "priority": "medium",
+        "position": 13312,
+        "archivedAt": null
+      },
+      {
+        "id": "531b7070-d3b7-4fbe-8adf-398d38efecc7",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd83-725e-8dd4-243ceb3ffd",
+        "title": "Интерактивный тур по программе: подсказки поверх интерфейса",
+        "description": "Зачем: статичный список «что здесь есть» на витрине быстро устаревает и не учит пользоваться. Владелец хочет гайд-всплывашки.\n\nГотово, когда: с «Главной» запускается тур: по шагам подсвечиваются Диагностика → средство из вердикта → Пресеты/Туннель; тур можно прервать и пройти заново; шаги описаны данными, а не кодом.",
+        "priority": "medium",
+        "position": 7168,
+        "archivedAt": null
       }
     ],
     "labels": [
@@ -879,6 +899,14 @@
       {
         "cardId": "157e39bf-51ff-4fcb-820d-ef0c98d1eeb1",
         "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "d4c96dd7-be81-4870-b11e-a04e3fc1eaed",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "531b7070-d3b7-4fbe-8adf-398d38efecc7",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
       }
     ],
     "checklists": [
@@ -1227,6 +1255,18 @@
         "cardId": "157e39bf-51ff-4fcb-820d-ef0c98d1eeb1",
         "body": "patch 2026-10-21-nav-remedies: models/navigation.py (группы + home), models/remedy.py (вердикт → средства), main_window: заголовки групп не выбираются, row↔stack через карту, ui/last-page-key; net_verdict_panel: кнопки «Что попробовать». «Обзор» переименован в «Запуск»: обзором теперь служит «Главная».",
         "createdAt": "2026-10-21T12:00:00Z"
+      },
+      {
+        "id": "93eee83d-5b3c-4eba-9961-af782de8ef21",
+        "cardId": "d4c96dd7-be81-4870-b11e-a04e3fc1eaed",
+        "body": "patch 2026-10-21-home-showcase: widgets/home.py + assets/showcase/showcase.json; ссылки только https и экранированный текст; цвет ссылок следует теме; без раздела «Что здесь есть» — его заменит интерактивный тур.",
+        "createdAt": "2026-10-21T12:30:00Z"
+      },
+      {
+        "id": "b4a3ff8c-eb69-4d58-8b36-15dac62dd014",
+        "cardId": "531b7070-d3b7-4fbe-8adf-398d38efecc7",
+        "body": "patch 2026-10-21-home-showcase: заведено вместо раздела «Что здесь есть» на витрине.",
+        "createdAt": "2026-10-21T12:30:00Z"
       }
     ],
     "boardAppearanceSettings": [],

@@ -25,7 +25,8 @@ QWidget#page-diagnostics,
 QWidget#page-tunnel,
 QWidget#page-settings,
 QWidget#page-logs,
-QWidget#blockcheckLabContent {
+QWidget#blockcheckLabContent,
+QWidget#homeContent {
     background: transparent;
 }
 

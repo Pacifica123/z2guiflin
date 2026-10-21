@@ -1,0 +1,27 @@
+{
+  "formatVersion": 1,
+  "title": "z2guiflin",
+  "lead": "Если вы здесь, вы и так знаете, что это про zapret.",
+  "paragraphs": [
+    "Всё началось с попытки разобраться в наследии bol-van и loop-uh. Потом я пробовал дальше — туннели, Tor, DNS, диагностику, — и всё это осталось здесь. Поэтому программа похожа на сборную солянку — она такая и есть.",
+    "Я не уверен, что делаю это правильно. Уверен только в том, что продолжаю пробовать."
+  ],
+  "creditsTitle": "На чьих плечах",
+  "credits": [
+    {"name": "bol-van", "text": "zapret2, ядро nfqws2/winws2. Без него здесь ничего не было бы.", "url": "https://github.com/bol-van/zapret2"},
+    {"name": "loop-uh", "text": "zapretgui для Windows; у него я учусь тому, как это должно быть удобно."}
+  ],
+  "alsoTitle": "Также",
+  "also": [
+    {"name": "wiki.zapret.moe", "url": "https://wiki.zapret.moe"},
+    {"name": "Flowseal"},
+    {"name": "YTDisBystro"},
+    {"name": "v2rayNG"},
+    {"name": "Xray"},
+    {"name": "Tor Project и Arti"},
+    {"name": "kartavkun"},
+    {"name": "vernette"},
+    {"name": "sergeydigl3"}
+  ],
+  "refrain": "i just trying.."
+}
