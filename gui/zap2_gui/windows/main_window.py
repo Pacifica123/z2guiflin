@@ -148,6 +148,11 @@ def create_main_window(root: object | None = None) -> Any:
             discovery_button.clicked.connect(self.open_discovery)
             self.discovery_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
             self.discovery_shortcut.activated.connect(self.open_discovery)
+            self.update_button = QtWidgets.QPushButton("Обновление")
+            self.update_button.setObjectName("updateButton")
+            self.update_button.setToolTip("Проверить репозиторий и пересобрать пакет; перед установкой запущенное останавливается")
+            self.update_button.clicked.connect(self.open_update)
+            self._update_dialog = None
             about_button=QtWidgets.QPushButton("О программе / идентификаторы")
             about_button.setObjectName("productIdentityButton")
             about_button.clicked.connect(self.show_product_identity)
@@ -158,6 +163,7 @@ def create_main_window(root: object | None = None) -> Any:
             navigation_layout.addSpacing(8)
             navigation_layout.addWidget(self.navigation_list, 1)
             navigation_layout.addWidget(safety_hint)
+            navigation_layout.addWidget(self.update_button)
 
             content_surface = QtWidgets.QFrame()
             content_surface.setObjectName("contentSurface")
@@ -182,6 +188,13 @@ def create_main_window(root: object | None = None) -> Any:
             last_key = str(self._settings.value("ui/last-page-key", sections[0].key) or "")
             self.navigation_list.setCurrentRow(self._key_to_row.get(last_key, self._key_to_row[sections[0].key]))
 
+            import os
+            from ..distribution import INSTALL_ROOT_ENV
+            from ..widgets.update_dialog import auto_check_due
+            # Автопроверка — только для установленного пакета: из checkout обновляются через git/devctl.
+            if os.environ.get(INSTALL_ROOT_ENV) and auto_check_due(self._settings):
+                QtCore.QTimer.singleShot(4000, self._auto_check_update)
+
             geometry = self._settings.value("ui/window-geometry")
             if geometry is not None:
                 try:
@@ -200,6 +213,41 @@ def create_main_window(root: object | None = None) -> Any:
             text.setPlainText(json.dumps(identity_snapshot(root),ensure_ascii=False,indent=2));layout.addWidget(text)
             close=QtWidgets.QPushButton("Закрыть");close.clicked.connect(dialog.accept);layout.addWidget(close)
             dialog.exec()
+
+        def _stop_runtime_for_update(self) -> str:
+            from ..adapters.launch_composer import SUPPORTED_LAUNCH_COMPONENTS, launch_composer_stop_to_text
+            return launch_composer_stop_to_text(root=root, components=SUPPORTED_LAUNCH_COMPONENTS)
+
+        def _show_update_status(self, status: Any) -> None:
+            self.update_button.setText("Доступно обновление ●" if status.available else "Обновление")
+
+        def open_update(self) -> None:
+            if self._update_dialog is None:
+                from ..widgets.update_dialog import make_update_dialog
+                self._update_dialog = make_update_dialog(
+                    self, self._settings, discover_layout(root).root, self._stop_runtime_for_update, self._show_update_status
+                )
+            self._update_dialog.show()
+            self._update_dialog.raise_()
+
+        def _auto_check_update(self) -> None:
+            import time
+            from ..adapters.self_update import check_update
+            from ..widgets.update_dialog import SETTINGS_LAST_CHECK, guess_checkout, make_update_worker
+            checkout = guess_checkout(self._settings, None)
+            if checkout is None:
+                return
+            worker = make_update_worker(QtCore, lambda _log: check_update(checkout))
+
+            def done(status: Any) -> None:
+                self._update_worker = None
+                if status is not None:
+                    self._settings.setValue(SETTINGS_LAST_CHECK, time.time())
+                    self._show_update_status(status)
+
+            worker.done.connect(done)
+            self._update_worker = worker
+            worker.start()
 
         def eventFilter(self, watched, event):
             if watched.objectName() == "launchIssueMessage" and event.type() == QtCore.QEvent.Type.ToolTip:

@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 43,
-        "comments": 50,
+        "cards": 44,
+        "comments": 51,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-21T14:00:00Z",
+    "generatedAt": "2026-10-21T14:30:00Z",
     "selfHosted": true,
-    "boardRevision": 11,
-    "lastPatchId": "2026-10-21-lifecycle-liveness",
+    "boardRevision": 12,
+    "lastPatchId": "2026-10-21-self-update",
     "rules": "board/README.md"
   },
   "includes": {
@@ -548,6 +548,16 @@
         "priority": "medium",
         "position": 15360,
         "archivedAt": null
+      },
+      {
+        "id": "888a0fbe-b347-4c59-82f0-931b4e54fceb",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "title": "Обновление из GUI: проверка репозитория, остановка runtime, сборка и установка пакета",
+        "description": "Зачем: обновляться приходилось вручную (build_local_package.sh + makepkg -si), и если забыть остановить zapret/туннель, новый пакет не стартовал.\n\nГотово, когда: на реальном Arch владельца кнопка «Обновление» видит новые коммиты pacifica123/z2guiflin и расхождение checkout с установленным пакетом; «Обновить» останавливает запущенное, делает git pull --ff-only, собирает пакет makepkg без root и ставит через pkexec pacman -U; после перезапуска открывается новая версия без lifecycle-ошибки.\n\nРучной обход, если обновление всё же застряло: zap2-gui --lifecycle-status; убедиться, что nfqws2/xray не запущены и sudo nft list tables | grep zap2 пусто; zap2-gui --lifecycle-confirm-stopped.",
+        "priority": "medium",
+        "position": 5120,
+        "archivedAt": null
       }
     ],
     "labels": [
@@ -961,6 +971,14 @@
       {
         "cardId": "a141c93b-78d6-434a-8405-6d72a992708d",
         "labelId": "01a13ca4-dd8c-7113-8736-9a797d76de"
+      },
+      {
+        "cardId": "888a0fbe-b347-4c59-82f0-931b4e54fceb",
+        "labelId": "01a13ca4-dd92-707d-8c35-772e675fc7"
+      },
+      {
+        "cardId": "888a0fbe-b347-4c59-82f0-931b4e54fceb",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
       }
     ],
     "checklists": [
@@ -1369,6 +1387,12 @@
         "cardId": "a141c93b-78d6-434a-8405-6d72a992708d",
         "body": "patch 2026-10-21-lifecycle-liveness: distribution.py: runtime_record_activity / active_runtime_records / confirm_runtime_stopped; fail-closed сохранён для непонятных и свежих записей без PID (например, owner-rules applied в текущей загрузке).",
         "createdAt": "2026-10-21T14:00:00Z"
+      },
+      {
+        "id": "9308f045-6424-4abd-a903-700792ed88fc",
+        "cardId": "888a0fbe-b347-4c59-82f0-931b4e54fceb",
+        "body": "patch 2026-10-21-self-update: adapters/self_update.py + widgets/update_dialog.py + кнопка внизу левой панели; автопроверка только у установленного пакета, не чаще раза в 20 ч, только git fetch, отключается галочкой. Детерминированно проверено на временных git-репозиториях; makepkg/pkexec на машине владельца не запускались.",
+        "createdAt": "2026-10-21T14:30:00Z"
       }
     ],
     "boardAppearanceSettings": [],
