@@ -418,10 +418,11 @@ def edit_traffic_profile_dialog(
 
     dialog = QtWidgets.QDialog(parent)
     dialog.setWindowTitle("Профиль пресета")
-    dialog.resize(840, 720)
+    dialog.resize(840, 780)
     layout = QtWidgets.QVBoxLayout(dialog)
 
-    form_box = QtWidgets.QGroupBox("Filter и target")
+    # Три блока по смыслу: что профиль ловит, что пропускает дальше, что делает с пойманным.
+    form_box = QtWidgets.QGroupBox("1. Что ловит профиль")
     form = QtWidgets.QFormLayout(form_box)
     name_edit = QtWidgets.QLineEdit(draft.name)
     enabled_check = QtWidgets.QCheckBox("Профиль включён")
@@ -460,7 +461,23 @@ def edit_traffic_profile_dialog(
     form.addRow("Цель", target_edit)
     layout.addWidget(form_box)
 
-    strategy_box = QtWidgets.QGroupBox("Стратегия профиля")
+    exclude_box = QtWidgets.QGroupBox("2. Что пропускает (исключения)")
+    exclude_form = QtWidgets.QFormLayout(exclude_box)
+    exclude_hint = QtWidgets.QLabel(
+        "Эти домены и адреса профиль не трогает: соединение уходит к следующим профилям, а если их нет — проходит как есть. "
+        "Удобно, чтобы общий профиль не ломал банк, госуслуги или локальную сеть."
+    )
+    exclude_hint.setWordWrap(True)
+    exclude_domains_edit = QtWidgets.QLineEdit(draft.exclude_domains)
+    exclude_domains_edit.setPlaceholderText("sberbank.ru gosuslugi.ru — поддомены включены")
+    exclude_ips_edit = QtWidgets.QLineEdit(draft.exclude_ips)
+    exclude_ips_edit.setPlaceholderText("192.168.0.0/16 10.0.0.0/8")
+    exclude_form.addRow(exclude_hint)
+    exclude_form.addRow("Домены", exclude_domains_edit)
+    exclude_form.addRow("IP / CIDR", exclude_ips_edit)
+    layout.addWidget(exclude_box)
+
+    strategy_box = QtWidgets.QGroupBox("3. Что делает (стратегия)")
     strategy_layout = QtWidgets.QVBoxLayout(strategy_box)
     mode_combo = QtWidgets.QComboBox()
     mode_combo.addItem("Известная стратегия", "known")
@@ -608,6 +625,8 @@ def edit_traffic_profile_dialog(
             strategy_args=strategy_args,
             enabled=enabled_check.isChecked(),
             filter_mark=mark_edit.text().strip(),
+            exclude_domains=exclude_domains_edit.text().strip(),
+            exclude_ips=exclude_ips_edit.text().strip(),
         )
         if validate:
             result.validate()
@@ -653,10 +672,21 @@ def edit_traffic_profile_dialog(
 
     def save() -> None:
         try:
-            dialog._result_profile = collect(validate=True)  # type: ignore[attr-defined]
+            profile = collect(validate=True)
         except Exception as exc:
             _message_error(QtWidgets, dialog, "Профиль не сохранён", str(exc))
             return
+        if profile.exclude_domains and profile.target_kind not in {PRESET_TARGET_DOMAINS, PRESET_TARGET_HOSTLIST}:
+            answer = QtWidgets.QMessageBox.question(
+                dialog,
+                "Исключение доменов без списка доменов",
+                "nfqws2 не выбирает профиль со списком доменов (даже только исключающим), пока не узнал имя хоста. "
+                "Значит, первые пакеты соединения этот профиль больше не обработает — стратегии на SYN или "
+                "по IP могут перестать работать.\n\nЕсли нужно исключить адреса, надёжнее «IP / CIDR». Сохранить всё равно?",
+            )
+            if answer != QtWidgets.QMessageBox.StandardButton.Yes:
+                return
+        dialog._result_profile = profile  # type: ignore[attr-defined]
         dialog.accept()
 
     mode_combo.currentIndexChanged.connect(lambda _index: sync_mode())

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -222,6 +223,8 @@ class EditableTrafficProfile:
     strategy_args: tuple[str, ...] = ()
     enabled: bool = True
     filter_mark: str = ""
+    exclude_domains: str = ""
+    exclude_ips: str = ""
 
     def validate(self) -> None:
         if not self.name.strip():
@@ -247,6 +250,10 @@ class EditableTrafficProfile:
         if self.filter_mark.strip():
             validate_filter_mark(self.filter_mark.strip())
         _validate_target(self.target_kind, self.target_value)
+        if self.exclude_domains.strip():
+            _validate_target(PRESET_TARGET_DOMAINS, self.exclude_domains)
+        if self.exclude_ips.strip():
+            _validate_ip_tokens(self.exclude_ips, "Исключения IP/CIDR")
         validate_profile_strategy_args(self.strategy_args)
         if (
             self.protocol == PRESET_PROTOCOL_ANY
@@ -275,6 +282,7 @@ class EditableTrafficProfile:
         if self.filter_mark.strip():
             args.append(f"--filter-mark={self.filter_mark.strip()}")
         args.extend(_target_args(self.target_kind, self.target_value))
+        args.extend(_exclusion_args(self.exclude_domains, self.exclude_ips))
         args.extend(self.strategy_args)
         return tuple(args)
 
@@ -383,6 +391,34 @@ def _validate_target(kind: str, value: str) -> None:
             raise ValueError("IP/CIDR цель содержит недопустимое значение")
         return
     raise ValueError(f"Неподдерживаемый тип цели: {kind}")
+
+
+def _validate_ip_tokens(value: str, what: str) -> tuple[str, ...]:
+    values = _split_csv_or_space(value)
+    for item in values:
+        try:
+            if not _SAFE_IP_TOKEN_RE.fullmatch(item):
+                raise ValueError(item)
+            ipaddress.ip_network(item, strict=False)
+        except ValueError as exc:
+            raise ValueError(f"{what}: недопустимое значение {item!r}") from exc
+    return values
+
+
+def _domain_tokens(value: str) -> tuple[str, ...]:
+    hosts = tuple(service_target_host_token(item) for item in normalize_service_targets(_split_csv_or_space(value)))
+    return tuple(dict.fromkeys(item for item in hosts if item))
+
+
+def _exclusion_args(domains: str, ips: str) -> tuple[str, ...]:
+    """Исключения профиля: эти домены и адреса профиль пропускает к следующим."""
+
+    args: list[str] = []
+    if domains.strip():
+        args.append("--hostlist-exclude-domains=" + ",".join(_domain_tokens(domains)))
+    if ips.strip():
+        args.append("--ipset-exclude-ip=" + ",".join(dict.fromkeys(_validate_ip_tokens(ips, "Исключения IP/CIDR"))))
+    return tuple(args)
 
 
 def _target_args(kind: str, value: str) -> tuple[str, ...]:
@@ -1121,4 +1157,65 @@ def editable_profile_from_runtime(profile: TrafficProfile) -> EditableTrafficPro
             (arg.partition("=")[2] for arg in profile.raw_args if arg.startswith("--filter-mark=")),
             "",
         ),
+        exclude_domains=" ".join(_csv_values(profile.raw_args, "--hostlist-exclude-domains=")),
+        exclude_ips=" ".join(_csv_values(profile.raw_args, "--ipset-exclude-ip=")),
+    )
+
+
+def _csv_values(args: Iterable[str], prefix: str) -> tuple[str, ...]:
+    return tuple(
+        dict.fromkeys(
+            item.strip() for arg in args if arg.startswith(prefix) for item in arg.partition("=")[2].split(",") if item.strip()
+        )
+    )
+
+
+def add_owner_profile_exclusions(
+    preset_id: str,
+    profile_index: int,
+    *,
+    domains: Iterable[str] = (),
+    cidrs: Iterable[str] = (),
+    root: Path | None = None,
+) -> PresetMutationResult:
+    """Дописать домены/адреса в исключения профиля, не трогая остальные его аргументы."""
+
+    layout = discover_layout(root)
+    entry = load_preset(preset_id, layout.root)
+    rows = [list(item.raw_args) for item in entry.preset.profiles]
+    if not 0 <= profile_index < len(rows):
+        raise ValueError(f"Профиль #{profile_index + 1} не найден")
+    domain_tokens = _domain_tokens(" ".join(domains)) if any(str(item).strip() for item in domains) else ()
+    cidr_tokens = _validate_ip_tokens(" ".join(cidrs), "Исключения IP/CIDR") if any(str(item).strip() for item in cidrs) else ()
+    if not domain_tokens and not cidr_tokens:
+        raise ValueError("Нечего добавлять в исключения")
+    row = rows[profile_index]
+    for prefix, tokens in (("--hostlist-exclude-domains=", domain_tokens), ("--ipset-exclude-ip=", cidr_tokens)):
+        if not tokens:
+            continue
+        merged = tuple(dict.fromkeys((*_csv_values(row, prefix), *tokens)))
+        row[:] = [arg for arg in row if not arg.startswith(prefix)]
+        position = max((index + 1 for index, arg in enumerate(row) if arg.startswith(_FILTER_PREFIXES + ("--name=", "--skip"))), default=0)
+        row.insert(position, prefix + ",".join(merged))
+    updated = _replace_profiles(entry.preset, tuple(tuple(item) for item in rows))
+    return _write_existing_preset(layout.root, entry, updated, "profile-exclusions-added")
+
+
+def copy_preset_for_editing(preset_id: str, root: Path | None = None, title: str = "") -> PresetMutationResult:
+    """Редактируемая копия любого пресета: исходник (reference/community/Blockcheck) не меняется."""
+
+    layout = discover_layout(root)
+    entry = load_preset(preset_id, layout.root)
+    source = entry.metadata.source_preset or {}
+    extra: dict[str, object] = {"copiedFromPresetId": preset_id}
+    if source.get("listAssetsRoot"):
+        extra["listAssetsRoot"] = source["listAssetsRoot"]  # общие списки не удалятся вместе с оригиналом
+    return create_owner_preset_from_runtime_args(
+        title.strip() or f"{entry.preset.title} (моя копия)",
+        entry.preset.to_runtime_args(),
+        layout.root,
+        make_unique=True,
+        action="copied",
+        source_preset_extra=extra,
+        extra_notes=(f"Копия пресета {preset_id} для правки в конструкторе.",),
     )

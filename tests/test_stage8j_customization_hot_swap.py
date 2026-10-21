@@ -104,7 +104,8 @@ def test_bundled_strat_collection_is_indexed_without_execution() -> None:
 def test_presets_ui_has_loop_uh_style_search_and_one_click_apply() -> None:
     source = (ROOT / "gui/zap2_gui/widgets/presets.py").read_text(encoding="utf-8")
     assert 'QtGui.QKeySequence("Ctrl+F")' in source
-    assert "preset_list.itemClicked.connect(one_click_apply)" in source
+    assert "preset_list.itemDoubleClicked.connect(double_click_apply)" in source
+    assert "itemClicked.connect" not in source  # одиночный клик только выбирает
     assert "hot_swap_preset(" in source
     assert 'tabs.addTab(collection_tab, "strat_collection")' in source
     assert "BAT/winws никогда не исполняются" in source
@@ -114,7 +115,7 @@ def test_settings_ui_exports_theme_and_controls_hot_swap() -> None:
     source = (ROOT / "gui/zap2_gui/widgets/settings.py").read_text(encoding="utf-8")
     assert "Экспорт темы…" in source
     assert "Импорт темы…" in source
-    assert 'settings.value("presets/one-click-apply",True,type=bool)' in source
+    assert 'settings.value("presets/double-click-apply",settings.value("presets/one-click-apply",True,type=bool),type=bool)' in source
     assert "navigationRail" in source
 
 
