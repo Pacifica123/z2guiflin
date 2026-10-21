@@ -124,9 +124,9 @@ def test_local_package_workflow_creates_archive_and_matching_recipe(tmp_path):
     out=tmp_path/'package inputs'
     result=subprocess.run(['bash',str(ROOT/'meta_tools/build_local_package.sh'),'--out',str(out)],cwd=tmp_path,capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
-    archive=out/'zap2gui-linux-1.2.0.tar.gz';recipe=(out/'PKGBUILD').read_text()
+    archive=out/'zap2gui-linux-1.3.0.tar.gz';recipe=(out/'PKGBUILD').read_text()
     assert hashlib.sha256(archive.read_bytes()).hexdigest() in recipe
-    assert "pkgver=1.2.0" in recipe
+    assert "pkgver=1.3.0" in recipe
     assert 'makepkg -si' in result.stdout
 
 def test_p07_source_freeze_remains_historical():

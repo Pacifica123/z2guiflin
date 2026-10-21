@@ -16,4 +16,4 @@ P06 использует compatibility workspace, чтобы не перепис
 
 Текущий workflow — `--v11`; `--p07`/`--p07-release` сохранены для исторического P07; предыдущий `--p06` сохраняется как профиль своего этапа. P07 freeze включает shipping source и весь test corpus, PC/profile digests и release digest. Per-test JUnit позволяет видеть локальные FAIL/NOT_RUN для каждого probe; real OS/live/app/package/migration/review требуют внешних typed receipts. Recipe и release manifest воспроизводимы; final version/tag не создаются автоматически.
 
-Авторский package workflow: bash meta_tools/build_local_package.sh создаёт archive/PKGBUILD из checkout в dist/arch/1.2.0; makepkg -si запускают в этом output directory. Предварительная внешняя публикация/сертификация архива не требуется.
+Авторский package workflow: bash meta_tools/build_local_package.sh создаёт archive/PKGBUILD из checkout в dist/arch/1.3.0; makepkg -si запускают в этом output directory. Предварительная внешняя публикация/сертификация архива не требуется.

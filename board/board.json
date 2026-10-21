@@ -14,7 +14,7 @@
         "boards": 1,
         "columns": 8,
         "cards": 46,
-        "comments": 59,
+        "comments": 60,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-21T20:00:00Z",
+    "generatedAt": "2026-10-21T21:00:00Z",
     "selfHosted": true,
-    "boardRevision": 17,
-    "lastPatchId": "2026-10-21-tor-page",
+    "boardRevision": 18,
+    "lastPatchId": "2026-10-21-version-1-3-0",
     "rules": "board/README.md"
   },
   "includes": {
@@ -1477,6 +1477,12 @@
         "cardId": "750efb86-d11e-49ed-ab0f-04ac76822fdd",
         "body": "patch 2026-10-21-tor-page: патч 2026-10-21-tor-page: страница «Tor» в разделе «Средства» (вкладка из «Туннеля» убрана). Мосты вставляются текстом, проверяются (адрес, отпечаток, cert= у obfs4, url= у webtunnel), без повторов, хранятся в .zap2/tor/bridges.txt (0600). Поиск lyrebird/obfs4proxy/webtunnel-client/snowflake-client/conjure-client в PATH и /usr/lib/tor; план отказывает, если транспорта нет. Мосты и ClientTransportPlugin пишутся в torrc, [bridges] и [[bridges.transports]] — в конфиг Arti. Прогресс bootstrap (C Tor «Bootstrapped N%», Arti «Sufficiently bootstrapped»). Режимы «Приложения через Tor» и «Tor перед VLESS» (xray dialerProxy / v2ray proxySettings на socks-выход к Tor) с пояснениями. Случайный порт по умолчанию с предупреждением «localhost — не приватность», фиксированный порт или unix-сокет (C Tor, каталог 0700). Moat не запрашивается; список мостов, изменённый после плана, блокирует запуск. Нужна проверка владельцем с реальными мостами (Tor 0.4.9.11, Arti 2.5.1).",
         "createdAt": "2026-10-21T20:00:00Z"
+      },
+      {
+        "id": "cc110a62-bb65-4db7-95a9-e1d124629dd2",
+        "cardId": "16feaf80-a93b-7018-867a-826945768475",
+        "body": "patch 2026-10-21-version-1-3-0: пачка B (DNS, пресеты, Tor, автообновление, починка lifecycle) → 1.3.0 во всех привязках: pyproject, __init__ (версия, label v1.3, development line), v11-contract, freeze, тесты, generated reference, dist/arch/1.3.0.",
+        "createdAt": "2026-10-21T21:00:00Z"
       }
     ],
     "boardAppearanceSettings": [],

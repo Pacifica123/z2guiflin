@@ -5386,7 +5386,7 @@
     "--package-preflight": "verify installed package; no user state",
     "--support-bundle FILE": "redacted evidence only"
   },
-  "productVersion": "1.2.0",
+  "productVersion": "1.3.0",
   "provenance": {
     "manifestSha256": "8e31eb82e3c06f5803d60e95eb27f2c80b513b98530443927c33770447a7f8c1",
     "schemas": {

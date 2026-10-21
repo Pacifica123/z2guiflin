@@ -1,40 +1,18 @@
-# 2026-10-21-tor-page — Tor отдельной страницей: мосты, pluggable transports, два режима
+# 2026-10-21-version-1-3-0 — версия 1.3.0
 
-Седьмой патч пачки B.
+Последний патч пачки B. По правилу `docs/VERSIONING.md` пачка с фичами поднимает minor.
 
 ## Что сделано
 
-- **Страница «Tor»** (`widgets/tor_page.py`) в разделе «Средства» после «Туннеля»; вкладка Tor из «Туннеля» убрана.
-  Средство «Tor» добавлено в «Что попробовать» при блокировке по IP (`models/remedy.py`), иконка `assets/icons/tor.svg`.
-- **Режимы с пояснениями**: «Приложения через Tor» (локальный SOCKS для Discord и любых программ) и «Tor перед VLESS»:
-  план туннеля VLESS добавляет socks-выход `tor-upstream` и направляет через него подключение к серверу
-  (xray — `streamSettings.sockopt.dialerProxy`, v2ray — `proxySettings`). Без запущенного Tor план туннеля отказывает.
-- **Мосты** (`adapters/tor_bridges.py`): вставка текстом с «Bridge» или без; проверка адреса (IPv4/[IPv6]:порт), отпечатка,
-  `cert=` у obfs4 и `url=` у webtunnel; неизвестный транспорт и непонятные части отклоняются построчно; повторы убираются.
-  Хранение `.zap2/tor/bridges.txt` с правами 0600. Moat не запрашивается.
-- **Pluggable transports**: поиск lyrebird (obfs4, meek_lite, webtunnel), obfs4proxy, webtunnel-client, snowflake-client,
-  conjure-client в PATH и в `/usr/lib/tor`, `/usr/libexec/tor` и т. п.; страница говорит, чего не хватает для вставленных мостов,
-  и подсказывает пакет. План отказывает, если транспорта нет.
-- **Конфиги**: torrc — `UseBridges 1`, `ClientTransportPlugin … exec …` (одна строка на программу), `Bridge …`;
-  Arti — `[bridges] enabled = true`, `bridges = [...]`, `[[bridges.transports]]`.
-- **Где слушать**: случайный порт 20000–60999 (по умолчанию), фиксированный порт или unix-сокет (только C Tor, каталог 0700
-  в `$XDG_RUNTIME_DIR/zap2gui-tor/`). Предупреждение: порт на localhost доступен любой программе и пользователю машины.
-- **Прогресс загрузки**: `tor_bootstrap_status` читает журнал (C Tor «Bootstrapped N%», Arti «Sufficiently bootstrapped»),
-  полоса на странице обновляется раз в секунду; «Скопировать адрес прокси».
-- **Безопасность плана**: digest списка мостов в плане; если мосты поменялись после плана, запуск останавливается.
-  В плане видно число мостов, транспорты и «bridge requests to Moat: no».
-- Тема: у переключателей (QRadioButton) появился видимый кружок; раньше невыбранный вариант был без индикатора
-  (затрагивает и страницу DNS).
-- `docs/user/tor.md`.
+- **1.3.0** во всех привязках: `pyproject.toml`, `gui/zap2_gui/__init__.py` (`__version__`, `PRODUCT_LABEL = "v1.3"`,
+  `DEVELOPMENT_LINE = "v1.3 DNS, presets UX, Tor page and auto-update"`), `docs/developer/v11-contract.json`
+  (`candidateVersion`/`targetVersion`), freeze `runtime/v11/candidate-freeze.json`, закреплённые тесты, `docs/generated/reference.*`,
+  `dist/arch/1.3.0` в README и документации.
+- Что вошло в 1.3.0 — в README, `docs/README.md`, `docs/PROJECT_STATUS.md`, `docs/VERSIONING.md`, `gui/README.md`.
+- `docs/README.md` ссылается на пользовательские страницы (пресеты, Tor, вердикт сети, оркестратор).
+- `docs/operations/lifecycle.md`: кнопка «Обновление» и что делать, если обновление отказывает
+  (`--lifecycle-status`, `--lifecycle-confirm-stopped`).
 
 ## Проверки
 
-- `tests/test_tor_page.py`: разбор и проверка мостов; выбор lyrebird и группировка транспортов; torrc и Arti с мостами,
-  unix-сокет; отказ без транспорта и unix-сокет для Arti; запуск с мостами на случайном порту и прогресс 45% через фейковый tor;
-  смена мостов после плана; разбор bootstrap; цепочка VLESS через Tor в xray и v2ray; страница — проверка и сохранение мостов.
-- Обновлены тесты навигации и оболочки (10 разделов, IP_BLOCK → туннель и Tor).
-- `bash meta_tools/run_tests.sh`, `check_board.py`, freeze пересчитан.
-
-## Что осталось
-
-- Проверка владельцем с реальными мостами и транспортами (Tor 0.4.9.11, Arti 2.5.1).
+- `bash meta_tools/run_tests.sh` (закреплённые версии в тестах обновлены), `check_board.py`, freeze и generated reference пересчитаны.

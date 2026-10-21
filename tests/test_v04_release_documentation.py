@@ -9,11 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_product_version_tracks_accepted_v08_after_p04_closure() -> None:
-    assert PRODUCT_LABEL == "v1.2"
-    assert __version__ == "1.2.0"
+    assert PRODUCT_LABEL == "v1.3"
+    assert __version__ == "1.3.0"
 
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "1.2.0"' in pyproject
+    assert 'version = "1.3.0"' in pyproject
     assert 'version = "0.4.0a0"' not in pyproject
 
 
@@ -22,7 +22,7 @@ def test_current_docs_define_environment_dependent_release_boundary() -> None:
     release = (ROOT / "docs" / "history" / "stages" / "V04_RELEASE.md").read_text(encoding="utf-8")
     status = (ROOT / "docs" / "PROJECT_STATUS.md").read_text(encoding="utf-8")
 
-    assert "Zap2 GUI Linux — v1.2" in readme
+    assert "Zap2 GUI Linux — v1.3" in readme
     assert "не универсальную стратегию" in readme
     assert "не обещает" in readme
     assert "рабочая платформа" in release
