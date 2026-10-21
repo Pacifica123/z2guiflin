@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 44,
-        "comments": 52,
+        "cards": 45,
+        "comments": 54,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-21T15:00:00Z",
+    "generatedAt": "2026-10-21T15:30:00Z",
     "selfHosted": true,
-    "boardRevision": 13,
-    "lastPatchId": "2026-10-21-strat-port-coverage",
+    "boardRevision": 14,
+    "lastPatchId": "2026-10-21-dns-page",
     "rules": "board/README.md"
   },
   "includes": {
@@ -272,7 +272,7 @@
       {
         "id": "01a13ca4-ddbe-724d-811f-2eed90dafc",
         "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
-        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
         "title": "DNS-слой: выбор DoH/DoT, проверка подмены и leak, откат",
         "description": "Зачем: v0.4 §8: DNS у нас только диагностический. Летом 2026 зафиксированы DNAT/перехват DNS Google/Cloudflare на ТСПУ (wiki, авг. 2026) и блок 8.8.8.8 по TCP (03.07.2026). В zapretgui — custom DNS.\n\nГотово, когда: ADR: что GUI делает с резолвером на Linux (systemd-resolved/NetworkManager/dnscrypt-proxy), как откатывает; затем модуль проверки подмены (сравнение ответов, TTL, DNAT-признаки) в health.\n\nИсточник: wiki DPI/tspu-dns-nsdi-dnat-august-2026, google-dns-8888-block-july-2026",
         "priority": "medium",
@@ -557,6 +557,16 @@
         "description": "Зачем: обновляться приходилось вручную (build_local_package.sh + makepkg -si), и если забыть остановить zapret/туннель, новый пакет не стартовал.\n\nГотово, когда: на реальном Arch владельца кнопка «Обновление» видит новые коммиты pacifica123/z2guiflin и расхождение checkout с установленным пакетом; «Обновить» останавливает запущенное, делает git pull --ff-only, собирает пакет makepkg без root и ставит через pkexec pacman -U; после перезапуска открывается новая версия без lifecycle-ошибки.\n\nРучной обход, если обновление всё же застряло: zap2-gui --lifecycle-status; убедиться, что nfqws2/xray не запущены и sudo nft list tables | grep zap2 пусто; zap2-gui --lifecycle-confirm-stopped.",
         "priority": "medium",
         "position": 5120,
+        "archivedAt": null
+      },
+      {
+        "id": "a0f99e17-00cd-49f3-98b1-1ab377955263",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd84-7136-893e-7f3c6da5d7",
+        "title": "DoH/DoT без ручных команд: dnscrypt-proxy как owned-процесс",
+        "description": "Зачем: сейчас шифрованный режим — готовый конфиг и точные sudo-команды для системного dnscrypt-proxy. Свой процесс требует root ради порта 53.\n\nРешить: запускать dnscrypt-proxy через привилегированный executor (root-owned конфиг, сброс прав user_name, откат) или оставить системную службу. Готово, когда выбран путь и записан ADR.",
+        "priority": "medium",
+        "position": 7168,
         "archivedAt": null
       }
     ],
@@ -979,6 +989,14 @@
       {
         "cardId": "888a0fbe-b347-4c59-82f0-931b4e54fceb",
         "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "a0f99e17-00cd-49f3-98b1-1ab377955263",
+        "labelId": "01a13ca4-dd90-71e0-87be-1b5c8cc1ab"
+      },
+      {
+        "cardId": "a0f99e17-00cd-49f3-98b1-1ab377955263",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
       }
     ],
     "checklists": [
@@ -1399,6 +1417,18 @@
         "cardId": "01a13ca4-ddba-70c9-8e38-2994ac807a",
         "body": "patch 2026-10-21-strat-port-coverage: автопорт: 46 из 55 (было 2). hex-блобы (0xDEADBEEF…) идут прямо в blob=, а не ищутся как файлы; %BIN% снимается; split/disorder → fakedsplit/fakeddisorder, split2/disorder2 → multisplit/multidisorder (псевдонимы nfqws1); --wssize=W:S → wssize:wsize=W:scale=S без --filter-l7 (работает на SYN), значение «--wssize 1:6» через пробел больше не теряется; fake для неизвестного UDP — 64 нулевых байта, как по умолчанию в nfqws1. Не портируются --dup (5) и ipfrag2 (2) — у них нет однозначного аналога. Нужна проверка портированных стратегий на сети владельца.",
         "createdAt": "2026-10-21T15:00:00Z"
+      },
+      {
+        "id": "5743fd32-790f-47c4-8317-3d84fdf60cd4",
+        "cardId": "01a13ca4-ddbe-724d-811f-2eed90dafc",
+        "body": "patch 2026-10-21-dns-page: страница «DNS» в «Средствах»: каталог 33 серверов (как у loop-uh, без Яндекса; BI.ZONE — повышенный риск), у групп «больше X — меньше Y»; смена через NetworkManager — временно (device modify, откат reapply) или постоянно (connection modify, исходные значения в .zap2/dns/backup-<uuid>.json 0600, возвращаются «Вернуть»); только ethernet/wifi, VPN не трогается; проверка UDP 53 / DoT 853 / DoH, перехват (ответ с 192.0.2.53) и подмена (UDP и DoH не пересекаются); свой DNS по одному DoH URL; вердикт DNS ведёт сюда. Нужна приёмка на NM владельца.",
+        "createdAt": "2026-10-21T15:30:00Z"
+      },
+      {
+        "id": "1f7579f3-d80c-47ba-b85b-f0d9d4e00cf8",
+        "cardId": "a0f99e17-00cd-49f3-98b1-1ab377955263",
+        "body": "patch 2026-10-21-dns-page: заведено при патче DNS: owned-процесс отложен, чтобы не тащить root-запуск без решения.",
+        "createdAt": "2026-10-21T15:30:00Z"
       }
     ],
     "boardAppearanceSettings": [],

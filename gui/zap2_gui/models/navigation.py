@@ -60,6 +60,13 @@ def default_navigation_sections() -> tuple[NavigationSection, ...]:
             group="remedies",
         ),
         NavigationSection(
+            key="dns",
+            title="DNS",
+            purpose="Смена DNS-сервера через NetworkManager с откатом: каталог провайдеров, проверка перехвата и подмены.",
+            ready_state="networkmanager-backed",
+            group="remedies",
+        ),
+        NavigationSection(
             key="tunnel",
             title="Туннель",
             purpose="Экспериментальная SOCKS/VLESS-ветка для Discord: профили, probes и guided CLI.",

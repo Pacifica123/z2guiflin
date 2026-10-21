@@ -1,30 +1,33 @@
-# 2026-10-21-strat-port-coverage — strat_collection: портируется 46 из 55 вместо 2
+# 2026-10-21-dns-page — страница «DNS»: каталог, смена через NetworkManager, откат, проверки
 
-Третий патч пачки B. Автопорт winws1-стратегий из `presets/collections/strat_collection` в пресеты zapret2 отказывал почти всегда;
-разбор показал, что большинство отказов — не принципиальные, а пробелы в сопоставлении.
+Четвёртый патч пачки B. Новый пункт «DNS» в группе «Средства»; вердикт сети DNS теперь ведёт сюда.
 
-## Что сделано (`adapters/strat_collection_port.py`, `adapters/strat_collection.py`)
+## Что сделано
 
-- **hex-блобы** (`--dpi-desync-fake-http=0x0F0F0F0F`, `--dpi-desync-udplen-pattern=0xDEADBEEF` …) раньше искались как файлы.
-  Теперь значение идёт прямо в `blob=`/`pattern=`, как принимает zapret2. `%BIN%` в путях снимается.
-- **Устаревшие режимы nfqws1**: `split` → `fakedsplit`, `disorder` → `fakeddisorder`, `split2` → `multisplit`,
-  `disorder2` → `multidisorder` (в nfqws1 это давно псевдонимы). Каждое такое преобразование пишется в «adaptations».
-- **`--wssize=W:S`** → `--lua-desync=wssize:wsize=W:scale=S`. В таком профиле не добавляется выведенный `--filter-l7`:
-  wssize срабатывает на SYN, когда L7 ещё не известен. Значение, записанное в .bat через пробел (`--wssize 1:6`), раньше терялось
-  при разборе — теперь склеивается.
-- **fake для неизвестного UDP** (`--dpi-desync-any-protocol` без блоба, голосовые порты Discord) — 64 нулевых байта:
-  это значение `--dpi-desync-fake-unknown-udp` по умолчанию в nfqws1. Раньше порт отказывал «не угадываю»; теперь он делает то же,
-  что делал nfqws1, и пишет это в «adaptations».
-- По-прежнему не портируются: `--dup*` (5 стратегий) и `ipfrag2` (2) — однозначного аналога нет; 3 стратегии с fake на TCP-портах
-  без известного протокола.
+- **Каталог** `gui/zap2_gui/assets/dns/providers.json` (правится без кода) и `models/dns_catalog.py` (проверка формата, только публичные IP,
+  DoH только https). 33 сервера по образцу zapretgui (loop-uh, `src/dns/dns_providers.py` @ ec6de7e): Популярные, Безопасные, Малоизвестные,
+  Для ИИ; **Яндекс исключён**, **BI.ZONE — «повышенный риск»**. У каждой группы короткое «больше X — меньше Y».
+  Статусы: часто блокируется (Cloudflare, Google), под угрозой (AdGuard, OpenDNS), только DoH/DoT (Wikimedia, DNS-AI).
+- **Смена DNS** `adapters/dns_nm.py` (nmcli, без shell):
+  - «временно» — `nmcli device modify`, профиль не меняется; откат `nmcli device reapply`;
+  - «постоянно» — `nmcli connection modify` + `reapply`; исходные значения профиля сохраняются один раз в `.zap2/dns/backup-<uuid>.json` (0600)
+    и возвращаются кнопкой «Вернуть»;
+  - меняются только подключённые ethernet/wifi; VPN, WireGuard и прочие виртуальные — нет; серверы «только DoH/DoT» как обычный DNS не ставятся.
+- **Проверки** `adapters/dns_probe.py` (stdlib, без root): обычный DNS (UDP 53), DoT (853 + TLS), DoH (RFC 8484, напрямую, без системного прокси);
+  перехват — запрос на 192.0.2.53, где сервера нет: ответ значит, что DNS по пути подменяют; подмена — ответы одного сервера по UDP и DoH не пересекаются.
+- **Свой DNS** по одному адресу DoH: IP находятся сами, сохраняется в `.zap2/dns/custom.json`.
+- **Шифрованный режим** `adapters/dnscrypt_config.py`: минимальный конфиг системного dnscrypt-proxy под выбранный DoH (stamp `sdns://` считается сам)
+  и точные команды с бэкапом и откатом; сам root программа не использует. Свой owned-процесс — карточка «Обдумать».
+- Навигация: секция `dns` между «Пресеты» и «Туннель», иконка; средство вердикта DNS → страница DNS.
 
 ## Проверки
 
-- `tests/test_strat_collection_port_coverage.py`: ≥45 портируемых, остаток только из известных причин, hex-блобы инлайн,
-  wssize-профиль без `--filter-l7`, round-trip парсера для каждого портированного пресета.
-- `tests/test_stage8j_r1_usertest_hot_swap_strat_ui.py`: ожидание «v1 отказывает» заменено на «v1 портируется с пометкой о 64 нулевых байтах».
+- `tests/test_dns_switching.py`: решения владельца в каталоге; stamp Quad9; свой DoH; временный и постоянный режимы на поддельном nmcli
+  (бэкап исходных значений один раз, 0600, восстановление); отказ для VPN и «только DoH»; формат DNS-пакета; UDP-запрос к локальному ответчику;
+  подмена и перехват; страница без NetworkManager.
+- Обновлены ожидания навигации и средств (`test_gui_shell_skeleton.py`, `test_navigation_remedies.py`).
 - `bash meta_tools/run_tests.sh`, `check_board.py`, freeze пересчитан.
 
 ## Что осталось
 
-- Проверить портированные стратегии на реальной сети (карточка в «Ждёт хоста»).
+- Приёмка на NetworkManager владельца; решение по dnscrypt-proxy как owned-процессу.

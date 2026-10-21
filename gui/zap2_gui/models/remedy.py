@@ -54,13 +54,13 @@ REMEDIES: dict[str, Remedy] = {
             page_key="tunnel",
         ),
         Remedy(
-            key="dns-manual",
+            key="dns",
             title="Сменить DNS-сервер",
             layer="dns",
-            what_changes="Встроенной смены DNS пока нет. Вручную: nmcli connection modify <сеть> ipv4.dns \"<адреса>\" ipv4.ignore-auto-dns yes, затем переподключиться.",
+            what_changes="Меняет DNS подключения через NetworkManager: до переподключения или постоянно; прежние значения возвращаются кнопкой.",
             needs_root=False,
             reversible=True,
-            page_key=None,
+            page_key="dns",
         ),
         Remedy(
             key="local-network",
@@ -86,7 +86,7 @@ REMEDIES: dict[str, Remedy] = {
 VERDICT_REMEDIES: dict[str, tuple[str, ...]] = {
     "DPI_SELECTIVE": ("zapret", "presets"),
     "IP_BLOCK": ("tunnel",),
-    "DNS": ("dns-manual",),
+    "DNS": ("dns",),
     "LOCAL_NO_ROUTE": ("local-network",),
     "LOCAL_LINK_OR_ROUTER": ("local-network",),
     "ISP_UPLINK": ("isp-uplink",),

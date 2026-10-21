@@ -18,6 +18,7 @@ def test_navigation_sections_follow_user_path() -> None:
         "diagnostics",
         "overview",
         "strategies",
+        "dns",
         "tunnel",
         "core",
         "logs",
@@ -28,19 +29,20 @@ def test_navigation_sections_follow_user_path() -> None:
         "Диагностика",
         "Запуск",
         "Пресеты",
+        "DNS",
         "Туннель",
         "Ядро",
         "Логи",
         "Настройки",
     ]
-    assert [section.group for section in sections] == ["", "", "remedies", "remedies", "remedies", "system", "system", "system"]
+    assert [section.group for section in sections] == ["", "", "remedies", "remedies", "remedies", "remedies", "system", "system", "system"]
     assert {section.key: section for section in sections}["core"].ready_state == "inventory-backed"
 
 
 def test_gui_shell_state_is_read_only_and_inventory_backed() -> None:
     state = load_gui_shell_state(ROOT)
 
-    assert len(state.sections) == 8
+    assert len(state.sections) == 9
     assert state.core_snapshot.vendor_file_count == 244
     assert state.core_snapshot.upstream_imported_file_count == 244
     assert state.core_snapshot.project_local_core_file_count == 0

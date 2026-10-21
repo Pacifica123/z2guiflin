@@ -97,6 +97,9 @@ def create_main_window(root: object | None = None) -> Any:
                     page = make_presets_page(root, self._settings)
                 elif section.key == "diagnostics":
                     page = make_blockcheck_lab_page(root)
+                elif section.key == "dns":
+                    from ..widgets.dns_page import make_dns_page
+                    page = make_dns_page(root, navigate=lambda key: self.focus_discovery_target(key, None))
                 elif section.key == "tunnel":
                     page = make_tunnel_page(root)
                 elif section.key == "settings":

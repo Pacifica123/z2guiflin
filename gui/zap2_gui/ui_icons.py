@@ -19,6 +19,7 @@ _SECTION_ICONS = {
     "core": "core.svg",
     "strategies": "strategies.svg",
     "diagnostics": "diagnostics.svg",
+    "dns": "dns.svg",
     "tunnel": "tunnel.svg",
     "settings": "settings.svg",
     "logs": "logs.svg",
