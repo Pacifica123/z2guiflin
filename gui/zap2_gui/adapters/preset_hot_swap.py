@@ -124,3 +124,22 @@ def hot_swap_preset(
     if start_failure:
         message += f" Причина нового start: {start_failure}."
     return PresetHotSwapResult(preset_id, previous, previous, True, state, message, stop_text, start_text, rollback_text)
+
+
+def restart_running_preset(root: Path | None = None, profile_id: str = "default") -> tuple[bool, str]:
+    """Перезапустить Default с тем же пресетом, чтобы вступили в силу изменения плана.
+
+    Если Default не запущен, ничего не делает: изменения подхватит следующий запуск.
+    """
+
+    status = default_workflow_status(root=root, profile_id=profile_id)
+    if status.session_status.state != "running":
+        return True, "Default не запущен — изменения вступят в силу при следующем запуске."
+    stop_ok, stop_text = _run(root, "stop", profile_id)
+    if not stop_ok or default_workflow_status(root=root, profile_id=profile_id).session_status.state == "running":
+        return False, "Остановить Default не удалось; изменения вступят в силу после перезапуска.\n" + stop_text
+    start_ok, start_text = _run(root, "start", profile_id)
+    running = default_workflow_status(root=root, profile_id=profile_id).session_status.state == "running"
+    if start_ok and running:
+        return True, "Default перезапущен с изменениями.\n" + start_text
+    return False, "Default остановлен, но не запустился снова — проверьте план на странице «Запуск».\n" + start_text

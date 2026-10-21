@@ -6,7 +6,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
+import re
 from typing import Iterable, Mapping
+
+_OLD_BLOCKCHECK_TITLE = re.compile(r"^Blockcheck .+ / .+ #\d+$")
 
 
 @dataclass(frozen=True)
@@ -59,4 +63,44 @@ def preset_chips(
     return tuple(chips)
 
 
-__all__ = ["Chip", "SOURCE_KINDS", "preset_chips", "source_chip"]
+def desync_functions(args: Iterable[str]) -> tuple[str, ...]:
+    names = []
+    for arg in args:
+        if arg.startswith("--lua-desync="):
+            name = arg.partition("=")[2].split(":", 1)[0].strip()
+            if name and name not in names:
+                names.append(name)
+    return tuple(names)
+
+
+def blockcheck_title(service: str, functions: Iterable[str], target: str, when: datetime | None) -> str:
+    """«YouTube: fake + multisplit · googlevideo.com · 21.10.2026 14:30» — понятно, что, чем и когда найдено."""
+
+    funcs = " + ".join(functions) or "стратегия"
+    parts = [f"{service}: {funcs}" if service else funcs]
+    if target:
+        parts.append(target)
+    if when is not None:
+        parts.append(when.astimezone().strftime("%d.%m.%Y %H:%M"))
+    return " · ".join(parts)
+
+
+def _parse_time(value: object) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def display_title(title: str, source: Mapping[str, object] | None, service_target: Mapping[str, object] | None,
+                  runtime_args: Iterable[str]) -> str:
+    """Читаемое название для старых пресетов Blockcheck вида «Blockcheck X / target #NN»."""
+
+    source = source or {}
+    if source.get("id") != "blockcheck-generated" or not _OLD_BLOCKCHECK_TITLE.match(title):
+        return title
+    service = str((service_target or {}).get("title") or "")
+    return blockcheck_title(service, desync_functions(runtime_args), str(source.get("target") or ""), _parse_time(source.get("generatedAt")))
+
+
+__all__ = ["Chip", "SOURCE_KINDS", "blockcheck_title", "desync_functions", "display_title", "preset_chips", "source_chip"]

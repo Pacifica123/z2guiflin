@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 45,
-        "comments": 56,
+        "cards": 46,
+        "comments": 58,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-21T17:00:00Z",
+    "generatedAt": "2026-10-21T18:00:00Z",
     "selfHosted": true,
-    "boardRevision": 15,
-    "lastPatchId": "2026-10-21-presets-order-overlap",
+    "boardRevision": 16,
+    "lastPatchId": "2026-10-21-presets-exclusions-cleanup",
     "rules": "board/README.md"
   },
   "includes": {
@@ -568,6 +568,16 @@
         "priority": "medium",
         "position": 7168,
         "archivedAt": null
+      },
+      {
+        "id": "714bda83-ca81-4c54-aebb-4945131af32f",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "title": "Общие исключения, читаемые имена Blockcheck, массовое удаление пресетов",
+        "description": "Зачем: банк, госуслуги и локальная сеть не должны зависеть от выбранного пресета; десятки «Blockcheck X / Y #NN» неразличимы и не удалялись из GUI.\n\nСделано: .zap2/exclusions.json добавляется в план запуска (execution_plan) — IP/CIDR во все профили, домены только в профили со списком доменов (правило имени хоста nfqws2); файлы пресетов не меняются; после сохранения — предложение перезапустить Default. Blockcheck называется «Сервис: функции · цель · дата», старые показываются так же. Удаление своих и Blockcheck пресетов пачкой (Ctrl/Shift, «Выделить все найденные Blockcheck»), встроенные не удаляются, выбранный — откат на default.\n\nГотово, когда владелец проверил исключения на живом запуске.",
+        "priority": "medium",
+        "position": 10240,
+        "archivedAt": null
       }
     ],
     "labels": [
@@ -996,6 +1006,14 @@
       },
       {
         "cardId": "a0f99e17-00cd-49f3-98b1-1ab377955263",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "714bda83-ca81-4c54-aebb-4945131af32f",
+        "labelId": "01a13ca4-dd8d-7129-8bc6-22424e617b"
+      },
+      {
+        "cardId": "714bda83-ca81-4c54-aebb-4945131af32f",
         "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
       }
     ],
@@ -1441,6 +1459,18 @@
         "cardId": "01a13ca4-ddd0-7193-8652-8d4580711b",
         "body": "patch 2026-10-21-presets-order-overlap: models/profile_overlap.py по правилам выбора профиля из исходников nfqws2 (desync.c dp_match, hostlist.c, ipset.c): условия через «И», range/payload не фильтры, профиль с любым hostlist без имени хоста не выбирается, пустые листы = нет фильтра. ✖ «никогда не сработает» и ⚠ «часть трафика забирает» с исправлением в один клик (поднять профиль / исключить общие домены из верхнего); узкий над общим не считается проблемой; нечитаемые листы и hostlist-auto — без догадок. Симулятор «Кто сработает первым?» с объяснением по каждому профилю. Нашёл реальные мёртвые профили в 5 встроенных community-пресетах (edge-flow #2, отличается от #1 только --out-range).",
         "createdAt": "2026-10-21T17:00:00Z"
+      },
+      {
+        "id": "c5eceb32-dab2-4ac7-88c4-42fff7bec385",
+        "cardId": "714bda83-ca81-4c54-aebb-4945131af32f",
+        "body": "patch 2026-10-21-presets-exclusions-cleanup: патч 2026-10-21-presets-exclusions-cleanup.",
+        "createdAt": "2026-10-21T18:00:00Z"
+      },
+      {
+        "id": "9491237e-ef23-497f-b151-ff2010e39ff3",
+        "cardId": "01a13ca4-ddb6-73ea-8fdd-0ce9e4817a",
+        "body": "patch 2026-10-21-presets-exclusions-cleanup: частично закрыто патчами пачки B: исключения доменов и IP/CIDR в профиле (редактор, блок «Что пропускает») и общие исключения для всех пресетов; редактор самих файлов hostlist/ipset ещё не сделан.",
+        "createdAt": "2026-10-21T18:00:00Z"
       }
     ],
     "boardAppearanceSettings": [],

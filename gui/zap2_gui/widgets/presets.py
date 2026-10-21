@@ -8,6 +8,7 @@ from typing import Any
 from ..adapters.preset_editor import (
     add_owner_preset_profile,
     add_owner_profile_exclusions,
+    can_remove_preset,
     copy_preset_for_editing,
     create_owner_preset,
     editable_profile_from_runtime,
@@ -15,7 +16,15 @@ from ..adapters.preset_editor import (
     move_owner_preset_profile,
     remove_owner_preset,
     remove_owner_preset_profile,
+    remove_presets,
     update_owner_preset_profile,
+)
+from ..adapters.preset_exclusions import (
+    LOCAL_NETWORKS,
+    exclusion_coverage,
+    load_global_exclusions,
+    normalize_exclusions,
+    save_global_exclusions,
 )
 from ..adapters.presets import (
     load_preset_catalog,
@@ -24,13 +33,13 @@ from ..adapters.presets import (
     traffic_profile_to_text,
 )
 from ..adapters.preset_txt_import import analyze_txt_preset, import_txt_preset
-from ..adapters.preset_hot_swap import hot_swap_preset
+from ..adapters.preset_hot_swap import hot_swap_preset, restart_running_preset
 from ..adapters.strat_collection import load_strat_collection
 from ..adapters.strat_collection_port import (
     analyze_strat_port,
     port_strat_collection_entry,
 )
-from ..models.preset_labels import preset_chips
+from ..models.preset_labels import display_title, preset_chips
 from ..models.profile_overlap import SimulatedConnection, file_list_resolver, find_overlaps, simulate_first_match
 from ..project_paths import discover_layout
 from ..qt_compat import require_pyqt
@@ -48,14 +57,20 @@ PRIORITY_TEXT = (
 )
 
 
+def _entry_title(entry: Any) -> str:
+    return display_title(entry.preset.title, entry.metadata.source_preset, entry.metadata.service_target, entry.preset.to_runtime_args())
+
+
 def _preset_item_text(entry: Any, selected_preset_id: str) -> str:
     """Текст элемента для поиска и доступности; рисует его делегат."""
 
     preset = entry.preset
     marker = " ✓" if preset.preset_id == selected_preset_id else ""
     managed = " · constructor" if bool((entry.metadata.source_preset or {}).get("editorManaged")) else ""
+    readable = _entry_title(entry)
+    original = f" ({preset.title})" if readable != preset.title else ""
     return (
-        f"{preset.title}{marker}\n"
+        f"{readable}{marker}{original}\n"
         f"профилей: {len(preset.profiles)} · действий: {preset.action_count}{managed}\n"
         f"{preset.preset_id}"
     )
@@ -213,6 +228,9 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
     buttons.addWidget(select_button)
     buttons.addWidget(refresh_button)
     buttons.addWidget(catalog_button)
+    exclusions_button = QtWidgets.QPushButton("Общие исключения…")
+    exclusions_button.setToolTip("Домены и адреса, которые не трогает ни один пресет: банк, госуслуги, локальная сеть")
+    buttons.addWidget(exclusions_button)
     buttons.addSpacing(12)
     buttons.addWidget(status, 1)
 
@@ -222,6 +240,9 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
     copy_preset_button = QtWidgets.QPushButton("Копия для правки")
     copy_preset_button.setToolTip("Создать свою редактируемую копию; исходный пресет не меняется")
     remove_preset_button = QtWidgets.QPushButton("Удалить пресет")
+    remove_preset_button.setToolTip(
+        "Удалить выделенные свои пресеты и найденные Blockcheck. Несколько — Ctrl/Shift+клик или правая кнопка → «Выделить все Blockcheck»"
+    )
 
     preset_box = QtWidgets.QGroupBox("Пресеты")
     preset_box_layout = QtWidgets.QVBoxLayout(preset_box)
@@ -230,6 +251,8 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
     preset_list.setAlternatingRowColors(True)
     preset_list.setItemDelegate(_make_preset_delegate(QtCore, QtGui, QtWidgets, _chip_role()))
     preset_list.setToolTip("Клик — посмотреть профили, двойной клик — применить")
+    preset_list.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
+    preset_list.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
     preset_actions = QtWidgets.QGridLayout()
     preset_actions.addWidget(new_preset_button, 0, 0)
     preset_actions.addWidget(import_preset_button, 0, 1)
@@ -443,7 +466,7 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
         profile_table.setDragEnabled(managed)
         for button in fix_buttons:
             button.setEnabled(managed)
-        remove_preset_button.setEnabled(managed)
+        _update_remove_button()
         new_profile_button.setEnabled(managed)
         edit_profile_button.setEnabled(managed and has_profile)
         remove_profile_button.setEnabled(managed and has_profile)
@@ -638,7 +661,95 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
         dialog.exec()
 
     def _global_exclusions() -> tuple[tuple[str, ...], tuple[str, ...]]:
-        return (), ()
+        try:
+            current = load_global_exclusions(discover_layout(root).root)
+        except Exception:
+            return (), ()
+        return current.domains, current.cidrs
+
+    def edit_global_exclusions() -> None:
+        try:
+            workspace = discover_layout(root).root
+            current = load_global_exclusions(workspace)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(page, "Общие исключения", str(exc))
+            return
+        dialog = QtWidgets.QDialog(page)
+        dialog.setWindowTitle("Общие исключения")
+        dialog.resize(620, 520)
+        box = QtWidgets.QVBoxLayout(dialog)
+        hint = QtWidgets.QLabel(
+            "Эти домены и адреса не обрабатывает ни один профиль любого пресета: соединение идёт как без обхода. "
+            "Пригодится для банков, госуслуг, рабочих VPN и локальной сети. Файлы пресетов не меняются — "
+            "исключения добавляются в план запуска и видны в нём."
+        )
+        hint.setWordWrap(True)
+        domains_edit = QtWidgets.QPlainTextEdit("\n".join(current.domains))
+        domains_edit.setPlaceholderText("по одному на строку: sberbank.ru, gosuslugi.ru — поддомены включены; ^site.ru — только сам домен")
+        cidrs_edit = QtWidgets.QPlainTextEdit("\n".join(current.cidrs))
+        cidrs_edit.setPlaceholderText("по одному на строку: 192.168.0.0/16, 203.0.113.7")
+        local_button = QtWidgets.QPushButton("+ локальные сети")
+        local_button.setToolTip(", ".join(LOCAL_NETWORKS))
+        note = QtWidgets.QLabel("")
+        note.setObjectName("mutedText")
+        note.setWordWrap(True)
+        entry = state.get("entry")
+        if entry is not None:
+            with_domains, total = exclusion_coverage(entry.preset.to_runtime_args(), current)
+            if total and with_domains < total:
+                note.setText(
+                    f"В «{_entry_title(entry)}» домены попадут в {with_domains} из {total} профилей: в профили без списка доменов "
+                    "nfqws2 не даст их поставить без поломки первых пакетов (профиль со списком доменов не выбирается, пока "
+                    "не известно имя хоста). Такие профили исключаются только по IP/CIDR."
+                )
+        buttons_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Save | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        box.addWidget(hint)
+        box.addWidget(QtWidgets.QLabel("Домены"))
+        box.addWidget(domains_edit, 1)
+        cidr_row = QtWidgets.QHBoxLayout()
+        cidr_row.addWidget(QtWidgets.QLabel("IP / CIDR"))
+        cidr_row.addStretch(1)
+        cidr_row.addWidget(local_button)
+        box.addLayout(cidr_row)
+        box.addWidget(cidrs_edit, 1)
+        box.addWidget(note)
+        box.addWidget(buttons_box)
+
+        def add_local() -> None:
+            present = set(cidrs_edit.toPlainText().split())
+            extra = [item for item in LOCAL_NETWORKS if item not in present]
+            text = cidrs_edit.toPlainText().rstrip()
+            cidrs_edit.setPlainText((text + "\n" if text else "") + "\n".join(extra))
+
+        def save() -> None:
+            try:
+                updated = normalize_exclusions(domains_edit.toPlainText().splitlines(), cidrs_edit.toPlainText().splitlines())
+                save_global_exclusions(workspace, updated)
+            except Exception as exc:
+                QtWidgets.QMessageBox.critical(dialog, "Исключения не сохранены", str(exc))
+                return
+            dialog.accept()
+
+        local_button.clicked.connect(lambda _checked=False: add_local())
+        buttons_box.accepted.connect(save)
+        buttons_box.rejected.connect(dialog.reject)
+        if dialog.exec() != int(QtWidgets.QDialog.DialogCode.Accepted):
+            return
+        status.setText("Общие исключения сохранены.")
+        answer = QtWidgets.QMessageBox.question(
+            page,
+            "Общие исключения",
+            "Исключения сохранены и войдут в следующий план запуска. Если Default сейчас работает, перезапустить его, "
+            "чтобы они подействовали сразу?",
+        )
+        if answer == QtWidgets.QMessageBox.StandardButton.Yes:
+            try:
+                _ok, text = restart_running_preset(root)
+            except Exception as exc:
+                text = f"Перезапуск не удался: {exc}"
+            details.setPlainText(text)
 
     def refresh(selected_preset_id: str | None = None, select_row: int = 0) -> None:
         previous_current = _current_preset_id()
@@ -662,7 +773,7 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
                     overlap_severities=(o.severity for o in _overlaps_for(entry)),
                 )
                 item.setData(_chip_role(), {
-                    "title": entry.preset.title,
+                    "title": _entry_title(entry),
                     "chips": [(chip.text, chip.tone) for chip in chips],
                     "meta": f"профилей: {len(entry.preset.profiles)} · действий: {entry.preset.action_count} · {entry.preset.preset_id}",
                 })
@@ -738,30 +849,73 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
         except Exception as exc:
             QtWidgets.QMessageBox.critical(page, "Пресет не создан", str(exc))
 
-    def remove_preset() -> None:
-        entry = state.get("entry")
-        if entry is None or not state.get("managed"):
+    def _selected_entries() -> list[Any]:
+        catalog = state.get("catalog")
+        if catalog is None:
+            return []
+        entries = catalog.by_id()
+        ids = [str(item.data(_user_role())) for item in preset_list.selectedItems()]
+        return [entries[preset_id] for preset_id in ids if preset_id in entries]
+
+    def _update_remove_button() -> None:
+        removable = [entry for entry in _selected_entries() if can_remove_preset(entry)]
+        remove_preset_button.setEnabled(bool(removable))
+        remove_preset_button.setText("Удалить пресет" if len(removable) <= 1 else f"Удалить пресеты: {len(removable)}")
+
+    def select_all_generated() -> None:
+        catalog = state.get("catalog")
+        if catalog is None:
             return
-        question = QtWidgets.QMessageBox.question(
-            page,
-            "Удаление пресета",
-            (
-                f"Удалить весь owner-managed preset `{entry.preset.title}` "
-                f"({entry.preset.preset_id})?\n\n"
-                f"Будут удалены preset metadata и все {len(entry.preset.profiles)} profiles. "
-                "Если preset выбран, selection переключится на catalog default. "
-                "Runtime/firewall сейчас не меняются."
-            ),
-        )
+        entries = catalog.by_id()
+        preset_list.clearSelection()
+        for index in range(preset_list.count()):
+            item = preset_list.item(index)
+            entry = entries.get(str(item.data(_user_role())))
+            if entry is not None and not item.isHidden() and str((entry.metadata.source_preset or {}).get("id")) == "blockcheck-generated":
+                item.setSelected(True)
+        _update_remove_button()
+
+    def show_preset_menu(position: Any) -> None:
+        menu = QtWidgets.QMenu(preset_list)
+        select_generated = menu.addAction("Выделить все найденные Blockcheck")
+        remove_selected = menu.addAction("Удалить выделенные")
+        remove_selected.setEnabled(remove_preset_button.isEnabled())
+        chosen = menu.exec(preset_list.viewport().mapToGlobal(position))
+        if chosen is select_generated:
+            select_all_generated()
+        elif chosen is remove_selected:
+            remove_preset()
+
+    def remove_preset() -> None:
+        selected = _selected_entries()
+        removable = [entry for entry in selected if can_remove_preset(entry)]
+        if not removable:
+            return
+        skipped = len(selected) - len(removable)
+        if len(removable) == 1:
+            entry = removable[0]
+            text = (
+                f"Удалить пресет `{_entry_title(entry)}` ({entry.preset.preset_id})?\n\n"
+                f"Будут удалены его файлы и все {len(entry.preset.profiles)} профилей. "
+            )
+        else:
+            names = "\n".join(f"• {_entry_title(entry)}" for entry in removable[:12])
+            more = f"\n… и ещё {len(removable) - 12}" if len(removable) > 12 else ""
+            text = f"Удалить {len(removable)} пресетов?\n\n{names}{more}\n\n"
+        if skipped:
+            text += f"Встроенные ({skipped}) не удаляются. "
+        text += "Если удаляемый пресет выбран, выбор переключится на пресет по умолчанию. Runtime/firewall сейчас не меняются."
+        question = QtWidgets.QMessageBox.question(page, "Удаление пресетов", text)
         if question != QtWidgets.QMessageBox.StandardButton.Yes:
             return
-        try:
-            result = remove_owner_preset(entry.preset.preset_id, root=root)
-            details.setPlainText(result.to_text())
-            refresh(selected_preset_id=result.selected_preset_id)
-        except Exception as exc:
-            QtWidgets.QMessageBox.critical(page, "Пресет не удалён", str(exc))
-
+        removed, errors = remove_presets([entry.preset.preset_id for entry in removable], root=root)
+        lines = [f"Удалено пресетов: {len(removed)}"] + [f"  {item.preset_id}" for item in removed]
+        if errors:
+            lines += ["", "Не удалены:"] + [f"  {item}" for item in errors]
+        details.setPlainText("\n".join(lines))
+        refresh(selected_preset_id=removed[-1].selected_preset_id if removed else None)
+        if errors:
+            QtWidgets.QMessageBox.warning(page, "Удалены не все пресеты", "\n".join(errors[:8]))
 
     def import_preset_txt() -> None:
         filename, _selected_filter = QtWidgets.QFileDialog.getOpenFileName(
@@ -1114,6 +1268,9 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
     preset_list.currentItemChanged.connect(lambda _current, _previous: _fill_profiles())
     preset_list.itemDoubleClicked.connect(double_click_apply)
     copy_preset_button.clicked.connect(lambda _checked=False: copy_preset())
+    preset_list.itemSelectionChanged.connect(_update_remove_button)
+    preset_list.customContextMenuRequested.connect(show_preset_menu)
+    exclusions_button.clicked.connect(lambda _checked=False: edit_global_exclusions())
     overlap_list.currentRowChanged.connect(lambda _row: _show_fixes())
     for position, button in enumerate(fix_buttons):
         button.clicked.connect(lambda _checked=False, position=position: apply_fix(position))

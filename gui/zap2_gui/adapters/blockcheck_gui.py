@@ -25,6 +25,7 @@ from typing import Callable
 from .build_dependencies import BuildDependencyReport, run_build_dependency_preflight
 from .gui_privilege import _desktop_env_for_askpass, ensure_sudo_askpass_helper, is_sudo_available
 from .local_build import LocalBuildPlan, create_local_build_plan, inspect_artifacts
+from ..models.preset_labels import blockcheck_title, desync_functions
 from ..models.service_targets import (
     DEFAULT_BLOCKCHECK_TARGET_STRING,
     DEFAULT_SERVICE_TARGET_PRESET_ID,
@@ -2176,7 +2177,10 @@ def export_blockcheck_available_strategies(root: Path | None = None, max_strateg
         coverage_summary = ", ".join(
             f"{row.get('target')}={row.get('status')}" for row in coverage_rows
         )
-        title = f"Blockcheck {service_preset.title} / {item.target or domains[0]} #{index:02d}"
+        found_at = datetime.fromtimestamp(log_path.stat().st_mtime, timezone.utc)
+        title = blockcheck_title(service_preset.title, desync_functions(item.runtime_args), item.target or domains[0], found_at)
+        if sum(1 for other in gathered if other[3].target == item.target) > 1:
+            title += f" #{index:02d}"  # одна цель — несколько вариантов: различаем номером
         summary = (
             f"Generated AVAILABLE strategy for {service_preset.title} "
             f"candidate {item.target or domains[0]} from {item.probe} ({item.script}). "

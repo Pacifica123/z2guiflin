@@ -6,6 +6,7 @@ import hashlib
 from pathlib import Path
 from typing import Iterable
 
+from .preset_exclusions import apply_global_exclusions, load_global_exclusions
 from .strategy_file_inputs import split_strategy_file_arg
 from .workspace_profiles import load_workspace_catalog
 from ..models.execution_plan import (
@@ -158,11 +159,13 @@ def materialize_execution_plan(
     warnings = tuple(preset.compatibility_warnings)
     source_kind = "presetPath" if preset.preset_path else "legacy-runtimeArgs"
     source_path = preset.preset_path
+    # Общие исключения пользователя действуют для любого пресета и видны в Plan.
+    runtime_args = apply_global_exclusions(preset.runtime_args, load_global_exclusions(location.root), preset.preset_id)
     return materialize_execution_plan_from_args(
         root=location.root,
         runtime_context=runtime_context,
         preset=preset,
-        runtime_args=preset.runtime_args,
+        runtime_args=runtime_args,
         source_kind=source_kind,
         source_path=source_path,
         compatibility_warnings=warnings,

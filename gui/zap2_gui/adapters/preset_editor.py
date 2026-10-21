@@ -1219,3 +1219,69 @@ def copy_preset_for_editing(preset_id: str, root: Path | None = None, title: str
         source_preset_extra=extra,
         extra_notes=(f"Копия пресета {preset_id} для правки в конструкторе.",),
     )
+
+
+def is_generated_preset(entry: PresetCatalogEntry) -> bool:
+    return str((entry.metadata.source_preset or {}).get("id") or "") == "blockcheck-generated"
+
+
+def can_remove_preset(entry: PresetCatalogEntry) -> bool:
+    return _metadata_is_editor_managed(entry) or is_generated_preset(entry)
+
+
+def remove_generated_preset(preset_id: str, root: Path | None = None) -> PresetDeletionResult:
+    """Удалить пресет, найденный Blockcheck: strategies/generated/<id>.json и presets/generated/<id>.txt."""
+
+    layout = discover_layout(root)
+    entry = load_preset(preset_id, layout.root)
+    if not is_generated_preset(entry):
+        raise ValueError(f"Пресет {preset_id} не создан Blockcheck")
+    _assert_mutation_allowed(layout.root, preset_id)
+    strategy_catalog = load_strategy_catalog(layout.root)
+    if preset_id == strategy_catalog.default_strategy_id:
+        raise ValueError("Catalog default preset удалять нельзя")
+    metadata_path = (layout.root / "strategies" / "generated" / f"{preset_id}.json").resolve()
+    expected_preset = (layout.root / "presets" / "generated" / f"{preset_id}.txt").resolve()
+    preset_path = (layout.root / entry.metadata.preset_path).resolve() if entry.metadata.preset_path else expected_preset
+    if preset_path != expected_preset or not metadata_path.is_file():
+        raise ValueError("Пресет Blockcheck лежит не там, где их создаёт программа; удаление заблокировано")
+
+    selection = load_active_strategy_selection(layout.root, "default")
+    selected_before = load_preset_catalog(layout.root).selected_preset_id
+    fallback_applied = selected_before == preset_id or (selection is not None and selection.strategy_id == preset_id)
+    if fallback_applied:
+        select_workspace_strategy(
+            layout.root,
+            strategy_id=strategy_catalog.default_strategy_id,
+            profile_id="default",
+            reason="preset-deleted-fallback",
+        )
+    _atomic_multi_write({_catalog_path(layout.root): _catalog_without_path(layout.root, metadata_path)})
+    preset_path.unlink(missing_ok=True)
+    metadata_path.unlink(missing_ok=True)
+    return PresetDeletionResult(
+        preset_id=preset_id,
+        title=entry.preset.title,
+        preset_path=preset_path,
+        metadata_path=metadata_path,
+        selected_preset_id=load_preset_catalog(layout.root).selected_preset_id,
+        selection_fallback_applied=fallback_applied,
+    )
+
+
+def remove_presets(preset_ids: Iterable[str], root: Path | None = None) -> tuple[tuple[PresetDeletionResult, ...], tuple[str, ...]]:
+    """Удалить несколько своих или найденных Blockcheck пресетов; ошибки собираются, а не прерывают остальное."""
+
+    layout = discover_layout(root)
+    removed: list[PresetDeletionResult] = []
+    errors: list[str] = []
+    for preset_id in dict.fromkeys(preset_ids):
+        try:
+            entry = load_preset(preset_id, layout.root)
+            if is_generated_preset(entry):
+                removed.append(remove_generated_preset(preset_id, layout.root))
+            else:
+                removed.append(remove_owner_preset(preset_id, layout.root))
+        except Exception as exc:
+            errors.append(f"{preset_id}: {exc}")
+    return tuple(removed), tuple(errors)

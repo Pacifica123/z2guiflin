@@ -507,6 +507,7 @@
     "gui/zap2_gui/adapters/net_verdict.py",
     "gui/zap2_gui/adapters/orchestrator_candidates.py",
     "gui/zap2_gui/adapters/preset_editor.py",
+    "gui/zap2_gui/adapters/preset_exclusions.py",
     "gui/zap2_gui/adapters/preset_hot_swap.py",
     "gui/zap2_gui/adapters/preset_txt_import.py",
     "gui/zap2_gui/adapters/presets.py",
