@@ -28,7 +28,7 @@ def test_remedies_point_to_existing_pages_only() -> None:
 
 def test_verdict_to_remedy_mapping_matches_layers() -> None:
     assert [r.key for r in remedies_for_verdict("DPI_SELECTIVE")] == ["zapret", "presets"]
-    assert [r.key for r in remedies_for_verdict("IP_BLOCK")] == ["tunnel"]
+    assert [r.key for r in remedies_for_verdict("IP_BLOCK")] == ["tunnel", "tor"]
     assert remedies_for_verdict("OK") == ()
     assert remedies_for_verdict("nonsense") == ()
     # Локальная поломка: честно говорим, что обход блокировок не поможет.

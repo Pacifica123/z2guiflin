@@ -74,7 +74,7 @@ def custom_stylesheet(profile: ThemeProfile) -> str:
 /* z2guiflin semantic custom theme profile */
 QWidget {{ color:{c['text']}; font-size:{p.font_size_pt}pt; {family} }}
 QMainWindow, QWidget#appShell, QStackedWidget#contentStack {{ background:{c['window']}; }}
-QWidget#page-home,QWidget#page-overview,QWidget#page-core,QWidget#page-strategies,QWidget#page-diagnostics,QWidget#page-dns,QWidget#page-tunnel,QWidget#page-settings,QWidget#page-logs,QWidget#blockcheckLabContent,QWidget#homeContent {{ background:transparent; }}
+QWidget#page-home,QWidget#page-overview,QWidget#page-core,QWidget#page-strategies,QWidget#page-diagnostics,QWidget#page-dns,QWidget#page-tunnel,QWidget#page-tor,QWidget#page-settings,QWidget#page-logs,QWidget#blockcheckLabContent,QWidget#homeContent {{ background:transparent; }}
 QFrame#navigationRail {{ background:{c['control']}; border:1px solid {c['border']}; border-radius:{r}px; }}
 QFrame#contentSurface {{ background:{c['surface']}; border:1px solid {c['border']}; border-radius:{r}px; }}
 QGroupBox,QFrame#settingsCard,QGroupBox#discordMachineDiagnosticsBox,QFrame#discordMachineSummaryFrame {{ color:{c['text']}; background:{c['card']}; border:1px solid {c['border']}; border-radius:{r}px; }}
@@ -98,6 +98,9 @@ QCheckBox::indicator {{ width:18px; height:18px; border:2px solid {c['muted']}; 
 QCheckBox::indicator:checked {{ background:{c['accent']}; border:2px solid {c['accent']}; image:none; }}
 QCheckBox::indicator:hover {{ border-color:{c['accent']}; }}
 QCheckBox::indicator:disabled {{ background:{c['surface']}; border-color:{c['border']}; }}
+QRadioButton::indicator {{ width:16px; height:16px; border:2px solid {c['muted']}; border-radius:10px; background:{c['input']}; image:none; }}
+QRadioButton::indicator:checked {{ border:2px solid {c['accent']}; background:qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5, stop:0 {c['accent']}, stop:0.5 {c['accent']}, stop:0.56 {c['input']}, stop:1 {c['input']}); }}
+QRadioButton::indicator:hover {{ border-color:{c['accent']}; }}
 QTabBar::tab {{ color:{c['text']}; background:{c['control']}; border-color:{c['border']}; }}
 QTabBar::tab:selected {{ color:{c['selectionText']}; background:{c['selection']}; }}
 QTabBar::tab:disabled {{ color:{c['muted']}; background:{c['surface']}; }}

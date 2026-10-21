@@ -14,7 +14,7 @@
         "boards": 1,
         "columns": 8,
         "cards": 46,
-        "comments": 58,
+        "comments": 59,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-21T18:00:00Z",
+    "generatedAt": "2026-10-21T20:00:00Z",
     "selfHosted": true,
-    "boardRevision": 16,
-    "lastPatchId": "2026-10-21-presets-exclusions-cleanup",
+    "boardRevision": 17,
+    "lastPatchId": "2026-10-21-tor-page",
     "rules": "board/README.md"
   },
   "includes": {
@@ -532,11 +532,11 @@
       {
         "id": "750efb86-d11e-49ed-ab0f-04ac76822fdd",
         "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
-        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
         "title": "Tor и мосты: отдельная страница, вставка мостов, pluggable transports",
         "description": "Зачем: Tor сейчас — вкладка внутри «Туннель Discord», без мостов; там, где Tor заблокирован, он не стартует.\n\nГотово, когда: Tor — отдельная страница; мосты вставляются текстом и проверяются; GUI находит lyrebird/obfs4proxy и snowflake-client и говорит, чего не хватает; мосты пишутся в torrc и в конфиг Arti; виден прогресс bootstrap; оба режима на выбор с пояснением: «приложение через Tor» и «Tor перед VLESS»; случайный порт с предупреждением или unix-socket; Moat не запрашивается без явного действия.",
         "priority": "medium",
-        "position": 10240,
+        "position": 11264,
         "archivedAt": null
       },
       {
@@ -1471,6 +1471,12 @@
         "cardId": "01a13ca4-ddb6-73ea-8fdd-0ce9e4817a",
         "body": "patch 2026-10-21-presets-exclusions-cleanup: частично закрыто патчами пачки B: исключения доменов и IP/CIDR в профиле (редактор, блок «Что пропускает») и общие исключения для всех пресетов; редактор самих файлов hostlist/ipset ещё не сделан.",
         "createdAt": "2026-10-21T18:00:00Z"
+      },
+      {
+        "id": "b25e2055-a890-4b98-8806-b60b0bd9802f",
+        "cardId": "750efb86-d11e-49ed-ab0f-04ac76822fdd",
+        "body": "patch 2026-10-21-tor-page: патч 2026-10-21-tor-page: страница «Tor» в разделе «Средства» (вкладка из «Туннеля» убрана). Мосты вставляются текстом, проверяются (адрес, отпечаток, cert= у obfs4, url= у webtunnel), без повторов, хранятся в .zap2/tor/bridges.txt (0600). Поиск lyrebird/obfs4proxy/webtunnel-client/snowflake-client/conjure-client в PATH и /usr/lib/tor; план отказывает, если транспорта нет. Мосты и ClientTransportPlugin пишутся в torrc, [bridges] и [[bridges.transports]] — в конфиг Arti. Прогресс bootstrap (C Tor «Bootstrapped N%», Arti «Sufficiently bootstrapped»). Режимы «Приложения через Tor» и «Tor перед VLESS» (xray dialerProxy / v2ray proxySettings на socks-выход к Tor) с пояснениями. Случайный порт по умолчанию с предупреждением «localhost — не приватность», фиксированный порт или unix-сокет (C Tor, каталог 0700). Moat не запрашивается; список мостов, изменённый после плана, блокирует запуск. Нужна проверка владельцем с реальными мостами (Tor 0.4.9.11, Arti 2.5.1).",
+        "createdAt": "2026-10-21T20:00:00Z"
       }
     ],
     "boardAppearanceSettings": [],

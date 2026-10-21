@@ -1,6 +1,6 @@
 """Средства восстановления доступа и их связь с вердиктом диагностики.
 
-Программа собрана из разных средств (обход DPI, туннели, позже DNS и Tor).
+Программа собрана из разных средств (обход DPI, туннели, DNS и Tor).
 Пользователю не нужно знать, какое из них выбрать: диагностика даёт вердикт,
 а эта таблица отвечает «что попробовать» и честно говорит, что изменится.
 
@@ -54,6 +54,15 @@ REMEDIES: dict[str, Remedy] = {
             page_key="tunnel",
         ),
         Remedy(
+            key="tor",
+            title="Пустить трафик через Tor",
+            layer="route",
+            what_changes="Запускает системный Tor или Arti с локальным SOCKS; с мостами работает и там, где Tor заблокирован. Медленнее туннеля.",
+            needs_root=False,
+            reversible=True,
+            page_key="tor",
+        ),
+        Remedy(
             key="dns",
             title="Сменить DNS-сервер",
             layer="dns",
@@ -85,7 +94,7 @@ REMEDIES: dict[str, Remedy] = {
 
 VERDICT_REMEDIES: dict[str, tuple[str, ...]] = {
     "DPI_SELECTIVE": ("zapret", "presets"),
-    "IP_BLOCK": ("tunnel",),
+    "IP_BLOCK": ("tunnel", "tor"),
     "DNS": ("dns",),
     "LOCAL_NO_ROUTE": ("local-network",),
     "LOCAL_LINK_OR_ROUTER": ("local-network",),

@@ -28,14 +28,6 @@ from ..adapters.discord_tunnel import (
     tunnel_connections_table_rows,
     tunnel_connections_to_text,
 )
-from ..adapters.tor_backends import (
-    DEFAULT_TOR_SOCKS_PORT,
-    SUPPORTED_TOR_BACKENDS,
-    tor_backend_plan_to_text,
-    tor_backend_start_to_text,
-    tor_backend_status_to_text,
-    tor_backend_stop_to_text,
-)
 from ..adapters.runtime_state import confirm_runtime_plan
 from ..qt_compat import require_pyqt
 
@@ -302,68 +294,6 @@ def make_tunnel_page(root: Path | None = None) -> Any:
     core_layout.addLayout(core_buttons)
     core_layout.addStretch(1)
 
-    # Tor backends tab
-    tor_page = QtWidgets.QWidget()
-    tor_layout = QtWidgets.QVBoxLayout(tor_page)
-    tor_layout.setContentsMargins(8, 8, 8, 8)
-    tor_layout.setSpacing(8)
-    tor_hint = QtWidgets.QLabel(
-        "C Tor остаётся системным пакетом. Arti работает как отдельный managed backend. "
-        "Оба дают TCP SOCKS на loopback; bridges в этом патче ещё не настраиваются."
-    )
-    tor_hint.setWordWrap(True)
-    tor_row = QtWidgets.QHBoxLayout()
-    tor_backend_combo = QtWidgets.QComboBox()
-    tor_backend_combo.setObjectName("torBackendKind")
-    tor_backend_combo.addItems(list(SUPPORTED_TOR_BACKENDS))
-    tor_binary_input = QtWidgets.QLineEdit()
-    tor_binary_input.setObjectName("torBackendBinary")
-    tor_binary_input.setPlaceholderText("пусто = /usr/bin/tor или /usr/bin/arti из PATH")
-    tor_port_input = QtWidgets.QSpinBox()
-    tor_port_input.setRange(1, 65535)
-    tor_port_input.setValue(DEFAULT_TOR_SOCKS_PORT)
-    tor_row.addWidget(QtWidgets.QLabel("Backend:"))
-    tor_row.addWidget(tor_backend_combo)
-    tor_row.addWidget(QtWidgets.QLabel("Binary:"))
-    tor_row.addWidget(tor_binary_input, 1)
-    tor_row.addWidget(QtWidgets.QLabel("SOCKS port:"))
-    tor_row.addWidget(tor_port_input)
-    tor_buttons = QtWidgets.QHBoxLayout()
-    tor_plan_button = QtWidgets.QPushButton("План Tor")
-    tor_start_button = QtWidgets.QPushButton("Запустить Tor backend")
-    tor_status_button = QtWidgets.QPushButton("Статус Tor")
-    tor_stop_button = QtWidgets.QPushButton("Остановить Tor")
-    for button in (tor_plan_button, tor_start_button, tor_status_button, tor_stop_button):
-        tor_buttons.addWidget(button)
-    tor_buttons.addStretch(1)
-
-    def selected_tor_backend() -> str:
-        return str(tor_backend_combo.currentText())
-
-    def tor_plan() -> str:
-        return tor_backend_plan_to_text(
-            root=root,
-            backend=selected_tor_backend(),
-            binary=tor_binary_input.text().strip() or None,
-            socks_port=int(tor_port_input.value()),
-        )
-
-    def tor_start() -> str:
-        backend = selected_tor_backend()
-        plan_text = tor_plan()
-        plan_id = f"runtime-default-tor-{backend}-start-plan"
-        confirm_runtime_plan(root=root, plan_id=plan_id)
-        start_text = tor_backend_start_to_text(root=root, backend=backend, confirm_plan_id=plan_id)
-        return "\n\n".join([plan_text, "Tor plan auto-confirmed for local managed start", start_text])
-
-    tor_plan_button.clicked.connect(lambda _checked=False: run_action("План Tor", tor_plan))
-    tor_start_button.clicked.connect(lambda _checked=False: run_action("Запустить Tor backend", tor_start))
-    tor_status_button.clicked.connect(lambda _checked=False: run_action("Статус Tor", lambda: tor_backend_status_to_text(root=root)))
-    tor_stop_button.clicked.connect(lambda _checked=False: run_action("Остановить Tor", lambda: tor_backend_stop_to_text(root=root)))
-    tor_layout.addWidget(tor_hint)
-    tor_layout.addLayout(tor_row)
-    tor_layout.addLayout(tor_buttons)
-    tor_layout.addStretch(1)
 
     # Route tab
     route_page = QtWidgets.QWidget()
@@ -431,7 +361,6 @@ def make_tunnel_page(root: Path | None = None) -> Any:
 
     controls_tabs.addTab(profiles_page, "Профили VLESS")
     controls_tabs.addTab(core_page, "Tunnel core")
-    controls_tabs.addTab(tor_page, "Tor backends")
     controls_tabs.addTab(route_page, "Discord через SOCKS")
 
     layout.addWidget(title)
@@ -450,7 +379,7 @@ def make_tunnel_page(root: Path | None = None) -> Any:
             border-radius: 8px;
             padding: 8px;
         }
-        QLineEdit#discordSocksCommand, QLineEdit#tunnelCoreBinary, QLineEdit#torBackendBinary { font-family: monospace; }
+        QLineEdit#discordSocksCommand, QLineEdit#tunnelCoreBinary { font-family: monospace; }
         """
     )
     return page

@@ -74,6 +74,13 @@ def default_navigation_sections() -> tuple[NavigationSection, ...]:
             group="remedies",
         ),
         NavigationSection(
+            key="tor",
+            title="Tor",
+            purpose="Системный C Tor или Arti: мосты и pluggable transports, приложения через Tor или Tor перед VLESS.",
+            ready_state="tor-backed",
+            group="remedies",
+        ),
+        NavigationSection(
             key="core",
             title="Ядро",
             purpose="Инвентаризация vendored-ядра, build units и локальный build workflow.",

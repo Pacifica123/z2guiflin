@@ -1377,12 +1377,17 @@ def generate_xray_vless_socks_config(
     core_kind: str = "xray",
     socks_credentials: tuple[str, str] | None = None,
     legacy_noauth: bool = False,
+    upstream_socks: tuple[str, int] | None = None,
 ) -> dict[str, Any]:
     """Build Xray/V2Ray JSON with a loopback SOCKS inbound.
 
     By default the inbound requires RFC1929 username/password auth. Without
     explicit credentials a fresh random pair is generated, so a default config
     never contains ``noauth``. ``legacy_noauth`` is an explicit opt-in only.
+
+    ``upstream_socks`` — режим «Tor перед VLESS»: соединение с VLESS-сервером само идёт
+    через SOCKS Tor (Xray ``sockopt.dialerProxy``, V2Ray ``proxySettings``). Сервер VLESS
+    видит выходной узел Tor, а не ваш IP; провайдер видит только Tor.
     """
 
     kind = (core_kind or "xray").lower()
@@ -1414,6 +1419,23 @@ def generate_xray_vless_socks_config(
         # V2Ray's stable JSON schema remains vnext/users.
         vless_settings = {"vnext": [{"address": profile.server, "port": profile.port, "users": [user]}]}
 
+    proxy_outbound: dict[str, Any] = {
+        "tag": "proxy",
+        "protocol": "vless",
+        "settings": vless_settings,
+        "streamSettings": _stream_settings(profile, core_kind=kind),
+        "mux": {"enabled": False},
+    }
+    outbounds: list[dict[str, Any]] = [proxy_outbound, {"tag": "direct", "protocol": "freedom"}, {"tag": "block", "protocol": "blackhole"}]
+    if upstream_socks is not None:
+        host, port = upstream_socks
+        outbounds.append({"tag": "tor-upstream", "protocol": "socks", "settings": {"servers": [{"address": host, "port": int(port)}]}})
+        if kind == "xray":
+            stream = dict(proxy_outbound["streamSettings"])
+            stream["sockopt"] = {**dict(stream.get("sockopt") or {}), "dialerProxy": "tor-upstream"}
+            proxy_outbound["streamSettings"] = stream
+        else:
+            proxy_outbound["proxySettings"] = {"tag": "tor-upstream"}
     return {
         "log": {"loglevel": "warning"},
         "inbounds": [
@@ -1426,17 +1448,7 @@ def generate_xray_vless_socks_config(
                 "sniffing": {"enabled": True, "destOverride": ["http", "tls"]},
             }
         ],
-        "outbounds": [
-            {
-                "tag": "proxy",
-                "protocol": "vless",
-                "settings": vless_settings,
-                "streamSettings": _stream_settings(profile, core_kind=kind),
-                "mux": {"enabled": False},
-            },
-            {"tag": "direct", "protocol": "freedom"},
-            {"tag": "block", "protocol": "blackhole"},
-        ],
+        "outbounds": outbounds,
         "routing": {"domainStrategy": "AsIs", "rules": []},
     }
 
@@ -2462,6 +2474,9 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
             plan_auth_path.unlink()
         except OSError:
             pass
+    from .tor_backends import tor_upstream_for_vless
+
+    upstream = tor_upstream_for_vless(paths.root, profile_id)
     config = generate_xray_vless_socks_config(
         connection,
         socks_host=DEFAULT_SOCKS_HOST,
@@ -2469,6 +2484,7 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
         core_kind=kind,
         socks_credentials=credentials,
         legacy_noauth=auth_mode == SOCKS_AUTH_LEGACY_NOAUTH,
+        upstream_socks=upstream,
     )
     config_hash = _sha256_json(config)
     config_path = _generated_config_path(paths, profile_id)
@@ -2489,6 +2505,8 @@ def discord_tunnel_plan_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, core_bi
         socks_auth_mode=auth_mode,
         credential_fingerprint=_socks_credential_fingerprint(credentials),
     )
+    if upstream is not None:
+        payload["upstreamSocks"] = {"provider": "tor", "host": upstream[0], "port": upstream[1]}
     payload["connectionReceipt"] = {
         "receiptId": receipt.get("receiptId"),
         "path": str(receipt_path.relative_to(paths.root)),
@@ -2768,6 +2786,7 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         credentials = _read_socks_credentials(_plan_socks_auth_path(paths, profile_id))
         if credentials is None or _socks_credential_fingerprint(credentials) != str(socks.get("credentialFingerprint", "")):
             raise ValueError("SOCKS credentials для plan отсутствуют или изменились. Re-run --discord-tunnel-plan and --runtime-confirm.")
+    upstream_record = plan.get("upstreamSocks") or None
     config = generate_xray_vless_socks_config(
         connection,
         socks_host=socks_host,
@@ -2775,6 +2794,7 @@ def discord_tunnel_start_to_text(*, profile_id: str = DEFAULT_PROFILE_ID, confir
         core_kind=core_kind,
         socks_credentials=credentials,
         legacy_noauth=auth_mode == SOCKS_AUTH_LEGACY_NOAUTH,
+        upstream_socks=(str(upstream_record["host"]), int(upstream_record["port"])) if upstream_record else None,
     )
     config_hash = _sha256_json(config)
     if config_hash != str(plan.get("generatedConfigHash", "")):
