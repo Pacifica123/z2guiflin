@@ -18,9 +18,9 @@ BASELINE = ROOT / "runtime/p04/p04a-frozen-evidence.json"
 
 
 def test_current_product_metadata_reflects_accepted_p04_transition() -> None:
-    assert PRODUCT_LABEL == "v1.1"
-    assert __version__ == "1.1.0"
-    assert DEVELOPMENT_LINE == "v1.1 launch diagnostics and Overview usability"
+    assert PRODUCT_LABEL == "v1.2"
+    assert __version__ == "1.2.0"
+    assert DEVELOPMENT_LINE == "v1.2 user-path navigation and home showcase"
     status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
     versioning = (ROOT / "docs/VERSIONING.md").read_text(encoding="utf-8")
     assert "READY_FOR_USE_WITHIN_P03" in status

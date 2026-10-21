@@ -10,7 +10,7 @@
 - [Статус проекта](PROJECT_STATUS.md), [версионирование](VERSIONING.md)
 - [Upstream](upstream/README.md), [история](history/README.md)
 
-Текущая версия: **1.1.0**. v1.0 закрыта владельцем; изменения v1.1 описаны в [контракте](developer/V11_PATCH_CONTRACT.md).
+Текущая версия: **1.2.0** (навигация по пути пользователя, витрина «Главная»). v1.0 закрыта владельцем; изменения v1.1 описаны в [контракте](developer/V11_PATCH_CONTRACT.md); правило версий — в [VERSIONING.md](VERSIONING.md).
 
 - [Историческая квалификация v1](operations/v1-qualification.md)
 - [G01–G21 и J1–J7](generated/qualification.md)

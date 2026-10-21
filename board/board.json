@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 40,
-        "comments": 42,
+        "cards": 42,
+        "comments": 49,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-21T12:30:00Z",
+    "generatedAt": "2026-10-21T13:00:00Z",
     "selfHosted": true,
-    "boardRevision": 9,
-    "lastPatchId": "2026-10-21-home-showcase",
+    "boardRevision": 10,
+    "lastPatchId": "2026-10-21-version-1-2-0",
     "rules": "board/README.md"
   },
   "includes": {
@@ -272,11 +272,11 @@
       {
         "id": "01a13ca4-ddbe-724d-811f-2eed90dafc",
         "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
-        "columnId": "01a13ca4-dd84-7136-893e-7f3c6da5d7",
+        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
         "title": "DNS-слой: выбор DoH/DoT, проверка подмены и leak, откат",
         "description": "Зачем: v0.4 §8: DNS у нас только диагностический. Летом 2026 зафиксированы DNAT/перехват DNS Google/Cloudflare на ТСПУ (wiki, авг. 2026) и блок 8.8.8.8 по TCP (03.07.2026). В zapretgui — custom DNS.\n\nГотово, когда: ADR: что GUI делает с резолвером на Linux (systemd-resolved/NetworkManager/dnscrypt-proxy), как откатывает; затем модуль проверки подмены (сравнение ответов, TTL, DNAT-признаки) в health.\n\nИсточник: wiki DPI/tspu-dns-nsdi-dnat-august-2026, google-dns-8888-block-july-2026",
         "priority": "medium",
-        "position": 3072,
+        "position": 7168,
         "archivedAt": null
       },
       {
@@ -342,11 +342,11 @@
       {
         "id": "01a13ca4-ddd0-7193-8652-8d4580711b",
         "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
-        "columnId": "01a13ca4-dd84-7136-893e-7f3c6da5d7",
+        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
         "title": "Валидатор конфликтов профилей и симулятор «кто сработает первым»",
         "description": "Зачем: v0.4 §3: nfqws2 выбирает первый подходящий профиль — shadowing между filters/ranges не проверяется. Это частая причина «пресет не работает».\n\nГотово, когда: по пресету и (proto, port, host, ssid, mark) GUI показывает выбранный профиль и затенённые профили; предупреждение при сохранении.",
         "priority": "high",
-        "position": 5120,
+        "position": 8192,
         "archivedAt": null
       },
       {
@@ -452,11 +452,11 @@
       {
         "id": "16feaf80-a93b-7018-867a-826945768475",
         "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
-        "columnId": "01a13ca4-dd86-724b-8977-facb1855fe",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
         "title": "Версия продукта не растёт вместе с патчами (всё ещё 1.1.0)",
         "description": "Зачем: после пачек 15.10 продукт заметно изменился (SOCKS-auth, тестовый контур, circular, вердикт сети), а pyproject, __version__, v11-contract.json candidateVersion и тесты (frozen['binding']['candidateVersion']=='1.1.0') держат 1.1.0. Владелец видит «v1.1» и не понимает, что у него.\n\nГотово, когда: выбрана политика (например minor на пачку с фичами, patch на фиксы), версия поднята до 1.2.0 одним патчем со всеми привязками (pyproject, __init__, контракт, freeze, тесты, PKGBUILD-выход dist/arch/<ver>), и в docs/developer/devctl.md записано правило «пачка с фичами поднимает версию».",
         "priority": "medium",
-        "position": 6144,
+        "position": 14336,
         "archivedAt": null
       },
       {
@@ -517,6 +517,26 @@
         "description": "Зачем: статичный список «что здесь есть» на витрине быстро устаревает и не учит пользоваться. Владелец хочет гайд-всплывашки.\n\nГотово, когда: с «Главной» запускается тур: по шагам подсвечиваются Диагностика → средство из вердикта → Пресеты/Туннель; тур можно прервать и пройти заново; шаги описаны данными, а не кодом.",
         "priority": "medium",
         "position": 7168,
+        "archivedAt": null
+      },
+      {
+        "id": "7f799335-1918-4db8-87da-e85c256f5415",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "title": "Пресеты удобнее: раздельные панели, клик — выбрать, двойной клик — включить",
+        "description": "Зачем: профили и пресеты на одном экране и с общими кнопками; одиночный клик сразу активирует пресет, поэтому неудобно удалять; непонятно, важен ли порядок профилей; гора одинакового текста; найденные Blockcheck стратегии называются default+дата и со временем умирают.\n\nГотово, когда: панели пресетов и профилей разделены; клик выбирает, двойной клик активирует; порядок профилей пронумерован, меняется перетаскиванием и объяснён («первый подходящий выигрывает»); чипы/иконки вместо сплошного текста; глобальные и пообъектные исключения (домены + CIDR); читаемые имена пресетов из Blockcheck и массовое удаление.",
+        "priority": "medium",
+        "position": 9216,
+        "archivedAt": null
+      },
+      {
+        "id": "750efb86-d11e-49ed-ab0f-04ac76822fdd",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "title": "Tor и мосты: отдельная страница, вставка мостов, pluggable transports",
+        "description": "Зачем: Tor сейчас — вкладка внутри «Туннель Discord», без мостов; там, где Tor заблокирован, он не стартует.\n\nГотово, когда: Tor — отдельная страница; мосты вставляются текстом и проверяются; GUI находит lyrebird/obfs4proxy и snowflake-client и говорит, чего не хватает; мосты пишутся в torrc и в конфиг Arti; виден прогресс bootstrap; оба режима на выбор с пояснением: «приложение через Tor» и «Tor перед VLESS»; случайный порт с предупреждением или unix-socket; Moat не запрашивается без явного действия.",
+        "priority": "medium",
+        "position": 10240,
         "archivedAt": null
       }
     ],
@@ -907,6 +927,22 @@
       {
         "cardId": "531b7070-d3b7-4fbe-8adf-398d38efecc7",
         "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "7f799335-1918-4db8-87da-e85c256f5415",
+        "labelId": "01a13ca4-dd8d-7129-8bc6-22424e617b"
+      },
+      {
+        "cardId": "7f799335-1918-4db8-87da-e85c256f5415",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "750efb86-d11e-49ed-ab0f-04ac76822fdd",
+        "labelId": "01a13ca4-dd8f-70d5-8fef-16f71a1bfc"
+      },
+      {
+        "cardId": "750efb86-d11e-49ed-ab0f-04ac76822fdd",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
       }
     ],
     "checklists": [
@@ -1267,6 +1303,48 @@
         "cardId": "531b7070-d3b7-4fbe-8adf-398d38efecc7",
         "body": "patch 2026-10-21-home-showcase: заведено вместо раздела «Что здесь есть» на витрине.",
         "createdAt": "2026-10-21T12:30:00Z"
+      },
+      {
+        "id": "8d608e86-52da-4d7f-85b0-1ac2f0c51ce8",
+        "cardId": "16feaf80-a93b-7018-867a-826945768475",
+        "body": "patch 2026-10-21-version-1-2-0: политика: пачка с фичами поднимает minor, с фиксами — patch (docs/VERSIONING.md, docs/developer/devctl.md). Пачка A (навигация + витрина) → 1.2.0 во всех привязках: pyproject, __init__ (версия, label v1.2, development line), v11-contract, freeze, тесты, generated reference, dist/arch/1.2.0. Следующая пачка с фичами (DNS, пресеты, Tor) → 1.3.0.",
+        "createdAt": "2026-10-21T13:00:00Z"
+      },
+      {
+        "id": "55d2c8a6-81e8-4367-a43c-0f074f605384",
+        "cardId": "01a13ca4-ddbe-724d-811f-2eed90dafc",
+        "body": "patch 2026-10-21-version-1-2-0: решение владельца (21.10): пачка B. Linux у владельца — NetworkManager без systemd-resolved, /etc/resolv.conf пишет NM. Временный режим — nmcli device modify (откат reapply), постоянный — nmcli connection modify с сохранением прежних значений; DoH/DoT — dnscrypt-proxy как owned-процесс на 127.0.0.x. Каталог — как у loop-uh, без Яндекса; BI.ZONE с пометкой повышенного риска; у групп краткое «больше X — меньше Y»; свой DNS по одному DoH URL; проверка провайдера 53/853/443 и признаков DNAT, затем повтор DNS-вердикта.",
+        "createdAt": "2026-10-21T13:00:00Z"
+      },
+      {
+        "id": "a264c05b-ca65-4876-8452-590624d8cc14",
+        "cardId": "01a13ca4-ddd0-7193-8652-8d4580711b",
+        "body": "patch 2026-10-21-version-1-2-0: пачка B (R3b): симулятор «кто сработает первым» — по (proto, port, host) показать выбранный и затенённые профили, предупреждение с исправлением в один клик. Автоматическое разрешение конфликтов — не сейчас.",
+        "createdAt": "2026-10-21T13:00:00Z"
+      },
+      {
+        "id": "e7fc0531-8e9b-4977-b964-3847e5c966f5",
+        "cardId": "01a13ca4-ddba-70c9-8e38-2994ac807a",
+        "body": "patch 2026-10-21-version-1-2-0: разбор 21.10: портируется 2 из 55. Причины: 27 hex-блобов (0xDEADBEEF…) принимаются за пути к файлам; 41 fake без блоба — нужны встроенные fake zapret2; split/split2 (62) → multisplit; --wssize → wssize (есть в zapret-antidpi.lua); --dup проверить. План — пачка B (R3c).",
+        "createdAt": "2026-10-21T13:00:00Z"
+      },
+      {
+        "id": "1b486f2d-24a8-4052-a3e4-5ed64aa052c5",
+        "cardId": "01a13ca4-ddc0-707f-8d8f-0079e58218",
+        "body": "patch 2026-10-21-version-1-2-0: у loop-uh (zapretgui): каталог записей + управляемый блок с маркерами + периодическая перепроверка адресов; бэкапа и отката не найдено. Наш вариант — те же маркеры плюс бэкап и откат одной кнопкой.",
+        "createdAt": "2026-10-21T13:00:00Z"
+      },
+      {
+        "id": "c130c02f-94d0-48db-b14f-fd1729fab577",
+        "cardId": "7f799335-1918-4db8-87da-e85c256f5415",
+        "body": "patch 2026-10-21-version-1-2-0: заведено по разбору с владельцем 21.10; пачка B (R3a/R3b).",
+        "createdAt": "2026-10-21T13:00:00Z"
+      },
+      {
+        "id": "0ba530a3-1e7e-466c-96f1-780a857ac338",
+        "cardId": "750efb86-d11e-49ed-ab0f-04ac76822fdd",
+        "body": "patch 2026-10-21-version-1-2-0: заведено по разбору с владельцем 21.10 (у владельца Tor 0.4.9.11 и Arti 2.5.1); пачка B (R4).",
+        "createdAt": "2026-10-21T13:00:00Z"
       }
     ],
     "boardAppearanceSettings": [],

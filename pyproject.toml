@@ -1,6 +1,6 @@
 [project]
 name = "zap2gui-linux"
-version = "1.1.0"
+version = "1.2.0"
 description = "Linux PyQt GUI shell around a vendored zapret2 core source tree"
 readme = "README.md"
 requires-python = ">=3.10"
