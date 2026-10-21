@@ -74,7 +74,7 @@ def custom_stylesheet(profile: ThemeProfile) -> str:
 /* z2guiflin semantic custom theme profile */
 QWidget {{ color:{c['text']}; font-size:{p.font_size_pt}pt; {family} }}
 QMainWindow, QWidget#appShell, QStackedWidget#contentStack {{ background:{c['window']}; }}
-QWidget#page-overview,QWidget#page-core,QWidget#page-strategies,QWidget#page-diagnostics,QWidget#page-tunnel,QWidget#page-settings,QWidget#page-logs,QWidget#blockcheckLabContent {{ background:transparent; }}
+QWidget#page-home,QWidget#page-overview,QWidget#page-core,QWidget#page-strategies,QWidget#page-diagnostics,QWidget#page-tunnel,QWidget#page-settings,QWidget#page-logs,QWidget#blockcheckLabContent {{ background:transparent; }}
 QFrame#navigationRail {{ background:{c['control']}; border:1px solid {c['border']}; border-radius:{r}px; }}
 QFrame#contentSurface {{ background:{c['surface']}; border:1px solid {c['border']}; border-radius:{r}px; }}
 QGroupBox,QFrame#settingsCard,QGroupBox#discordMachineDiagnosticsBox,QFrame#discordMachineSummaryFrame {{ color:{c['text']}; background:{c['card']}; border:1px solid {c['border']}; border-radius:{r}px; }}
@@ -83,6 +83,7 @@ QLabel#brandSubtitle,QLabel#navigationHint,QLabel#pageSubtitle,QLabel#mutedText,
 QListWidget#navigationList,QListWidget#navigationList::viewport {{ background:transparent; border:0; }}
 QListWidget#navigationList::item:hover {{ background:{c['hover']}; }}
 QListWidget#navigationList::item:selected {{ background:{c['selection']}; color:{c['selectionText']}; }}
+QListWidget#navigationList::item:disabled {{ background:transparent; color:{c['muted']}; }}
 QPushButton,QToolButton {{ color:{c['text']}; background:{c['control']}; border:1px solid {c['border']}; border-radius:{r}px; }}
 QPushButton:hover,QToolButton:hover {{ background:{c['hover']}; border-color:{c['accent']}; }}
 QPushButton:pressed,QToolButton:pressed {{ background:{c['selection']}; }}

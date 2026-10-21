@@ -11,7 +11,7 @@ from ..widgets.health_panel import make_health_panel
 from .. import PRODUCT_LABEL
 from ..adapters.local_build import create_local_build_plan
 from ..core_inventory import load_core_build_map, load_core_inventory_snapshot
-from ..models.navigation import default_navigation_sections
+from ..models.navigation import default_navigation_sections, navigation_group_title
 from ..qt_compat import require_pyqt
 from ..ui_icons import section_icon
 from ..widgets.blockcheck_lab import make_blockcheck_lab_page
@@ -69,7 +69,23 @@ def create_main_window(root: object | None = None) -> Any:
             self.content_stack = QtWidgets.QStackedWidget()
             self.content_stack.setObjectName("contentStack")
 
-            for section in sections:
+            self._row_to_index: dict[int, int] = {}
+            self._key_to_row: dict[str, int] = {}
+            current_group: str | None = None
+            for index, section in enumerate(sections):
+                if section.group != current_group:
+                    current_group = section.group
+                    group_title = navigation_group_title(section.group)
+                    if group_title:
+                        header = QtWidgets.QListWidgetItem(group_title.upper())
+                        header.setFlags(QtCore.Qt.ItemFlag.NoItemFlags)
+                        header_font = header.font()
+                        header_font.setPointSizeF(max(7.0, header_font.pointSizeF() * 0.8))
+                        header_font.setBold(True)
+                        header.setFont(header_font)
+                        header.setSizeHint(QtCore.QSize(0, 26))
+                        self.navigation_list.addItem(header)
+
                 if section.key == "overview":
                     page = make_runtime_control_page(root)
                 elif section.key == "core":
@@ -112,6 +128,9 @@ def create_main_window(root: object | None = None) -> Any:
                 item.setData(QtCore.Qt.ItemDataRole.UserRole, section.key)
                 item.setToolTip(section.purpose)
                 self.navigation_list.addItem(item)
+                row = self.navigation_list.count() - 1
+                self._row_to_index[row] = index
+                self._key_to_row[section.key] = row
 
             safety_hint = QtWidgets.QLabel(
                 "Plan/status безопасны. Изменения системы требуют отдельного подтверждения."
@@ -157,10 +176,8 @@ def create_main_window(root: object | None = None) -> Any:
             self.setCentralWidget(shell)
 
             self.navigation_list.currentRowChanged.connect(self._select_page)
-            last_row = self._settings.value("ui/last-page", 0, type=int)
-            if not 0 <= last_row < len(sections):
-                last_row = 0
-            self.navigation_list.setCurrentRow(last_row)
+            last_key = str(self._settings.value("ui/last-page-key", sections[0].key) or "")
+            self.navigation_list.setCurrentRow(self._key_to_row.get(last_key, self._key_to_row[sections[0].key]))
 
             geometry = self._settings.value("ui/window-geometry")
             if geometry is not None:
@@ -192,11 +209,11 @@ def create_main_window(root: object | None = None) -> Any:
             self.discovery_palette.query.setFocus()
 
         def focus_discovery_target(self, page_key: str, object_name: str | None) -> bool:
-            row = next((i for i,s in enumerate(sections) if s.key == page_key), None)
+            row = self._key_to_row.get(page_key)
             if row is None: return False
             self.navigation_list.setCurrentRow(row)
             if object_name is None: return True
-            page = self.content_stack.widget(row)
+            page = self.content_stack.widget(self._row_to_index[row])
             target = page.findChild(QtWidgets.QWidget, object_name)
             if target is None: return False
             target.setFocus()
@@ -205,12 +222,13 @@ def create_main_window(root: object | None = None) -> Any:
             return True
 
         def _select_page(self, row: int) -> None:
-            if not 0 <= row < len(sections):
+            index = self._row_to_index.get(row)
+            if index is None:
                 return
-            section = sections[row]
-            self.content_stack.setCurrentIndex(row)
+            section = sections[index]
+            self.content_stack.setCurrentIndex(index)
             self.page_subtitle.setText(section.purpose)
-            self._settings.setValue("ui/last-page", row)
+            self._settings.setValue("ui/last-page-key", section.key)
             page = self.content_stack.currentWidget()
             refresh = getattr(page, "refresh_runtime_state", None)
             if callable(refresh):
@@ -218,7 +236,9 @@ def create_main_window(root: object | None = None) -> Any:
 
         def closeEvent(self, event: Any) -> None:  # noqa: N802
             self._settings.setValue("ui/window-geometry", self.saveGeometry())
-            self._settings.setValue("ui/last-page", self.navigation_list.currentRow())
+            index = self._row_to_index.get(self.navigation_list.currentRow())
+            if index is not None:
+                self._settings.setValue("ui/last-page-key", sections[index].key)
             self._settings.sync()
             super().closeEvent(event)
 

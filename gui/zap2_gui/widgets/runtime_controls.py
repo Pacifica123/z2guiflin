@@ -70,7 +70,7 @@ def make_runtime_control_page(root: Path | None = None) -> Any:
     layout.setContentsMargins(14, 14, 14, 14)
     layout.setSpacing(10)
 
-    title = QtWidgets.QLabel("Обзор")
+    title = QtWidgets.QLabel("Запуск")
     title.setObjectName("pageTitle")
     intro = QtWidgets.QLabel(
         "Выберите компоненты и запустите их. Если ядро ещё не готово, сначала соберите его. "

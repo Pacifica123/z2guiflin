@@ -10,34 +10,37 @@ from zap2_gui.qt_compat import is_pyqt_available
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_navigation_sections_are_fixed_for_stage_5() -> None:
+def test_navigation_sections_follow_user_path() -> None:
     sections = default_navigation_sections()
 
     assert [section.key for section in sections] == [
-        "overview",
-        "core",
-        "strategies",
+        "home",
         "diagnostics",
+        "overview",
+        "strategies",
         "tunnel",
-        "settings",
+        "core",
         "logs",
+        "settings",
     ]
     assert [section.title for section in sections] == [
-        "Обзор",
-        "Ядро",
-        "Пресеты",
+        "Главная",
         "Диагностика",
+        "Запуск",
+        "Пресеты",
         "Туннель",
-        "Настройки",
+        "Ядро",
         "Логи",
+        "Настройки",
     ]
-    assert sections[1].ready_state == "inventory-backed"
+    assert [section.group for section in sections] == ["", "", "remedies", "remedies", "remedies", "system", "system", "system"]
+    assert {section.key: section for section in sections}["core"].ready_state == "inventory-backed"
 
 
 def test_gui_shell_state_is_read_only_and_inventory_backed() -> None:
     state = load_gui_shell_state(ROOT)
 
-    assert len(state.sections) == 7
+    assert len(state.sections) == 8
     assert state.core_snapshot.vendor_file_count == 244
     assert state.core_snapshot.upstream_imported_file_count == 244
     assert state.core_snapshot.project_local_core_file_count == 0
@@ -49,7 +52,7 @@ def test_text_entry_point_describes_gui_shell_without_requiring_pyqt() -> None:
     text = describe_project()
 
     assert "gui shell: PyQt skeleton" in text
-    assert "Обзор" in text
+    assert "Главная" in text
     assert "Логи" in text
 
 

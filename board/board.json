@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 37,
-        "comments": 39,
+        "cards": 38,
+        "comments": 40,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-15T06:00:00Z",
+    "generatedAt": "2026-10-21T12:00:00Z",
     "selfHosted": true,
-    "boardRevision": 7,
-    "lastPatchId": "2026-10-15-net-verdict",
+    "boardRevision": 8,
+    "lastPatchId": "2026-10-21-nav-remedies",
     "rules": "board/README.md"
   },
   "includes": {
@@ -488,6 +488,16 @@
         "priority": "medium",
         "position": 4096,
         "archivedAt": null
+      },
+      {
+        "id": "157e39bf-51ff-4fcb-820d-ef0c98d1eeb1",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "title": "Навигация по пути пользователя: Главная → Диагностика → Средства → Система",
+        "description": "Зачем: программа — сборная солянка средств (обход DPI, туннели, позже DNS и Tor), и пользователь не должен заранее знать, какое выбрать. Плоский список из 7 вкладок этого не объяснял.\n\nГотово, когда: левая панель сгруппирована (без заголовка: Главная, Диагностика; «Средства»: Запуск, Пресеты, Туннель; «Система»: Ядро, Логи, Настройки), ключи страниц не меняются, последняя страница запоминается по ключу; вердикт сети показывает «Что попробовать» с переходом на страницу средства и честным описанием, что изменится (root/обратимость).",
+        "priority": "medium",
+        "position": 12288,
+        "archivedAt": null
       }
     ],
     "labels": [
@@ -861,6 +871,14 @@
       {
         "cardId": "cdca8005-28cc-72fd-892c-a0564f94cdb4",
         "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "157e39bf-51ff-4fcb-820d-ef0c98d1eeb1",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "157e39bf-51ff-4fcb-820d-ef0c98d1eeb1",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
       }
     ],
     "checklists": [
@@ -1203,6 +1221,12 @@
         "cardId": "97d6542b-95a4-72af-8e0f-69c474ae6226",
         "body": "patch 2026-10-15-net-verdict: adapters/net_verdict.py (stdlib, standalone) + кнопка в Blockcheck lab; ключевое различие — «TCP есть, TLS нет» (SNI-DPI) против «TCP нет» (IP-блок); шлюз, режущий ICMP целиком, не считается неисправным; при работающем zapret вердикт OK понижается до medium.",
         "createdAt": "2026-10-15T15:00:00Z"
+      },
+      {
+        "id": "68587177-5b4f-4628-a206-88e870b7df58",
+        "cardId": "157e39bf-51ff-4fcb-820d-ef0c98d1eeb1",
+        "body": "patch 2026-10-21-nav-remedies: models/navigation.py (группы + home), models/remedy.py (вердикт → средства), main_window: заголовки групп не выбираются, row↔stack через карту, ui/last-page-key; net_verdict_panel: кнопки «Что попробовать». «Обзор» переименован в «Запуск»: обзором теперь служит «Главная».",
+        "createdAt": "2026-10-21T12:00:00Z"
       }
     ],
     "boardAppearanceSettings": [],

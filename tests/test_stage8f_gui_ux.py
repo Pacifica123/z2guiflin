@@ -37,7 +37,7 @@ def test_main_window_remembers_geometry_and_last_page() -> None:
     source = (ROOT / "gui/zap2_gui/windows/main_window.py").read_text(encoding="utf-8")
     assert 'QSettings("The Grey Network", "z2guiflin")' in source
     assert '"ui/window-geometry"' in source
-    assert '"ui/last-page"' in source
+    assert '"ui/last-page-key"' in source
     assert "navigation_list.currentRowChanged.connect" in source
 
 

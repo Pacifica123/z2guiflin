@@ -14,6 +14,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional in CI
 _ICON_ROOT = Path(__file__).resolve().parent / "assets" / "icons"
 
 _SECTION_ICONS = {
+    "home": "home.svg",
     "overview": "overview.svg",
     "core": "core.svg",
     "strategies": "strategies.svg",

@@ -17,6 +17,7 @@ QMainWindow, QWidget#appShell, QStackedWidget#contentStack {
     background: #f6f3f7;
 }
 
+QWidget#page-home,
 QWidget#page-overview,
 QWidget#page-core,
 QWidget#page-strategies,
@@ -79,6 +80,14 @@ QListWidget#navigationList::item:selected {
     background: #dcd0e3;
     color: #43334d;
     font-weight: 700;
+}
+
+QListWidget#navigationList::item:disabled {
+    min-height: 18px;
+    padding: 10px 10px 2px 10px;
+    margin: 0;
+    background: transparent;
+    color: #756d7b;
 }
 
 QFrame#contentSurface {
