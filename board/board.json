@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 42,
-        "comments": 49,
+        "cards": 43,
+        "comments": 50,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-21T13:00:00Z",
+    "generatedAt": "2026-10-21T14:00:00Z",
     "selfHosted": true,
-    "boardRevision": 10,
-    "lastPatchId": "2026-10-21-version-1-2-0",
+    "boardRevision": 11,
+    "lastPatchId": "2026-10-21-lifecycle-liveness",
     "rules": "board/README.md"
   },
   "includes": {
@@ -538,6 +538,16 @@
         "priority": "medium",
         "position": 10240,
         "archivedAt": null
+      },
+      {
+        "id": "a141c93b-78d6-434a-8405-6d72a992708d",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd89-7273-8eeb-1b7687a66e",
+        "title": "Обновление пакета блокируется висящими записями runtime",
+        "description": "Зачем: после перезагрузки или падения запись сессии оставалась «не остановленной», новый пакет отказывался обновлять workspace («stop/reconcile owned runtime before workspace upgrade»), а GUI, где её можно снять, уже не открывался. Владелец снимал это вручную.\n\nГотово, когда: проверяется то, что проверяемо без root — записи старше текущей загрузки и записи с мёртвым (или переиспользованным) PID не мешают; секрет SOCKS-auth не считается записью runtime; сообщение называет мешающие файлы; есть zap2-gui --lifecycle-status и --lifecycle-confirm-stopped (перенос в lifecycle-archive без удаления, отказ при живом процессе).",
+        "priority": "medium",
+        "position": 15360,
+        "archivedAt": null
       }
     ],
     "labels": [
@@ -943,6 +953,14 @@
       {
         "cardId": "750efb86-d11e-49ed-ab0f-04ac76822fdd",
         "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "a141c93b-78d6-434a-8405-6d72a992708d",
+        "labelId": "01a13ca4-dd92-707d-8c35-772e675fc7"
+      },
+      {
+        "cardId": "a141c93b-78d6-434a-8405-6d72a992708d",
+        "labelId": "01a13ca4-dd8c-7113-8736-9a797d76de"
       }
     ],
     "checklists": [
@@ -1345,6 +1363,12 @@
         "cardId": "750efb86-d11e-49ed-ab0f-04ac76822fdd",
         "body": "patch 2026-10-21-version-1-2-0: заведено по разбору с владельцем 21.10 (у владельца Tor 0.4.9.11 и Arti 2.5.1); пачка B (R4).",
         "createdAt": "2026-10-21T13:00:00Z"
+      },
+      {
+        "id": "2957c46a-241f-48c7-83be-f353adaf0a55",
+        "cardId": "a141c93b-78d6-434a-8405-6d72a992708d",
+        "body": "patch 2026-10-21-lifecycle-liveness: distribution.py: runtime_record_activity / active_runtime_records / confirm_runtime_stopped; fail-closed сохранён для непонятных и свежих записей без PID (например, owner-rules applied в текущей загрузке).",
+        "createdAt": "2026-10-21T14:00:00Z"
       }
     ],
     "boardAppearanceSettings": [],

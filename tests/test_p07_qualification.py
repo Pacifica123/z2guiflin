@@ -28,7 +28,8 @@ def test_same_release_installed_bootstrap_allows_owned_inspect_stop(tmp_path,sta
 
 def test_real_upgrade_still_requires_stop_and_downgrade_is_non_destructive(tmp_path):
     old=tiny(tmp_path,'old','0.10.0rc6','before');new=tiny(tmp_path,'new','1.0.0rc7','after');ws=tmp_path/'data/workspace'
-    ensure_workspace(old,ws);path=ws/'.zap2/runtime/sessions/default.session.json';path.parent.mkdir(parents=True);path.write_text(json.dumps({'state':'running','pid':12345}));before=content(ws)
+    # Живой PID (сам тест) — runtime действительно работает, обновление ждёт остановки.
+    ensure_workspace(old,ws);path=ws/'.zap2/runtime/sessions/default.session.json';path.parent.mkdir(parents=True);path.write_text(json.dumps({'state':'running','pid':os.getpid()}));before=content(ws)
     with pytest.raises(ValueError,match='reconcile'):ensure_workspace(new,ws)
     assert content(ws)==before
     path.write_text(json.dumps({'state':'stopped'}));ensure_workspace(new,ws);before=content(ws)

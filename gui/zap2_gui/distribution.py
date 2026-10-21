@@ -38,17 +38,101 @@ def manifest_at(package_root: Path) -> dict:
     return manifest
 
 
-def _active_records(workspace: Path) -> list[str]:
-    active=[]
-    for directory in [workspace/'.zap2/runtime/sessions',workspace/'.zap2/tunnel/runtime']:
+RUNTIME_RECORD_DIRS=('.zap2/runtime/sessions','.zap2/tunnel/runtime')
+TERMINAL_STATES={'stopped','reverted','not-started','absent','exited-after-launch','failed-rolled-back'}
+LIFECYCLE_HINT=('проверьте: zap2-gui --lifecycle-status; если runtime на самом деле остановлен '
+                '(sudo nft list tables | grep zap2 пусто, процессов nfqws2/xray нет) — zap2-gui --lifecycle-confirm-stopped')
+
+
+def _boot_time() -> float | None:
+    """Момент загрузки ядра: процессы и nft-правила runtime не переживают перезагрузку."""
+    try:
+        for line in Path('/proc/stat').read_text().splitlines():
+            if line.startswith('btime '):return float(line.split()[1])
+    except (OSError,ValueError,IndexError):
+        return None
+    return None
+
+
+def _pid_alive(pid: int, expected_names: set[str]) -> bool:
+    if pid<=0:return False
+    try:os.kill(pid,0)
+    except ProcessLookupError:return False
+    except PermissionError:pass  # чужой (root) процесс жив
+    except OSError:return False
+    if expected_names:
+        try:cmdline=Path(f'/proc/{pid}/cmdline').read_bytes().replace(b'\0',b' ').decode(errors='replace')
+        except OSError:return True
+        # PID переиспользован другим процессом: наш runtime уже не существует.
+        if cmdline and not any(name in cmdline for name in expected_names):return False
+    return True
+
+
+def _record_pids(data: dict) -> tuple[list[int],set[str]]:
+    pids=[]
+    for holder in (data,data.get('sessionResult') if isinstance(data.get('sessionResult'),dict) else {}):
+        try:
+            pid=int(holder.get('pid') or 0)
+        except (TypeError,ValueError):
+            pid=0
+        if pid>0:pids.append(pid)
+    names={Path(str(data[key])).name for key in ('binaryPath','runtimeExecutablePath','corePath','coreBinary') if data.get(key)}
+    return pids,{name for name in names if name}
+
+
+def runtime_record_activity(path: Path, boot_time: float | None=None) -> str | None:
+    """Почему запись держит обновление; None — запись не мешает.
+
+    Fail-closed: непонятная запись мешает. Но то, что проверяется без root, проверяется:
+    запись старше текущей загрузки описывает уже несуществующий runtime, а запись с PID —
+    живой процесс или нет.
+    """
+    if path.name.endswith('.session-socks-auth.json'):return None  # секрет туннеля, не состояние
+    try:data=json.loads(path.read_text())
+    except (ValueError,OSError):return 'unreadable record'
+    if not isinstance(data,dict):return 'unreadable record'
+    state=data.get('state') or data.get('workflowState')
+    if state in TERMINAL_STATES:return None
+    if boot_time is not None:
+        try:
+            if path.stat().st_mtime<boot_time:return None
+        except OSError:
+            return 'unreadable record'
+    pids,names=_record_pids(data)
+    if pids:
+        alive=[pid for pid in pids if _pid_alive(pid,names)]
+        return f'state={state}, live pid {alive[0]}' if alive else None
+    return f'state={state}'
+
+
+def active_runtime_records(workspace: Path) -> dict[str,str]:
+    boot=_boot_time();active={}
+    for rel in RUNTIME_RECORD_DIRS:
+        directory=workspace/rel
         if not directory.exists():continue
-        for path in directory.glob('*.json'):
-            try: data=json.loads(path.read_text())
-            except (ValueError,OSError):active.append(path.name);continue
-            state=data.get('state') or data.get('workflowState')
-            if state not in {'stopped','reverted','not-started','absent','exited-after-launch','failed-rolled-back'}:
-                active.append(path.name)
+        for path in sorted(directory.glob('*.json')):
+            reason=runtime_record_activity(path,boot)
+            if reason:active[f'{rel}/{path.name}']=reason
     return active
+
+
+def _active_records(workspace: Path) -> list[str]:
+    return [f'{name} ({reason})' for name,reason in active_runtime_records(workspace).items()]
+
+
+def confirm_runtime_stopped(workspace: Path, archive_root: Path | None=None) -> list[str]:
+    """Явное подтверждение пользователя: перенести мешающие записи из workspace, ничего не удаляя."""
+    active=active_runtime_records(workspace)
+    if any('live pid' in reason for reason in active.values()):
+        raise ValueError('owned runtime process is still alive; stop it first: '+', '.join(f'{k} ({v})' for k,v in active.items()))
+    if not active:return []
+    from datetime import datetime,timezone
+    target=(archive_root or workspace.parent/'lifecycle-archive')/datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    moved=[]
+    for rel in active:
+        destination=target/rel;destination.parent.mkdir(parents=True,exist_ok=True)
+        os.replace(workspace/rel,destination);moved.append(str(destination))
+    return moved
 
 
 def ensure_workspace(package_root: Path, workspace: Path) -> dict:
@@ -82,7 +166,7 @@ def ensure_workspace(package_root: Path, workspace: Path) -> dict:
         if old and old.get('releaseDigest')==manifest['releaseDigest']:
             return old
         if old and _active_records(workspace):
-            raise ValueError('stop/reconcile owned runtime before workspace upgrade')
+            raise ValueError('stop/reconcile owned runtime before workspace upgrade: '+'; '.join(_active_records(workspace))+'. '+LIFECYCLE_HINT)
         if old:
             def version_key(value):
                 match=re.fullmatch(r'(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)(\d+))?',str(value))
@@ -159,6 +243,12 @@ def main(package_root: Path | None=None) -> int:
         if arguments==['--package-preflight']:
             manifest=manifest_at(package_root)
             print(json.dumps({'version':manifest['version'],'releaseDigest':manifest['releaseDigest'],'resources':'verified','service':'plan-only','runtimeMutation':False},indent=2));return 0
+        if arguments==['--lifecycle-status']:
+            workspace=user_workspace()
+            print(json.dumps({'workspace':str(workspace),'blockingRecords':active_runtime_records(workspace),'hint':LIFECYCLE_HINT},ensure_ascii=False,indent=2));return 0
+        if arguments==['--lifecycle-confirm-stopped']:
+            moved=confirm_runtime_stopped(user_workspace())
+            print('\n'.join(['перенесено (не удалено):',*moved]) if moved else 'мешающих записей нет');return 0
         prepare_installed(package_root)
     if arguments==['--about']:
         from .product_identity import identity_snapshot

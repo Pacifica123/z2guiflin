@@ -10,7 +10,7 @@
 | SOCKS работает, TLS падает | Current-run evidence по каждому mandatory target | Сопоставить TLS failure и core/server evidence, затем повторить свежую проверку |
 | Discord не запускается | HTTPS, Gateway и navigation отдельно | Выполнить первый отсутствующий/упавший predicate |
 | Транспорт не поддерживается | Core capability/preflight | Проверить совместимость core и connection; не менять протокол наугад |
-| Обновление заблокировано | Installation receipt и conflicts | Остановить/reconcile runtime или сохранить пользовательские изменения отдельно |
+| Обновление заблокировано («stop/reconcile owned runtime») | `zap2-gui --lifecycle-status` — какие записи держат обновление и почему | Записи от прошлой загрузки и с мёртвым PID больше не мешают. Если runtime действительно остановлен (`sudo nft list tables \| grep zap2` пусто, nfqws2/xray не запущены) — `zap2-gui --lifecycle-confirm-stopped` переносит записи в `~/.local/share/zap2gui/lifecycle-archive/`, ничего не удаляя. Конфликты managed-копий — сохранить пользовательские изменения отдельно |
 
 Для отката firewall найдите «откат firewall», подготовьте owner-rules revert plan, подтвердите его ID и исполните штатно. Не используйте удаление всех nft tables или остановку по одному PID. Сервисный автозапуск в этом пакете **plan-only**: systemd unit не устанавливается и не включается.
 
