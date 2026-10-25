@@ -34,7 +34,8 @@ def test_discord_verification_plan_is_owner_facing_and_non_executing() -> None:
     assert "--default-start-plan" in text
     assert "gateway.discord.gg" in text
     assert "cdn.discordapp.com" in text
-    assert "Voice channels" in text
+    assert "войс считается следствием рабочей стратегии" in text
+    assert "Проверить вложения" in text
     assert "одновременная работа YouTube и Discord" in text
 
     for target in DISCORD_DESKTOP_TARGETS:
@@ -48,7 +49,8 @@ def test_discord_report_template_records_success_and_failure_buckets() -> None:
     assert "Voice/UDP: excluded from this report." in text
     assert "- [ ] Discord desktop открывается" in text
     assert "- [ ] Gateway работает" in text
-    assert "- [ ] CDN/media работают" in text
+    assert "- [ ] Картинки (media.discordapp.net) грузятся, и файл-вложение (cdn.discordapp.com/attachments/) скачивается до конца" in text
+    assert "attachments-volume-cap" in text
     assert "blockcheck-no-available" in text
     assert "gateway-only-failure" in text
     assert "cdn-media-failure" in text
@@ -62,7 +64,7 @@ def test_discord_report_template_is_written_under_zap2_without_overwrite(tmp_pat
     path = write_discord_non_voice_report_template(project)
     assert path == discord_non_voice_report_path(project)
     assert path.name == "discord-non-voice-owner-check.md"
-    assert path.read_text(encoding="utf-8").startswith("# Discord desktop non-voice owner verification report")
+    assert path.read_text(encoding="utf-8").startswith("# Discord desktop owner verification report")
 
     path.write_text("owner notes stay\n", encoding="utf-8")
     assert write_discord_non_voice_report_template(project) == path

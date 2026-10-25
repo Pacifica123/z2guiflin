@@ -24,7 +24,7 @@ DISCORD_NON_VOICE_REPORT_NAME = "discord-non-voice-owner-check.md"
 
 @dataclass(frozen=True)
 class DiscordVerificationLoop:
-    """Static owner-check recipe for Discord desktop non-voice."""
+    """Static owner-check recipe for Discord desktop."""
 
     preset_id: str
     title: str
@@ -90,14 +90,14 @@ def create_discord_non_voice_verification_loop() -> DiscordVerificationLoop:
         targets=preset.targets,
         gui_steps=(
             "Остановить Default workflow, VPN и другие DPI-bypass процессы, чтобы Blockcheck не смешивал эффекты.",
-            "Во вкладке Blockcheck lab выбрать Service target: Discord desktop non-voice.",
+            "Во вкладке Blockcheck lab выбрать Service target: Discord desktop.",
             "Оставить HTTPS TLS1.2, HTTPS TLS1.3 и HTTP/3 QUIC включёнными; HTTP можно включать только как дополнительную пробу.",
             "Запустить sequential Blockcheck в режиме Scan all preset targets и дождаться coverage по updater/app/gateway/CDN candidates.",
             "Нажать Coverage и убедиться, что reports отдельно показывают updates.discord.com, stable.dl2.discordapp.net, gateway и CDN/media targets.",
             "Нажать «Создать стратегии» и убедиться, что generated strategy помечена service target discord-desktop и содержит coverage snapshot.",
             "Во вкладке «Стратегии» выбрать generated Discord strategy для Default profile.",
             "Через «Обзор» подготовить/подтвердить/запустить Default workflow обычным owner-confirmed путём.",
-            "Полностью закрыть desktop Discord, запустить его заново и проверить non-voice признаки ниже.",
+            "Полностью закрыть desktop Discord, запустить его заново и проверить признаки ниже.",
         ),
         cli_steps=(
             f"PYTHONPATH=gui python -m zap2_gui.app --blockcheck-plan --blockcheck-target-preset {preset.preset_id} --blockcheck-scan-mode scan-all-targets",
@@ -117,7 +117,8 @@ def create_discord_non_voice_verification_loop() -> DiscordVerificationLoop:
             "Login/session проходит или существующая сессия переподключается без бесконечного Connecting.",
             "Gateway работает: список серверов/каналов появляется, статус подключения стабилен несколько минут.",
             "Текстовые чаты читаются и хотя бы одно тестовое сообщение отправляется/получается.",
-            "CDN/media работают: аватарки, иконки серверов и простое изображение/attachment грузятся.",
+            "Картинки (media.discordapp.net) грузятся, и файл-вложение (cdn.discordapp.com/attachments/) скачивается до конца.",
+            "Войс подключается к каналу: считается следствием рабочей стратегии; если нет — --discord-voice-profiles.",
             "Обновления/asset endpoints не блокируют запуск клиента в этом окружении.",
         ),
         failure_buckets=(
@@ -128,10 +129,11 @@ def create_discord_non_voice_verification_loop() -> DiscordVerificationLoop:
             "runtime-selected-wrong-strategy: Default profile запускает YouTube/custom strategy вместо Discord-generated strategy.",
             "gateway-only-failure: UI открылся, но gateway.discord.gg не подключается или висит Connecting.",
             "cdn-media-failure: чаты работают, но cdn/media/avatars/attachments не грузятся.",
+            "attachments-volume-cap: картинки грузятся, вложения встают; кнопка «Проверить вложения» в Blockcheck lab.",
             "regression-youtube: после Discord проверки YouTube baseline перестал выбираться или запускаться прежним путём.",
         ),
         excluded_checks=(
-            "Voice channels, звонки, screen share и UDP/STUN discovery.",
+            "Screen share и UDP/STUN discovery: войс считается следствием рабочей стратегии и отдельно не сканируется.",
             "Гарантированная одновременная работа YouTube и Discord одной стратегией.",
             "Автоматическое объединение нескольких generated strategies.",
             "Портирование Windows WinDivert/wf/ipset presets целиком.",
@@ -179,7 +181,7 @@ def discord_non_voice_report_template(created_at: str | None = None) -> str:
     failures = "\n".join(f"- [ ] {item}" for item in loop.failure_buckets)
     excluded = "\n".join(f"- {item}" for item in loop.excluded_checks)
     cli = "\n".join(f"{idx}. `{step}`" for idx, step in enumerate(loop.cli_steps, start=1))
-    return f"""# Discord desktop non-voice owner verification report
+    return f"""# Discord desktop owner verification report
 
 Создано: `{stamp}`
 

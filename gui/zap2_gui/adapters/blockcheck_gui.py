@@ -1623,6 +1623,7 @@ def _coverage_phases_in_policy_order(data: dict[str, object], preset_id: str) ->
         chain = service_target_phase_chain(preset_id)
     except ValueError:
         return ()
+    chain_targets = {target for phase in chain for target in phase.targets}
     for phase in chain:
         target_rows = tuple(
             rows_by_target.get(
@@ -1637,6 +1638,11 @@ def _coverage_phases_in_policy_order(data: dict[str, object], preset_id: str) ->
             )
             for target in phase.targets
         )
+        # Scan-time hosts (a googlevideo node) are alternatives of their phase too.
+        listed = {str(row.get("target") or "") for row in target_rows}
+        target_rows = tuple(
+            row for target, row in rows_by_target.items() if target not in listed and target not in chain_targets and phase.covers(target)
+        ) + target_rows
         status, winner = _phase_status_for_rows(target_rows)
         phases.append(
             {

@@ -13,6 +13,7 @@ from ..adapters.dns_probe import check_provider, detect_interception
 from ..adapters.dnscrypt_config import LOCAL_DNSCRYPT, dnscrypt_available, dnscrypt_config, dnscrypt_steps
 from ..models.dns_catalog import DnsCatalog, DnsProvider, custom_provider, load_dns_catalog, provider_from_dict
 from ..qt_compat import require_pyqt
+from ..ui_icons import dns_provider_icon
 
 STATUS_BADGES = {"ok": "", "blocked": "⛔ часто блокируется", "at_risk": "⚠ под угрозой", "high_risk": "⚠ повышенный риск"}
 FLAG_LABELS = {"dnssec": "DNSSEC", "adblock": "без рекламы", "family": "семейный фильтр", "encrypted_only": "только DoH/DoT"}
@@ -189,6 +190,7 @@ def make_dns_page(root: Path | None = None, navigate: Optional[Callable[[str], N
                                                  "только DoH/DoT" if not provider.plain_dns_works else "",
                                                  ", ".join(provider.ipv4[:2])) if x)
                 item = QtWidgets.QTreeWidgetItem([provider.name, summary])
+                item.setIcon(0, dns_provider_icon(provider.provider_id, provider.name))
                 item.setData(0, QtCore.Qt.ItemDataRole.UserRole, provider.provider_id)
                 item.setToolTip(0, provider.note or group.tradeoff)
                 node.addChild(item)

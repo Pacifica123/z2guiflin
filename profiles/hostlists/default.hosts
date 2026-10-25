@@ -4,16 +4,24 @@
 # Владелец проекта может расширять файл вручную.
 
 # YouTube / Google video
+# nfqws2 сам учитывает поддомены: `googlevideo.com` покрывает все узлы
+# rrN---sn-XXXX.googlevideo.com, которые у каждого провайдера свои. Поэтому
+# конкретные узлы сюда не пишутся.
 youtube.com
 www.youtube.com
 m.youtube.com
 youtu.be
+youtube-nocookie.com
+youtubei.googleapis.com
 ytimg.com
+ggpht.com
+yt3.googleusercontent.com
 googlevideo.com
 
-# Discord / desktop non-voice
-# v0.4-alpha Stage 4: this block intentionally covers the `discord-desktop`
-# service target preset used by Blockcheck Lab before Default workflow start.
+# Discord / desktop
+# Покрывает service target `discord-desktop`. Поддомены учитываются сами:
+# discordapp.net → media, images-ext-*, dl/stable.dl2; discord.media → голосовые
+# серверы *.discord.media; discordapp.com → cdn.discordapp.com (вложения).
 discord.com
 www.discord.com
 discord.gg
@@ -26,6 +34,17 @@ discordcdn.com
 discord.media
 updates.discord.com
 stable.dl2.discordapp.net
+discord.app
+discord.co
+discord.dev
+discord.gift
+discord.new
+discordstatus.com
+dis.gd
+discordsays.com
+discordactivities.com
+# загрузка вложений идёт в Google Cloud Storage под этим именем
+discord-attachments-uploads-prd.storage.googleapis.com
 
 # Telegram
 telegram.org

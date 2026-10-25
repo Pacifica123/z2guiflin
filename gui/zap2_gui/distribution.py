@@ -38,6 +38,42 @@ def manifest_at(package_root: Path) -> dict:
     return manifest
 
 
+def _hostlist_tokens(text: str) -> list[str]:
+    tokens=[]
+    for line in text.splitlines():
+        word=line.split('#',1)[0].strip().split(' ',1)[0].lower().rstrip('.')
+        if word and word not in tokens:tokens.append(word)
+    return tokens
+
+
+def _is_hostlist_seed(rel: str) -> bool:
+    path=Path(rel)
+    return path.parts[:2]==('profiles','hostlists') and path.suffix in {'.hosts','.txt'}
+
+
+def merge_hostlist_seed(source: Path, destination: Path, baseline_sha: str | None, offered: list[str], version: str) -> list[str]:
+    """Bring new package domains into a user-owned hostlist seed without losing user edits.
+
+    Untouched seed (still equal to the previous package copy) is replaced. An edited
+    seed only gets the package domains it lacks, appended in a marked block; a domain
+    offered by an earlier upgrade is not offered again, so a deliberate deletion sticks.
+    Returns the domains offered so far, for the receipt.
+    """
+
+    package=source.read_text(encoding='utf-8')
+    package_tokens=_hostlist_tokens(package)
+    if baseline_sha is not None and sha(destination)==baseline_sha:
+        shutil.copyfile(source,destination)
+        return package_tokens
+    user=set(_hostlist_tokens(destination.read_text(encoding='utf-8')))
+    missing=[token for token in package_tokens if token not in user and token not in offered]
+    if missing:
+        block='\n# добавлено обновлением z2guiflin '+version+'; строки можно удалить, повторно они не добавятся\n'+'\n'.join(missing)+'\n'
+        with destination.open('a',encoding='utf-8') as handle:
+            handle.write(block)
+    return sorted(set(offered)|set(package_tokens))
+
+
 RUNTIME_RECORD_DIRS=('.zap2/runtime/sessions','.zap2/tunnel/runtime')
 TERMINAL_STATES={'stopped','reverted','not-started','absent','exited-after-launch','failed-rolled-back'}
 LIFECYCLE_HINT=('проверьте: zap2-gui --lifecycle-status; если runtime на самом деле остановлен '
@@ -191,9 +227,13 @@ def ensure_workspace(package_root: Path, workspace: Path) -> dict:
             if old:shutil.copytree(workspace,stage,dirs_exist_ok=True,symlinks=True)
             for rel in set(previous)-set(manifest['files']):
                 if Path(rel).parts[0] not in USER_SEEDS and (stage/rel).exists():(stage/rel).unlink()
+            seed_offers=dict(old.get('seedOffers',{})) if old else {}
             for rel,entry in manifest['files'].items():
                 destination=stage/rel
-                if Path(rel).parts[0] in USER_SEEDS and destination.exists():continue
+                if Path(rel).parts[0] in USER_SEEDS and destination.exists():
+                    if _is_hostlist_seed(rel) and not destination.is_symlink():
+                        seed_offers[rel]=merge_hostlist_seed(package_root/rel,destination,previous.get(rel,{}).get('sha256'),list(seed_offers.get(rel,[])),manifest['version'])
+                    continue
                 # A user-controlled parent symlink must never redirect copying
                 # outside the staged workspace.
                 if any(parent.is_symlink() for parent in destination.parents if parent!=stage and stage in parent.parents):
@@ -201,7 +241,7 @@ def ensure_workspace(package_root: Path, workspace: Path) -> dict:
                 destination.parent.mkdir(parents=True,exist_ok=True)
                 shutil.copyfile(package_root/rel,destination)
                 destination.chmod(entry['mode'])
-            receipt={'schemaVersion':WORKSPACE_SCHEMA_VERSION,'version':manifest['version'],'releaseDigest':manifest['releaseDigest'],'previousReleaseDigest':old.get('releaseDigest') if old else None,'files':manifest['files'],'ownership':{'packageRoot':'package-owned, immutable','workspace':'user-owned compatibility copies','seeds':'user-owned, preserve on upgrade','runtime':'.zap2, user-owned, preserve on uninstall'}}
+            receipt={'schemaVersion':WORKSPACE_SCHEMA_VERSION,'version':manifest['version'],'releaseDigest':manifest['releaseDigest'],'previousReleaseDigest':old.get('releaseDigest') if old else None,'files':manifest['files'],'seedOffers':seed_offers,'ownership':{'packageRoot':'package-owned, immutable','workspace':'user-owned compatibility copies','seeds':'user-owned, preserve on upgrade','runtime':'.zap2, user-owned, preserve on uninstall'}}
             path=stage/'.zap2/installation/receipt.json';path.parent.mkdir(parents=True,exist_ok=True)
             path.write_text(json.dumps(receipt,sort_keys=True,indent=2)+'\n')
             if old:

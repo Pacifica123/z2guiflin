@@ -36,12 +36,15 @@ def test_blockcheck_command_records_service_target_preset_in_plan_and_env() -> N
     )
 
     assert "service target preset: discord-desktop" in command.to_text()
-    assert "Discord desktop non-voice" in command.to_text()
+    assert "Discord desktop" in command.to_text()
     assert any(item == "ZAP2_SERVICE_TARGET_PRESET=discord-desktop" for item in command.argv)
 
 
 def test_service_target_inference_handles_sequential_candidate_logs() -> None:
+    # Older two-host YouTube preset and a resolved googlevideo node stay attached to YouTube.
     assert infer_service_target_preset_id("youtube.com www.youtube.com") == SERVICE_TARGET_YOUTUBE_BASIC
+    assert infer_service_target_preset_id("rr1---sn-abcd1234-xyz5.googlevideo.com") == SERVICE_TARGET_YOUTUBE_BASIC
+    assert infer_service_target_preset_id("cdn.discordapp.com") == SERVICE_TARGET_DISCORD_DESKTOP
     assert infer_service_target_preset_id("gateway.discord.gg") == SERVICE_TARGET_DISCORD_DESKTOP
     assert infer_service_target_preset_id("example.com") == SERVICE_TARGET_CUSTOM
 
@@ -76,13 +79,14 @@ service target preset: discord-desktop (Discord desktop non-voice)
 
     data = json.loads(generated.path.read_text(encoding="utf-8"))
     assert data["serviceTarget"]["presetId"] == SERVICE_TARGET_DISCORD_DESKTOP
-    assert data["serviceTarget"]["title"] == "Discord desktop non-voice"
+    assert data["serviceTarget"]["title"] == "Discord desktop"
+    assert data["serviceTarget"]["nonVoice"] is False
     assert data["serviceTarget"]["exportedCandidate"] == "gateway.discord.gg"
     assert data["sourcePreset"]["serviceTargetPresetId"] == SERVICE_TARGET_DISCORD_DESKTOP
 
     catalog = load_workspace_catalog(project)
     strategy = catalog.strategy_by_id()[generated.strategy_id]
-    assert strategy.service_target_label == "Discord desktop non-voice (discord-desktop)"
+    assert strategy.service_target_label == "Discord desktop (discord-desktop)"
 
     details = workspace_strategy_to_text(generated.strategy_id, project)
-    assert "service target: Discord desktop non-voice (discord-desktop)" in details
+    assert "service target: Discord desktop (discord-desktop)" in details

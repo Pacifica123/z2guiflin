@@ -42,7 +42,7 @@ def test_blockcheck_options_are_batch_and_youtube_oriented() -> None:
     env = opts.to_env()
 
     assert env["BATCH"] == "1"
-    assert env["DOMAINS"] == "youtube.com www.youtube.com"
+    assert env["DOMAINS"] == "www.youtube.com youtube.com redirector.googlevideo.com i.ytimg.com"
     assert env["ENABLE_HTTP"] == "0"
     assert env["ENABLE_HTTPS_TLS12"] == "1"
     assert env["ENABLE_HTTPS_TLS13"] == "1"

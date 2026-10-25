@@ -48,9 +48,12 @@ def test_service_coverage_policy_distinguishes_youtube_and_discord() -> None:
     youtube = get_service_target_preset(SERVICE_TARGET_YOUTUBE_BASIC)
     discord = get_service_target_preset(SERVICE_TARGET_DISCORD_DESKTOP)
 
-    assert youtube.policy.mode == SERVICE_COVERAGE_ANY_TARGET_AVAILABLE
-    assert youtube.policy.order_mode == "order-not-important"
-    assert service_target_recommended_scan_mode(SERVICE_TARGET_YOUTUBE_BASIC) == "stop-after-first-available"
+    # YouTube is a chain too: an open youtube.com says nothing about googlevideo video nodes.
+    assert youtube.policy.mode == SERVICE_COVERAGE_ORDERED_TARGET_CHAIN
+    assert youtube.policy.order_mode == "order-important"
+    assert service_target_recommended_scan_mode(SERVICE_TARGET_YOUTUBE_BASIC) == "scan-all-targets"
+    assert [phase.phase_id for phase in youtube.phases] == ["site", "video", "images"]
+    assert SERVICE_COVERAGE_ANY_TARGET_AVAILABLE != youtube.policy.mode
 
     assert discord.policy.mode == SERVICE_COVERAGE_ORDERED_TARGET_CHAIN
     assert discord.policy.order_mode == "order-important"

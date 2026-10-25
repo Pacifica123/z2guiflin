@@ -31,17 +31,23 @@ def test_youtube_basic_preset_preserves_v03_baseline_default() -> None:
     preset = get_service_target_preset(SERVICE_TARGET_YOUTUBE_BASIC)
     opts = BlockcheckOptions()
 
-    assert preset.targets == ("youtube.com", "www.youtube.com")
+    assert preset.targets == ("www.youtube.com", "youtube.com", "redirector.googlevideo.com", "i.ytimg.com")
     assert YOUTUBE_BASIC_TARGETS == preset.targets
-    assert DEFAULT_BLOCKCHECK_TARGET_STRING == "youtube.com www.youtube.com"
+    assert DEFAULT_BLOCKCHECK_TARGET_STRING == "www.youtube.com youtube.com redirector.googlevideo.com i.ytimg.com"
     assert opts.normalized_domains() == preset.targets
-    assert opts.to_env()["DOMAINS"] == "youtube.com www.youtube.com"
+    assert opts.to_env()["DOMAINS"] == DEFAULT_BLOCKCHECK_TARGET_STRING
 
 
-def test_discord_desktop_preset_contains_non_voice_seed_targets() -> None:
+def test_discord_desktop_preset_assumes_voice_and_splits_attachments() -> None:
     preset = get_service_target_preset(SERVICE_TARGET_DISCORD_DESKTOP)
 
-    assert preset.non_voice
+    assert preset.title == "Discord desktop"
+    assert not preset.non_voice
+    phases = {phase.phase_id: phase for phase in preset.phases}
+    # Attachments must not hide behind media: they were OR alternatives before.
+    assert phases["attachments"].targets == ("cdn.discordapp.com",) and phases["attachments"].required
+    assert "cdn.discordapp.com" not in phases["media"].targets
+    assert not phases["voice"].required and phases["voice"].covers("russia1234.discord.media")
     assert preset.targets == DISCORD_DESKTOP_TARGETS
     assert "discord.com" in preset.targets
     assert "gateway.discord.gg" in preset.targets

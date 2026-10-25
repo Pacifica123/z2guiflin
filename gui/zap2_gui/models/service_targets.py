@@ -53,12 +53,27 @@ class ServiceCoveragePhase:
     targets: tuple[str, ...]
     required: bool = True
     summary: str = ""
+    # Suffixes whose hosts belong to this phase even if they are not listed in
+    # `targets`: hosts that change per user/ISP (googlevideo nodes) are resolved
+    # at scan time and must still be counted as alternatives of this phase.
+    match_suffixes: tuple[str, ...] = ()
+    # Name of a scan-time resolver that adds a concrete host to this phase.
+    dynamic: str = ""
 
     def validate(self, preset_id: str) -> None:
         validate_preset_id(self.phase_id)
         if not self.title.strip():
             raise ValueError(f"service target preset {preset_id!r} has a coverage phase without a title")
         validate_service_targets(self.targets)
+        for suffix in self.match_suffixes:
+            if not suffix or suffix != service_target_host_token(suffix) or "." not in suffix:
+                raise ValueError(f"service target preset {preset_id!r} has an invalid phase suffix: {suffix!r}")
+
+    def covers(self, target: str) -> bool:
+        token = service_target_host_token(target)
+        if token in {service_target_host_token(item) for item in self.targets}:
+            return True
+        return any(host_matches_suffix(token, suffix) for suffix in self.match_suffixes)
 
     @property
     def target_string(self) -> str:
@@ -247,6 +262,42 @@ def service_target_host_token(target: str) -> str:
     return value
 
 
+def host_matches_suffix(host: str, suffix: str) -> bool:
+    """nfqws2 hostlist semantics: an entry covers itself and all its subdomains."""
+
+    host = service_target_host_token(host)
+    suffix = service_target_host_token(suffix)
+    return bool(host and suffix) and (host == suffix or host.endswith("." + suffix))
+
+
+def _hostlist_rules_from_text(text: str) -> tuple[tuple[str, bool], ...]:
+    """Return (domain, exact) pairs; `^domain` disables subdomain matching as in zapret2."""
+
+    rules: list[tuple[str, bool]] = []
+    for raw_line in text.splitlines():
+        line = raw_line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        word = line.split()[0]
+        exact = word.startswith("^")
+        token = service_target_host_token(word.lstrip("^"))
+        if token:
+            rules.append((token, exact))
+    return tuple(rules)
+
+
+def hostlist_covers_host(host: str, hostlist_text: str) -> bool:
+    """True when nfqws2 would match `host` against this hostlist text."""
+
+    token = service_target_host_token(host)
+    if not token:
+        return False
+    for entry, exact in _hostlist_rules_from_text(hostlist_text):
+        if token == entry or (not exact and token.endswith("." + entry)):
+            return True
+    return False
+
+
 def hostlist_entries_from_text(text: str) -> tuple[str, ...]:
     """Parse owner-maintained hostlist text into comparable domain tokens."""
 
@@ -268,15 +319,13 @@ def service_targets_missing_from_hostlist(
     targets: tuple[str, ...] | list[str],
     hostlist_text: str,
 ) -> tuple[str, ...]:
-    """Return preset targets whose host token is absent from hostlist text."""
+    """Return preset targets that nfqws2 would not match with this hostlist.
 
-    entries = set(hostlist_entries_from_text(hostlist_text))
-    missing: list[str] = []
-    for target in targets:
-        token = service_target_host_token(str(target))
-        if token and token not in entries:
-            missing.append(str(target))
-    return tuple(missing)
+    Matching follows zapret2: an entry covers its subdomains unless it starts
+    with `^`. So `googlevideo.com` covers every per-user `rrN---sn-*` node.
+    """
+
+    return tuple(str(target) for target in targets if not hostlist_covers_host(str(target), hostlist_text))
 
 
 def service_target_preset_missing_from_hostlist(preset_id: str, hostlist_text: str) -> tuple[str, ...]:
@@ -325,62 +374,112 @@ _DISCORD_DESKTOP_PHASES = (
         summary="Persistent WebSocket gateway target.",
     ),
     ServiceCoveragePhase(
-        phase_id="cdn-media",
-        title="CDN/media",
-        targets=("cdn.discordapp.com", "media.discordapp.net", "discord.media", "discordapp.net"),
-        summary="Any media/CDN alternative proves this phase enough for the current non-voice loop.",
+        phase_id="media",
+        title="Картинки и превью",
+        targets=("media.discordapp.net", "images-ext-1.discordapp.net"),
+        summary="Image proxy: inline pictures, previews and embeds.",
+    ),
+    ServiceCoveragePhase(
+        phase_id="attachments",
+        title="Вложения и файлы",
+        targets=("cdn.discordapp.com",),
+        summary=(
+            "Attachments, file downloads, avatars and emoji. A separate required phase: while it was an OR "
+            "alternative of media, a strategy that opened only media.discordapp.net looked complete although "
+            "cdn.discordapp.com/attachments/ timed out."
+        ),
+    ),
+    ServiceCoveragePhase(
+        phase_id="voice",
+        title="Voice",
+        targets=("discord.media",),
+        required=False,
+        match_suffixes=("discord.media",),
+        summary=(
+            "Voice servers live under *.discord.media. Not scanned by default: in practice a strategy that opens "
+            "app, gateway and media also gives working voice; voice is checked separately only if it fails."
+        ),
     ),
     ServiceCoveragePhase(
         phase_id="invite",
         title="Invite/secondary",
         targets=("discord.gg",),
-        summary="Secondary invite target; useful but still tracked in the non-voice chain.",
+        required=False,
+        summary="Secondary invite target; tracked but not required for the app to work.",
     ),
 )
 
 _DISCORD_DESKTOP_ORDERED_TARGETS = tuple(target for phase in _DISCORD_DESKTOP_PHASES for target in phase.targets)
 
+GOOGLEVIDEO_DYNAMIC_NODE = "googlevideo-node"
+
+_YOUTUBE_PHASES = (
+    ServiceCoveragePhase(
+        phase_id="site",
+        title="Сайт",
+        targets=("www.youtube.com", "youtube.com"),
+        summary="Page and API. www first: the bare domain only redirects to www.",
+    ),
+    ServiceCoveragePhase(
+        phase_id="video",
+        title="Видео (googlevideo)",
+        targets=("redirector.googlevideo.com",),
+        match_suffixes=("googlevideo.com",),
+        dynamic=GOOGLEVIDEO_DYNAMIC_NODE,
+        summary=(
+            "Video streams come from rrN---sn-XXXX.googlevideo.com nodes that differ per user and ISP. "
+            "Before a scan the node is asked from redirector.googlevideo.com/report_mapping and checked first; "
+            "redirector stays as a fallback with the same googlevideo.com SNI."
+        ),
+    ),
+    ServiceCoveragePhase(
+        phase_id="images",
+        title="Превью и аватары",
+        targets=("i.ytimg.com",),
+        summary="Thumbnails come from i.ytimg.com.",
+    ),
+)
+
+_YOUTUBE_ORDERED_TARGETS = tuple(target for phase in _YOUTUBE_PHASES for target in phase.targets)
+
 _SERVICE_TARGET_PRESETS = (
     ServiceTargetPreset(
         preset_id=SERVICE_TARGET_YOUTUBE_BASIC,
-        title="YouTube basic",
-        summary="Проверенный v0.3-stable baseline: базовые YouTube-домены для HTTPS/TLS/QUIC Blockcheck.",
-        targets=("youtube.com", "www.youtube.com"),
+        title="YouTube",
+        summary="Сайт, видео googlevideo (узел определяется перед проверкой) и превью i.ytimg.com.",
+        targets=_YOUTUBE_ORDERED_TARGETS,
+        layers={phase.phase_id: phase.targets for phase in _YOUTUBE_PHASES},
+        phases=_YOUTUBE_PHASES,
         coverage_policy=ServiceCoveragePolicy(
-            mode=SERVICE_COVERAGE_ANY_TARGET_AVAILABLE,
-            order_mode=SERVICE_COVERAGE_ORDER_NOT_IMPORTANT,
+            mode=SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
+            order_mode=SERVICE_COVERAGE_ORDER_IMPORTANT,
             summary=(
-                "Простой сервисный seed: достаточно найти любую рабочую стратегию хотя бы на одном "
-                "из preset targets, затем владелец проверяет выбранный сервис вручную."
+                "Фазы идут через AND, адреса внутри фазы — OR. Открытый youtube.com без googlevideo не значит, "
+                "что видео пойдёт: замедляют в первую очередь именно узлы googlevideo."
             ),
-            required_targets=("youtube.com", "www.youtube.com"),
-            recommended_scan_mode=BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE,
-            stop_rule="stop once first AVAILABLE target is observed",
+            required_targets=_YOUTUBE_ORDERED_TARGETS,
+            recommended_scan_mode=BLOCKCHECK_SCAN_ALL_TARGETS,
+            stop_rule="test one strategy through site → video → images until full coverage is proven or owner stops",
         ),
     ),
     ServiceTargetPreset(
         preset_id=SERVICE_TARGET_DISCORD_DESKTOP,
-        title="Discord desktop non-voice",
+        title="Discord desktop",
         summary=(
-            "Исторический seed цикла v0.4 для desktop Discord без voice/UDP: updater, login, "
-            "gateway и CDN/media targets."
+            "Приложение, gateway, картинки и вложения. Войс считается следствием: стратегия, открывшая "
+            "Discord, на практике даёт и рабочий войс; *.discord.media проверяется отдельно, если войс не работает."
         ),
         targets=_DISCORD_DESKTOP_ORDERED_TARGETS,
-        layers={
-            "updater": ("updates.discord.com", "stable.dl2.discordapp.net"),
-            "app-api": ("discord.com",),
-            "gateway": ("gateway.discord.gg",),
-            "cdn-media": ("cdn.discordapp.com", "media.discordapp.net", "discord.media", "discordapp.net"),
-            "invite": ("discord.gg",),
-        },
+        layers={phase.phase_id: phase.targets for phase in _DISCORD_DESKTOP_PHASES},
         phases=_DISCORD_DESKTOP_PHASES,
-        non_voice=True,
+        non_voice=False,
         coverage_policy=ServiceCoveragePolicy(
             mode=SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
             order_mode=SERVICE_COVERAGE_ORDER_IMPORTANT,
             summary=(
                 "Desktop-style chain: фазы идут через AND, а targets внутри одной фазы считаются OR-альтернативами. "
-                "Идеальная стратегия должна пройти updater → app/API → gateway → CDN/media; если это невозможно, UI показывает record-holder/best partial."
+                "Идеальная стратегия должна пройти updater → app/API → gateway → картинки → вложения; "
+                "voice и invite отслеживаются, но не обязательны. Если полное покрытие невозможно, UI показывает record-holder/best partial."
             ),
             required_targets=_DISCORD_DESKTOP_ORDERED_TARGETS,
             recommended_scan_mode=BLOCKCHECK_SCAN_ALL_TARGETS,
@@ -475,7 +574,31 @@ def service_target_phase_for_target(preset_id: str, target: str) -> ServiceCover
     for phase in phases:
         if token in {service_target_host_token(item) for item in phase.targets}:
             return phase
+    for phase in phases:
+        if phase.covers(token):
+            return phase
     return None
+
+
+def service_target_dynamic_phases(preset_id: str) -> tuple[ServiceCoveragePhase, ...]:
+    """Phases whose concrete host is resolved right before a scan."""
+
+    try:
+        return tuple(phase for phase in service_target_phase_chain(preset_id) if phase.dynamic)
+    except ValueError:
+        return ()
+
+
+def with_dynamic_host(targets: list[str] | tuple[str, ...], phase: ServiceCoveragePhase, host: str) -> list[str]:
+    """Insert a resolved host before the phase's static alternatives (OR semantics keep both)."""
+
+    values = [str(item) for item in targets]
+    validate_service_targets((host,))
+    if not phase.covers(host) or host.lower() in {item.lower() for item in values}:
+        return values
+    positions = [index for index, item in enumerate(values) if service_target_host_token(item) in {service_target_host_token(t) for t in phase.targets}]
+    index = positions[0] if positions else len(values)
+    return values[:index] + [host] + values[index:]
 
 
 def service_target_recommended_scan_mode(preset_id: str) -> str:
@@ -539,15 +662,21 @@ def infer_service_target_preset_id(targets: str | tuple[str, ...] | list[str]) -
         preset_targets = tuple(item.lower() for item in preset.targets)
         if lowered == preset_targets:
             return preset.preset_id
-    if len(lowered) == 1:
-        target = lowered[0]
-        matches = [
-            preset.preset_id
-            for preset in _SERVICE_TARGET_PRESETS
-            if not preset.is_custom and target in tuple(item.lower() for item in preset.targets)
-        ]
-        if len(matches) == 1:
-            return matches[0]
+    # A subset of one preset's targets (one sequential candidate, or an older
+    # version of the preset such as "youtube.com www.youtube.com") stays attached
+    # to that preset. Scan-time hosts (googlevideo nodes) count via phase suffixes.
+    matches = [
+        preset.preset_id
+        for preset in _SERVICE_TARGET_PRESETS
+        if not preset.is_custom
+        and all(
+            target in tuple(item.lower() for item in preset.targets)
+            or any(phase.covers(target) for phase in preset.phases if phase.match_suffixes)
+            for target in lowered
+        )
+    ]
+    if len(matches) == 1:
+        return matches[0]
     return SERVICE_TARGET_CUSTOM
 
 

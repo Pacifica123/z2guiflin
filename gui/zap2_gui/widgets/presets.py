@@ -40,6 +40,8 @@ from ..adapters.strat_collection_port import (
     port_strat_collection_entry,
 )
 from ..models.preset_labels import display_title, preset_chips
+from ..models.service_icons import services_for_preset, services_for_profile
+from ..ui_icons import first_service_icon, service_icon
 from ..models.profile_overlap import SimulatedConnection, file_list_resolver, find_overlaps, simulate_first_match
 from ..project_paths import discover_layout
 from ..qt_compat import require_pyqt
@@ -55,6 +57,11 @@ PRIORITY_TEXT = (
     "Профили ниже для этого соединения уже не рассматриваются. Поэтому узкие профили "
     "(конкретные домены или адреса) ставьте выше общих. Порядок меняется перетаскиванием строки или кнопками ↑ ↓."
 )
+
+
+def _entry_services(entry: Any) -> tuple[str, ...]:
+    domains = [domain for profile in entry.preset.profiles for domain in profile.traffic_filter.hostlist_domains]
+    return services_for_preset(entry.preset.title, entry.metadata.service_target, domains)
 
 
 def _entry_title(entry: Any) -> str:
@@ -113,8 +120,15 @@ def _make_preset_delegate(QtCore: Any, QtGui: Any, QtWidgets: Any, role: int) ->
             metrics = QtGui.QFontMetrics(bold)
             painter.setFont(bold)
             painter.setPen(text_color)
-            painter.drawText(rect.x(), rect.y() + metrics.ascent(),
-                             metrics.elidedText(str(data.get("title", "")), QtCore.Qt.TextElideMode.ElideRight, rect.width()))
+            title_x = rect.x()
+            icon_size = metrics.height()
+            for service in data.get("services", ())[:2]:
+                icon = service_icon(str(service))
+                if icon is not None and not icon.isNull():
+                    icon.paint(painter, QtCore.QRect(title_x, rect.y(), icon_size, icon_size))
+                    title_x += icon_size + 4
+            painter.drawText(title_x, rect.y() + metrics.ascent(),
+                             metrics.elidedText(str(data.get("title", "")), QtCore.Qt.TextElideMode.ElideRight, rect.right() - title_x))
             y = rect.y() + metrics.height() + 4
             small = QtGui.QFont(opt.font)
             if small.pointSizeF() > 0:
@@ -512,6 +526,8 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
             )
             for column, value in enumerate(values):
                 item = QtWidgets.QTableWidgetItem(value)
+                if column == 1:
+                    item.setIcon(first_service_icon(services_for_profile(profile.name, profile.traffic_filter.hostlist_domains)))
                 if column == 0:
                     item.setData(_user_role(), profile.profile_id)
                     item.setToolTip(f"Проверяется {profile.index + 1}-м; перетащите строку, чтобы изменить порядок")
@@ -774,6 +790,7 @@ def make_presets_page(root: Path | None = None, settings: Any | None = None) -> 
                 )
                 item.setData(_chip_role(), {
                     "title": _entry_title(entry),
+                    "services": list(_entry_services(entry)),
                     "chips": [(chip.text, chip.tone) for chip in chips],
                     "meta": f"профилей: {len(entry.preset.profiles)} · действий: {entry.preset.action_count} · {entry.preset.preset_id}",
                 })

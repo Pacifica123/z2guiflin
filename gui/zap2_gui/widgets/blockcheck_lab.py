@@ -62,17 +62,23 @@ from ..adapters.har_workbench import (
     latest_har_workbench,
 )
 from ..adapters.discord_voice_profiles import discord_voice_profiles_to_text
+from ..adapters.discord_media_probe import discord_attachments_probe_to_text, validate_attachment_url
+from ..adapters.googlevideo_node import resolve_googlevideo_node
+from ..models.service_icons import service_for_target_preset
+from ..ui_icons import service_icon
 from .net_verdict_panel import make_net_verdict_button
 from ..models.service_targets import (
     DEFAULT_BLOCKCHECK_TARGET_STRING,
     SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
     SERVICE_TARGET_CUSTOM,
-    SERVICE_TARGET_DISCORD_DESKTOP,
+    GOOGLEVIDEO_DYNAMIC_NODE,
     get_service_target_preset,
+    service_target_dynamic_phases,
     service_target_phase_chain,
     service_target_policy,
     service_target_recommended_scan_mode,
     list_service_target_presets,
+    with_dynamic_host,
 )
 from ..qt_compat import require_pyqt
 
@@ -190,9 +196,21 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     discord_probe_button.setObjectName("discordMachineProbeButton")
     discord_probe_button.setMinimumHeight(34)
     discord_probe_button.setMinimumWidth(170)
+    discord_attach_button = QtWidgets.QPushButton("Проверить вложения")
+    discord_attach_button.setObjectName("discordAttachmentsProbeButton")
+    discord_attach_button.setMinimumHeight(34)
+    discord_attach_button.setToolTip(
+        "DNS → TCP → TLS → HTTP → объём для media.discordapp.net, cdn.discordapp.com и, если вставить ссылку, "
+        "для настоящего вложения. Показывает, на каком байте встаёт поток. Без sudo, firewall не трогает."
+    )
+    discord_icon = service_icon("discord")
+    if discord_icon is not None:
+        discord_probe_button.setIcon(discord_icon)
+        discord_attach_button.setIcon(discord_icon)
     discord_layout.addWidget(discord_hint, 1)
     discord_layout.addWidget(discord_probe_button, 0)
-    discord_probe_state: dict[str, Any] = {"process": None}
+    discord_layout.addWidget(discord_attach_button, 0)
+    discord_probe_state: dict[str, Any] = {"process": None, "attach_worker": None}
 
     form_box = QtWidgets.QGroupBox("Параметры scan")
     form_box.setObjectName("blockcheckScanBox")
@@ -212,7 +230,11 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     except Exception:  # pragma: no cover - PyQt compatibility
         pass
     for preset in list_service_target_presets():
-        target_preset_combo.addItem(preset.title, preset.preset_id)
+        preset_icon = service_icon(service_for_target_preset(preset.preset_id))
+        if preset_icon is not None:
+            target_preset_combo.addItem(preset_icon, preset.title, preset.preset_id)
+        else:
+            target_preset_combo.addItem(preset.title, preset.preset_id)
 
     target_preset_hint = QtWidgets.QLabel("")
     target_preset_hint.setObjectName("blockcheckPresetHint")
@@ -291,7 +313,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     http3_check = QtWidgets.QCheckBox("HTTP/3 QUIC")
     dns_check = QtWidgets.QCheckBox("DNS precheck")
     dead_guard_check = QtWidgets.QCheckBox("Auto-skip dead target")
-    dead_guard_check.setToolTip("For simple targets this can skip obvious dead TCP/443 candidates. For Discord ordered phases it is disabled by default because CDN/updater port precheck can be a false negative.")
+    dead_guard_check.setToolTip("For simple targets this can skip obvious dead TCP/443 candidates. For ordered phase presets (Discord, YouTube) it is disabled by default because a port precheck can be a false negative (CDN/updater, bare youtube.com).")
     http_check.setChecked(False)
     https12_check.setChecked(True)
     https13_check.setChecked(True)
@@ -602,6 +624,70 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         process.errorOccurred.connect(fail_discord_probe)
         process.start()
 
+    def start_discord_attachments_probe() -> None:
+        if discord_probe_state.get("attach_worker") is not None:
+            return
+        url, accepted = QtWidgets.QInputDialog.getText(
+            page,
+            "Проверить вложения Discord",
+            "Ссылка на вложение (ПКМ по файлу в Discord → «Копировать ссылку»).\n"
+            "Можно оставить пустой: тогда проверятся только маленькие контрольные файлы.",
+        )
+        if not accepted:
+            return
+        url = str(url or "").strip()
+        if url:
+            try:
+                validate_attachment_url(url)
+            except ValueError as exc:
+                output.setPlainText(f"Проверка вложений: {exc}")
+                return
+
+        class _Worker(QtCore.QThread):  # type: ignore[misc, valid-type]
+            done = QtCore.pyqtSignal(str)
+
+            def run(self) -> None:  # pragma: no cover - фоновый поток
+                try:
+                    text = discord_attachments_probe_to_text(url)
+                except Exception as exc:  # noqa: BLE001
+                    text = f"Проверка вложений: ошибка — {exc}"
+                self.done.emit(text)
+
+        def finished(text: str) -> None:
+            discord_probe_state["attach_worker"] = None
+            discord_attach_button.setEnabled(True)
+            output.setPlainText(text)
+
+        worker = _Worker(page)
+        worker.done.connect(finished)
+        discord_probe_state["attach_worker"] = worker
+        discord_attach_button.setEnabled(False)
+        output.setPlainText("Проверка вложений Discord… (до ~20 с на адрес)")
+        worker.start()
+
+    def add_dynamic_targets(preset_id: str, targets: list[str], phase_groups: list[list[str]]) -> tuple[list[str], list[list[str]], list[str]]:
+        """Добавить узлы, которые зависят от провайдера (googlevideo), перед статичными альтернативами фазы."""
+
+        notes: list[str] = []
+        phases = service_target_phase_chain(preset_id) if phase_groups else ()
+        required = [phase for phase in phases if phase.required]
+        for phase in service_target_dynamic_phases(preset_id):
+            if phase.dynamic != GOOGLEVIDEO_DYNAMIC_NODE:
+                continue
+            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
+            try:
+                node = resolve_googlevideo_node()
+            finally:
+                QtWidgets.QApplication.restoreOverrideCursor()
+            notes.append(node.to_text())
+            if not node.ok:
+                continue
+            targets = with_dynamic_host(targets, phase, node.host)
+            for index, group_phase in enumerate(required):
+                if group_phase.phase_id == phase.phase_id and index < len(phase_groups):
+                    phase_groups[index] = with_dynamic_host(phase_groups[index], phase, node.host)
+        return targets, phase_groups, notes
+
     def selected_target_preset_id() -> str:
         preset_id = target_preset_combo.currentData()
         return str(preset_id or "")
@@ -621,7 +707,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             index = scan_mode_combo.findData(recommended_scan_mode)
             if index >= 0 and preset.preset_id != SERVICE_TARGET_CUSTOM:
                 scan_mode_combo.setCurrentIndex(index)
-            if preset.preset_id == SERVICE_TARGET_DISCORD_DESKTOP:
+            if preset.policy.wants_ordered_chain:
                 dead_guard_check.setChecked(False)
                 phase_budget_spin.setValue(160)
             elif preset.preset_id != SERVICE_TARGET_CUSTOM:
@@ -1233,7 +1319,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             (
                 "Запустить upstream blockcheck2.sh через графический sudo prompt?\n\n"
                 "Targets будут проверяться последовательно. Auto-skip dead target можно включать для простых проверок; "
-                "для Discord ordered phases он выключен по умолчанию, чтобы port precheck не дал ложный dead-target на CDN/updater. "
+                "для пресетов с фазами (Discord, YouTube) он выключен по умолчанию, чтобы port precheck не дал ложный dead-target на CDN/updater или голом youtube.com. "
                 "Рекомендуется сначала выключить Default workflow, VPN и другие DPI-bypass процессы. "
                 "Blockcheck временно меняет firewall redirect и затем очищает его через свой cleanup. "
                 "Пароль не сохраняется приложением. Общий таймер не ставится: лог будет идти в окно, "
@@ -1266,6 +1352,13 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             if not phase_groups:
                 phase_gated = False
 
+        dynamic_notes: list[str] = []
+        try:
+            targets, phase_groups, dynamic_notes = add_dynamic_targets(options.service_target_preset_id, targets, phase_groups)
+        except Exception as exc:  # pragma: no cover - GUI diagnostic path
+            dynamic_notes = [f"Динамические адреса не добавлены: {exc}"]
+        dynamic_text = ("\n" + "\n".join(dynamic_notes)) if dynamic_notes else ""
+
         if phase_gated:
             state["phase_gated_run"] = True
             state["tournament_best"] = None
@@ -1290,6 +1383,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 + "\n".join(phase_lines)
                 + f"\ndead-target guard: {options.dead_target_guard}; evidence-based, no wall-clock timeout"
                 + f"\nphase alternative check cap: {phase_alt_budget() or 'off'}"
+                + dynamic_text
             )
         else:
             state["phase_gated_run"] = False
@@ -1306,6 +1400,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 f"candidate mode: {scan_mode_combo.currentData()}\n"
                 f"dead-target guard: {options.dead_target_guard}; evidence-based, no wall-clock timeout"
                 f"\nphase alternative check cap: {phase_alt_budget() or 'off'}"
+                + dynamic_text
             )
         start_next_candidate()
 
@@ -1333,6 +1428,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         request_process_stop(process)
 
     discord_probe_button.clicked.connect(lambda _checked=False: start_discord_machine_probe())
+    discord_attach_button.clicked.connect(lambda _checked=False: start_discord_attachments_probe())
 
     target_preset_combo.currentIndexChanged.connect(
         lambda _index=0: apply_target_preset(selected_target_preset_id())

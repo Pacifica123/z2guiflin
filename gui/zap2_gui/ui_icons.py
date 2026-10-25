@@ -71,6 +71,47 @@ def tinted_misc_icon(icon_key: str, color: str, size: int = 24) -> Any:
     painter.end()
     return QtGui.QIcon(pixmap)
 
+def service_icon(service_key: str) -> Any:
+    """Тематическая иконка сервиса (discord, youtube) или пустая."""
+
+    if not service_key or "/" in service_key:
+        return _empty_icon()
+    return load_icon(f"services/{service_key}.svg")
+
+
+def first_service_icon(service_keys: tuple[str, ...]) -> Any:
+    return service_icon(service_keys[0]) if service_keys else _empty_icon()
+
+
+def badge_icon(text: str, color: str, size: int = 32) -> Any:
+    """Буквенный значок: цветной скруглённый квадрат с подписью (для DNS-провайдеров)."""
+
+    if QtGui is None:
+        return None
+    pixmap = QtGui.QPixmap(size, size)
+    pixmap.fill(QtGui.QColor(0, 0, 0, 0))
+    painter = QtGui.QPainter(pixmap)
+    painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+    painter.setBrush(QtGui.QColor(color))
+    painter.setPen(QtGui.QColor(0, 0, 0, 0))
+    painter.drawRoundedRect(1, 1, size - 2, size - 2, size * 0.24, size * 0.24)
+    font = painter.font()
+    font.setBold(True)
+    font.setPixelSize(int(size * (0.5 if len(text) <= 1 else 0.4)))
+    painter.setFont(font)
+    painter.setPen(QtGui.QColor("#FFFFFF"))
+    painter.drawText(pixmap.rect(), 0x0084, text)  # AlignCenter
+    painter.end()
+    return QtGui.QIcon(pixmap)
+
+
+def dns_provider_icon(provider_id: str, name: str) -> Any:
+    from .models.service_icons import dns_badge
+
+    text, color = dns_badge(provider_id, name)
+    return badge_icon(text, color)
+
+
 def section_icon(section_key: str) -> Any:
     filename = _SECTION_ICONS.get(section_key)
     return load_icon(filename) if filename else _empty_icon()
@@ -81,4 +122,4 @@ def misc_icon(icon_key: str) -> Any:
     return load_icon(filename) if filename else _empty_icon()
 
 
-__all__ = ["section_icon", "misc_icon", "tinted_misc_icon", "load_icon"]
+__all__ = ["badge_icon", "dns_provider_icon", "first_service_icon", "load_icon", "misc_icon", "section_icon", "service_icon", "tinted_misc_icon"]

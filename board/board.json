@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 46,
-        "comments": 60,
+        "cards": 47,
+        "comments": 63,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-21T21:00:00Z",
+    "generatedAt": "2026-10-25T09:30:00Z",
     "selfHosted": true,
-    "boardRevision": 18,
-    "lastPatchId": "2026-10-21-version-1-3-0",
+    "boardRevision": 19,
+    "lastPatchId": "2026-10-25-discord-youtube-profiles",
     "rules": "board/README.md"
   },
   "includes": {
@@ -578,6 +578,16 @@
         "priority": "medium",
         "position": 10240,
         "archivedAt": null
+      },
+      {
+        "id": "811b105f-b62c-4fb2-9afa-aa5d45a8fbf0",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "title": "Discord desktop и YouTube: фазы по механизму, узел googlevideo, иконки",
+        "description": "Зачем: Blockcheck принимал стратегию Discord по картинкам (media.discordapp.net был OR-альтернативой cdn.discordapp.com), поэтому вложения /attachments/ отваливались при «пробитом» Discord; YouTube проверялся только по youtube.com/www, а замедляют узлы googlevideo, разные у каждого провайдера.\n\nСделано: «Discord desktop» вместо non-voice (войс — следствие, *.discord.media опционально); вложения — отдельная обязательная фаза; YouTube — фазы сайт → видео → превью, узел rrN---sn-*.googlevideo.com спрашивается у redirector report_mapping перед сканом; hostlist проверяется по правилу поддоменов nfqws2; новые домены дописываются в hostlist установленного workspace; «Проверить вложения» в Blockcheck lab показывает, на каком байте встаёт поток; иконки сервисов в пресетах/профилях/Blockcheck и значки DNS.\n\nГотово, когда владелец: (1) прогнал Blockcheck Discord desktop и увидел фазу «Вложения» отдельно; (2) проверил вложение по ссылке; (3) увидел узел googlevideo в логе YouTube-скана (формат report_mapping не проверен с этой машины).",
+        "priority": "high",
+        "position": 12288,
+        "archivedAt": null
       }
     ],
     "labels": [
@@ -1014,6 +1024,18 @@
       },
       {
         "cardId": "714bda83-ca81-4c54-aebb-4945131af32f",
+        "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
+      },
+      {
+        "cardId": "811b105f-b62c-4fb2-9afa-aa5d45a8fbf0",
+        "labelId": "01a13ca4-dd8e-7276-8a8d-f91b591d75"
+      },
+      {
+        "cardId": "811b105f-b62c-4fb2-9afa-aa5d45a8fbf0",
+        "labelId": "01a13ca4-dd8d-7129-8bc6-22424e617b"
+      },
+      {
+        "cardId": "811b105f-b62c-4fb2-9afa-aa5d45a8fbf0",
         "labelId": "01a13ca4-dd91-71a8-81ba-6a85a0bcc1"
       }
     ],
@@ -1483,6 +1505,24 @@
         "cardId": "16feaf80-a93b-7018-867a-826945768475",
         "body": "patch 2026-10-21-version-1-3-0: пачка B (DNS, пресеты, Tor, автообновление, починка lifecycle) → 1.3.0 во всех привязках: pyproject, __init__ (версия, label v1.3, development line), v11-contract, freeze, тесты, generated reference, dist/arch/1.3.0.",
         "createdAt": "2026-10-21T21:00:00Z"
+      },
+      {
+        "id": "13d64412-efb5-4722-9d18-31224d68134f",
+        "cardId": "811b105f-b62c-4fb2-9afa-aa5d45a8fbf0",
+        "body": "patch 2026-10-25-discord-youtube-profiles: карточка заведена и реализована в одном патче; версия 1.4.0.",
+        "createdAt": "2026-10-25T09:30:00Z"
+      },
+      {
+        "id": "7c55ff1c-b120-47b7-9238-267d6d726ac1",
+        "cardId": "01a13ca4-ddd4-7122-864e-85bb459fdf",
+        "body": "patch 2026-10-25-discord-youtube-profiles: наблюдение владельца принято как правило: «Discord desktop» считает войс следствием рабочей стратегии. Механизм для вложений: фаза attachments отдельно от media; probe показывает обрыв тела (кандидат на объёмный блок → CURL_PAD). Хост загрузки discord-attachments-uploads-prd.storage.googleapis.com добавлен в hostlist. Upload по-прежнему ждёт проверки владельцем.",
+        "createdAt": "2026-10-25T09:30:00Z"
+      },
+      {
+        "id": "0db00ce5-c3e3-4b9d-a4e8-6ed0c9c66ce0",
+        "cardId": "16feaf80-a93b-7018-867a-826945768475",
+        "body": "patch 2026-10-25-discord-youtube-profiles: 1.4.0 во всех привязках: pyproject, __init__ (версия, label v1.4, development line), v11-contract, freeze, тесты, generated reference, dist/arch/1.4.0.",
+        "createdAt": "2026-10-25T09:30:00Z"
       }
     ],
     "boardAppearanceSettings": [],
