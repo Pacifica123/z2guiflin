@@ -58,8 +58,8 @@ def test_report_mapping_node_is_parsed_and_resolved_without_network() -> None:
 
 
 def test_report_mapping_failures_fall_back_honestly() -> None:
-    cluster = resolve_googlevideo_node(lambda url, timeout: "203.0.113.0/24 => fra16s12 (pr:1)\n")
-    assert not cluster.ok and "fra16s12" in cluster.error
+    cluster = resolve_googlevideo_node(lambda url, timeout: "203.0.113.0/24 => muc12s10 (pr:1)\n")
+    assert cluster.ok and cluster.node == "sn-h0jelne7"
 
     def broken(url: str, timeout: float) -> str:
         raise OSError("timed out")

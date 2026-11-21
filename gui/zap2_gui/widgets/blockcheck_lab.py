@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import sys
+import threading
 from typing import Any, Callable
 
 from ..adapters.blockcheck_gui import (
@@ -63,7 +64,7 @@ from ..adapters.har_workbench import (
 )
 from ..adapters.discord_voice_profiles import discord_voice_profiles_to_text
 from ..adapters.discord_media_probe import discord_attachments_probe_to_text, validate_attachment_url
-from ..adapters.googlevideo_node import resolve_googlevideo_node
+from ..adapters.googlevideo_node import GooglevideoDiscovery, discover_googlevideo_candidates
 from ..models.service_icons import service_for_target_preset
 from ..ui_icons import service_icon
 from .net_verdict_panel import make_net_verdict_button
@@ -78,7 +79,7 @@ from ..models.service_targets import (
     service_target_policy,
     service_target_recommended_scan_mode,
     list_service_target_presets,
-    with_dynamic_host,
+    with_dynamic_hosts,
 )
 from ..qt_background import start_background_task
 from ..qt_compat import require_pyqt
@@ -500,6 +501,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         "active_target_preset": str(target_preset_combo.currentData()),
         "custom_targets": "",
         "syncing_target_preset": False,
+        "discovery_pending": False,
+        "discovery_cancel": None,
+        "discovery_worker": None,
+        "discovery_token": None,
     }
 
     def show_discord_machine_dialog(payload: dict[str, Any] | None, technical_text: str, *, error_text: str = "") -> None:
@@ -659,27 +664,21 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             completed=finished, failed=failed,
         )
 
-    def add_dynamic_targets(preset_id: str, targets: list[str], phase_groups: list[list[str]]) -> tuple[list[str], list[list[str]], list[str]]:
-        """Добавить узлы, которые зависят от провайдера (googlevideo), перед статичными альтернативами фазы."""
+    def add_dynamic_targets(
+        preset_id: str, targets: list[str], phase_groups: list[list[str]], discovery: GooglevideoDiscovery
+    ) -> tuple[list[str], list[list[str]], list[str]]:
+        """Merge discovered CDN nodes into Blockcheck's video alternatives (GUI thread only)."""
 
         notes: list[str] = []
-        phases = service_target_phase_chain(preset_id) if phase_groups else ()
-        required = [phase for phase in phases if phase.required]
+        required = [phase for phase in service_target_phase_chain(preset_id) if phase.required] if phase_groups else []
         for phase in service_target_dynamic_phases(preset_id):
             if phase.dynamic != GOOGLEVIDEO_DYNAMIC_NODE:
                 continue
-            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
-            try:
-                node = resolve_googlevideo_node()
-            finally:
-                QtWidgets.QApplication.restoreOverrideCursor()
-            notes.append(node.to_text())
-            if not node.ok:
-                continue
-            targets = with_dynamic_host(targets, phase, node.host)
+            notes.append(discovery.to_text())
+            targets = with_dynamic_hosts(targets, phase, discovery.hosts)
             for index, group_phase in enumerate(required):
                 if group_phase.phase_id == phase.phase_id and index < len(phase_groups):
-                    phase_groups[index] = with_dynamic_host(phase_groups[index], phase, node.host)
+                    phase_groups[index] = with_dynamic_hosts(phase_groups[index], phase, discovery.hosts)
         return targets, phase_groups, notes
 
     def selected_target_preset_id() -> str:
@@ -850,6 +849,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         har_group_combo.setEnabled(not running)
         har_load_button.setEnabled(not running and bool(har_group_combo.currentData()))
         stop_button.setEnabled(running)
+        if running and state.get("discovery_pending"):
+            status.setText("Статус: обнаружение GoogleVideo CDN (без sudo)… Stop отменяет поиск")
+            return
         if running:
             targets = state.get("candidate_targets") or []
             index = int(state.get("candidate_index") or 0)
@@ -1304,7 +1306,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         process.start()
 
     def run_blockcheck() -> None:
-        if state.get("process") is not None:
+        if state.get("process") is not None or state.get("discovery_pending"):
             output.setPlainText("Blockcheck уже выполняется. Сначала остановите текущий run или дождитесь завершения.")
             return
         question = QtWidgets.QMessageBox.question(
@@ -1346,57 +1348,99 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             if not phase_groups:
                 phase_gated = False
 
-        dynamic_notes: list[str] = []
-        try:
-            targets, phase_groups, dynamic_notes = add_dynamic_targets(options.service_target_preset_id, targets, phase_groups)
-        except Exception as exc:  # pragma: no cover - GUI diagnostic path
-            dynamic_notes = [f"Динамические адреса не добавлены: {exc}"]
-        dynamic_text = ("\n" + "\n".join(dynamic_notes)) if dynamic_notes else ""
+        def begin_scan(discovery: GooglevideoDiscovery | None = None, error_text: str = "") -> None:
+            if discovery is not None:
+                dynamic_targets, dynamic_phases, dynamic_notes = add_dynamic_targets(
+                    options.service_target_preset_id, targets, phase_groups, discovery
+                )
+            else:
+                dynamic_targets, dynamic_phases = targets, phase_groups
+                dynamic_notes = [f"GoogleVideo CDN discovery: {error_text}"] if error_text else []
+            dynamic_text = ("\n" + "\n".join(dynamic_notes)) if dynamic_notes else ""
 
-        if phase_gated:
-            state["phase_gated_run"] = True
-            state["tournament_best"] = None
-            state["tournament_records"] = []
-            state["candidate_phase_groups"] = phase_groups
-            state["candidate_phase_index"] = 0
-            state["candidate_phase_had_available"] = False
-            state["candidate_targets"] = phase_groups[0]
-            state["candidate_index"] = 0
-            phase_lines = [
-                f"  {index + 1}. {' OR '.join(group)}"
-                for index, group in enumerate(phase_groups)
-            ]
-            output.setPlainText(
-                "GUI tournament log (Phase-gated Blockcheck tournament run)\n"
-                "semantics: phases are AND; alternatives inside one phase are OR\n"
-                "runner rule: do not advance to later phases until the current phase has an AVAILABLE alternative\n"
-                "runner rule: when a phase alternative becomes AVAILABLE, stop that candidate and advance to the next phase\n"
-                "raw upstream blockcheck output is written to Last log / candidate log files, not streamed here during phase-gated runs\n"
-                f"candidate mode: {scan_mode_combo.currentData()}\n"
-                "phases:\n"
-                + "\n".join(phase_lines)
-                + f"\ndead-target guard: {options.dead_target_guard}; evidence-based, no wall-clock timeout"
-                + f"\nphase alternative check cap: {phase_alt_budget() or 'off'}"
-                + dynamic_text
+            if phase_gated:
+                state["phase_gated_run"] = True
+                state["tournament_best"] = None
+                state["tournament_records"] = []
+                state["candidate_phase_groups"] = dynamic_phases
+                state["candidate_phase_index"] = 0
+                state["candidate_phase_had_available"] = False
+                state["candidate_targets"] = dynamic_phases[0]
+                state["candidate_index"] = 0
+                phase_lines = [
+                    f"  {index + 1}. {' OR '.join(group)}"
+                    for index, group in enumerate(dynamic_phases)
+                ]
+                output.setPlainText(
+                    "GUI tournament log (Phase-gated Blockcheck tournament run)\n"
+                    "semantics: phases are AND; alternatives inside one phase are OR\n"
+                    "runner rule: do not advance to later phases until the current phase has an AVAILABLE alternative\n"
+                    "runner rule: when a phase alternative becomes AVAILABLE, stop that candidate and advance to the next phase\n"
+                    "raw upstream blockcheck output is written to Last log / candidate log files, not streamed here during phase-gated runs\n"
+                    f"candidate mode: {scan_mode_combo.currentData()}\n"
+                    "phases:\n"
+                    + "\n".join(phase_lines)
+                    + f"\ndead-target guard: {options.dead_target_guard}; evidence-based, no wall-clock timeout"
+                    + f"\nphase alternative check cap: {phase_alt_budget() or 'off'}"
+                    + dynamic_text
+                )
+            else:
+                state["phase_gated_run"] = False
+                state["tournament_best"] = None
+                state["tournament_records"] = []
+                state["candidate_phase_groups"] = []
+                state["candidate_phase_index"] = 0
+                state["candidate_phase_had_available"] = False
+                state["candidate_targets"] = dynamic_targets
+                state["candidate_index"] = 0
+                output.setPlainText(
+                    "Sequential Blockcheck run\n"
+                    f"candidates: {', '.join(dynamic_targets)}\n"
+                    f"candidate mode: {scan_mode_combo.currentData()}\n"
+                    f"dead-target guard: {options.dead_target_guard}; evidence-based, no wall-clock timeout"
+                    f"\nphase alternative check cap: {phase_alt_budget() or 'off'}"
+                    + dynamic_text
+                )
+            start_next_candidate()
+
+        if not any(phase.dynamic == GOOGLEVIDEO_DYNAMIC_NODE for phase in service_target_dynamic_phases(options.service_target_preset_id)):
+            begin_scan()
+            return
+
+        # The discovery request is read-only and takes place after consent for
+        # the subsequent privileged scan. Never do network I/O on the GUI thread.
+        cancel = threading.Event()
+        token = object()  # Differentiate a cancelled run from a subsequent run.
+        state["discovery_token"] = token
+        state["discovery_pending"] = True
+        state["discovery_cancel"] = cancel
+        output.setPlainText("Поиск реальных GoogleVideo CDN-хостов (без sudo)…")
+        set_running(True)
+
+        def discovery_completed(discovery: GooglevideoDiscovery | None, error_text: str = "") -> None:
+            if state.get("discovery_token") is not token or not state.get("discovery_pending"):
+                return  # A cancelled/older worker must never start a newer run.
+            state["discovery_pending"] = False
+            state["discovery_token"] = None
+            state["discovery_cancel"] = None
+            state["discovery_worker"] = None
+            if cancel.is_set():
+                set_running(False)
+                return
+            begin_scan(discovery, error_text)
+
+        try:
+            state["discovery_worker"] = start_background_task(
+                QtCore, page,
+                lambda _report: discover_googlevideo_candidates(
+                    cancelled=cancel.is_set,
+                    dns_check=(lambda _host, _timeout: None) if options.skip_dnscheck else None,
+                ),
+                completed=lambda result: discovery_completed(result),
+                failed=lambda exc: discovery_completed(None, f"ошибка поиска ({type(exc).__name__})"),
             )
-        else:
-            state["phase_gated_run"] = False
-            state["tournament_best"] = None
-            state["tournament_records"] = []
-            state["candidate_phase_groups"] = []
-            state["candidate_phase_index"] = 0
-            state["candidate_phase_had_available"] = False
-            state["candidate_targets"] = targets
-            state["candidate_index"] = 0
-            output.setPlainText(
-                "Sequential Blockcheck run\n"
-                f"candidates: {', '.join(targets)}\n"
-                f"candidate mode: {scan_mode_combo.currentData()}\n"
-                f"dead-target guard: {options.dead_target_guard}; evidence-based, no wall-clock timeout"
-                f"\nphase alternative check cap: {phase_alt_budget() or 'off'}"
-                + dynamic_text
-            )
-        start_next_candidate()
+        except Exception as exc:  # Could not create a Qt worker; continue with static targets.
+            discovery_completed(None, f"не удалось создать worker ({type(exc).__name__})")
 
     def force_stop_if_current(process: Any) -> None:
         if state.get("process") is not process:
@@ -1413,6 +1457,17 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             force_stop_if_current(process)
 
     def stop_blockcheck() -> None:
+        if state.get("discovery_pending"):
+            state["discovery_pending"] = False
+            state["discovery_token"] = None
+            cancel = state.get("discovery_cancel")
+            if cancel is not None:
+                cancel.set()
+            state["discovery_cancel"] = None
+            state["discovery_worker"] = None  # P0 task manager keeps worker alive.
+            output.setPlainText("Поиск GoogleVideo CDN отменён; Blockcheck не запускался.")
+            set_running(False)
+            return
         process = state.get("process")
         if process is None:
             return

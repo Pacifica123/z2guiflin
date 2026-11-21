@@ -428,8 +428,8 @@ _YOUTUBE_PHASES = (
         dynamic=GOOGLEVIDEO_DYNAMIC_NODE,
         summary=(
             "Video streams come from rrN---sn-XXXX.googlevideo.com nodes that differ per user and ISP. "
-            "Before a scan the node is asked from redirector.googlevideo.com/report_mapping and checked first; "
-            "redirector stays as a fallback with the same googlevideo.com SNI."
+            "Before a scan, current player nodes and the report_mapping node are collected and checked first; "
+            "redirector is a fallback control host, not proof that a video node is reachable."
         ),
     ),
     ServiceCoveragePhase(
@@ -599,6 +599,19 @@ def with_dynamic_host(targets: list[str] | tuple[str, ...], phase: ServiceCovera
     positions = [index for index, item in enumerate(values) if service_target_host_token(item) in {service_target_host_token(t) for t in phase.targets}]
     index = positions[0] if positions else len(values)
     return values[:index] + [host] + values[index:]
+
+
+def with_dynamic_hosts(
+    targets: list[str] | tuple[str, ...], phase: ServiceCoveragePhase, hosts: tuple[str, ...] | list[str]
+) -> list[str]:
+    """Insert actual observed hosts before static phase alternatives, preserving source order."""
+
+    result = list(targets)
+    # with_dynamic_host inserts immediately before the first static phase
+    # alternative. Previously inserted dynamic hosts stay in source order.
+    for host in hosts:
+        result = with_dynamic_host(result, phase, host)
+    return result
 
 
 def service_target_recommended_scan_mode(preset_id: str) -> str:
