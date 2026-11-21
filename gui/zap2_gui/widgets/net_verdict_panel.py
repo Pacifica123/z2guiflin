@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from ..adapters.net_verdict import run_and_report
+from ..qt_background import start_background_task
 from ..models.remedy import remedies_for_verdict, remedy_hint
 
 NET_VERDICT_BUTTON_TEXT = "Диагностика сети (вердикт)"
@@ -67,18 +68,6 @@ def make_net_verdict_button(
     container_layout.addWidget(button)
     container_layout.addWidget(remedies_box)
 
-    class _Worker(QtCore.QThread):
-        finished_text = QtCore.pyqtSignal(str, str)
-
-        def run(self) -> None:  # pragma: no cover - runs in GUI thread pool
-            code = ""
-            try:
-                text, path = runner(root=root)
-                code = verdict_code_from_report(path)
-            except Exception as exc:
-                text = f"Диагностика сети: ошибка\n{exc}"
-            self.finished_text.emit(text, code)
-
     holder: dict[str, Any] = {}
 
     def go_to(page_key: str) -> None:
@@ -113,7 +102,8 @@ def make_net_verdict_button(
         remedies_layout.addStretch(1)
         remedies_box.setVisible(True)
 
-    def on_done(text: str, code: str = "") -> None:
+    def on_done(result: tuple[str, str]) -> None:
+        text, code = result
         show_remedies(code)
         output.setPlainText(text)
         first = text.splitlines()[0] if text else ""
@@ -129,10 +119,16 @@ def make_net_verdict_button(
             return
         button.setEnabled(False)
         status.setText("Статус: диагностика сети… (около 15–30 с)")
-        worker = _Worker()
-        worker.finished_text.connect(on_done)
-        holder["worker"] = worker
-        worker.start()
+        def job(_report: Callable[[str], None]) -> tuple[str, str]:
+            text, path = runner(root=root)
+            return text, verdict_code_from_report(path)
+
+        def failed(exc: Exception) -> None:
+            on_done((f"Диагностика сети: ошибка\n{exc}", ""))
+
+        holder["worker"] = start_background_task(
+            QtCore, container, job, completed=on_done, failed=failed,
+        )
 
     button.clicked.connect(lambda _checked=False: start())
     container.show_remedies = show_remedies

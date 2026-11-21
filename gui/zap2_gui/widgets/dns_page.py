@@ -12,6 +12,7 @@ from ..adapters import dns_nm
 from ..adapters.dns_probe import check_provider, detect_interception
 from ..adapters.dnscrypt_config import LOCAL_DNSCRYPT, dnscrypt_available, dnscrypt_config, dnscrypt_steps
 from ..models.dns_catalog import DnsCatalog, DnsProvider, custom_provider, load_dns_catalog, provider_from_dict
+from ..qt_background import start_background_task
 from ..qt_compat import require_pyqt
 from ..ui_icons import dns_provider_icon
 
@@ -221,30 +222,24 @@ def make_dns_page(root: Path | None = None, navigate: Optional[Callable[[str], N
         status_label.setText(" · ".join(lines))
         revert_button.setEnabled(bool(state))
 
-    def run_in_background(label: str, job: Callable[[], str]) -> None:
+    def run_in_background(label: str, job: Callable[[], str], after: Callable[[], None] | None = None) -> None:
         if holder.get("worker") is not None:
             return
-
-        class _Worker(QtCore.QThread):  # type: ignore[misc, valid-type]
-            done = QtCore.pyqtSignal(str)
-
-            def run(self) -> None:  # pragma: no cover - фоновый поток
-                try:
-                    text = job()
-                except Exception as exc:  # noqa: BLE001
-                    text = f"{label}: ошибка — {exc}"
-                self.done.emit(text)
 
         def finished(text: str) -> None:
             holder.pop("worker", None)
             output.setPlainText(text)
+            if after is not None:
+                after()
             refresh_status()
 
+        def failed(exc: Exception) -> None:
+            finished(f"{label}: ошибка — {exc}")
+
         output.setPlainText(f"{label}…")
-        worker = _Worker()
-        worker.done.connect(finished)
-        holder["worker"] = worker
-        worker.start()
+        holder["worker"] = start_background_task(
+            QtCore, page, lambda _report: job(), completed=finished, failed=failed,
+        )
 
     def check_selected() -> None:
         provider = selected()
@@ -269,8 +264,9 @@ def make_dns_page(root: Path | None = None, navigate: Optional[Callable[[str], N
             output.setPlainText("Выберите сервер и подключение")
             return
         mode = persistent.isChecked()
+        ipv6 = use_ipv6.isChecked()  # Снимок состояния GUI до запуска worker.
         run_in_background("Смена DNS", lambda: dns_nm.apply_dns(_runtime_root(root), str(device), provider,
-                                                                persistent=mode, use_ipv6=use_ipv6.isChecked(), runner=_nm))
+                                                                persistent=mode, use_ipv6=ipv6, runner=_nm))
 
     def revert() -> None:
         run_in_background("Откат DNS", lambda: dns_nm.revert_dns(_runtime_root(root), _nm))
@@ -284,11 +280,13 @@ def make_dns_page(root: Path | None = None, navigate: Optional[Callable[[str], N
             v4, v6 = resolve_doh_host(url.strip())
             provider = custom_provider("", url.strip(), v4, v6)
             save_custom_server(root, provider)
-            holder["catalog"] = None
             return f"Добавлен {provider.name}: {', '.join(provider.ipv4 + provider.ipv6)}"
 
-        run_in_background("Свой DNS", job)
-        QtCore.QTimer.singleShot(1500, fill_tree)
+        def refresh_catalog() -> None:
+            holder["catalog"] = None
+            fill_tree()
+
+        run_in_background("Свой DNS", job, after=refresh_catalog)
 
     def show_encrypted() -> None:
         provider = selected()

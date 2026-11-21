@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from ..adapters.self_update import UPDATE_STEPS, UpdateStatus, check_update, is_checkout, run_update
+from ..qt_background import start_background_task
 from ..qt_compat import require_pyqt
 
 SETTINGS_CHECKOUT = "update/checkout"
@@ -36,22 +37,6 @@ def auto_check_due(settings: Any, now: float | None = None) -> bool:
     except (TypeError, ValueError):
         last = 0.0
     return (now or time.time()) - last >= AUTO_CHECK_INTERVAL_S
-
-
-def make_update_worker(QtCore: Any, job: Callable[[Callable[[str], None]], Any]) -> Any:
-    class _Worker(QtCore.QThread):  # type: ignore[misc, valid-type]
-        line = QtCore.pyqtSignal(str)
-        done = QtCore.pyqtSignal(object)
-
-        def run(self) -> None:  # pragma: no cover - фоновый поток
-            try:
-                result = job(self.line.emit)
-            except Exception as exc:  # noqa: BLE001 - показать пользователю, а не уронить GUI
-                self.line.emit(f"✗ {exc}")
-                result = None
-            self.done.emit(result)
-
-    return _Worker()
 
 
 def make_update_dialog(parent: Any, settings: Any, project_root: Path | None, stop_runtime: Callable[[], str],
@@ -130,17 +115,19 @@ def make_update_dialog(parent: Any, settings: Any, project_root: Path | None, st
         if holder.get("worker") is not None:
             return
         busy(True)
-        worker = make_update_worker(QtCore, job)
-        worker.line.connect(output.appendPlainText)
-
         def on_done(result: Any) -> None:
             holder.pop("worker", None)
             finished(result)
             busy(False)
 
-        worker.done.connect(on_done)
-        holder["worker"] = worker
-        worker.start()
+        def on_error(exc: Exception) -> None:
+            output.appendPlainText(f"✗ {exc}")
+            on_done(None)
+
+        holder["worker"] = start_background_task(
+            QtCore, dialog, job, completed=on_done, failed=on_error,
+            progress=output.appendPlainText,
+        )
 
     def run_check() -> None:
         remember()
@@ -195,4 +182,4 @@ def make_update_dialog(parent: Any, settings: Any, project_root: Path | None, st
     return dialog
 
 
-__all__ = ["auto_check_due", "guess_checkout", "make_update_dialog", "make_update_worker"]
+__all__ = ["auto_check_due", "guess_checkout", "make_update_dialog"]

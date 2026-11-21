@@ -80,6 +80,7 @@ from ..models.service_targets import (
     list_service_target_presets,
     with_dynamic_host,
 )
+from ..qt_background import start_background_task
 from ..qt_compat import require_pyqt
 
 
@@ -643,27 +644,20 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 output.setPlainText(f"Проверка вложений: {exc}")
                 return
 
-        class _Worker(QtCore.QThread):  # type: ignore[misc, valid-type]
-            done = QtCore.pyqtSignal(str)
-
-            def run(self) -> None:  # pragma: no cover - фоновый поток
-                try:
-                    text = discord_attachments_probe_to_text(url)
-                except Exception as exc:  # noqa: BLE001
-                    text = f"Проверка вложений: ошибка — {exc}"
-                self.done.emit(text)
-
         def finished(text: str) -> None:
             discord_probe_state["attach_worker"] = None
             discord_attach_button.setEnabled(True)
             output.setPlainText(text)
 
-        worker = _Worker(page)
-        worker.done.connect(finished)
-        discord_probe_state["attach_worker"] = worker
+        def failed(exc: Exception) -> None:
+            finished(f"Проверка вложений: ошибка — {exc}")
+
         discord_attach_button.setEnabled(False)
         output.setPlainText("Проверка вложений Discord… (до ~20 с на адрес)")
-        worker.start()
+        discord_probe_state["attach_worker"] = start_background_task(
+            QtCore, page, lambda _report: discord_attachments_probe_to_text(url),
+            completed=finished, failed=failed,
+        )
 
     def add_dynamic_targets(preset_id: str, targets: list[str], phase_groups: list[list[str]]) -> tuple[list[str], list[list[str]], list[str]]:
         """Добавить узлы, которые зависят от провайдера (googlevideo), перед статичными альтернативами фазы."""

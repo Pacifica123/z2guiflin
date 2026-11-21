@@ -13,6 +13,7 @@ from .. import PRODUCT_LABEL
 from ..adapters.local_build import create_local_build_plan
 from ..core_inventory import load_core_build_map, load_core_inventory_snapshot
 from ..models.navigation import default_navigation_sections, navigation_group_title
+from ..qt_background import start_background_task, task_manager
 from ..qt_compat import require_pyqt
 from ..ui_icons import section_icon
 from ..widgets.blockcheck_lab import make_blockcheck_lab_page
@@ -239,21 +240,26 @@ def create_main_window(root: object | None = None) -> Any:
         def _auto_check_update(self) -> None:
             import time
             from ..adapters.self_update import check_update
-            from ..widgets.update_dialog import SETTINGS_LAST_CHECK, guess_checkout, make_update_worker
+            from ..widgets.update_dialog import SETTINGS_LAST_CHECK, guess_checkout
             checkout = guess_checkout(self._settings, None)
             if checkout is None:
                 return
-            worker = make_update_worker(QtCore, lambda _log: check_update(checkout))
-
             def done(status: Any) -> None:
                 self._update_worker = None
                 if status is not None:
                     self._settings.setValue(SETTINGS_LAST_CHECK, time.time())
                     self._show_update_status(status)
 
-            worker.done.connect(done)
-            self._update_worker = worker
-            worker.start()
+            def failed(exc: Exception) -> None:
+                self._update_worker = None
+                # Автопроверка не должна мешать работе приложения.
+                import logging
+                logging.getLogger(__name__).warning("Автопроверка обновлений: %s", exc)
+
+            self._update_worker = start_background_task(
+                QtCore, self, lambda _report: check_update(checkout),
+                completed=done, failed=failed,
+            )
 
         def eventFilter(self, watched, event):
             if watched.objectName() == "launchIssueMessage" and event.type() == QtCore.QEvent.Type.ToolTip:
@@ -292,6 +298,18 @@ def create_main_window(root: object | None = None) -> Any:
                 refresh()
 
         def closeEvent(self, event: Any) -> None:  # noqa: N802
+            tasks = task_manager(QtCore)
+            if tasks.active_count:
+                # Не закрываем последнее окно и event loop при активных заданиях.
+                # Обновление может исполнять subprocess: terminate() повредит состояние.
+                event.ignore()
+                if not getattr(self, "_closing_after_tasks", False):
+                    self._closing_after_tasks = True
+                    self.setWindowTitle("z2guiflin — завершение фоновых операций…")
+                    self.setEnabled(False)
+                # Повторно регистрируем при новой задаче, появившейся до close().
+                tasks.when_idle(self.close)
+                return
             self._settings.setValue("ui/window-geometry", self.saveGeometry())
             index = self._row_to_index.get(self.navigation_list.currentRow())
             if index is not None:
