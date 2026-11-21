@@ -4,6 +4,7 @@
 
 | Симптом | Что посмотреть | Следующий безопасный шаг |
 |---|---|---|
+| `ModuleNotFoundError: No module named 'zap2_gui.qt_background'` или `googlevideo_cdp` после установки 1.5.0 | `zap2-gui --version` и содержимое `/usr/lib/zap2gui/python/zap2_gui/` | Пересобрать и переустановить пакет **1.5.1** через штатный `build_local_package.sh` / `makepkg -si`; devctl обновляет только checkout, не `/usr/lib`. Не копировать файлы вручную с sudo. |
 | Ядро отсутствует | Build dependencies и provenance | Подготовить build plan; проверить выбранный binary |
 | Stale PID | Runtime status и ownership | Сверить идентичность; не убивать неизвестный процесс |
 | nft conflict | Owner-rules reconciliation | Не удалять чужую таблицу; проверить owner marker |

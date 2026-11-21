@@ -36,6 +36,34 @@ def test_source_archive_is_byte_reproducible(release):
     assert release.manifest['version']==__version__ and len(release.manifest['files'])>100
     manifest_at(release.source)
 
+def test_release_contains_every_gui_python_module(release):
+    # Installed code is selected by an explicit allowlist; no implicit discovery.
+    expected={p.relative_to(ROOT).as_posix() for p in (ROOT/'gui/zap2_gui').rglob('*.py')}
+    assert expected <= set(release.manifest['files']), sorted(expected-set(release.manifest['files']))
+    for rel in expected:
+        installed=release.target/'lib/zap2gui/python'/Path(rel).relative_to('gui')
+        assert installed.is_file(), rel
+        assert installed.read_bytes()==(ROOT/rel).read_bytes(), rel
+
+
+def test_installed_version_is_readonly(release,tmp_path):
+    env=os.environ.copy();env.pop('PYTHONPATH',None)
+    data=tmp_path/'must-not-exist'
+    env.update(HOME=str(tmp_path),XDG_DATA_HOME=str(data),PYTHONDONTWRITEBYTECODE='1')
+    completed=subprocess.run([sys.executable,'-I',str(release.target/'lib/zap2gui/launch.py'),'--version'],
+                             cwd=tmp_path,env=env,text=True,capture_output=True,timeout=15)
+    assert completed.returncode==0,completed.stdout+completed.stderr
+    assert completed.stdout.strip()==f'zap2-gui {__version__}'
+    assert not data.exists(), 'read-only version command must not create a workspace'
+
+
+def test_checkout_version_uses_same_product_version(capsys,monkeypatch):
+    from zap2_gui.distribution import main
+    monkeypatch.setattr(sys, 'argv', ['zap2-gui', '--version'])
+    assert main(None)==0
+    assert capsys.readouterr().out.strip()==f'zap2-gui {__version__}'
+
+
 @pytest.mark.parametrize('path',['.zap2/tunnel/secret.json','.git/config','gui/__pycache__/bad.pyc','core/zapret2/nfq2/nfqws2','profiles/.env.token','node_modules/x','meta_tools/devctl/project/devctl.py','UserTestSpace/output.txt','runtime/p06/container-validation.json'])
 def test_release_excludes_runtime_secrets_cache_and_compiled_outputs(path):
     assert not module('packaging/build_release.py').allowed(path)

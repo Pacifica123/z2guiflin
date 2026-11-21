@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 48,
-        "comments": 66,
+        "cards": 49,
+        "comments": 68,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-11-21T16:40:00Z",
+    "generatedAt": "2026-11-21T17:35:00Z",
     "selfHosted": true,
-    "boardRevision": 20,
-    "lastPatchId": "2026-11-21-p2-cdp-browser-googlevideo-v1.5",
+    "boardRevision": 21,
+    "lastPatchId": "2026-11-21-hotfix-release-allowlist-cli-version-v1.5.1",
     "rules": "board/README.md"
   },
   "includes": {
@@ -597,6 +597,16 @@
         "description": "Код: отдельный Chromium с временным профилем и CDP pipe (fd 3/4); сбор только rr* имён, ограничение времени, явный Finish, очистка/отмена, одноразовая передача в Blockcheck; P1 fallback. Детерминированные unit/pipe тесты.\n\nГотово, когда владелец на Arch проверил: запуск Chromium, реальный видеопоток, rr* имена в GUI, порядок CDN→P1 в Blockcheck, закрытие браузера/окна/таймаут, отсутствие утечек URL и профиля. Тесты без реального Chrome не дают live acceptance.",
         "priority": "high",
         "position": 14000,
+        "archivedAt": null
+      },
+      {
+        "id": "d4e4f4d0-f84c-4d11-a3ae-3d5d0f77b151",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "title": "1.5.1: исправление shipping allowlist и CLI --version",
+        "description": "В 1.5.0 отсутствовали qt_background.py и adapters/googlevideo_cdp.py в packaging/release-files.json. Исправлено; полный набор GUI Python файлов проверяется по release manifest и staged install. Перед закрытием проверить на Arch: после реальной переустановки 1.5.1 `zap2-gui --version` и запуск GUI/CDP из пакета.",
+        "priority": "high",
+        "position": 15000,
         "archivedAt": null
       }
     ],
@@ -1551,6 +1561,18 @@
         "cardId": "16feaf80-a93b-7018-867a-826945768475",
         "body": "patch 2026-11-21-p2-cdp-browser-googlevideo-v1.5: Minor 1.5.0 обновлён в source, контракте, freeze, packaging и текущей документации; исторические receipts не переписываются.",
         "createdAt": "2026-11-21T16:40:00Z"
+      },
+      {
+        "id": "95d8bc18-24c3-410f-abd4-0e3db23f357f",
+        "cardId": "d4e4f4d0-f84c-4d11-a3ae-3d5d0f77b151",
+        "body": "patch 2026-11-21-hotfix-release-allowlist-cli-version-v1.5.1: исправлена полнота пакета, версия 1.5.1 и CLI; детерминированная проверка готова, ждёт установленного Arch-пакета.",
+        "createdAt": "2026-11-21T17:35:00Z"
+      },
+      {
+        "id": "360bbe8f-ec48-4a72-a9d0-41556ae3a042",
+        "cardId": "16feaf80-a93b-7018-867a-826945768475",
+        "body": "patch 2026-11-21-hotfix-release-allowlist-cli-version-v1.5.1: patch-релиз 1.5.1 во всех актуальных привязках; историческая 1.5.0 осталась как история.",
+        "createdAt": "2026-11-21T17:35:00Z"
       }
     ],
     "boardAppearanceSettings": [],

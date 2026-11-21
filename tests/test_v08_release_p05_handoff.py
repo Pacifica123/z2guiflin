@@ -12,9 +12,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_v08_is_final_accepted_product_marker_and_p05_is_next() -> None:
     assert PRODUCT_LABEL == "v1.5"
-    assert __version__ == "1.5.0"
+    assert __version__ == "1.5.1"
     assert DEVELOPMENT_LINE == "v1.5 GoogleVideo CDN discovery (P1 + opt-in browser CDP)"
-    assert 'version = "1.5.0"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'version = "1.5.1"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
 
 def test_owner_p04d_receipt_closes_rc4_without_rewriting_frozen_evidence() -> None:

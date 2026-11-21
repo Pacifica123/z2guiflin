@@ -5384,9 +5384,10 @@
     "--about": "independent identity axes",
     "--find QUERY": "read-only ActionContract projection",
     "--package-preflight": "verify installed package; no user state",
-    "--support-bundle FILE": "redacted evidence only"
+    "--support-bundle FILE": "redacted evidence only",
+    "--version": "print product version; no user state"
   },
-  "productVersion": "1.5.0",
+  "productVersion": "1.5.1",
   "provenance": {
     "manifestSha256": "8e31eb82e3c06f5803d60e95eb27f2c80b513b98530443927c33770447a7f8c1",
     "schemas": {

@@ -39,4 +39,7 @@ else
 fi
 
 export PYTHONPATH="$ROOT_DIR/gui${PYTHONPATH:+:$PYTHONPATH}"
+if [[ $# -eq 1 && "$1" == "--version" ]]; then
+    exec "$PYTHON_BIN" -c 'from zap2_gui.distribution import main;raise SystemExit(main())' --version
+fi
 exec "$PYTHON_BIN" -m zap2_gui.app "$@"

@@ -279,6 +279,11 @@ def python_module_command(module: str, arguments: list[str]) -> list[str]:
 
 def main(package_root: Path | None=None) -> int:
     arguments=sys.argv[1:]
+    # A read-only identity check must not migrate/create the user workspace.
+    if arguments==['--version']:
+        from . import __version__
+        print(f'zap2-gui {__version__}')
+        return 0
     if package_root is not None:
         if arguments==['--package-preflight']:
             manifest=manifest_at(package_root)

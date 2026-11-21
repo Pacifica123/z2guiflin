@@ -2,7 +2,7 @@
 
 P06 использует compatibility workspace, чтобы не переписать доказанные P02/P04 семантики путей, Plan и runtime provenance. Immutable package tree находится в `/usr/share/zap2gui`, исполняемый GUI-код — в `/usr/lib/zap2gui/python`, helper — в `/usr/lib/zap2gui`. Пользовательская копия ресурсов и writable build/runtime данные лежат отдельно под XDG_DATA_HOME. Это осознанное копирование с receipt и conflict gate; user workspace не объявляется immutable package tree.
 
-`packaging/build_release.py` использует явный allowlist конкретных файлов и denylist runtime/cache/secrets/native artifacts. Manifest содержит SHA-256 и mode каждой записи; tar/gzip фиксируют порядок, uid/gid, mode и mtime=0. Ни timestamp, ни абсолютный checkout path в release digest не входят. Helper, launcher, desktop entry и обе MIT license notices включены. PKGBUILD привязан к SHA-256 конкретного локального release input. Пакет не включает tests, devctl bundle, текущие runtime captures или compiled core.
+`packaging/build_release.py` использует явный allowlist конкретных файлов и denylist runtime/cache/secrets/native artifacts. Добавление нового импортируемого Python-модуля в `gui/zap2_gui` требует одновременного добавления пути в `packaging/release-files.json`; релизный тест сравнивает полный список Python-модулей с allowlist и проверяет пакет после stage install. Manifest содержит SHA-256 и mode каждой записи; tar/gzip фиксируют порядок, uid/gid, mode и mtime=0. Ни timestamp, ни абсолютный checkout path в release digest не входят. Helper, launcher, desktop entry и обе MIT license notices включены. PKGBUILD привязан к SHA-256 конкретного локального release input. Пакет не включает tests, devctl bundle, текущие runtime captures или compiled core.
 
 `generate_p06_reference.py` выводит справочник из ActionContracts, legacy operand bindings, canonical concepts, runtime schemas, P01 mandatory targets и P03 provenance. `--check` обнаруживает drift. Исторические документы перенесены в `docs/history/stages`; их SHA-256 совпадают с PRE, старые пути содержат явные redirects. Current-help и novice guides не ссылаются на stage archaeology как основной путь.
 
@@ -16,7 +16,7 @@ P06 использует compatibility workspace, чтобы не перепис
 
 Текущий workflow — `--v11`; `--p07`/`--p07-release` сохранены для исторического P07; предыдущий `--p06` сохраняется как профиль своего этапа. P07 freeze включает shipping source и весь test corpus, PC/profile digests и release digest. Per-test JUnit позволяет видеть локальные FAIL/NOT_RUN для каждого probe; real OS/live/app/package/migration/review требуют внешних typed receipts. Recipe и release manifest воспроизводимы; final version/tag не создаются автоматически.
 
-Авторский package workflow: bash meta_tools/build_local_package.sh создаёт archive/PKGBUILD из checkout в dist/arch/1.5.0; makepkg -si запускают в этом output directory. Предварительная внешняя публикация/сертификация архива не требуется.
+Авторский package workflow: bash meta_tools/build_local_package.sh создаёт archive/PKGBUILD из checkout в dist/arch/1.5.1; makepkg -si запускают в этом output directory. Предварительная внешняя публикация/сертификация архива не требуется.
 
 ### P1/P2 GoogleVideo discovery (v1.5.0)
 
