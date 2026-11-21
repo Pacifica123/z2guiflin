@@ -16,4 +16,17 @@ P06 использует compatibility workspace, чтобы не перепис
 
 Текущий workflow — `--v11`; `--p07`/`--p07-release` сохранены для исторического P07; предыдущий `--p06` сохраняется как профиль своего этапа. P07 freeze включает shipping source и весь test corpus, PC/profile digests и release digest. Per-test JUnit позволяет видеть локальные FAIL/NOT_RUN для каждого probe; real OS/live/app/package/migration/review требуют внешних typed receipts. Recipe и release manifest воспроизводимы; final version/tag не создаются автоматически.
 
-Авторский package workflow: bash meta_tools/build_local_package.sh создаёт archive/PKGBUILD из checkout в dist/arch/1.4.0; makepkg -si запускают в этом output directory. Предварительная внешняя публикация/сертификация архива не требуется.
+Авторский package workflow: bash meta_tools/build_local_package.sh создаёт archive/PKGBUILD из checkout в dist/arch/1.5.0; makepkg -si запускают в этом output directory. Предварительная внешняя публикация/сертификация архива не требуется.
+
+### P1/P2 GoogleVideo discovery (v1.5.0)
+
+`adapters/googlevideo_node.py` собирает кандидатов с фиксированных YouTube/redirector endpoints,
+делает ограниченную DNS-проверку без TCP/TLS и отдаёт только нормализованные имена.
+`adapters/googlevideo_cdp.py` опционально запускает отдельный Chromium (POSIX spawn,
+`--remote-debugging-pipe`, fd 3/4, временный 0700-профиль) и наблюдает Network CDP-события
+без сохранения HAR, URL или cookies. GUI управляет сеансом в `qt_background.py` через
+ограничение 120 секунд и явное завершение; CDP не имеет привилегий root.
+В `widgets/blockcheck_lab.py` одноразовые браузерные имена проходят повторную проверку и
+дополняются P1 fallback, затем попадают в фазу `video` перед штатным redirector.
+Проверка CDN-имени и DNS не доказывает работоспособность видеопотока. CDP не подключается
+к браузерному профилю пользователя или открытому TCP-порту.

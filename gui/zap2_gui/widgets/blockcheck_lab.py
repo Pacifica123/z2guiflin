@@ -64,7 +64,10 @@ from ..adapters.har_workbench import (
 )
 from ..adapters.discord_voice_profiles import discord_voice_profiles_to_text
 from ..adapters.discord_media_probe import discord_attachments_probe_to_text, validate_attachment_url
-from ..adapters.googlevideo_node import GooglevideoDiscovery, discover_googlevideo_candidates
+from ..adapters.googlevideo_node import (
+    GooglevideoDiscovery, discover_googlevideo_candidates, merge_browser_googlevideo_hosts,
+)
+from ..adapters.googlevideo_cdp import CdpCaptureResult, capture_browser_googlevideo
 from ..models.service_icons import service_for_target_preset
 from ..ui_icons import service_icon
 from .net_verdict_panel import make_net_verdict_button
@@ -81,7 +84,7 @@ from ..models.service_targets import (
     list_service_target_presets,
     with_dynamic_hosts,
 )
-from ..qt_background import start_background_task
+from ..qt_background import start_background_task, current_task_interrupted
 from ..qt_compat import require_pyqt
 
 
@@ -412,6 +415,15 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         "Сохранить очищенную копию HAR без cookie, токенов, тел запросов и личных идентификаторов; исходный файл не меняется"
     )
     voice_profiles_button = QtWidgets.QPushButton("Voice profiles")
+    cdp_collect_button = QtWidgets.QPushButton("CDP: собрать CDN")
+    cdp_collect_button.setObjectName("blockcheckCdpCollectButton")
+    cdp_collect_button.setToolTip("Открыть отдельный Chromium с временным профилем и наблюдать только имена googlevideo CDN (без sudo, без порта CDP)")
+    cdp_finish_button = QtWidgets.QPushButton("Завершить CDP")
+    cdp_finish_button.setObjectName("blockcheckCdpFinishButton")
+    cdp_finish_button.setEnabled(False)
+    cdp_reset_button = QtWidgets.QPushButton("Сбросить CDN")
+    cdp_reset_button.setObjectName("blockcheckCdpResetButton")
+    cdp_reset_button.setToolTip("Удалить из памяти все адреса, обнаруженные через CDP")
     har_group_combo = QtWidgets.QComboBox()
     har_group_combo.setObjectName("blockcheckHarGroupCombo")
     har_group_combo.setToolTip("Группы любого ресурса из последнего sanitized HAR workbench")
@@ -420,6 +432,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         preflight_button, build_plan_button, build_button, plan_button, run_button, stop_button,
         export_button, coverage_button, policy_button, tournament_button, verify_button, endpoint_button, log_button,
         har_import_button, har_report_button, har_load_button, voice_profiles_button, har_sanitize_button,
+        cdp_collect_button, cdp_finish_button, cdp_reset_button,
     ):
         action_button.setMinimumHeight(30)
         action_button.setMinimumWidth(86)
@@ -460,6 +473,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         (har_load_button, 8, 0, 1, 1),
         (voice_profiles_button, 8, 1, 1, 1),
         (har_sanitize_button, 9, 0, 1, 2),
+        (cdp_collect_button, 10, 0, 1, 1),
+        (cdp_finish_button, 10, 1, 1, 1),
+        (cdp_reset_button, 11, 0, 1, 2),
     )
     for button, row, column, row_span, column_span in action_grid:
         actions_layout.addWidget(button, row, column, row_span, column_span)
@@ -505,6 +521,12 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         "discovery_cancel": None,
         "discovery_worker": None,
         "discovery_token": None,
+        "cdp_pending": False,
+        "cdp_cancel": None,
+        "cdp_finish": None,
+        "cdp_worker": None,
+        "cdp_token": None,
+        "cdp_hosts": (),
     }
 
     def show_discord_machine_dialog(payload: dict[str, Any] | None, technical_text: str, *, error_text: str = "") -> None:
@@ -689,6 +711,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         if state.get("syncing_target_preset"):
             return
         previous = str(state.get("active_target_preset") or "")
+        if preset_id != previous:
+            # Browser observations only apply to the explicitly selected preset.
+            state["cdp_hosts"] = ()
         if remember_previous_custom and previous == SERVICE_TARGET_CUSTOM:
             state["custom_targets"] = domains_edit.text().strip()
         preset = get_service_target_preset(preset_id)
@@ -718,6 +743,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                 domains_edit.setText(preset.target_string)
         finally:
             state["syncing_target_preset"] = False
+            if not (state.get("process") or state.get("discovery_pending") or state.get("cdp_pending")):
+                cdp_collect_button.setEnabled(bool(service_target_dynamic_phases(preset.preset_id)))
+                cdp_reset_button.setEnabled(bool(state.get("cdp_hosts")))
 
     def collect_options() -> BlockcheckOptions:
         return BlockcheckOptions(
@@ -848,7 +876,13 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             button.setEnabled(not running)
         har_group_combo.setEnabled(not running)
         har_load_button.setEnabled(not running and bool(har_group_combo.currentData()))
-        stop_button.setEnabled(running)
+        cdp_collect_button.setEnabled(not running and bool(service_target_dynamic_phases(selected_target_preset_id())))
+        cdp_finish_button.setEnabled(bool(state.get("cdp_pending")))
+        cdp_reset_button.setEnabled(not running and bool(state.get("cdp_hosts")))
+        stop_button.setEnabled(running and not state.get("cdp_pending"))
+        if state.get("cdp_pending"):
+            status.setText("Статус: CDP — воспроизведи видео в отдельном браузере и нажми «Завершить CDP»")
+            return
         if running and state.get("discovery_pending"):
             status.setText("Статус: обнаружение GoogleVideo CDN (без sudo)… Stop отменяет поиск")
             return
@@ -1305,8 +1339,83 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         set_running(True)
         process.start()
 
+    def start_cdp_capture() -> None:
+        if state.get("process") is not None or state.get("discovery_pending") or state.get("cdp_pending"):
+            output.setPlainText("CDP: другая операция уже выполняется.")
+            return
+        if not any(phase.dynamic == GOOGLEVIDEO_DYNAMIC_NODE for phase in service_target_dynamic_phases(selected_target_preset_id())):
+            output.setPlainText("CDP-сбор предназначен для пресета с фазой YouTube video.")
+            return
+        approval = QtWidgets.QMessageBox.question(
+            page, "CDP: сбор GoogleVideo CDN",
+            "Открыть отдельный Chromium с временным профилем?\n\n"
+            "Проиграй нужное видео в открывшемся браузере. Сбор фиксирует только имена CDN-хостов. "
+            "Никаких URL, cookies, тел ответов, HAR или постоянного профиля не сохраняется. "
+            "CDP работает по закрытым pipe, без TCP-порта. Максимум 120 секунд. "
+            "Временный браузер закроется после завершения сбора.",
+        )
+        if approval != QtWidgets.QMessageBox.StandardButton.Yes:
+            return
+        cancelled = threading.Event()
+        finish = threading.Event()
+        token = object()
+        state["cdp_token"] = token
+        state["cdp_pending"] = True
+        state["cdp_cancel"] = cancelled
+        state["cdp_finish"] = finish
+        state["cdp_hosts"] = ()
+        output.setPlainText("CDP: запуск изолированного Chromium… После старта видео нажми «Завершить CDP».")
+        set_running(True)
+
+        def completed(result: CdpCaptureResult | None, error: str = "") -> None:
+            if state.get("cdp_token") is not token:
+                return
+            state["cdp_token"] = None
+            state["cdp_pending"] = False
+            state["cdp_cancel"] = None
+            state["cdp_finish"] = None
+            state["cdp_worker"] = None
+            if not cancelled.is_set() and result is not None:
+                state["cdp_hosts"] = result.hosts
+                output.setPlainText(result.to_text() + "\n"
+                    "Эти хосты будут проверены первыми при следующем YouTube Blockcheck; "
+                    "P1 остаётся запасным источником. Результат одноразовый, только в памяти.")
+            else:
+                output.setPlainText("CDP: " + (error or "сбор отменён, адреса сброшены"))
+            set_running(False)
+
+        try:
+            state["cdp_worker"] = start_background_task(
+                QtCore, page,
+                lambda report: capture_browser_googlevideo(
+                    finish.is_set,
+                    cancelled=lambda: cancelled.is_set() or current_task_interrupted(QtCore),
+                    ready=report,
+                ),
+                completed=lambda result: completed(result),
+                failed=lambda exc: completed(None, f"ошибка ({type(exc).__name__}): {str(exc) if isinstance(exc, RuntimeError) else 'запуск браузера не удался'}"),
+                progress=lambda line: append_output("\n" + line),
+            )
+            page.destroyed.connect(lambda _obj=None: cancelled.set())
+        except Exception as exc:
+            completed(None, f"не удалось запустить CDP-worker ({type(exc).__name__})")
+
+    def finish_cdp_capture() -> None:
+        event = state.get("cdp_finish")
+        if event is not None:
+            event.set()
+            cdp_finish_button.setEnabled(False)
+            append_output("\nCDP: завершение сбора и удаление временного профиля…")
+
+    def reset_cdp_capture() -> None:
+        if state.get("cdp_pending"):
+            return
+        state["cdp_hosts"] = ()
+        cdp_reset_button.setEnabled(False)
+        output.setPlainText("CDP: собранные хосты удалены из памяти GUI.")
+
     def run_blockcheck() -> None:
-        if state.get("process") is not None or state.get("discovery_pending"):
+        if state.get("process") is not None or state.get("discovery_pending") or state.get("cdp_pending"):
             output.setPlainText("Blockcheck уже выполняется. Сначала остановите текущий run или дождитесь завершения.")
             return
         question = QtWidgets.QMessageBox.question(
@@ -1409,6 +1518,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
 
         # The discovery request is read-only and takes place after consent for
         # the subsequent privileged scan. Never do network I/O on the GUI thread.
+        # One-shot browser observation: take a snapshot, then clear it. The
+        # P1 fallback is still attempted; observed hosts are checked first.
+        browser_hosts = tuple(state.get("cdp_hosts") or ())
+        state["cdp_hosts"] = ()
         cancel = threading.Event()
         token = object()  # Differentiate a cancelled run from a subsequent run.
         state["discovery_token"] = token
@@ -1432,9 +1545,14 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         try:
             state["discovery_worker"] = start_background_task(
                 QtCore, page,
-                lambda _report: discover_googlevideo_candidates(
+                lambda _report: merge_browser_googlevideo_hosts(
+                    browser_hosts,
+                    discover_googlevideo_candidates(
+                        cancelled=cancel.is_set,
+                        dns_check=(lambda _host, _timeout: None) if options.skip_dnscheck else None,
+                    ),
+                    skip_dnscheck=options.skip_dnscheck,
                     cancelled=cancel.is_set,
-                    dns_check=(lambda _host, _timeout: None) if options.skip_dnscheck else None,
                 ),
                 completed=lambda result: discovery_completed(result),
                 failed=lambda exc: discovery_completed(None, f"ошибка поиска ({type(exc).__name__})"),
@@ -1488,6 +1606,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     build_plan_button.clicked.connect(lambda _checked=False: run_action("План binaries", lambda: blockcheck_build_plan_to_text(root=root)))
     build_button.clicked.connect(lambda _checked=False: build_binaries())
     plan_button.clicked.connect(lambda _checked=False: run_action("План run", lambda: blockcheck_plan_to_text(root=root, options=collect_options())))
+    cdp_collect_button.clicked.connect(lambda _checked=False: start_cdp_capture())
+    cdp_finish_button.clicked.connect(lambda _checked=False: finish_cdp_capture())
+    cdp_reset_button.clicked.connect(lambda _checked=False: reset_cdp_capture())
     run_button.clicked.connect(lambda _checked=False: run_blockcheck())
     stop_button.clicked.connect(lambda _checked=False: stop_blockcheck())
     export_button.clicked.connect(lambda _checked=False: run_action("Создать стратегии", lambda: export_blockcheck_available_strategies(root=root).to_text()))

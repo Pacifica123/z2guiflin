@@ -148,4 +148,9 @@ def start_background_task(
     return worker
 
 
-__all__ = ["task_manager", "start_background_task"]
+def current_task_interrupted(QtCore: Any) -> bool:
+    """Cooperate with the task manager's requestInterruption on app quit."""
+    return bool(QtCore.QThread.currentThread().isInterruptionRequested())
+
+
+__all__ = ["task_manager", "start_background_task", "current_task_interrupted"]

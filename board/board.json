@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 47,
-        "comments": 63,
+        "cards": 48,
+        "comments": 66,
         "checklists": 3,
         "attachments": 0
       },
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-10-25T09:30:00Z",
+    "generatedAt": "2026-11-21T16:40:00Z",
     "selfHosted": true,
-    "boardRevision": 19,
-    "lastPatchId": "2026-10-25-discord-youtube-profiles",
+    "boardRevision": 20,
+    "lastPatchId": "2026-11-21-p2-cdp-browser-googlevideo-v1.5",
     "rules": "board/README.md"
   },
   "includes": {
@@ -587,6 +587,16 @@
         "description": "Зачем: Blockcheck принимал стратегию Discord по картинкам (media.discordapp.net был OR-альтернативой cdn.discordapp.com), поэтому вложения /attachments/ отваливались при «пробитом» Discord; YouTube проверялся только по youtube.com/www, а замедляют узлы googlevideo, разные у каждого провайдера.\n\nСделано: «Discord desktop» вместо non-voice (войс — следствие, *.discord.media опционально); вложения — отдельная обязательная фаза; YouTube — фазы сайт → видео → превью, узел rrN---sn-*.googlevideo.com спрашивается у redirector report_mapping перед сканом; hostlist проверяется по правилу поддоменов nfqws2; новые домены дописываются в hostlist установленного workspace; «Проверить вложения» в Blockcheck lab показывает, на каком байте встаёт поток; иконки сервисов в пресетах/профилях/Blockcheck и значки DNS.\n\nГотово, когда владелец: (1) прогнал Blockcheck Discord desktop и увидел фазу «Вложения» отдельно; (2) проверил вложение по ссылке; (3) увидел узел googlevideo в логе YouTube-скана (формат report_mapping не проверен с этой машины).",
         "priority": "high",
         "position": 12288,
+        "archivedAt": null
+      },
+      {
+        "id": "517734b2-6c66-485a-b4b0-c5899f12620a",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "title": "P2: CDN GoogleVideo из реального Chromium/CDP (v1.5.0)",
+        "description": "Код: отдельный Chromium с временным профилем и CDP pipe (fd 3/4); сбор только rr* имён, ограничение времени, явный Finish, очистка/отмена, одноразовая передача в Blockcheck; P1 fallback. Детерминированные unit/pipe тесты.\n\nГотово, когда владелец на Arch проверил: запуск Chromium, реальный видеопоток, rr* имена в GUI, порядок CDN→P1 в Blockcheck, закрытие браузера/окна/таймаут, отсутствие утечек URL и профиля. Тесты без реального Chrome не дают live acceptance.",
+        "priority": "high",
+        "position": 14000,
         "archivedAt": null
       }
     ],
@@ -1523,6 +1533,24 @@
         "cardId": "16feaf80-a93b-7018-867a-826945768475",
         "body": "patch 2026-10-25-discord-youtube-profiles: 1.4.0 во всех привязках: pyproject, __init__ (версия, label v1.4, development line), v11-contract, freeze, тесты, generated reference, dist/arch/1.4.0.",
         "createdAt": "2026-10-25T09:30:00Z"
+      },
+      {
+        "id": "50eedd5a-e621-44cc-8141-71cd9a4b7a7c",
+        "cardId": "517734b2-6c66-485a-b4b0-c5899f12620a",
+        "body": "patch 2026-11-21-p2-cdp-browser-googlevideo-v1.5: P2 код и тесты готовы; ждёт реальной Arch/CDP проверки.",
+        "createdAt": "2026-11-21T16:40:00Z"
+      },
+      {
+        "id": "89e08d3a-c933-45df-a42e-1d30e6d9459d",
+        "cardId": "811b105f-b62c-4fb2-9afa-aa5d45a8fbf0",
+        "body": "patch 2026-11-21-p2-cdp-browser-googlevideo-v1.5: P1 CDN discovery + P2 CDP интегрированы; старые критерии Discord сохраняются, проверка CDP вынесена в новую карточку.",
+        "createdAt": "2026-11-21T16:40:00Z"
+      },
+      {
+        "id": "a03b825f-bea6-42c6-81a1-df9bb0c21c10",
+        "cardId": "16feaf80-a93b-7018-867a-826945768475",
+        "body": "patch 2026-11-21-p2-cdp-browser-googlevideo-v1.5: Minor 1.5.0 обновлён в source, контракте, freeze, packaging и текущей документации; исторические receipts не переписываются.",
+        "createdAt": "2026-11-21T16:40:00Z"
       }
     ],
     "boardAppearanceSettings": [],

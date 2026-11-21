@@ -84,7 +84,7 @@ class GooglevideoNode:
 @dataclass(frozen=True)
 class GooglevideoCandidate:
     host: str
-    source: str  # player | redirector
+    source: str  # browser | player | redirector
     dns: str  # resolved | unchecked
 
 
@@ -106,7 +106,7 @@ class GooglevideoDiscovery:
         lines = ["GoogleVideo CDN discovery (без sudo; текущая сеть; без кеша):"]
         if self.candidates:
             for item in self.candidates:
-                source = "страница YouTube" if item.source == "player" else "report_mapping"
+                source = {"browser": "CDP: реальное воспроизведение", "player": "тестовая страница YouTube", "redirector": "report_mapping"}.get(item.source, "unknown")
                 dns = "DNS разрешён" if item.dns == "resolved" else "DNS не удалось проверить"
                 lines.append(f"  - {item.host} [{source}; {dns}]")
         else:
@@ -115,7 +115,10 @@ class GooglevideoDiscovery:
             lines.append("  DNS не разрешил (не добавлены): " + ", ".join(self.rejected_dns))
         for note in self.notes:
             lines.append(f"  {note}")
-        lines.append("Страница YouTube — тестовый ролик, не открытая вкладка пользователя; обнаруженные узлы не кешируются.")
+        if not any(item.source == "browser" for item in self.candidates):
+            lines.append("Страница YouTube — тестовый ролик, не открытая вкладка пользователя; обнаруженные узлы не кешируются.")
+        else:
+            lines.append("CDP: временный изолированный браузер; собраны только имена хостов. После Blockcheck они удаляются из памяти GUI.")
         lines.append(
             "DNS не доказывает доступность TCP/TLS/QUIC; доступность и стратегии проверит Blockcheck. "
             "redirector.googlevideo.com — запасной служебный адрес, не доказательство работы видеопотока."
@@ -317,6 +320,44 @@ def discover_googlevideo_candidates(
     return GooglevideoDiscovery(tuple(accepted), tuple(rejected), tuple(notes))
 
 
+def merge_browser_googlevideo_hosts(
+    browser_hosts: tuple[str, ...],
+    fallback: GooglevideoDiscovery,
+    *,
+    dns_check: DnsCheck | None = None,
+    skip_dnscheck: bool = False,
+    cancelled: Callable[[], bool] | None = None,
+    max_candidates: int = MAX_CANDIDATES,
+) -> GooglevideoDiscovery:
+    """Prioritize observed browser traffic, retain P1 candidates as fallbacks.
+
+    No network probe beyond a bounded DNS lookup; inaccessible TLS endpoints
+    must remain eligible for Blockcheck. Browser hostnames are validated again.
+    """
+    limit = min(MAX_CANDIDATES, max(1, int(max_candidates)))
+    checker = dns_check or _dns_resolves
+    cancelled = cancelled or (lambda: False)
+    selected: list[GooglevideoCandidate] = []
+    rejected = list(fallback.rejected_dns)
+    for item in browser_hosts:
+        if len(selected) >= limit or cancelled():
+            break
+        host = normalize_googlevideo_host(item)
+        if not host or any(candidate.host == host for candidate in selected):
+            continue
+        dns = None if skip_dnscheck else checker(host, 1.25)
+        if dns is False:
+            rejected.append(host)
+        else:
+            selected.append(GooglevideoCandidate(host, "browser", "resolved" if dns else "unchecked"))
+    for candidate in fallback.candidates:
+        if len(selected) >= limit or cancelled():
+            break
+        if not any(item.host == candidate.host for item in selected):
+            selected.append(candidate)
+    return GooglevideoDiscovery(tuple(selected), tuple(dict.fromkeys(rejected)), fallback.notes)
+
+
 def googlevideo_node_to_text(fetch: Fetcher | None = None) -> str:
     return resolve_googlevideo_node(fetch).to_text()
 
@@ -330,4 +371,5 @@ __all__ = [
     "REPORT_MAPPING_URL", "REPORT_MAPPING_URLS", "WATCH_URLS", "cluster_to_node",
     "discover_googlevideo_candidates", "extract_googlevideo_hosts", "googlevideo_node_to_text",
     "node_host", "normalize_googlevideo_host", "parse_report_mapping", "resolve_googlevideo_node",
+    "merge_browser_googlevideo_hosts",
 ]
