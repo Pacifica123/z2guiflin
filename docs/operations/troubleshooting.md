@@ -4,6 +4,7 @@
 
 | Симптом | Что посмотреть | Следующий безопасный шаг |
 |---|---|---|
+| YouTube tournament: `no-observations; checks=0`, два домена за секунду | Raw candidate log: `~/.local/share/zap2gui/workspace/.zap2/blockcheck/logs/candidates/*.txt`, ищи `[zap2] target DNS preflight FAILED`, `sudo:`, `return code:` | С 1.5.2 такой случай останавливает tournament как `unscanned`, а не как неудачную стратегию. Если `mdig` не дал IP требуемого семейства, исправь DNS/IPVS; если `sudo -A` не смог стартовать, проверь GUI askpass. Не отключай DNS gate вслепую. `YouTube default` исключает discovery, но не заменяет работоспособный upstream. |
 | `ModuleNotFoundError: No module named 'zap2_gui.qt_background'` или `googlevideo_cdp` после установки 1.5.0 | `zap2-gui --version` и содержимое `/usr/lib/zap2gui/python/zap2_gui/` | Пересобрать и переустановить пакет **1.5.1** через штатный `build_local_package.sh` / `makepkg -si`; devctl обновляет только checkout, не `/usr/lib`. Не копировать файлы вручную с sudo. |
 | Ядро отсутствует | Build dependencies и provenance | Подготовить build plan; проверить выбранный binary |
 | Stale PID | Runtime status и ownership | Сверить идентичность; не убивать неизвестный процесс |

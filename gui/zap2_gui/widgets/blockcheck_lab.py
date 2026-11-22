@@ -28,6 +28,7 @@ from ..adapters.blockcheck_gui import (
     export_blockcheck_available_strategies,
     last_blockcheck_log_to_text,
     parse_blockcheck_run_stats,
+    diagnose_unscanned_candidate,
     parse_blockcheck_summary,
     parse_blockcheck_coverage,
     blockcheck_coverage_rows_to_text,
@@ -1062,7 +1063,14 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         start_prepared_process(prepared, clear_output=False)
 
     def finalize_process(exit_code: int, exit_status: Any) -> None:
+        if state.get("process") is None:
+            return
         prepared = current_prepared()
+        # finished() may arrive before readyRead; drain all bytes before judging.
+        process = state.get("process")
+        if process is not None:
+            state["stdout"].append(bytes(process.readAllStandardOutput()).decode("utf-8", errors="replace"))
+            state["stderr"].append(bytes(process.readAllStandardError()).decode("utf-8", errors="replace"))
         stdout = "".join(state["stdout"])
         stderr = "".join(state["stderr"])
         stopped = bool(state.get("stopped_by_user"))
@@ -1074,6 +1082,7 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             stderr += f"\n[GUI] Blockcheck candidate auto-stopped: {auto_skip_reason}\n"
             state["stderr"] = [stderr]
         stats = parse_blockcheck_run_stats(stdout, stderr)
+        unscanned = diagnose_unscanned_candidate(exit_code, stdout, stderr, stats) if not stopped and not auto_skip_reason else None
         summary = parse_blockcheck_summary(stdout)
         target = ""
         if prepared is not None:
@@ -1113,6 +1122,12 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
                     + "\n"
                     + tournament_top_text()
                 )
+            elif unscanned is not None:
+                append_output(
+                    "\n[GUI tournament] Проверки стратегий не начинались: " + unscanned.to_text()
+                    + "\n[GUI tournament] Прерываем tournament; это ошибка/неполное наблюдение, "
+                    "а не доказательство блокировки фазы."
+                )
             elif stats.available > 0:
                 remember_tournament_record(target, phase_index, stats)
                 append_output(
@@ -1148,6 +1163,16 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         current_index = int(state.get("candidate_index") or 0)
         next_exists = current_index + 1 < len(targets)
         scan_mode = prepared.command.options.scan_mode if prepared is not None else BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE
+
+        if not stopped and state.get("phase_gated_run") and unscanned is not None:
+            state["candidate_targets"] = []
+            state["candidate_index"] = 0
+            state["phase_gated_run"] = False
+            state["candidate_phase_groups"] = []
+            state["candidate_phase_index"] = 0
+            state["candidate_phase_had_available"] = False
+            set_running(False)
+            return
 
         if not stopped and state.get("phase_gated_run"):
             phase_groups = list(state.get("candidate_phase_groups") or [])
@@ -1211,7 +1236,9 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
             return
 
         should_continue = False
-        if not stopped and next_exists:
+        if unscanned is not None and not stopped:
+            append_output("\n[GUI] " + unscanned.to_text() + " — список targets остановлен.")
+        if not stopped and next_exists and unscanned is None:
             if scan_mode == BLOCKCHECK_SCAN_ALL_TARGETS:
                 should_continue = True
             elif scan_mode == BLOCKCHECK_SCAN_STOP_AFTER_FIRST_AVAILABLE:
@@ -1242,6 +1269,10 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
         state["stderr"].append(text)
         append_output(text)
         flush_live_log()
+        # FailedToStart does not reliably emit finished(): release the busy
+        # state through the same fail-closed finalizer, exactly once.
+        if error == QtCore.QProcess.ProcessError.FailedToStart and state.get("process") is not None:
+            finalize_process(-1, "FailedToStart")
 
     def start_prepared_process(prepared: PreparedBlockcheckExecution, *, clear_output: bool = True) -> None:
         process = QtCore.QProcess(page)

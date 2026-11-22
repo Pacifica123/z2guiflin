@@ -1148,6 +1148,59 @@ def _normalize_curl_error(line: str) -> str | None:
     return f"curl code {code}: {message[:80]}"
 
 
+@dataclass(frozen=True)
+class BlockcheckUnscannedDiagnostic:
+    """No strategy was tested. This is not evidence that DPI bypass failed."""
+
+    code: str
+    detail: str
+
+    def to_text(self) -> str:
+        return f"{self.code}: {self.detail}"
+
+
+def diagnose_unscanned_candidate(
+    exit_code: int, stdout: str, stderr: str, stats: BlockcheckRunStats | None = None,
+) -> BlockcheckUnscannedDiagnostic | None:
+    """Fail closed for missing strategy evidence; report only whitelisted diagnostics.
+
+    Never display raw stdout/stderr in the tournament pane, since upstream
+    output may contain machine-specific details. The candidate file remains
+    the authoritative raw diagnostic source.
+    """
+    stats = stats if stats is not None else parse_blockcheck_run_stats(stdout, stderr)
+    if stats.strategy_attempts or stats.port_precheck_dead:
+        return None
+    for line in stderr.splitlines():
+        if line.startswith("[zap2] target DNS preflight FAILED:"):
+            return BlockcheckUnscannedDiagnostic(
+                "dns-preflight-failed", "mdig не получил адрес выбранного семейства IP; "
+                "upstream blockcheck2 не запускался. Проверь DNS/resolver в raw candidate log."
+            )
+        if "[zap2] Blockcheck was not started" in line:
+            return BlockcheckUnscannedDiagnostic(
+                "dns-preflight-failed", "target DNS gate завершился до upstream scan."
+            )
+        lower = line.lower()
+        if "sudo:" in lower or "sudo " in lower:
+            if any(keyword in lower for keyword in (
+                "password", "askpass", "permission", "not allowed", "a terminal",
+                "authorization", "authentication", "policy", "sorry",
+            )):
+                return BlockcheckUnscannedDiagnostic(
+                    "sudo-start-failed", "sudo/askpass не разрешил запуск. См. stderr в candidate log."
+                )
+    if exit_code != 0:
+        return BlockcheckUnscannedDiagnostic(
+            "upstream-start-failed",
+            f"процесс завершился с кодом {exit_code} до первой стратегии; см. raw candidate log.",
+        )
+    return BlockcheckUnscannedDiagnostic(
+        "no-strategy-evidence", "upstream завершился без наблюдаемых проверок стратегии; "
+        "нельзя считать это UNAVAILABLE. См. raw candidate log.",
+    )
+
+
 def parse_blockcheck_run_stats(stdout: str, stderr: str = "") -> BlockcheckRunStats:
     """Parse partial blockcheck logs into compact progress statistics.
 

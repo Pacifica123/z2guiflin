@@ -1,6 +1,6 @@
 # Установка и первые действия на Arch, Manjaro и EndeavourOS
 
-Текущая версия **1.5.1**. Есть два штатных пути: запуск собственного checkout и установка пакета. Wheel/pip без resource bundle не заменяет системный пакет.
+Текущая версия **1.5.2**. Есть два штатных пути: запуск собственного checkout и установка пакета. Wheel/pip без resource bundle не заменяет системный пакет.
 
 ## Из исходников
 
@@ -13,13 +13,13 @@
 ```bash
 sudo pacman -S --needed base-devel python python-pyqt6
 bash meta_tools/build_local_package.sh
-cd dist/arch/1.5.1
+cd dist/arch/1.5.2
 makepkg -si
 ```
 
-Скрипт создаёт соответствующие archive и PKGBUILD; makepkg запускается в **dist/arch/1.5.1**, а не в произвольном каталоге. SHA подтверждает, что рецепт собирает именно созданный архив. Сокращённый workflow: `bash meta_tools/build_local_package.sh --install`. makepkg работает от обычного пользователя и сам вызывает pacman для установки. Полученный у другого пользователя archive+PKGBUILD также должны лежать вместе; makepkg выполняют в содержащем их каталоге.
+Скрипт создаёт соответствующие archive и PKGBUILD; makepkg запускается в **dist/arch/1.5.2**, а не в произвольном каталоге. SHA подтверждает, что рецепт собирает именно созданный архив. Сокращённый workflow: `bash meta_tools/build_local_package.sh --install`. makepkg работает от обычного пользователя и сам вызывает pacman для установки. Полученный у другого пользователя archive+PKGBUILD также должны лежать вместе; makepkg выполняют в содержащем их каталоге.
 
-После установки сначала проверьте `zap2-gui --version` (должно быть `zap2-gui 1.5.1`), затем запустите `zap2-gui` из меню приложений или терминала. `--version` не создаёт пользовательский workspace и не запускает GUI. Не нужны checkout, ручной PYTHONPATH или копирование кода в домашний каталог для импорта. Системный launcher импортирует только package-owned Python-код. При первом запуске он создаёт пользовательский compatibility workspace в `$XDG_DATA_HOME/zap2gui/workspace` (по умолчанию `~/.local/share/zap2gui/workspace`). Там находятся runtime, редактируемые пресеты и результаты сборки; системное resource tree не изменяется.
+После установки сначала проверьте `zap2-gui --version` (должно быть `zap2-gui 1.5.2`), затем запустите `zap2-gui` из меню приложений или терминала. `--version` не создаёт пользовательский workspace и не запускает GUI. Не нужны checkout, ручной PYTHONPATH или копирование кода в домашний каталог для импорта. Системный launcher импортирует только package-owned Python-код. При первом запуске он создаёт пользовательский compatibility workspace в `$XDG_DATA_HOME/zap2gui/workspace` (по умолчанию `~/.local/share/zap2gui/workspace`). Там находятся runtime, редактируемые пресеты и результаты сборки; системное resource tree не изменяется.
 
 ## Первое безопасное действие
 

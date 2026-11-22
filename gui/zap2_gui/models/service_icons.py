@@ -17,7 +17,7 @@ _SERVICE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (SERVICE_DISCORD, ("discord", "dis.gd")),
     (SERVICE_YOUTUBE, ("youtube", "youtu.be", "googlevideo", "ytimg", "ggpht")),
 )
-_PRESET_SERVICE_IDS = {"discord-desktop": SERVICE_DISCORD, "youtube-basic": SERVICE_YOUTUBE}
+_PRESET_SERVICE_IDS = {"discord-desktop": SERVICE_DISCORD, "youtube-basic": SERVICE_YOUTUBE, "youtube-googlevideo-auto": SERVICE_YOUTUBE}
 
 
 def services_in_text(*texts: str) -> tuple[str, ...]:

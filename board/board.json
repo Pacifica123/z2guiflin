@@ -13,7 +13,7 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 49,
+        "cards": 50,
         "comments": 68,
         "checklists": 3,
         "attachments": 0
@@ -30,10 +30,10 @@
     "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973"
   },
   "origin": {
-    "generatedAt": "2026-11-21T17:35:00Z",
+    "generatedAt": "2026-11-22T11:19:00Z",
     "selfHosted": true,
-    "boardRevision": 21,
-    "lastPatchId": "2026-11-21-hotfix-release-allowlist-cli-version-v1.5.1",
+    "boardRevision": 22,
+    "lastPatchId": "2026-11-22-youtube-default-auto-blockcheck-guard-v1.5.2",
     "rules": "board/README.md"
   },
   "includes": {
@@ -607,6 +607,16 @@
         "description": "В 1.5.0 отсутствовали qt_background.py и adapters/googlevideo_cdp.py в packaging/release-files.json. Исправлено; полный набор GUI Python файлов проверяется по release manifest и staged install. Перед закрытием проверить на Arch: после реальной переустановки 1.5.1 `zap2-gui --version` и запуск GUI/CDP из пакета.",
         "priority": "high",
         "position": 15000,
+        "archivedAt": null
+      },
+      {
+        "id": "562e1520-8b4e-41bd-9752-f7049e152022",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "title": "v1.5.2: YouTube default / GoogleVideo auto + Blockcheck zero-observation guard",
+        "description": "Реализовано в patch v1.5.2 на срезе 7389453; ждёт проверки на Arch: baseline не делает discovery, auto собирает CDN, DNS-gate / sudo / QProcess-отказ завершают tournament с диагностикой и ссылкой на raw log. Реальный первичный сбой не установлен без сырых candidate логов.",
+        "priority": "high",
+        "position": 14336,
         "archivedAt": null
       }
     ],

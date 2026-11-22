@@ -14,6 +14,7 @@ from zap2_gui.models.service_targets import (
     SERVICE_TARGET_CUSTOM,
     SERVICE_TARGET_DISCORD_DESKTOP,
     SERVICE_TARGET_YOUTUBE_BASIC,
+    SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO,
     infer_service_target_preset_id,
 )
 
@@ -43,7 +44,7 @@ def test_blockcheck_command_records_service_target_preset_in_plan_and_env() -> N
 def test_service_target_inference_handles_sequential_candidate_logs() -> None:
     # Older two-host YouTube preset and a resolved googlevideo node stay attached to YouTube.
     assert infer_service_target_preset_id("youtube.com www.youtube.com") == SERVICE_TARGET_YOUTUBE_BASIC
-    assert infer_service_target_preset_id("rr1---sn-abcd1234-xyz5.googlevideo.com") == SERVICE_TARGET_YOUTUBE_BASIC
+    assert infer_service_target_preset_id("rr1---sn-abcd1234-xyz5.googlevideo.com") == SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO
     assert infer_service_target_preset_id("cdn.discordapp.com") == SERVICE_TARGET_DISCORD_DESKTOP
     assert infer_service_target_preset_id("gateway.discord.gg") == SERVICE_TARGET_DISCORD_DESKTOP
     assert infer_service_target_preset_id("example.com") == SERVICE_TARGET_CUSTOM

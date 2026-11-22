@@ -14,6 +14,7 @@ from zap2_gui.models.service_icons import dns_badge, service_for_target_preset, 
 from zap2_gui.models.service_targets import (
     SERVICE_TARGET_DISCORD_DESKTOP,
     SERVICE_TARGET_YOUTUBE_BASIC,
+    SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO,
     hostlist_covers_host,
     service_target_dynamic_phases,
     service_target_phase_for_target,
@@ -70,7 +71,7 @@ def test_report_mapping_failures_fall_back_honestly() -> None:
 
 
 def test_dynamic_googlevideo_node_joins_the_video_phase() -> None:
-    (phase,) = service_target_dynamic_phases(SERVICE_TARGET_YOUTUBE_BASIC)
+    (phase,) = service_target_dynamic_phases(SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO)
     assert phase.phase_id == "video"
     targets = with_dynamic_host(["www.youtube.com", "youtube.com", "redirector.googlevideo.com", "i.ytimg.com"], phase, NODE)
     assert targets == ["www.youtube.com", "youtube.com", NODE, "redirector.googlevideo.com", "i.ytimg.com"]

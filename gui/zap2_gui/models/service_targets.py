@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 SERVICE_TARGET_YOUTUBE_BASIC = "youtube-basic"
+SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO = "youtube-googlevideo-auto"
 SERVICE_TARGET_DISCORD_DESKTOP = "discord-desktop"
 SERVICE_TARGET_CUSTOM = "custom"
 DEFAULT_SERVICE_TARGET_PRESET_ID = SERVICE_TARGET_YOUTUBE_BASIC
@@ -413,7 +414,7 @@ _DISCORD_DESKTOP_ORDERED_TARGETS = tuple(target for phase in _DISCORD_DESKTOP_PH
 
 GOOGLEVIDEO_DYNAMIC_NODE = "googlevideo-node"
 
-_YOUTUBE_PHASES = (
+_YOUTUBE_PHASES_AUTO = (
     ServiceCoveragePhase(
         phase_id="site",
         title="Сайт",
@@ -440,13 +441,23 @@ _YOUTUBE_PHASES = (
     ),
 )
 
+# Baseline 1.4 contract: never contact YouTube/redirector to resolve new hosts.
+_YOUTUBE_PHASES = tuple(
+    ServiceCoveragePhase(
+        phase_id=phase.phase_id, title=phase.title, targets=phase.targets,
+        required=phase.required, summary=(
+            "Static fallback only; GoogleVideo discovery is disabled."
+            if phase.phase_id == "video" else phase.summary
+        ), match_suffixes=phase.match_suffixes,
+    ) for phase in _YOUTUBE_PHASES_AUTO
+)
 _YOUTUBE_ORDERED_TARGETS = tuple(target for phase in _YOUTUBE_PHASES for target in phase.targets)
 
 _SERVICE_TARGET_PRESETS = (
     ServiceTargetPreset(
         preset_id=SERVICE_TARGET_YOUTUBE_BASIC,
-        title="YouTube",
-        summary="Сайт, видео googlevideo (узел определяется перед проверкой) и превью i.ytimg.com.",
+        title="YouTube default",
+        summary="Обычная статическая проверка: сайт → redirector.googlevideo.com → превью. Без GoogleVideo Discovery/CDP.",
         targets=_YOUTUBE_ORDERED_TARGETS,
         layers={phase.phase_id: phase.targets for phase in _YOUTUBE_PHASES},
         phases=_YOUTUBE_PHASES,
@@ -460,6 +471,22 @@ _SERVICE_TARGET_PRESETS = (
             required_targets=_YOUTUBE_ORDERED_TARGETS,
             recommended_scan_mode=BLOCKCHECK_SCAN_ALL_TARGETS,
             stop_rule="test one strategy through site → video → images until full coverage is proven or owner stops",
+        ),
+    ),
+    ServiceTargetPreset(
+        preset_id=SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO,
+        title="YouTube — автоподбор GoogleVideo",
+        summary="CDP-хосты (по запросу), затем P1 live discovery, затем статический redirector. Фазы site → video → images.",
+        targets=_YOUTUBE_ORDERED_TARGETS,
+        layers={phase.phase_id: phase.targets for phase in _YOUTUBE_PHASES_AUTO},
+        phases=_YOUTUBE_PHASES_AUTO,
+        coverage_policy=ServiceCoveragePolicy(
+            mode=SERVICE_COVERAGE_ORDERED_TARGET_CHAIN,
+            order_mode=SERVICE_COVERAGE_ORDER_IMPORTANT,
+            summary="Фазы AND, альтернативы OR; динамический CDN добавляется только в этой версии пресета.",
+            required_targets=_YOUTUBE_ORDERED_TARGETS,
+            recommended_scan_mode=BLOCKCHECK_SCAN_ALL_TARGETS,
+            stop_rule="verify site, observed video CDN and images on the current network",
         ),
     ),
     ServiceTargetPreset(
@@ -690,6 +717,13 @@ def infer_service_target_preset_id(targets: str | tuple[str, ...] | list[str]) -
     ]
     if len(matches) == 1:
         return matches[0]
+    if SERVICE_TARGET_YOUTUBE_BASIC in matches and SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO in matches:
+        # Keep historical imports stable for static YouTube targets; explicit
+        # dynamic CDN hosts are associated with the auto preset.
+        baseline = {item.lower() for item in YOUTUBE_BASIC_TARGETS}
+        if any(host_matches_suffix(item, "googlevideo.com") and item not in baseline for item in lowered):
+            return SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO
+        return SERVICE_TARGET_YOUTUBE_BASIC
     return SERVICE_TARGET_CUSTOM
 
 

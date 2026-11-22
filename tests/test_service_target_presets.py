@@ -9,6 +9,7 @@ from zap2_gui.models.service_targets import (
     SERVICE_TARGET_CUSTOM,
     SERVICE_TARGET_DISCORD_DESKTOP,
     SERVICE_TARGET_YOUTUBE_BASIC,
+    SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO,
     YOUTUBE_BASIC_TARGETS,
     get_service_target_preset,
     list_service_target_presets,
@@ -22,6 +23,7 @@ def test_service_target_registry_has_required_stage2_presets() -> None:
 
     assert preset_ids == (
         SERVICE_TARGET_YOUTUBE_BASIC,
+    SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO,
         SERVICE_TARGET_DISCORD_DESKTOP,
         SERVICE_TARGET_CUSTOM,
     )

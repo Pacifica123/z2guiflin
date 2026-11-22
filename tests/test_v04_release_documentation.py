@@ -10,10 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_product_version_tracks_accepted_v08_after_p04_closure() -> None:
     assert PRODUCT_LABEL == "v1.5"
-    assert __version__ == "1.5.1"
+    assert __version__ == "1.5.2"
 
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "1.5.1"' in pyproject
+    assert 'version = "1.5.2"' in pyproject
     assert 'version = "0.4.0a0"' not in pyproject
 
 

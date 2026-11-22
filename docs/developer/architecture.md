@@ -16,7 +16,11 @@ P06 использует compatibility workspace, чтобы не перепис
 
 Текущий workflow — `--v11`; `--p07`/`--p07-release` сохранены для исторического P07; предыдущий `--p06` сохраняется как профиль своего этапа. P07 freeze включает shipping source и весь test corpus, PC/profile digests и release digest. Per-test JUnit позволяет видеть локальные FAIL/NOT_RUN для каждого probe; real OS/live/app/package/migration/review требуют внешних typed receipts. Recipe и release manifest воспроизводимы; final version/tag не создаются автоматически.
 
-Авторский package workflow: bash meta_tools/build_local_package.sh создаёт archive/PKGBUILD из checkout в dist/arch/1.5.1; makepkg -si запускают в этом output directory. Предварительная внешняя публикация/сертификация архива не требуется.
+Авторский package workflow: bash meta_tools/build_local_package.sh создаёт archive/PKGBUILD из checkout в dist/arch/1.5.2; makepkg -si запускают в этом output directory. Предварительная внешняя публикация/сертификация архива не требуется.
+
+### YouTube Blockcheck presets and zero-observation guard (v1.5.2)
+
+`models/service_targets.py` defines `youtube-basic` as static default and `youtube-googlevideo-auto` as an opt-in variant with a dynamic `googlevideo-node` phase. Their static targets and phase ordering remain the same. The GUI checks `service_target_dynamic_phases()` before starting any discovery/CDP. `adapters/blockcheck_gui.py::diagnose_unscanned_candidate` distinguishes an upstream attempt from a pre-strategy failure. In phase-gated runs, a failed DNS gate/sudo/startup or a zero-evidence exit terminates the tournament without treating it as a failed bypass candidate. Raw evidence remains in the candidate log; GUI only shows predefined safe diagnostic codes. No privileged operation or hostlist mutation is introduced.
 
 ### P1/P2 GoogleVideo discovery (v1.5.0)
 

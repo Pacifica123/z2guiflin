@@ -15,7 +15,7 @@ from zap2_gui.adapters.googlevideo_node import (
     parse_report_mapping,
 )
 from zap2_gui.models.service_targets import (
-    SERVICE_TARGET_YOUTUBE_BASIC,
+    SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO,
     service_target_dynamic_phases,
     with_dynamic_hosts,
 )
@@ -69,7 +69,7 @@ def test_mapping_and_player_hosts_feed_video_phase_in_source_order() -> None:
     assert all(c.dns == "resolved" for c in discovery.candidates)
     assert "PRIVATE" not in discovery.to_text()
 
-    (phase,) = service_target_dynamic_phases(SERVICE_TARGET_YOUTUBE_BASIC)
+    (phase,) = service_target_dynamic_phases(SERVICE_TARGET_YOUTUBE_GOOGLEVIDEO_AUTO)
     original = ["www.youtube.com", "youtube.com", "redirector.googlevideo.com", "i.ytimg.com"]
     expected = ["www.youtube.com", "youtube.com", *discovery.hosts, "redirector.googlevideo.com", "i.ytimg.com"]
     assert with_dynamic_hosts(original, phase, discovery.hosts) == expected
