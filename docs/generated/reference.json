@@ -5387,7 +5387,7 @@
     "--support-bundle FILE": "redacted evidence only",
     "--version": "print product version; no user state"
   },
-  "productVersion": "1.5.2",
+  "productVersion": "1.5.3",
   "provenance": {
     "manifestSha256": "8e31eb82e3c06f5803d60e95eb27f2c80b513b98530443927c33770447a7f8c1",
     "schemas": {

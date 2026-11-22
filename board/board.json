@@ -13,8 +13,8 @@
         "workspaces": 1,
         "boards": 1,
         "columns": 8,
-        "cards": 50,
-        "comments": 68,
+        "cards": 52,
+        "comments": 70,
         "checklists": 3,
         "attachments": 0
       },
@@ -32,8 +32,8 @@
   "origin": {
     "generatedAt": "2026-11-22T11:19:00Z",
     "selfHosted": true,
-    "boardRevision": 22,
-    "lastPatchId": "2026-11-22-youtube-default-auto-blockcheck-guard-v1.5.2",
+    "boardRevision": 23,
+    "lastPatchId": "2026-11-22-blockcheck-dns-gate-ui-overlap-v1.5.3",
     "rules": "board/README.md"
   },
   "includes": {
@@ -617,6 +617,26 @@
         "description": "Реализовано в patch v1.5.2 на срезе 7389453; ждёт проверки на Arch: baseline не делает discovery, auto собирает CDN, DNS-gate / sudo / QProcess-отказ завершают tournament с диагностикой и ссылкой на raw log. Реальный первичный сбой не установлен без сырых candidate логов.",
         "priority": "high",
         "position": 14336,
+        "archivedAt": null
+      },
+      {
+        "id": "70e14428-5b2e-465d-9256-26e3c732c5c6",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd88-717b-84d3-f93a096533",
+        "title": "v1.5.3: target DNS-gate диагностика и Actions UI",
+        "description": "В коде сохранён обязательный DNS-gate; добавлены mdig --verbose, диагностическое сравнение с getent и отдельные безопасные коды. Устранено наложение сетевого вердикта и CDP в Actions. Хост: повторить YouTube Blockcheck, проверить реальные DNS/NSS/IPv4 симптомы и наличие/отсутствие overlap.",
+        "priority": "high",
+        "position": 15744,
+        "archivedAt": null
+      },
+      {
+        "id": "9e1db871-545c-46ce-8ff1-f287dd2d16f0",
+        "boardId": "01a13ca4-dd82-7373-8d2e-e6f4bea973",
+        "columnId": "01a13ca4-dd85-7105-8936-0e9f767c45",
+        "title": "Глобальный интерактивный zoom GUI (Ctrl+/-/0)",
+        "description": "После проверки v1.5.3: 1) аудит фиксированных размеров и QSS, responsive layout; 2) единые масштабируемые UI-токены для font/spacing/icons/geometry, диапазон 80..150%, сохранение QSettings и Ctrl+/Ctrl-/Ctrl+0 без перезапуска; 3) Qt offscreen и реальный Arch visual acceptance на нескольких DPI/разрешениях. Нельзя заменить изменением только шрифта или QT_SCALE_FACTOR.",
+        "priority": "medium",
+        "position": 16384,
         "archivedAt": null
       }
     ],
@@ -1583,6 +1603,18 @@
         "cardId": "16feaf80-a93b-7018-867a-826945768475",
         "body": "patch 2026-11-21-hotfix-release-allowlist-cli-version-v1.5.1: patch-релиз 1.5.1 во всех актуальных привязках; историческая 1.5.0 осталась как история.",
         "createdAt": "2026-11-21T17:35:00Z"
+      },
+      {
+        "id": "526b03a3-6cdc-4423-ae22-0ea901888882",
+        "cardId": "70e14428-5b2e-465d-9256-26e3c732c5c6",
+        "body": "patch 2026-11-22-blockcheck-dns-gate-ui-overlap-v1.5.3: реализация 1.5.3 готова; нужен запуск на реальной системе",
+        "createdAt": "2026-11-22T12:30:00Z"
+      },
+      {
+        "id": "1e3dcc16-e97f-47b9-a6b6-279961cfa01f",
+        "cardId": "9e1db871-545c-46ce-8ff1-f287dd2d16f0",
+        "body": "patch 2026-11-22-blockcheck-dns-gate-ui-overlap-v1.5.3: zoom вынесен в отдельную работу ввиду множества фиксированных пиксельных размеров и QSS.",
+        "createdAt": "2026-11-22T12:30:00Z"
       }
     ],
     "boardAppearanceSettings": [],

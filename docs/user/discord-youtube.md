@@ -40,6 +40,8 @@
 - **YouTube default** (`youtube-basic`, выбран по умолчанию) — цели `www.youtube.com`, `youtube.com`, `redirector.googlevideo.com`, `i.ytimg.com`; обычный статический режим без запросов к тестовому ролику, report_mapping и CDP. Сохраняет старую последовательность фаз.
 - **YouTube — автоподбор GoogleVideo** (`youtube-googlevideo-auto`) — та же статическая основа плюс необязательное одноразовое CDP-наблюдение и поиск P1 до запуска Blockcheck. При отказе источников возвращается к статическим альтернативам с предупреждением; это **не** подтверждает доступность реального видео.
 
+Начиная с 1.5.3 preflight также различает `mdig-missing`, `mdig-nss-mismatch` и `dns-resolver-unavailable` по результатам mdig и проверке NSS в том же контексте. Подробности `mdig --verbose` остаются в raw candidate log; резервный DNS здесь не подменяет upstream.
+
 Обе проверки используют upstream `blockcheck2.sh` и одинаковую политику фаз; они не гарантируют обход блокировок. Если до первой стратегии остановился DNS-preflight или sudo, GUI покажет `dns-preflight-failed`, `sudo-start-failed` или `upstream-start-failed`, оставит сырой файл в `Last log`, но **не будет** считать `checks=0` поражением стратегии или продолжать tournament. Исправление настроек DNS/прав проверяется отдельно.
 
 

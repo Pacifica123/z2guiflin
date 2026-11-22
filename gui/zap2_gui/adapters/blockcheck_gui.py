@@ -1171,6 +1171,21 @@ def diagnose_unscanned_candidate(
     stats = stats if stats is not None else parse_blockcheck_run_stats(stdout, stderr)
     if stats.strategy_attempts or stats.port_precheck_dead:
         return None
+    if "[zap2] DNS gate detail: mdig-missing" in stderr:
+        return BlockcheckUnscannedDiagnostic(
+            "mdig-missing", "исполняемый mdig отсутствует или недоступен; "
+            "собери mdig в активном workspace, затем повтори проверку."
+        )
+    if "[zap2] DNS gate detail: mdig-nss-mismatch" in stderr:
+        return BlockcheckUnscannedDiagnostic(
+            "mdig-nss-mismatch", "getent получает IP выбранного семейства, mdig — нет. "
+            "Это расхождение инструментов/resolver; подробности mdig --verbose в raw candidate log."
+        )
+    if "[zap2] DNS gate detail: resolver-unavailable" in stderr:
+        return BlockcheckUnscannedDiagnostic(
+            "dns-resolver-unavailable", "ни mdig, ни системный getent не подтвердили IP "
+            "выбранного семейства. Проверь IPVS, DNS/NSS и сообщения mdig --verbose в raw candidate log."
+        )
     for line in stderr.splitlines():
         if line.startswith("[zap2] target DNS preflight FAILED:"):
             return BlockcheckUnscannedDiagnostic(

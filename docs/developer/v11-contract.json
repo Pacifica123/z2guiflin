@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "patch": "v1.1",
-  "candidateVersion": "1.5.2",
-  "targetVersion": "1.5.2",
+  "candidateVersion": "1.5.3",
+  "targetVersion": "1.5.3",
   "baseSnapshot": "a0bd474",
   "evidenceMaxAgeDays": 30,
   "partitions": [

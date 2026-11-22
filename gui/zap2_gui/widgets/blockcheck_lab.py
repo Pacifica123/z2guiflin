@@ -1661,7 +1661,8 @@ def make_blockcheck_lab_page(root: Path | None = None) -> Any:
     net_verdict_button = make_net_verdict_button(
         QtCore, QtWidgets, output, status, root=root, is_busy=lambda: state.get("process") is not None
     )
-    actions_layout.addWidget(net_verdict_button, 10, 0, 1, 2)
+    # CDP buttons occupy rows 10-11. Do not overlap another widget in row 10.
+    actions_layout.addWidget(net_verdict_button, 12, 0, 1, 2)
     voice_profiles_button.clicked.connect(lambda _checked=False: run_action("Discord Voice profiles", lambda: discord_voice_profiles_to_text(root=root)))
     refresh_har_groups()
 
